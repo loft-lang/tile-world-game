@@ -1,0 +1,630 @@
+// The rules of the game: what the hero and the things on the board do.  The world itself —
+// layers, terrain, stacks, paths, sight and light — is the tile_world library's; the KINDS are
+// data (kinds.json), and every rule here reads a kind's properties, never its name:
+//
+//   terrain: walk (can be stood on), opaque (stops sight and light), rail (carts run on it),
+//            mount (a mountable thing can be fixed to it: a wall).
+//   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
+//            (a lifting thing can rest on it), move ("none", "push", "push_pull"), rails (moves
+//            only along rail terrain), train (a line of them moves as one), lift (pulled up or
+//            down onto a surface), walk_on ("boost" or "take": walked over rather than into),
+//            mount (can be fixed to mount terrain), light (gives light, carried or set down).
+//
+// Height counts in steps; a layer is `layer_height` steps.  The hero steps up at most 1 and
+// down any amount; standing `layer_height` high it climbs onto the layer above, and walking
+// into the void over such a stack from above climbs down onto it.  Walking into a thing pushes
+// it one cell when it can go there, and climbs onto it when it cannot and can be stood on.  A
+// train is pushed up to `push_strength` long and pulled up to `pull_strength`; a walk_on
+// "boost" thing adds `boost` to both for `boost_ms` of the level's clock.
+use tile_world;
+
+/// Void: a cell nobody set.
+pub const VOID = 0;
+
+struct TerrainProps {
+  const id: integer,
+  name: text,
+  walk: boolean,
+  opaque: boolean,
+  rail: boolean,
+  mount: boolean,
+  glyph: text
+}
+
+struct ThingProps {
+  const id: integer,
+  name: text,
+  height: integer,
+  stand: boolean,
+  surface: boolean,
+  move: text,
+  rails: boolean,
+  train: boolean,
+  lift: boolean,
+  walk_on: text,
+  mount: boolean,
+  light: boolean,
+  glyph: text
+}
+
+/// The game's kinds, as kinds.json declares them, and the numbers its rules use.
+pub struct Kinds {
+  terrain: hash<TerrainProps[id]>,
+  things: hash<ThingProps[id]>,
+  pub push_strength: integer,
+  pub pull_strength: integer,
+  pub boost: integer,
+  pub boost_ms: integer,
+  pub layer_height: integer
+}
+
+fn num(v: const JsonValue, name: text, default: integer) -> integer {
+  f = v.field(name);
+  if f.kind() == "JInteger" || f.kind() == "JNumber" { (f.as_number() as integer) ?? default } else { default }
+}
+
+fn flag(v: const JsonValue, name: text) -> boolean {
+  v.field(name).as_bool() ?? false
+}
+
+fn word(v: const JsonValue, name: text, default: text) -> text {
+  f = v.field(name);
+  if f.kind() == "JString" { f.as_text() } else { default }
+}
+
+/// The kinds a JSON text declares (kinds.json's shape); null when it does not parse.
+pub fn kinds_from_json(raw: text) -> Kinds? {
+  v = json_parse(raw);
+  if v.kind() != "JObject" { return null; }
+  r = v.field("rules");
+  k = Kinds {
+    terrain: [], things: [],
+    push_strength: num(r, "push_strength", 3),
+    pull_strength: num(r, "pull_strength", 2),
+    boost: num(r, "boost", 2),
+    boost_ms: num(r, "boost_ms", 60000),
+    layer_height: num(r, "layer_height", 3)
+  };
+  t = v.field("terrain");
+  for name in t.keys() {
+    e = t.field(name);
+    k.terrain += [TerrainProps {
+      id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
+      rail: flag(e, "rail"), mount: flag(e, "mount"), glyph: word(e, "glyph", "?")
+    }];
+  }
+  th = v.field("things");
+  for name in th.keys() {
+    e = th.field(name);
+    k.things += [ThingProps {
+      id: num(e, "id", 0), name: name, height: num(e, "height", 1), stand: flag(e, "stand"),
+      surface: flag(e, "surface"), move: word(e, "move", "none"), rails: flag(e, "rails"),
+      train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
+      mount: flag(e, "mount"), light: flag(e, "light"), glyph: word(e, "glyph", "?")
+    }];
+  }
+  k
+}
+
+/// The kinds in kinds.json — beside the program, or one directory up (where tests run).
+pub fn kinds() -> Kinds {
+  for path in ["kinds.json", "../kinds.json"] {
+    raw = file(path).content() ?? "";
+    if raw != "" {
+      k = kinds_from_json(raw);
+      if k { return k ?? Kinds { terrain: [], things: [], push_strength: 3, pull_strength: 2,
+                                 boost: 2, boost_ms: 60000, layer_height: 3 }; }
+    }
+  }
+  Kinds { terrain: [], things: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
+          layer_height: 3 }
+}
+
+/// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
+pub fn terrain_id(k: const Kinds, name: text) -> integer {
+  for t in k.terrain {
+    if t.name == name { return t.id; }
+  }
+  0
+}
+
+/// A thing's number by its name in kinds.json; 0 for a name it does not declare.
+pub fn thing_id(k: const Kinds, name: text) -> integer {
+  for t in k.things {
+    if t.name == name { return t.id; }
+  }
+  0
+}
+
+/// A thing's name, "" for 0 or an undeclared number.
+pub fn thing_name(k: const Kinds, thing: integer) -> text {
+  p = k.things[thing];
+  if !p { return ""; }
+  p.name
+}
+
+/// The terrain kinds kinds.json declares, by number, lowest first.
+pub fn terrain_ids(k: const Kinds) -> vector<integer> {
+  out: vector<integer> = [];
+  for t in k.terrain {
+    at = 0;
+    while at < len(out) && (out[at] ?? 0) < t.id { at += 1; }
+    out.insert(at, t.id);
+  }
+  out
+}
+
+/// A terrain kind's glyph (its character in a level file), "" for void or an undeclared number.
+pub fn terrain_glyph(k: const Kinds, kind: integer) -> text {
+  p = k.terrain[kind];
+  if !p { return ""; }
+  p.glyph
+}
+
+/// A terrain kind's name, "" for void or an undeclared number.
+pub fn terrain_name(k: const Kinds, kind: integer) -> text {
+  p = k.terrain[kind];
+  if !p { return ""; }
+  p.name
+}
+
+/// A level being played: the world, its kinds and the hero on it.
+pub struct Level {
+  pub w: tile_world::World,
+  pub k: Kinds,
+  pub hero_x: integer,
+  pub hero_y: integer,
+  pub hero_z: integer,
+  pub hero_h: integer,
+  /// The level's clock in milliseconds (`tick`), and until when a boost lasts.
+  pub now: integer,
+  pub boost_until: integer,
+  /// What the hero holds: 0 for nothing, or a thing it took.
+  pub hero_item: integer
+}
+
+/// What a step did.
+pub enum Step {
+  Blocked,
+  Walked,
+  Pushed,
+  Pulled,
+  Climbed,
+  /// The hero took a mounted thing off a wall, or fixed the one it held to a wall.
+  Took,
+  Placed
+}
+
+/// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
+/// what gives light, how high each thing stands.
+pub fn level(k: const Kinds) -> Level {
+  w = tile_world::world();
+  for t in k.terrain {
+    tile_world::terrain_kind(w, t.id, t.walk, t.opaque, false, t.glyph);
+  }
+  for t in k.things {
+    blocks = t.walk_on == "";
+    tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light, t.glyph);
+  }
+  Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0 }
+}
+
+/// Terrain kind and thing numbers by name, for building a level.
+pub fn tr(l: const Level, name: text) -> integer {
+  terrain_id(l.k, name)
+}
+
+pub fn th(l: const Level, name: text) -> integer {
+  thing_id(l.k, name)
+}
+
+// --- Properties ---
+
+/// Can a cell of terrain kind `kind` be stood on or moved over.
+pub fn walkable(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.walk
+}
+
+fn rail(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.rail
+}
+
+fn mount_terrain(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.mount
+}
+
+/// How many height steps a thing adds to its stack.
+pub fn thing_height(l: const Level, thing: integer) -> integer {
+  if thing == 0 { return 0; }
+  p = l.k.things[thing];
+  if !p { return 1; }
+  p.height
+}
+
+/// Is this a thing the hero walks onto rather than into.
+pub fn item(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.walk_on != ""
+}
+
+/// Can the hero stand on this thing.
+pub fn standable(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.stand
+}
+
+/// Can a push move this thing.
+pub fn movable(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.move == "push" || p.move == "push_pull"
+}
+
+fn pullable(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.move == "push_pull"
+}
+
+fn surface_kind(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.surface
+}
+
+fn trainlike(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.train
+}
+
+fn on_rails(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.rails
+}
+
+fn lifts(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.lift
+}
+
+fn mounts(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.mount
+}
+
+fn walk_on(l: const Level, thing: integer) -> text {
+  p = l.k.things[thing];
+  if !p { return ""; }
+  p.walk_on
+}
+
+fn gives_light(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.light
+}
+
+// --- The hero ---
+
+/// Put the hero on (x, y, z), standing on the stack there.
+pub fn put_hero(l: Level, x: integer, y: integer, z: integer) {
+  l.hero_x = x;
+  l.hero_y = y;
+  l.hero_z = z;
+  l.hero_h = tile_world::height(l.w, x, y, z);
+}
+
+/// The light the hero carries, for `tile_world::shades`: its cell when it holds a light.
+pub fn carried_lights(l: const Level) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  if l.hero_item != 0 && gives_light(l, l.hero_item) { out += [(l.hero_x, l.hero_y)]; }
+  out
+}
+
+/// The level as text, the hero `@`.
+pub fn view(l: const Level, x0: integer, y0: integer, x1: integer, y1: integer, z: integer) -> text {
+  marks: vector<(integer, integer, text)> = [];
+  if l.hero_z == z { marks += [(l.hero_x, l.hero_y, "@")]; }
+  tile_world::view(l.w, x0, y0, x1, y1, z, marks)
+}
+
+// Can `thing`, sitting with its base at height `base`, go onto cell (x, y, z)?  The cell's
+// surface must be that same height: a push or a pull moves a thing level, never up.  A rail
+// thing goes only onto rail terrain's floor; a lifting thing also onto a surface's top.
+fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base: integer) -> boolean {
+  k = tile_world::terrain(l.w, x, y, z);
+  if !walkable(l, k) { return false; }
+  surface = tile_world::height(l.w, x, y, z);
+  if surface != base { return false; }
+  if on_rails(l, thing) { return rail(l, k) && surface == 0; }
+  if surface == 0 { return true; }
+  lifts(l, thing) && surface_kind(l, tile_world::top(l.w, x, y, z))
+}
+
+// Move the hero to (x, y, z), standing on the stack there.  A walk_on thing on that floor acts:
+// "boost" is used up, "take" is picked up (and what the hero held is put down in its place).
+fn arrive(l: Level, x: integer, y: integer, z: integer) {
+  l.hero_x = x;
+  l.hero_y = y;
+  l.hero_z = z;
+  l.hero_h = tile_world::height(l.w, x, y, z);
+  if l.hero_h != 0 { return; }
+  t = tile_world::top(l.w, x, y, z);
+  effect = walk_on(l, t);
+  if effect == "boost" {
+    _ = tile_world::take(l.w, x, y, z);
+    l.boost_until = l.now + l.k.boost_ms;
+  } else if effect == "take" {
+    _ = tile_world::take(l.w, x, y, z);
+    if l.hero_item != 0 { tile_world::place(l.w, x, y, z, l.hero_item); }
+    l.hero_item = t;
+  }
+}
+
+// --- Strength and time ---
+
+/// Advance the level's clock by `ms` milliseconds.
+pub fn tick(l: Level, ms: integer) {
+  if ms > 0 { l.now += ms; }
+}
+
+/// Is a boost still on?
+pub fn boosted(l: const Level) -> boolean {
+  l.now < l.boost_until
+}
+
+/// How long a train the hero pushes now, and pulls.
+pub fn push_strength(l: const Level) -> integer {
+  l.k.push_strength + (if boosted(l) { l.k.boost } else { 0 })
+}
+
+pub fn pull_strength(l: const Level) -> integer {
+  l.k.pull_strength + (if boosted(l) { l.k.boost } else { 0 })
+}
+
+/// How many train things stand in a row from (x, y) on, a step (dx, dy) apart, each alone on
+/// its floor: the train a push or a pull there moves.
+pub fn train(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
+  n = 0;
+  while car(l, x + n * dx, y + n * dy, z) { n += 1; }
+  n
+}
+
+// Is (x, y, z) one car of a train: a train thing alone on its floor.
+fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  t = tile_world::top(l.w, x, y, z);
+  trainlike(l, t) && tile_world::height(l.w, x, y, z) == thing_height(l, t)
+}
+
+// The climb between layers, or null when this step is not one.
+fn climb(l: Level, dx: integer, dy: integer) -> Step? {
+  tx = l.hero_x + dx;
+  ty = l.hero_y + dy;
+  z = l.hero_z;
+  up = l.k.layer_height;
+  // Up: from a stack a layer high onto the floor of the layer above, beside it.
+  if l.hero_h >= up && walkable(l, tile_world::terrain(l.w, tx, ty, z + 1))
+      && tile_world::top(l.w, tx, ty, z + 1) == 0 {
+    arrive(l, tx, ty, z + 1);
+    return Step.Climbed;
+  }
+  // Down: into the void over a stack a layer high on the layer below.
+  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1))
+      && tile_world::height(l.w, tx, ty, z - 1) == up
+      && standable(l, tile_world::top(l.w, tx, ty, z - 1)) {
+    arrive(l, tx, ty, z - 1);
+    return Step.Climbed;
+  }
+  null
+}
+
+/// Move the hero one cell (dx, dy one of the four directions): walk, push, climb onto a thing,
+/// or climb a layer.  The hero stays where it is when the step is Blocked.
+pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
+  c = climb(l, dx, dy);
+  if c != null { return c ?? Step.Blocked; }
+  tx = l.hero_x + dx;
+  ty = l.hero_y + dy;
+  z = l.hero_z;
+  // Mount terrain (a wall): take the mounted thing with an empty hand, or fix a mountable thing
+  // the hero holds to a bare one.
+  if mount_terrain(l, tile_world::terrain(l.w, tx, ty, z)) {
+    on = tile_world::top(l.w, tx, ty, z);
+    if on != 0 && mounts(l, on) && l.hero_item == 0 {
+      l.hero_item = tile_world::take(l.w, tx, ty, z);
+      return Step.Took;
+    }
+    if on == 0 && l.hero_item != 0 && mounts(l, l.hero_item) {
+      tile_world::place(l.w, tx, ty, z, l.hero_item);
+      l.hero_item = 0;
+      return Step.Placed;
+    }
+  }
+  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
+  thing = tile_world::top(l.w, tx, ty, z);
+  if thing == 0 || item(l, thing) {
+    arrive(l, tx, ty, z);
+    return Step.Walked;
+  }
+  surface = tile_world::height(l.w, tx, ty, z);
+  base = surface - thing_height(l, thing);
+  // A train moves as one, when the hero is strong enough and the cell after it takes it.
+  if trainlike(l, thing) && l.hero_h == 0 {
+    n = train(l, tx, ty, z, dx, dy);
+    if n > push_strength(l) || !fits(l, thing, tx + n * dx, ty + n * dy, z, 0) {
+      return Step.Blocked;
+    }
+    k = n - 1;
+    while k >= 0 {
+      t = tile_world::take(l.w, tx + k * dx, ty + k * dy, z);
+      tile_world::place(l.w, tx + (k + 1) * dx, ty + (k + 1) * dy, z, t);
+      k -= 1;
+    }
+    arrive(l, tx, ty, z);
+    return Step.Pushed;
+  }
+  // Any other movable thing at the hero's own level is pushed, when it can go one cell on.
+  if movable(l, thing) && base == l.hero_h && fits(l, thing, tx + dx, ty + dy, z, base) {
+    t = tile_world::take(l.w, tx, ty, z);
+    tile_world::place(l.w, tx + dx, ty + dy, z, t);
+    arrive(l, tx, ty, z);
+    return Step.Pushed;
+  }
+  // Otherwise a thing that can be stood on, no more than one step up, is climbed onto.
+  if standable(l, thing) && surface <= l.hero_h + 1 {
+    arrive(l, tx, ty, z);
+    return Step.Walked;
+  }
+  Step.Blocked
+}
+
+/// Walk one cell and drag the thing behind the hero into the cell it left: a train along the
+/// rails, a "push_pull" thing anywhere it fits there — a lifting one up onto a surface the hero
+/// stands on, too.  A "push" thing stays.  Pulled when something came along, Walked when
+/// nothing did, Blocked when the hero cannot take the step (a plain one, onto a cell no higher
+/// than the hero stands).
+pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
+  fx = l.hero_x;
+  fy = l.hero_y;
+  z = l.hero_z;
+  tx = fx + dx;
+  ty = fy + dy;
+  bx = fx - dx;
+  by = fy - dy;
+  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
+  target = tile_world::top(l.w, tx, ty, z);
+  if (target != 0 && !item(l, target) && !standable(l, target))
+      || tile_world::height(l.w, tx, ty, z) > l.hero_h {
+    return Step.Blocked;
+  }
+  thing = tile_world::top(l.w, bx, by, z);
+  // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
+  left = tile_world::height(l.w, fx, fy, z);
+  base = tile_world::height(l.w, bx, by, z) - thing_height(l, thing);
+  if trainlike(l, thing) {
+    // The whole train behind follows, one cell each, when the hero can pull it.
+    n = train(l, bx, by, z, -dx, -dy);
+    can = left == 0 && rail(l, tile_world::terrain(l.w, fx, fy, z)) && tile_world::top(l.w, fx, fy, z) == 0;
+    strong = n <= pull_strength(l);
+    arrive(l, tx, ty, z);
+    if !can || !strong { return Step.Walked; }
+    for k in 1..=n {
+      t = tile_world::take(l.w, fx - k * dx, fy - k * dy, z);
+      tile_world::place(l.w, fx - (k - 1) * dx, fy - (k - 1) * dy, z, t);
+    }
+    return Step.Pulled;
+  }
+  ok = false;
+  if thing != 0 && pullable(l, thing) {
+    // Level, or — for a lifting thing — up or down at most two steps, onto the floor or a
+    // surface's top.
+    lift = left - base;
+    reach = if lifts(l, thing) { 2 } else { 0 };
+    ok = lift >= -reach && lift <= reach
+         && (left == 0 || surface_kind(l, tile_world::top(l.w, fx, fy, z)));
+  }
+  arrive(l, tx, ty, z);
+  if !ok { return Step.Walked; }
+  t = tile_world::take(l.w, bx, by, z);
+  tile_world::place(l.w, fx, fy, z, t);
+  Step.Pulled
+}
+
+// --- Playing ---
+
+/// Play a line of moves: `w` `a` `s` `d` walk north, west, south and east; `pw` `pa` `ps` `pd`
+/// pull.  Moves are separated by spaces; anything else is skipped.  Answers how many moves were
+/// not Blocked.
+pub fn play(l: Level, moves: text) -> integer {
+  done = 0;
+  for m in moves.split(' ') {
+    t = m.trim();
+    pulling = t.starts_with("p");
+    d = if pulling { t[1..] } else { t };
+    dx = if d == "a" { -1 } else if d == "d" { 1 } else { 0 };
+    dy = if d == "w" { -1 } else if d == "s" { 1 } else { 0 };
+    if dx == 0 && dy == 0 { continue; }
+    step = if pulling { pull(l, dx, dy) } else { walk(l, dx, dy) };
+    if step != Step.Blocked { done += 1; }
+  }
+  done
+}
+
+// --- The levels ---
+
+/// "The first climb", a small traversal puzzle:
+///
+///      x 0123456789012
+///   y0   #############        @ hero, h chair, T table, c cart on the rail bridge,
+///   y1   #@....~.....#        o rock on the rails, ~ river, = rails.
+///   y2   #.....~..TT.#        Layer 1 has a ledge north of the tables, (8..11, 1).
+///   y3   #.....~.....#
+///   y4   #..===c=o==.#
+///   y5   #.....~.....#
+///   y6   #.h...~.....#
+///   y7   #.....~.....#
+///   y8   #############
+///
+/// Solved when the hero stands on layer 1 (`reached_ledge`).
+pub fn first_climb(k: const Kinds) -> Level {
+  l = level(k);
+  tile_world::fill(l.w, 0, 0, 12, 8, 0, tr(l, "wall"));
+  tile_world::fill(l.w, 1, 1, 11, 7, 0, tr(l, "floor"));
+  tile_world::fill(l.w, 6, 1, 6, 7, 0, tr(l, "water"));
+  tile_world::fill(l.w, 3, 4, 10, 4, 0, tr(l, "rail"));
+  tile_world::place(l.w, 6, 4, 0, th(l, "cart"));
+  tile_world::place(l.w, 8, 4, 0, th(l, "rock"));
+  tile_world::place(l.w, 2, 6, 0, th(l, "chair"));
+  tile_world::place(l.w, 9, 2, 0, th(l, "table"));
+  tile_world::place(l.w, 10, 2, 0, th(l, "table"));
+  tile_world::fill(l.w, 8, 0, 11, 0, 1, tr(l, "wall"));
+  tile_world::fill(l.w, 8, 1, 11, 1, 1, tr(l, "floor"));
+  put_hero(l, 1, 1, 0);
+  l
+}
+
+/// Is the hero up on the first climb's ledge?
+pub fn reached_ledge(l: const Level) -> boolean {
+  l.hero_z == 1
+}
+
+/// "The cellar", a dark level: a corridor under a ceiling, its torch at the west end, a rock in
+/// the way, and the daylight of an open yard at the east end.
+///
+///      x 0123456789012
+///   y0   #############        @ hero, ! the staff fixed to the wall (a torch),
+///   y1   !@...#.......        o rock.  Everything but the yard (x 12, open sky) has a
+///   y2   #....o.......        ceiling: layer 1 is floor over it.
+///   y3   #############
+///
+/// Solved when the hero stands in the yard (`in_daylight`).
+pub fn the_cellar(k: const Kinds) -> Level {
+  l = level(k);
+  tile_world::fill(l.w, 0, 0, 12, 3, 0, tr(l, "wall"));
+  tile_world::fill(l.w, 1, 1, 11, 2, 0, tr(l, "floor"));
+  tile_world::set_terrain(l.w, 5, 1, 0, tr(l, "wall"));
+  tile_world::fill(l.w, 12, 1, 12, 2, 0, tr(l, "floor"));
+  tile_world::fill(l.w, 0, 0, 11, 3, 1, tr(l, "floor"));
+  tile_world::place(l.w, 0, 1, 0, th(l, "staff"));
+  tile_world::place(l.w, 5, 2, 0, th(l, "rock"));
+  put_hero(l, 1, 1, 0);
+  l
+}
+
+/// Is the hero out in the open, under the sky?
+pub fn in_daylight(l: const Level) -> boolean {
+  tile_world::open_sky(l.w, l.hero_x, l.hero_y, l.hero_z)
+    && tile_world::terrain(l.w, l.hero_x, l.hero_y, l.hero_z) != VOID
+}

@@ -1,0 +1,25 @@
+{
+  "rules": {
+    "push_strength": 3,
+    "pull_strength": 2,
+    "boost": 2,
+    "boost_ms": 60000,
+    "layer_height": 3
+  },
+  "terrain": {
+    "floor": { "id": 1, "walk": true, "glyph": "." },
+    "wall":  { "id": 2, "opaque": true, "mount": true, "glyph": "#" },
+    "water": { "id": 3, "glyph": "~" },
+    "rail":  { "id": 4, "walk": true, "rail": true, "glyph": "=" }
+  },
+  "things": {
+    "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "glyph": "c" },
+    "chair":  { "id": 2, "height": 1, "move": "push_pull", "stand": true, "lift": true, "glyph": "h" },
+    "table":  { "id": 3, "height": 2, "stand": true, "surface": true, "glyph": "T" },
+    "rock":   { "id": 4, "height": 1, "move": "push", "glyph": "o" },
+    "anvil":  { "id": 5, "height": 1, "move": "push", "glyph": "a" },
+    "potion": { "id": 6, "height": 0, "walk_on": "boost", "glyph": "g" },
+    "staff":  { "id": 7, "height": 0, "walk_on": "take", "mount": true, "light": true, "glyph": "i" },
+    "chest":  { "id": 8, "height": 2, "stand": true, "move": "push", "glyph": "C" }
+  }
+}

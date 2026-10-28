@@ -1,0 +1,328 @@
+// The first climb, as a game: the rules (tile_world), the picture (tiles, Kenney's Tiny packs),
+// the sounds (audio, Kenney's sound packs) and the controls (input).  Nothing here knows the
+// machine: main.loft hands the picture to `screen` and the keys to `input`.
+use tile_world;
+use rules;
+use tiles;
+use audio;
+use input;
+use imaging;
+use theme;
+
+/// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.
+pub const COLS = 13;
+pub const ROWS = 10;
+pub const W = 208;
+pub const H = 160;
+
+/// Milliseconds a held direction waits before it repeats, and between repeats.
+const REPEAT_FIRST = 220;
+const REPEAT_NEXT = 140;
+
+pub struct Game {
+  pub world: rules::Level,
+  pub surface: integer,
+  pub kinds: rules::Kinds,
+  pub look: theme::Theme,
+  sounds: hash<Sound[sd_name]>,
+  pub keys: input::InputState,
+  pub level: integer,
+  pub moves: integer,
+  pub won: boolean,
+  held_since: integer,
+  next_repeat: integer,
+  was_boosted: boolean
+}
+
+struct Sound {
+  const sd_name: text,
+  sd_clips: vector<integer>,
+  sd_next: integer
+}
+
+/// The sound events and how many variants each has in assets/sounds (`<event>_<n>.ogg`).
+fn sound_events() -> vector<text> {
+  ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
+   "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
+   "pickup:1", "drop:1"]
+}
+
+fn bindings() -> input::Bindings {
+  input::Bindings {
+    bnd_actions: [
+      input::ActionBinding { ab_name: "up", ab_keys: [119, 128] },
+      input::ActionBinding { ab_name: "down", ab_keys: [115, 129] },
+      input::ActionBinding { ab_name: "left", ab_keys: [97, 130] },
+      input::ActionBinding { ab_name: "right", ab_keys: [100, 131] },
+      input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
+      input::ActionBinding { ab_name: "restart", ab_keys: [114] },
+      input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
+      input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] }
+    ],
+    bnd_axes: []
+  }
+}
+
+/// A new game: its kinds from kinds.json, its look from theme.json (sheets relative to the
+/// game's directory), its sounds from `assets`.  Null when the theme or a sheet will not load.
+pub fn new_game(assets: text) -> Game? {
+  s = tiles::surface(W, H);
+  k = rules::kinds();
+  th = theme::load(file("theme.json").content() ?? "", ".", k);
+  if !s || !th { return null; }
+  g = Game {
+    world: rules::first_climb(k),
+    surface: s ?? 0, kinds: k, look: th ?? return null,
+    sounds: [],
+    keys: input::input_new(bindings()),
+    level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false
+  };
+  for e in sound_events() {
+    parts = e.split(':');
+    name = parts[0];
+    n = parts[1] as integer ?? 1;
+    clips: vector<integer> = [];
+    for i in 0..n {
+      c = audio::load("{assets}/sounds/{name}_{i}.ogg");
+      if c { clips += [c ?? 0]; }
+    }
+    g.sounds += [Sound { sd_name: name, sd_clips: clips, sd_next: 0 }];
+  }
+  g
+}
+
+/// Play one variant of a sound event, taking the variants in turn.
+pub fn sound(g: Game, name: text, volume: float = 0.8) {
+  sd = g.sounds[name];
+  if !sd { return; }
+  n = len(sd.sd_clips);
+  if n == 0 { return; }
+  i = sd.sd_next % n ?? 0;
+  _ = audio::play(sd.sd_clips[i] ?? 0, volume);
+  sd.sd_next = i + 1;
+}
+
+/// The levels, in order: the first climb, then the cellar.
+pub const LEVELS = 2;
+
+fn level_world(k: const rules::Kinds, level: integer) -> rules::Level {
+  if level == 1 { rules::the_cellar(k) } else { rules::first_climb(k) }
+}
+
+fn solved(g: const Game) -> boolean {
+  if g.level == 1 { rules::in_daylight(g.world) } else { rules::reached_ledge(g.world) }
+}
+
+/// Start the level again.
+pub fn restart(g: Game) {
+  g.world = level_world(g.kinds, g.level);
+  g.moves = 0;
+  g.won = false;
+  g.was_boosted = false;
+  sound(g, "begin");
+}
+
+// The sound a move makes, from what stood where the hero went before it moved.
+fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
+  w = g.world;
+  if step == rules::Step.Blocked {
+    sound(g, "bump", 0.5);
+  } else if step == rules::Step.Took {
+    sound(g, "pickup");
+  } else if step == rules::Step.Placed {
+    sound(g, "drop");
+  } else if step == rules::Step.Climbed {
+    sound(g, if w.hero_z > z_before { "climb_up" } else { "climb_down" });
+  } else if step == rules::Step.Pushed || step == rules::Step.Pulled {
+    snd = theme::thing_sound(g.look, thing);
+    sound(g, if snd == "" { "wood" } else { snd });
+  } else {
+    sound(g, if w.hero_h > 0 { "step_wood" } else { "step" }, 0.6);
+  }
+}
+
+/// One move: walk (or pull, with `pull`) one cell.  Plays its sound and counts it.
+pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
+  if g.won { return; }
+  w = g.world;
+  z = w.hero_z;
+  // What the move will act on: the thing ahead for a push, the thing behind for a pull.
+  thing = if pull {
+    tile_world::top(w.w, w.hero_x - dx, w.hero_y - dy, z)
+  } else {
+    tile_world::top(w.w, w.hero_x + dx, w.hero_y + dy, z)
+  };
+  step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
+  if step != rules::Step.Blocked { g.moves += 1; }
+  move_sound(g, step, thing, z);
+  if !g.was_boosted && rules::boosted(w) {
+    sound(g, "potion");
+    sound(g, "strong");
+  }
+  if solved(g) {
+    g.won = true;
+    sound(g, "win", 1.0);
+  }
+}
+
+/// Advance the world's clock by `ms` and read the keys of this tick (already fed into
+/// `g.keys`); `now` is the time in milliseconds.  Answers whether the picture changed, and
+/// false for "quit" through `g.won`... see `quit`.
+pub fn update(g: Game, ms: integer, now: integer) -> boolean {
+  changed = false;
+  rules::tick(g.world, ms);
+  boosted = rules::boosted(g.world);
+  if g.was_boosted && !boosted { sound(g, "weak"); changed = true; }
+  if g.was_boosted != boosted { changed = true; }
+  g.was_boosted = boosted;
+  if g.keys.is_action_just_pressed("restart") {
+    restart(g);
+    return true;
+  }
+  if g.won && g.keys.is_action_just_pressed("next") {
+    g.level = (g.level + 1) % LEVELS ?? 0;
+    restart(g);
+    return true;
+  }
+  dx = 0;
+  dy = 0;
+  if g.keys.is_action_pressed("left") { dx = -1; }
+  if g.keys.is_action_pressed("right") { dx = 1; }
+  if g.keys.is_action_pressed("up") { dy = -1; }
+  if g.keys.is_action_pressed("down") { dy = 1; }
+  if dx != 0 && dy != 0 { dy = 0; }
+  if dx == 0 && dy == 0 {
+    g.held_since = 0;
+    return changed;
+  }
+  first = g.keys.is_action_just_pressed("left") || g.keys.is_action_just_pressed("right")
+          || g.keys.is_action_just_pressed("up") || g.keys.is_action_just_pressed("down");
+  if first {
+    g.held_since = now;
+    g.next_repeat = now + REPEAT_FIRST;
+  } else if now < g.next_repeat {
+    return changed;
+  } else {
+    g.next_repeat = now + REPEAT_NEXT;
+  }
+  move(g, dx, dy, g.keys.is_action_pressed("pull"));
+  true
+}
+
+/// Has the player asked to stop?
+pub fn quit(g: const Game) -> boolean {
+  g.keys.is_action_just_pressed("quit")
+}
+
+// --- The picture ---
+
+fn draw_cell(g: Game, x: integer, y: integer, z: integer, upper: boolean, shade: integer) {
+  w = g.world;
+  ts = g.look.tile_size;
+  px = x * ts;
+  py = y * ts;
+  k = tile_world::terrain(w.w, x, y, z);
+  if theme::is_line(g.look, k) {
+    // A line (a rail) is drawn over the terrain under it, across or along its neighbours.
+    theme::put(g.surface, theme::terrain_sprite(g.look, theme::under(g.look, k), x, y, false), px, py, shade);
+    across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
+    theme::put(g.surface, theme::line_sprite(g.look, k, across), px, py, shade);
+  } else {
+    theme::put(g.surface, theme::terrain_sprite(g.look, k, x, y, upper), px, py, shade);
+  }
+  // The stack, bottom first, each thing lifted by the height under it (4 pixels a step).
+  base = 0;
+  for t in tile_world::things(w.w, x, y, z) {
+    theme::put(g.surface, theme::thing_sprite(g.look, t), px, py - base * 4, shade);
+    base += rules::thing_height(w, t);
+  }
+  if w.hero_x == x && w.hero_y == y && w.hero_z == z {
+    theme::put(g.surface, g.look.hero, px, py - w.hero_h * 4, shade);
+    if w.hero_item != 0 {
+      theme::put_carried(g.surface, g.look, w.hero_item, px, py - w.hero_h * 4, shade);
+    }
+  }
+}
+
+fn write(g: Game, s: text, x: integer, y: integer) {
+  theme::write(g.surface, g.look, s, x, y);
+}
+
+// Every cell of layer z the view holds, at its light; `only_set` skips the void.
+fn draw_layer(g: Game, z: integer, upper: boolean, only_set: boolean) {
+  w = g.world;
+  sh = tile_world::shades(w.w, 0, 0, COLS - 1, ROWS - 2, z, rules::carried_lights(w));
+  for y in 0..ROWS - 1 {
+    for x in 0..COLS {
+      if !only_set || tile_world::terrain(w.w, x, y, z) != tile_world::VOID {
+        draw_cell(g, x, y, z, upper, sh[y * COLS + x] ?? 0);
+      }
+    }
+  }
+}
+
+/// Draw the frame on `g.surface`, each cell at its light.  What the hero sees depends on where
+/// it stands: on a layer above another, the one below and its own over it; under the open sky,
+/// its own and the layer above (a ledge, drawn lighter); under a ceiling, only its own.
+pub fn draw(g: Game) {
+  tiles::clear(g.surface, 0);
+  w = g.world;
+  z = w.hero_z;
+  if z > 0 {
+    draw_layer(g, z - 1, false, false);
+    draw_layer(g, z, false, true);
+  } else {
+    draw_layer(g, z, false, false);
+    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) { draw_layer(g, z + 1, true, true); }
+  }
+  if g.won {
+    write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
+  } else {
+    strong = if rules::boosted(w) { " +{(w.boost_until - w.now) / 1000}" } else { "" };
+    write(g, "MOVES {g.moves}{strong}", 0, (ROWS - 1) * 16);
+  }
+}
+
+/// Write the frame as it is now to a PNG at `path`, scaled by `scale` — a picture of the game
+/// for a machine with no screen.
+pub fn snapshot(g: Game, path: text, scale: integer) -> boolean {
+  px = tiles::pixels(g.surface, W, H);
+  img = imaging::Image { name: "frame", width: W * scale, height: H * scale, data: [] };
+  for y in 0..H * scale {
+    for x in 0..W * scale {
+      at = ((y / scale) ?? 0) * W + ((x / scale) ?? 0);
+      c = px[at] ?? 0;
+      img.data += [imaging::Pixel {
+        r: ((((c >> 11) & 31) * 255 / 31) ?? 0) & 255,
+        g: ((((c >> 5) & 63) * 255 / 63) ?? 0) & 255,
+        b: (((c & 31) * 255 / 31) ?? 0) & 255,
+        a: 255
+      }];
+    }
+  }
+  img.save_png(path)
+}
+
+/// The credits, shown before the first level: the pictures and sounds are Kenney's (kenney.nl,
+/// CC0), with thanks.  Each line centred, in the theme's font.
+pub const CREDITS = "Pictures and sounds by Kenney (kenney.nl), CC0 - with kind regards to Kenney.";
+
+pub fn draw_credits(g: Game) {
+  tiles::clear(g.surface, 0);
+  ts = g.look.tile_size;
+  lines = ["TILE WORLD", "", "PICTURES AND", "SOUNDS BY", "KENNEY", "KENNEY.NL", "", "THANK YOU", "KENNEY!"];
+  y = (H - len(lines) * ts) / 2 ?? 0;
+  for l in lines {
+    write(g, l, (W - len(l) * ts) / 2 ?? 0, y);
+    y += ts;
+  }
+}
+
+/// Is any key down this tick (to leave the credits)?
+pub fn any_key(g: const Game) -> boolean {
+  for k in 1..256 {
+    if g.keys.is_key_down(k) { return true; }
+  }
+  false
+}
+

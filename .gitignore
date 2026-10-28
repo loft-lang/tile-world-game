@@ -1,0 +1,9 @@
+# Fetched by ./fetch-libs.sh
+/libs/
+# Build caches loft writes beside sources
+.loft/
+native-auto/
+target/
+# Pictures written by TW_SHOT
+*.shot.png
+.check.log

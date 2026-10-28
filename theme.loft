@@ -1,0 +1,210 @@
+// The look of the game, as theme.json declares it: the tile sheets, the tile size, the font,
+// and a sprite for every kind of terrain and thing BY NAME (the names of kinds.json).  Swapping
+// tile sets is editing theme.json; nothing here names a sheet or a tile number.
+//
+// A sprite is written "sheet:tile" ("dungeon:48") and held as one integer, the sheet's handle
+// times 4096 plus the tile, -1 for none.
+use tiles;
+use rules;
+
+struct Sheet {
+  const name: text,
+  handle: integer
+}
+
+struct TerrainLook {
+  const id: integer,
+  tile: integer,
+  variants: vector<integer>,
+  upper: integer,
+  under: integer,
+  along: integer
+}
+
+struct ThingLook {
+  const id: integer,
+  tile: integer,
+  sound: text
+}
+
+struct CarriedLook {
+  const id: integer,
+  tile: integer,
+  dx: integer,
+  dy: integer
+}
+
+struct Glyph {
+  const ch: text,
+  tile: integer
+}
+
+pub struct Theme {
+  pub tile_size: integer,
+  sheets: hash<Sheet[name]>,
+  terrain: hash<TerrainLook[id]>,
+  things: hash<ThingLook[id]>,
+  carried: hash<CarriedLook[id]>,
+  chars: hash<Glyph[ch]>,
+  pub hero: integer,
+  font: integer,
+  digits: integer,
+  letters: integer
+}
+
+fn num(v: const JsonValue, name: text, default: integer) -> integer {
+  f = v.field(name);
+  if f.kind() == "JInteger" || f.kind() == "JNumber" { (f.as_number() as integer) ?? default } else { default }
+}
+
+fn word(v: const JsonValue, name: text) -> text {
+  f = v.field(name);
+  if f.kind() == "JString" { f.as_text() } else { "" }
+}
+
+// "sheet:tile" as a sprite, -1 when the sheet is unknown or the text is not one.
+fn sprite(th: const Theme, s: text) -> integer {
+  parts = s.split(':');
+  if len(parts) != 2 { return -1; }
+  sh = th.sheets[parts[0]];
+  if !sh { return -1; }
+  t = parts[1] as integer ?? -1;
+  if t < 0 { return -1; }
+  sh.handle * 4096 + t
+}
+
+/// The theme theme.json declares (`raw`), its sheets read from paths relative to `dir`, its
+/// kind names resolved through `k`.  Null when it does not parse or a sheet does not load.
+pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
+  v = json_parse(raw);
+  if v.kind() != "JObject" { return null; }
+  ts = num(v, "tile_size", 16);
+  th = Theme {
+    tile_size: ts, sheets: [], terrain: [], things: [], carried: [], chars: [],
+    hero: -1, font: 0, digits: 0, letters: 0
+  };
+  sheets = v.field("sheets");
+  for name in sheets.keys() {
+    h = tiles::sheet_from_png("{dir}/{sheets.field(name).as_text()}", ts, ts);
+    if !h { return null; }
+    th.sheets += [Sheet { name: name, handle: h }];
+  }
+  th.hero = sprite(th, word(v, "hero"));
+  f = v.field("font");
+  fs = th.sheets[word(f, "sheet")];
+  th.font = if fs { fs.handle } else { 0 };
+  th.digits = num(f, "digits", -1);
+  th.letters = num(f, "letters", -1);
+  cs = f.field("chars");
+  for c in cs.keys() {
+    th.chars += [Glyph { ch: c, tile: (cs.field(c).as_number() as integer) ?? -1 }];
+  }
+  t = v.field("terrain");
+  for name in t.keys() {
+    e = t.field(name);
+    vs: vector<integer> = [];
+    vars = e.field("variants");
+    for i in 0..vars.len() { vs += [sprite(th, vars.item(i).as_text())]; }
+    under = word(e, "under");
+    th.terrain += [TerrainLook {
+      id: rules::terrain_id(k, name), tile: sprite(th, word(e, "tile")), variants: vs,
+      upper: sprite(th, word(e, "upper")),
+      under: if under == "" { 0 } else { rules::terrain_id(k, under) },
+      along: sprite(th, word(e, "along"))
+    }];
+  }
+  things = v.field("things");
+  for name in things.keys() {
+    e = things.field(name);
+    tile = if e.kind() == "JString" { sprite(th, e.as_text()) } else { sprite(th, word(e, "tile")) };
+    sound = if e.kind() == "JString" { "" } else { word(e, "sound") };
+    th.things += [ThingLook { id: rules::thing_id(k, name), tile: tile, sound: sound }];
+  }
+  carried = v.field("carried");
+  for name in carried.keys() {
+    e = carried.field(name);
+    th.carried += [CarriedLook {
+      id: rules::thing_id(k, name), tile: sprite(th, word(e, "tile")),
+      dx: num(e, "dx", 0), dy: num(e, "dy", 0)
+    }];
+  }
+  th
+}
+
+/// Draw sprite `s` on `surface` at (px, py), at a shade; nothing for -1.
+pub fn put(surface: integer, s: integer, px: integer, py: integer, shade: integer) {
+  if s < 0 { return; }
+  tiles::draw(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, false, false, false, shade);
+}
+
+/// The sprite of terrain kind `kind` at cell (x, y): its tile, or one of its variants chosen by
+/// the cell's position so a room is not one stamp; `upper` asks for its look from above.
+pub fn terrain_sprite(th: const Theme, kind: integer, x: integer, y: integer, upper: boolean) -> integer {
+  look = th.terrain[kind];
+  if !look { return -1; }
+  if upper && look.upper >= 0 { return look.upper; }
+  h = (x * 7 + y * 13) % 11 ?? 0;
+  if h < len(look.variants) { return look.variants[h] ?? look.tile; }
+  look.tile
+}
+
+/// What terrain kind `kind` is drawn over (a rail over the floor), 0 for nothing.
+pub fn under(th: const Theme, kind: integer) -> integer {
+  look = th.terrain[kind];
+  if !look { return 0; }
+  look.under
+}
+
+/// The sprite of a line terrain (a rail) running across, or along when it does not.
+pub fn line_sprite(th: const Theme, kind: integer, across: boolean) -> integer {
+  look = th.terrain[kind];
+  if !look { return -1; }
+  if across || look.along < 0 { look.tile } else { look.along }
+}
+
+/// Does terrain kind `kind` draw as a line (it has an `along` sprite)?
+pub fn is_line(th: const Theme, kind: integer) -> boolean {
+  look = th.terrain[kind];
+  if !look { return false; }
+  look.along >= 0
+}
+
+/// The sprite of thing `thing`, -1 when the theme has none.
+pub fn thing_sprite(th: const Theme, thing: integer) -> integer {
+  look = th.things[thing];
+  if !look { return -1; }
+  look.tile
+}
+
+/// The sound event moving thing `thing` makes, "" when the theme names none.
+pub fn thing_sound(th: const Theme, thing: integer) -> text {
+  look = th.things[thing];
+  if !look { return ""; }
+  look.sound
+}
+
+/// Draw what the hero carries (thing `thing`) beside the hero drawn at (px, py).
+pub fn put_carried(surface: integer, th: const Theme, thing: integer, px: integer, py: integer, shade: integer) {
+  look = th.carried[thing];
+  if !look { return; }
+  put(surface, look.tile, px + look.dx, py + look.dy, shade);
+}
+
+/// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks
+/// leaves a space.
+pub fn write(surface: integer, th: const Theme, s: text, x: integer, y: integer) {
+  cx = x;
+  for c in s {
+    n = c as integer;
+    t = -1;
+    if n >= 48 && n <= 57 && th.digits >= 0 { t = th.digits + n - 48; }
+    else if n >= 65 && n <= 90 && th.letters >= 0 { t = th.letters + n - 65; }
+    else if n >= 97 && n <= 122 && th.letters >= 0 { t = th.letters + n - 97; }
+    else {
+      g = th.chars["{c}"];
+      if g { t = g.tile; }
+    }
+    if t >= 0 { tiles::draw(surface, th.font, t, cx, y); }
+    cx += th.tile_size;
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "tile_size": 16,
+  "sheets": {
+    "dungeon": "assets/sheets/tiny-dungeon.png",
+    "town": "assets/sheets/tiny-town.png",
+    "farm": "assets/sheets/tiny-farm.png",
+    "battle": "assets/sheets/tiny-battle.png",
+    "ski": "assets/sheets/tiny-ski.png"
+  },
+  "font": {
+    "sheet": "ski",
+    "digits": 84,
+    "letters": 96,
+    "chars": {
+      ":": 94,
+      "!": 122,
+      ".": 131,
+      "+": 126,
+      "-": 127
+    }
+  },
+  "hero": "dungeon:97",
+  "terrain": {
+    "floor": {
+      "tile": "dungeon:48",
+      "variants": [
+        "dungeon:49",
+        "dungeon:50"
+      ],
+      "upper": "dungeon:42"
+    },
+    "wall": {
+      "tile": "dungeon:40",
+      "upper": "dungeon:57"
+    },
+    "water": {
+      "tile": "battle:37"
+    },
+    "rail": {
+      "under": "floor",
+      "tile": "dungeon:77",
+      "along": "dungeon:67"
+    }
+  },
+  "things": {
+    "cart": {
+      "tile": "town:57",
+      "sound": "cart"
+    },
+    "chair": "dungeon:73",
+    "table": "dungeon:72",
+    "rock": {
+      "tile": "farm:89",
+      "sound": "push_rock"
+    },
+    "anvil": {
+      "tile": "dungeon:74",
+      "sound": "push_anvil"
+    },
+    "potion": "dungeon:114",
+    "staff": "dungeon:129",
+    "chest": "dungeon:89"
+  },
+  "carried": {
+    "staff": {
+      "tile": "dungeon:129",
+      "dx": 7,
+      "dy": -2
+    }
+  }
+}

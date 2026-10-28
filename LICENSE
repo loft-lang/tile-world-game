@@ -1,0 +1,9 @@
+The game's code (the .loft and .json files, the scripts and the docs) is licensed under the
+GNU Lesser General Public License v3.0 or later (LGPL-3.0-or-later).
+
+The pictures and sounds in assets/ are by Kenney (kenney.nl), released under Creative Commons
+CC0 1.0 (public domain); each pack's own License.txt sits beside it.
+
+Full license text: https://www.gnu.org/licenses/lgpl-3.0.html
+
+SPDX-License-Identifier: LGPL-3.0-or-later

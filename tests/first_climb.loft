@@ -1,0 +1,47 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The demo level is solvable, by the solution written out here, and a wrong order fails.
+use tile_world;
+use rules;
+
+const SOLUTION = "s s s d d d d pa pa pa s d d w d d d d a a a a s s s a a a w d d d s d w w a w d d d s d w w a w d d pd a w";
+
+fn show(w: const rules::Level) -> text {
+  rules::view(w, 0, 0, 12, 8, 0)
+}
+
+fn main() {
+  w = rules::first_climb(rules::kinds());
+  rules::play(w, SOLUTION);
+  assert(rules::reached_ledge(w), "solved\n{show(w)}");
+}
+
+// Step by step: the cart dragged off the bridge, the rock pushed along the rails, the chair
+// across the river, onto the table, and the climb.
+fn test_the_solution_in_stages() {
+  w = rules::first_climb(rules::kinds());
+  rules::play(w, "s s s d d d d pa pa pa");
+  assert(tile_world::top(w.w, 3, 4, 0) == rules::th(w, "cart") && tile_world::top(w.w, 6, 4, 0) == 0,
+         "the cart off the bridge\n{show(w)}");
+  rules::play(w, "s d d w d d d d");
+  assert(tile_world::top(w.w, 9, 4, 0) == rules::th(w, "rock") && w.hero_x == 8, "the rock pushed on\n{show(w)}");
+  rules::play(w, "a a a a s s s a a a w d d d s d w w a w d d d s d w w");
+  assert(tile_world::top(w.w, 8, 2, 0) == rules::th(w, "chair"), "the chair beside the tables\n{show(w)}");
+  rules::play(w, "a w d d");
+  assert(w.hero_x == 9 && w.hero_h == 2, "on the first table, height {w.hero_h}");
+  rules::play(w, "pd");
+  assert(tile_world::height(w.w, 9, 2, 0) == 3, "the chair is up on the table");
+  rules::play(w, "a w");
+  assert(rules::reached_ledge(w), "on the ledge\n{rules::view(w, 7, 0, 12, 2, 1)}");
+}
+
+// Pushing the cart east first wedges it against the rock and blocks the bridge for good.
+fn test_the_cart_cannot_be_pushed_past_the_rock() {
+  w = rules::first_climb(rules::kinds());
+  rules::play(w, "s s s d d d d d d");
+  assert(tile_world::top(w.w, 7, 4, 0) == rules::th(w, "cart") && tile_world::top(w.w, 8, 4, 0) == rules::th(w, "rock"),
+         "the cart against the rock\n{show(w)}");
+  rules::play(w, SOLUTION);
+  assert(!rules::reached_ledge(w), "the solution no longer works from here");
+}

@@ -1,0 +1,247 @@
+// Level files: one place as JSON (EDITOR.md § 2).  The cells of each layer as chunks of rows,
+// one character per cell through a legend; the things as named stacks; where the hero starts;
+// and the goal, as data.  A chunk is tile_world's 32x32, and the file holds only the chunks
+// that exist, so a large outdoor world is not one huge grid.
+//
+//   {
+//     "name": "the first climb",
+//     "legend": { "#": "wall", ".": "floor" },
+//     "chunks": [ { "cx": 0, "cy": 0, "z": 0, "rows": ["#####", "#...#"] } ],
+//     "things": [ { "at": [9, 2, 0], "stack": ["table", "chair"] } ],
+//     "tiles": [ [3, 4, 0, 12] ],
+//     "start": [1, 1, 0],
+//     "goal": { "type": "layer", "z": 1 }
+//   }
+//
+// A row's characters run from the chunk's west edge; a space, or a row or column past the
+// row's end, is void.  `tiles` lists only the cells whose tile number is not 0.  Saving writes
+// the world in a fixed order, so the same level always writes the same file.
+use tile_world;
+use rules;
+
+const CHUNK = 32;
+
+/// What solves a level: "layer" (the hero reaches layer z), "daylight" (the hero stands under
+/// the open sky), "cell" (the hero reaches (x, y, z)), or "chests" (every chest is open).
+pub struct Goal {
+  pub kind: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer
+}
+
+/// A level as its file holds it: the level itself, its name, where the hero starts and what
+/// solves it.
+pub struct LevelFile {
+  pub name: text,
+  pub level: rules::Level,
+  pub start_x: integer,
+  pub start_y: integer,
+  pub start_z: integer,
+  pub goal: Goal
+}
+
+struct LegendChar {
+  const ch: text,
+  kind: integer
+}
+
+fn num(v: const JsonValue, default: integer) -> integer {
+  if v.kind() == "JInteger" || v.kind() == "JNumber" { (v.as_number() as integer) ?? default } else { default }
+}
+
+/// The level a level file's JSON holds, its kinds named through `k`.  Null when it does not
+/// parse; a legend entry or a thing naming a kind `k` does not declare reads as void, nothing.
+pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
+  v = json_parse(raw);
+  if v.kind() != "JObject" { return null; }
+  l = rules::level(k);
+  legend: hash<LegendChar[ch]> = [];
+  lg = v.field("legend");
+  for c in lg.keys() {
+    legend += [LegendChar { ch: c, kind: rules::terrain_id(k, lg.field(c).as_text()) }];
+  }
+  chunks = v.field("chunks");
+  for i in 0..chunks.len() {
+    c = chunks.item(i);
+    x0 = num(c.field("cx"), 0) * CHUNK;
+    y0 = num(c.field("cy"), 0) * CHUNK;
+    z = num(c.field("z"), 0);
+    rows = c.field("rows");
+    for j in 0..rows.len() {
+      x = x0;
+      for ch in rows.item(j).as_text() {
+        e = legend["{ch}"];
+        kind = if e { e.kind } else { 0 };
+        if kind != 0 { tile_world::set_terrain(l.w, x, y0 + j, z, kind); }
+        x += 1;
+      }
+    }
+  }
+  things = v.field("things");
+  for i in 0..things.len() {
+    t = things.item(i);
+    at = t.field("at");
+    stack = t.field("stack");
+    for s in 0..stack.len() {
+      id = rules::thing_id(k, stack.item(s).as_text());
+      if id != 0 {
+        tile_world::place(l.w, num(at.item(0), 0), num(at.item(1), 0), num(at.item(2), 0), id);
+      }
+    }
+  }
+  tiles = v.field("tiles");
+  for i in 0..tiles.len() {
+    t = tiles.item(i);
+    x = num(t.item(0), 0);
+    y = num(t.item(1), 0);
+    z = num(t.item(2), 0);
+    tile_world::set_terrain(l.w, x, y, z, tile_world::terrain(l.w, x, y, z), num(t.item(3), 0));
+  }
+  st = v.field("start");
+  sx = num(st.item(0), 0);
+  sy = num(st.item(1), 0);
+  sz = num(st.item(2), 0);
+  rules::put_hero(l, sx, sy, sz);
+  g = v.field("goal");
+  ga = g.field("at");
+  goal = Goal {
+    kind: if g.field("type").kind() == "JString" { g.field("type").as_text() } else { "" },
+    x: num(ga.item(0), 0), y: num(ga.item(1), 0),
+    z: if g.has_field("z") { num(g.field("z"), 0) } else { num(ga.item(2), 0) }
+  };
+  name = if v.field("name").kind() == "JString" { v.field("name").as_text() } else { "" };
+  LevelFile { name: name, level: l, start_x: sx, start_y: sy, start_z: sz, goal: goal }
+}
+
+/// The level in file `path`, or null when it does not read or parse.
+pub fn load_file(path: text, k: const rules::Kinds) -> LevelFile? {
+  raw = file(path).content() ?? "";
+  if raw == "" { return null; }
+  load(raw, k)
+}
+
+/// Is the level solved, by its goal?
+pub fn solved(lf: const LevelFile, l: const rules::Level) -> boolean {
+  if lf.goal.kind == "layer" { return l.hero_z == lf.goal.z; }
+  if lf.goal.kind == "daylight" { return rules::in_daylight(l); }
+  if lf.goal.kind == "cell" {
+    return l.hero_x == lf.goal.x && l.hero_y == lf.goal.y && l.hero_z == lf.goal.z;
+  }
+  false
+}
+
+// A JSON string literal of `s`.
+fn quoted(s: text) -> text {
+  out = "\"";
+  for c in s {
+    if c == '"' { out += "\\\""; }
+    else if c == '\\' { out += "\\\\"; }
+    else if c == '\n' { out += "\\n"; }
+    else { out += "{c}"; }
+  }
+  out + "\""
+}
+
+// The legend: each terrain kind's glyph, or the first free character when its glyph is taken,
+// is a space, or is not one character.
+fn legend_of(k: const rules::Kinds) -> hash<LegendChar[ch]> {
+  legend: hash<LegendChar[ch]> = [];
+  spare = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for id in rules::terrain_ids(k) {
+    g = rules::terrain_glyph(k, id);
+    if len(g) != 1 || g == " " || legend[g] {
+      g = "";
+      for c in spare {
+        if !legend["{c}"] {
+          g = "{c}";
+          break;
+        }
+      }
+    }
+    if g != "" { legend += [LegendChar { ch: g, kind: id }]; }
+  }
+  legend
+}
+
+/// The level file's JSON for `lf`, with its level as it is now: the world's cells and things,
+/// the start and the goal of `lf`.  The same level always writes the same text.
+pub fn save(lf: const LevelFile) -> text {
+  l = lf.level;
+  k = l.k;
+  legend = legend_of(k);
+  out = "{{\n  \"name\": {quoted(lf.name)},\n  \"legend\": {{";
+  first = true;
+  for id in rules::terrain_ids(k) {
+    for e in legend {
+      if e.kind == id {
+        out += if first { " " } else { ", " };
+        out += "{quoted(e.ch)}: {quoted(rules::terrain_name(k, id))}";
+        first = false;
+      }
+    }
+  }
+  out += " }},\n  \"chunks\": [";
+  first = true;
+  overrides: vector<(integer, integer, integer, integer)> = [];
+  for z in tile_world::layers(l.w) {
+    for c in tile_world::chunks(l.w, z) {
+      rows: vector<text> = [];
+      for j in 0..CHUNK {
+        row = "";
+        for i in 0..CHUNK {
+          x = c.0 * CHUNK + i;
+          y = c.1 * CHUNK + j;
+          kind = tile_world::terrain(l.w, x, y, z);
+          ch = " ";
+          for e in legend {
+            if e.kind == kind { ch = e.ch; }
+          }
+          row += ch;
+          t = tile_world::tile(l.w, x, y, z);
+          if t != 0 { overrides += [(x, y, z, t)]; }
+        }
+        rows += [row.trim_end()];
+      }
+      while len(rows) > 0 && rows[len(rows) - 1] == "" { rows = rows[0..len(rows) - 1]; }
+      if len(rows) == 0 { continue; }
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"cx\": {c.0}, \"cy\": {c.1}, \"z\": {z}, \"rows\": [\n";
+      for r in 0..len(rows) {
+        out += "      {quoted(rows[r])}";
+        out += if r + 1 < len(rows) { ",\n" } else { "\n" };
+      }
+      out += "    ] }}";
+      first = false;
+    }
+  }
+  out += "\n  ],\n  \"things\": [";
+  first = true;
+  for s in tile_world::stacks(l.w) {
+    names = "";
+    for th in tile_world::things(l.w, s.0, s.1, s.2) {
+      names += if names == "" { "" } else { ", " };
+      names += quoted(rules::thing_name(k, th));
+    }
+    out += if first { "\n" } else { ",\n" };
+    out += "    {{ \"at\": [{s.0}, {s.1}, {s.2}], \"stack\": [{names}] }}";
+    first = false;
+  }
+  out += "\n  ],\n  \"tiles\": [";
+  first = true;
+  for o in overrides {
+    out += if first { " " } else { ", " };
+    out += "[{o.0}, {o.1}, {o.2}, {o.3}]";
+    first = false;
+  }
+  out += " ],\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
+  g = lf.goal;
+  if g.kind == "layer" {
+    out += "{{ \"type\": \"layer\", \"z\": {g.z} }}";
+  } else if g.kind == "cell" {
+    out += "{{ \"type\": \"cell\", \"at\": [{g.x}, {g.y}, {g.z}] }}";
+  } else {
+    out += "{{ \"type\": {quoted(g.kind)} }}";
+  }
+  out + "\n}}\n"
+}

@@ -1,0 +1,83 @@
+// The first climb on whatever this machine has: a desktop window (screen, X11), or a device
+// display.  The keys come from the screen's window where it has them, and from the machine's
+// own keyboard (input) where it does not — a question asked of the machine, not a platform
+// branch.  Run: loft --lib libs main.loft
+use game;
+use screen;
+use tiles;
+use audio;
+use input;
+
+fn main() {
+  g = game::new_game("assets");
+  if !g {
+    println("the pictures in assets/sheets did not load");
+    return;
+  }
+  game = g ?? game::new_game("assets") ?? return;
+  // TW_SHOT=<file.png> [TW_LEVEL=1] [TW_MOVES="s d d"]: play those moves and write the frame,
+  // with no screen.
+  shot = env_variable("TW_SHOT") ?? "";
+  if shot != "" && (env_variable("TW_CREDITS") ?? "") != "" {
+    game::draw_credits(game);
+    println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
+    return;
+  }
+  if shot != "" {
+    game.level = (env_variable("TW_LEVEL") ?? "0") as integer ?? 0;
+    game::restart(game);
+    for m in (env_variable("TW_MOVES") ?? "").split(' ') {
+      pull = m.starts_with("p");
+      d = if pull { m[1..] } else { m };
+      if d == "w" { game::move(game, 0, -1, pull); }
+      if d == "s" { game::move(game, 0, 1, pull); }
+      if d == "a" { game::move(game, -1, 0, pull); }
+      if d == "d" { game::move(game, 1, 0, pull); }
+    }
+    game::draw(game);
+    println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
+    return;
+  }
+  if !screen::open(game::W, game::H, 4, "tile_world - the first climb") {
+    println("this machine has no screen loft can open (no display?)");
+    return;
+  }
+  audio::init(44100);
+  _ = audio::start();
+  window_keys = screen::has_keys();
+  if !window_keys { _ = input::device_open(); }
+  // Kenney's pictures and sounds, credited first: until a key is pressed, or five seconds.
+  println(game::CREDITS);
+  game::draw_credits(game);
+  screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+  shown = ticks() / 1000;
+  while screen::poll(15) && ticks() / 1000 - shown < 5000 {
+    if window_keys {
+      game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
+    } else {
+      game.keys.input_tick_device();
+    }
+    if game::any_key(game) { break; }
+  }
+  game::sound(game, "begin");
+  game::draw(game);
+  screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+  last = ticks() / 1000;
+  while screen::poll(15) {
+    if window_keys {
+      game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
+    } else {
+      game.keys.input_tick_device();
+    }
+    if game::quit(game) { break; }
+    now = ticks() / 1000;
+    if game::update(game, now - last, now) {
+      game::draw(game);
+      screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+    }
+    last = now;
+  }
+  screen::close();
+  audio::stop_output();
+  if !window_keys { input::device_close(); }
+}
