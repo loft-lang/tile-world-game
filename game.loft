@@ -8,6 +8,7 @@ use audio;
 use input;
 use imaging;
 use theme;
+use levels;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.
 pub const COLS = 13;
@@ -21,6 +22,10 @@ const REPEAT_NEXT = 140;
 
 pub struct Game {
   pub world: rules::Level,
+  /// The level being played, as its file holds it (name, start, goal).
+  pub file: levels::LevelFile,
+  /// The level files to play, in order (levels/order.json).
+  pub order: vector<text>,
   pub surface: integer,
   pub kinds: rules::Kinds,
   pub look: theme::Theme,
@@ -71,7 +76,12 @@ pub fn new_game(assets: text) -> Game? {
   th = theme::load(file("theme.json").content() ?? "", ".", k);
   if !s || !th { return null; }
   g = Game {
-    world: rules::first_climb(k),
+    world: rules::level(k),
+    file: levels::LevelFile {
+      name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+      goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+    },
+    order: level_order(),
     surface: s ?? 0, kinds: k, look: th ?? return null,
     sounds: [],
     keys: input::input_new(bindings()),
@@ -102,20 +112,32 @@ pub fn sound(g: Game, name: text, volume: float = 0.8) {
   sd.sd_next = i + 1;
 }
 
-/// The levels, in order: the first climb, then the cellar.
-pub const LEVELS = 2;
 
-fn level_world(k: const rules::Kinds, level: integer) -> rules::Level {
-  if level == 1 { rules::the_cellar(k) } else { rules::first_climb(k) }
+// The level names levels/order.json lists.
+fn level_order() -> vector<text> {
+  out: vector<text> = [];
+  o = json_parse(file("levels/order.json").content() ?? "").field("order");
+  for i in 0..o.len() { out += [o.item(i).as_text()]; }
+  out
+}
+
+// Load level number `level` of the order into `g`; false when its file does not load.
+fn load_level(g: Game, level: integer) -> boolean {
+  name = g.order[level] ?? "";
+  m = levels::load(file("levels/{name}.json").content() ?? "", g.kinds);
+  if !m { return false; }
+  g.file = m;
+  g.world = g.file.level;
+  true
 }
 
 fn solved(g: const Game) -> boolean {
-  if g.level == 1 { rules::in_daylight(g.world) } else { rules::reached_ledge(g.world) }
+  levels::solved(g.file, g.world)
 }
 
 /// Start the level again.
 pub fn restart(g: Game) {
-  g.world = level_world(g.kinds, g.level);
+  _ = load_level(g, g.level);
   g.moves = 0;
   g.won = false;
   g.was_boosted = false;
@@ -180,7 +202,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.won && g.keys.is_action_just_pressed("next") {
-    g.level = (g.level + 1) % LEVELS ?? 0;
+    g.level = (g.level + 1) % len(g.order) ?? 0;
     restart(g);
     return true;
   }

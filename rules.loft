@@ -562,66 +562,7 @@ pub fn play(l: Level, moves: text) -> integer {
   done
 }
 
-// --- The levels ---
-
-/// "The first climb", a small traversal puzzle:
-///
-///      x 0123456789012
-///   y0   #############        @ hero, h chair, T table, c cart on the rail bridge,
-///   y1   #@....~.....#        o rock on the rails, ~ river, = rails.
-///   y2   #.....~..TT.#        Layer 1 has a ledge north of the tables, (8..11, 1).
-///   y3   #.....~.....#
-///   y4   #..===c=o==.#
-///   y5   #.....~.....#
-///   y6   #.h...~.....#
-///   y7   #.....~.....#
-///   y8   #############
-///
-/// Solved when the hero stands on layer 1 (`reached_ledge`).
-pub fn first_climb(k: const Kinds) -> Level {
-  l = level(k);
-  tile_world::fill(l.w, 0, 0, 12, 8, 0, tr(l, "wall"));
-  tile_world::fill(l.w, 1, 1, 11, 7, 0, tr(l, "floor"));
-  tile_world::fill(l.w, 6, 1, 6, 7, 0, tr(l, "water"));
-  tile_world::fill(l.w, 3, 4, 10, 4, 0, tr(l, "rail"));
-  tile_world::place(l.w, 6, 4, 0, th(l, "cart"));
-  tile_world::place(l.w, 8, 4, 0, th(l, "rock"));
-  tile_world::place(l.w, 2, 6, 0, th(l, "chair"));
-  tile_world::place(l.w, 9, 2, 0, th(l, "table"));
-  tile_world::place(l.w, 10, 2, 0, th(l, "table"));
-  tile_world::fill(l.w, 8, 0, 11, 0, 1, tr(l, "wall"));
-  tile_world::fill(l.w, 8, 1, 11, 1, 1, tr(l, "floor"));
-  put_hero(l, 1, 1, 0);
-  l
-}
-
-/// Is the hero up on the first climb's ledge?
-pub fn reached_ledge(l: const Level) -> boolean {
-  l.hero_z == 1
-}
-
-/// "The cellar", a dark level: a corridor under a ceiling, its torch at the west end, a rock in
-/// the way, and the daylight of an open yard at the east end.
-///
-///      x 0123456789012
-///   y0   #############        @ hero, ! the staff fixed to the wall (a torch),
-///   y1   !@...#.......        o rock.  Everything but the yard (x 12, open sky) has a
-///   y2   #....o.......        ceiling: layer 1 is floor over it.
-///   y3   #############
-///
-/// Solved when the hero stands in the yard (`in_daylight`).
-pub fn the_cellar(k: const Kinds) -> Level {
-  l = level(k);
-  tile_world::fill(l.w, 0, 0, 12, 3, 0, tr(l, "wall"));
-  tile_world::fill(l.w, 1, 1, 11, 2, 0, tr(l, "floor"));
-  tile_world::set_terrain(l.w, 5, 1, 0, tr(l, "wall"));
-  tile_world::fill(l.w, 12, 1, 12, 2, 0, tr(l, "floor"));
-  tile_world::fill(l.w, 0, 0, 11, 3, 1, tr(l, "floor"));
-  tile_world::place(l.w, 0, 1, 0, th(l, "staff"));
-  tile_world::place(l.w, 5, 2, 0, th(l, "rock"));
-  put_hero(l, 1, 1, 0);
-  l
-}
+// --- Goals ---
 
 /// Is the hero out in the open, under the sky?
 pub fn in_daylight(l: const Level) -> boolean {

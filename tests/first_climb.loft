@@ -4,6 +4,18 @@
 // The demo level is solvable, by the solution written out here, and a wrong order fails.
 use tile_world;
 use rules;
+use levels;
+
+// The first climb, from levels/first_climb.json.
+fn climb() -> rules::Level {
+  m = levels::load(file("../levels/first_climb.json").content() ?? "", rules::kinds());
+  if !m { assert(false, "levels/first_climb.json loads"); }
+  lf = m ?? levels::LevelFile {
+    name: "", level: rules::level(rules::kinds()), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+  };
+  lf.level
+}
 
 const SOLUTION = "s s s d d d d pa pa pa s d d w d d d d a a a a s s s a a a w d d d s d w w a w d d d s d w w a w d d pd a w";
 
@@ -12,15 +24,15 @@ fn show(w: const rules::Level) -> text {
 }
 
 fn main() {
-  w = rules::first_climb(rules::kinds());
+  w = climb();
   rules::play(w, SOLUTION);
-  assert(rules::reached_ledge(w), "solved\n{show(w)}");
+  assert(w.hero_z == 1, "solved\n{show(w)}");
 }
 
 // Step by step: the cart dragged off the bridge, the rock pushed along the rails, the chair
 // across the river, onto the table, and the climb.
 fn test_the_solution_in_stages() {
-  w = rules::first_climb(rules::kinds());
+  w = climb();
   rules::play(w, "s s s d d d d pa pa pa");
   assert(tile_world::top(w.w, 3, 4, 0) == rules::th(w, "cart") && tile_world::top(w.w, 6, 4, 0) == 0,
          "the cart off the bridge\n{show(w)}");
@@ -33,15 +45,15 @@ fn test_the_solution_in_stages() {
   rules::play(w, "pd");
   assert(tile_world::height(w.w, 9, 2, 0) == 3, "the chair is up on the table");
   rules::play(w, "a w");
-  assert(rules::reached_ledge(w), "on the ledge\n{rules::view(w, 7, 0, 12, 2, 1)}");
+  assert(w.hero_z == 1, "on the ledge\n{rules::view(w, 7, 0, 12, 2, 1)}");
 }
 
 // Pushing the cart east first wedges it against the rock and blocks the bridge for good.
 fn test_the_cart_cannot_be_pushed_past_the_rock() {
-  w = rules::first_climb(rules::kinds());
+  w = climb();
   rules::play(w, "s s s d d d d d d");
   assert(tile_world::top(w.w, 7, 4, 0) == rules::th(w, "cart") && tile_world::top(w.w, 8, 4, 0) == rules::th(w, "rock"),
          "the cart against the rock\n{show(w)}");
   rules::play(w, SOLUTION);
-  assert(!rules::reached_ledge(w), "the solution no longer works from here");
+  assert(w.hero_z != 1, "the solution no longer works from here");
 }

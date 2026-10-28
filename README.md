@@ -19,7 +19,9 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 |---|---|
 | `kinds.json` | what each kind of terrain and thing DOES: walk, opaque, height, push/pull, rails, lift, walk-on effects, light — the rules read these, never a name |
 | `theme.json` | what each kind LOOKS like and sounds like: the sheets, tile size, font, a sprite per kind by name |
-| `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff; the two levels |
+| `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff |
+| `levels/` | the levels, one JSON file each (EDITOR.md § 2), and `order.json`, the order they are played in |
+| `levels.loft` | reads and writes level files; a level's goal decides when it is solved |
 | `theme.loft` | reads theme.json and draws a kind, a stack, the hero and text |
 | `game.loft` | the game: picture (`tiles`, Kenney's Tiny packs), sounds (`audio`, Kenney's sound packs), controls (`input`) |
 | `main.loft` | the loop: shows the picture with `screen`, reads the keys from the window or the machine's keyboard |

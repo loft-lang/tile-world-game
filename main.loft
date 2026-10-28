@@ -59,7 +59,7 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  game::sound(game, "begin");
+  game::restart(game);
   game::draw(game);
   screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
   last = ticks() / 1000;

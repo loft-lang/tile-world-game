@@ -1,0 +1,89 @@
+// Level files: the two levels load from levels/, save back to the same text, and play to their
+// goals; a world with negative chunks, several layers, a stack, a tile override and a name that
+// needs escaping survives a save and a load.
+use tile_world;
+use rules;
+use levels;
+
+fn read(name: text) -> text {
+  file("../levels/{name}.json").content() ?? ""
+}
+
+fn level(name: text) -> levels::LevelFile {
+  m = levels::load(read(name), rules::kinds());
+  if !m { assert(false, "levels/{name}.json loads"); }
+  m ?? levels::LevelFile {
+    name: "", level: rules::level(rules::kinds()), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+  }
+}
+
+fn main() {
+  lf = level("first_climb");
+  assert(lf.name == "the first climb", "named: {lf.name}");
+  assert(lf.goal.kind == "layer" && lf.goal.z == 1, "its goal: layer 1");
+}
+
+// Saving a loaded file writes it again, character for character.
+fn test_a_file_saves_to_itself() {
+  for name in ["first_climb", "the_cellar"] {
+    raw = read(name);
+    m = levels::load(raw, rules::kinds());
+    if !m { assert(false, "{name} loads"); continue; }
+    lf = m ?? level(name);
+    assert(levels::save(lf) == raw, "{name} saves to the same text");
+  }
+}
+
+fn test_the_first_climb_plays_to_its_goal() {
+  lf = level("first_climb");
+  l = lf.level;
+  assert(!levels::solved(lf, l), "not at the start");
+  rules::play(l, "s s s d d d d pa pa pa s d d w d d d d a a a a s s s a a a w d d d s d w w a w d d d s d w w a w d d pd a w");
+  assert(levels::solved(lf, l), "on the ledge\n{rules::view(l, 0, 0, 12, 8, 0)}");
+}
+
+fn test_the_cellar_plays_to_its_goal() {
+  lf = level("the_cellar");
+  l = lf.level;
+  assert(rules::walk(l, -1, 0) == rules::Step.Took, "the torch");
+  rules::play(l, "s d d d d d w d d d d d d");
+  assert(levels::solved(lf, l), "in the yard at {l.hero_x},{l.hero_y}");
+}
+
+// Chunks at -1 (x -32 .. -1) and 1, layers -1 and 2, a three-thing stack, a tile number on one
+// cell, a name with a quote, and a cell goal.
+fn test_a_world_survives_a_round_trip() {
+  k = rules::kinds();
+  l = rules::level(k);
+  tile_world::fill(l.w, -3, -2, 2, 0, 0, rules::tr(l, "floor"));
+  tile_world::set_terrain(l.w, -1, -1, 0, rules::tr(l, "wall"), 77);
+  tile_world::fill(l.w, 40, 3, 41, 3, 2, rules::tr(l, "water"));
+  tile_world::set_terrain(l.w, 0, 0, -1, rules::tr(l, "rail"));
+  tile_world::place(l.w, 1, 0, 0, rules::th(l, "table"));
+  tile_world::place(l.w, 1, 0, 0, rules::th(l, "chair"));
+  tile_world::place(l.w, 1, 0, 0, rules::th(l, "staff"));
+  tile_world::place(l.w, -3, -2, 0, rules::th(l, "rock"));
+  rules::put_hero(l, -2, -1, 0);
+  lf = levels::LevelFile {
+    name: "a \"quoted\" name", level: l, start_x: -2, start_y: -1, start_z: 0,
+    goal: levels::Goal { kind: "cell", x: 41, y: 3, z: 2 }
+  };
+  text = levels::save(lf);
+  m = levels::load(text, k);
+  if !m { assert(false, "the saved text loads:\n{text}"); return; }
+  back = m ?? lf;
+  b = back.level;
+  assert(back.name == "a \"quoted\" name", "the name: {back.name}");
+  assert(back.goal.kind == "cell" && back.goal.x == 41 && back.goal.z == 2, "the goal");
+  assert(tile_world::terrain(b.w, -3, -2, 0) == rules::tr(b, "floor"), "a floor at -3,-2");
+  assert(tile_world::terrain(b.w, -1, -1, 0) == rules::tr(b, "wall")
+         && tile_world::tile(b.w, -1, -1, 0) == 77, "the wall with tile 77");
+  assert(tile_world::terrain(b.w, 41, 3, 2) == rules::tr(b, "water"), "water on layer 2");
+  assert(tile_world::terrain(b.w, 0, 0, -1) == rules::tr(b, "rail"), "a rail on layer -1");
+  st = "";
+  for t in tile_world::things(b.w, 1, 0, 0) { st += "{rules::thing_name(k, t)},"; }
+  assert(st == "table,chair,staff,", "the stack, bottom first: {st}");
+  assert(b.hero_x == -2 && b.hero_y == -1 && b.hero_z == 0, "the hero at the start");
+  assert(levels::save(back) == text, "and it saves to the same text again");
+}

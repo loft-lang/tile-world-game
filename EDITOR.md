@@ -179,8 +179,9 @@ has none.
 
 ## 8. Order of work
 
-1. **Level files**: read and write the format of § 2; the two built-in levels as files; goals as
-   data.  (Needs `tile_world` `layers` / `chunks`.)
+1. **Level files** — built: `levels.loft` reads and writes the format of § 2, the two levels are
+   `levels/*.json` played in `levels/order.json`'s order, and goals are data.  Materials (§ 1)
+   join the legend in step 3; until then a legend names terrain kinds.
 2. **The editor's core**:
    - the `E` toggle, cursor and scrolling, layers, the palette;
    - paint, erase and stack things;

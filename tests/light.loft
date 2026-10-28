@@ -77,14 +77,3 @@ fn test_a_staff_on_the_floor_is_picked_up() {
   assert(rules::walk(w, 1, 0) == rules::Step.Walked, "onto the staff");
   assert(w.hero_item == rules::th(w, "staff") && tile_world::top(w.w, 2, 0, 0) == 0, "picked up");
 }
-
-// The cellar is solvable: take the torch, push the rock east twice (it stops at 7), slip up
-// into row 1 at x 6 past the wall at x 5, and walk out to the yard at x 12.  Pushing the rock
-// on instead rolls it into the yard's row and shuts the lower way out.
-fn test_the_cellar_is_solved_with_the_torch() {
-  w = rules::the_cellar(rules::kinds());
-  assert(!rules::in_daylight(w), "starts in the cellar");
-  assert(rules::walk(w, -1, 0) == rules::Step.Took, "the torch");
-  rules::play(w, "s d d d d d w d d d d d d");
-  assert(rules::in_daylight(w), "out in the yard at {w.hero_x},{w.hero_y}\n{rules::view(w, 0, 0, 12, 3, 0)}");
-}
