@@ -6,6 +6,10 @@ water (rivers, lakes, shores), castles (walls you can walk on, gates, towers), h
 doors, roofs, rooms) and dungeons (cellars and caves on the layers below).  It is the game's,
 not a library's: the libraries gain only the generic pieces it needs (§ 7).
 
+**Scope.** Levels and regions of tens of chunks: a dungeon, a castle, a village with its
+fields.  A huge open world, with streaming, binary chunk files and incremental saves, is outside
+this plan.
+
 ## 1. The model it edits
 
 Three files describe a place, and the editor writes only the third:
@@ -67,6 +71,13 @@ A level holds one place: the cells of each layer, the things, and the markers.
 }
 ```
 
+**Also in the file** (built in `levels.loft`):
+- `camera`: `"follow"` or `"rooms"` (§ 4).
+- `ground`: a layer's open land, one entry per layer.  A space in a row is unset and reads as
+  that ground; `_` is a pit, void set on purpose.
+- `edges`: `[x, y, z, side, kind]`, each cell's N and W edge.
+- `rises`: `[x, y, z, steps]`, a cell's own height.
+
 **Goals are data:**
 
 | `goal` | Solved when |
@@ -88,7 +99,8 @@ Each kind of place needs particular materials, kinds and rules:
 | **Outer world** | grass, path (autotile), sand, trees, bushes, flowers, fence | `tree` (blocks; light passes); `fence` (climbed over, nothing pushed through — DESIGN.md) |
 | **Water** | water with shores (autotile), shallow ford, bridge | `water` blocks walking; a bridge is floor over water on the same layer |
 | **Castle** | castle wall (autotile), gate, battlement floor on the layer above, tower stairs | `door` (open/closed), `stairs` (walking onto it moves a layer up or down) |
-| **House** | house wall, door, roof (on the layer above), interior floor, furniture | the roof is cut away while the hero is inside (DESIGN.md: what the player sees) |
+| **House** | house wall (cells, or edges for thin inner walls), door edges, roof (on the layer above), interior floor, furniture | edges: `tile_world` keeps a wall, door, window or fence BETWEEN two cells; the roof is cut away while the hero is inside (DESIGN.md: what the player sees) |
+| **Hills** | grass with a rise per cell (`set_rise`), cliffs as wall cells | a slope is cells rising one step at a time; with 4-step layers (DESIGN.md), the top of a slope steps onto the layer above |
 | **Dungeon** | cave rock, stone floor, rails, torches (the staff) | layers below 0; a ceiling = the layer above is set; `stairs` down from the world above |
 
 The new kinds (`tree`, `fence`, `door`, `stairs`) are a line of `kinds.json` each, plus one rule
@@ -97,12 +109,18 @@ each in `rules.loft`:
 | Kind | Rule |
 |---|---|
 | `stairs` | arrive → change layer |
+| a slope's top | the step-up rule with layers of 4 steps: from rise 3 onto the next layer's floor |
 | `door` | walk into a closed one → it opens |
 | `fence` | climb over, nothing pushed across |
 
 `tree` needs no new rule: it is a blocking, non-opaque terrain kind.
 
 ## 4. The editor, as a player sees it
+
+**The camera** while playing: `follow` moves the view a whole tile at a time when the hero
+nears an edge of a dead zone, and stops at the level's edges; `rooms` flips a screen at a
+time (a dungeon of puzzle rooms).  Always-centred is not offered: on a puzzle board the moving
+background is noise.
 
 **Toggling.**  `E` switches between playing and editing.  Editing shows the level at full light
 (lighting off, `L` toggles it back for a check) and a status line naming the cursor's cell,
@@ -169,7 +187,7 @@ has none.
 
 | Library | Addition | For |
 |---|---|---|
-| `tile_world` | `layers(w)` and `chunks(w, z)`: which layers and chunks exist | saving a level; the view's scroll bounds |
+| `tile_world` | `layers(w)`, `chunks(w, z)`, `stacks(w)` — built (0.3.1); edges, ground and rise — built (0.4.0); `ground_layers(w)` — on a branch (0.4.1) | saving a level; the view's scroll bounds; houses, open land, slopes |
 | `tile_world` | `region(w, x, y, z, limit)`: the connected cells of one kind and tile | flood fill |
 | `tile_world` | `copy(w, rect, z0, z1)` / `paste(w, from, at)` of cells and stacks | stamps, copy and paste |
 | `tiles` | `rect(surface, x, y, w, h, colour)` and `frame(...)`: a filled and an outlined rectangle | the cursor, a selection, the palette's frame |

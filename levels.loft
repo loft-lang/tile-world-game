@@ -1,25 +1,36 @@
 // Level files: one place as JSON (EDITOR.md § 2).  The cells of each layer as chunks of rows,
-// one character per cell through a legend; the things as named stacks; where the hero starts;
-// and the goal, as data.  A chunk is tile_world's 32x32, and the file holds only the chunks
-// that exist, so a large outdoor world is not one huge grid.
+// one character per cell through a legend; the ground of a layer; the edges between cells and
+// the rise of a cell; the things as named stacks; where the hero starts; the goal and the
+// camera, as data.  A chunk is tile_world's 32x32, and the file holds only the chunks that
+// exist.
 //
 //   {
 //     "name": "the first climb",
-//     "legend": { "#": "wall", ".": "floor" },
-//     "chunks": [ { "cx": 0, "cy": 0, "z": 0, "rows": ["#####", "#...#"] } ],
+//     "camera": "follow",
+//     "legend": { "#": "wall", ".": "floor", "_": "void" },
+//     "ground": [ { "z": 0, "kind": "floor", "tile": 0 } ],
+//     "chunks": [ { "cx": 0, "cy": 0, "z": 0, "rows": ["#####", "#._.#"] } ],
 //     "things": [ { "at": [9, 2, 0], "stack": ["table", "chair"] } ],
 //     "tiles": [ [3, 4, 0, 12] ],
+//     "edges": [ [2, 1, 0, "N", "wall"], [3, 1, 0, "W", "door"] ],
+//     "rises": [ [5, 5, 0, 2] ],
 //     "start": [1, 1, 0],
 //     "goal": { "type": "layer", "z": 1 }
 //   }
 //
-// A row's characters run from the chunk's west edge; a space, or a row or column past the
-// row's end, is void.  `tiles` lists only the cells whose tile number is not 0.  Saving writes
-// the world in a fixed order, so the same level always writes the same file.
+// A row's characters run from the chunk's west edge.  A space, or a cell past the row's end, is
+// UNSET: it reads as its layer's ground, or void when the layer has none.  `_` is void set on
+// purpose (a pit in the ground).  `tiles` lists only the set cells whose tile number is not 0;
+// `edges` each cell's north and west edge that is not empty (an E or S side reads as the
+// neighbour's W or N); `rises` the cells that rise.  Saving writes the world in a fixed order,
+// so the same level always writes the same file.
 use tile_world;
 use rules;
 
 const CHUNK = 32;
+
+// The legend's mark for void set on purpose.
+const PIT = -1;
 
 /// What solves a level: "layer" (the hero reaches layer z), "daylight" (the hero stands under
 /// the open sky), "cell" (the hero reaches (x, y, z)), or "chests" (every chest is open).
@@ -30,10 +41,12 @@ pub struct Goal {
   pub z: integer
 }
 
-/// A level as its file holds it: the level itself, its name, where the hero starts and what
-/// solves it.
+/// A level as its file holds it: the level itself, its name, where the hero starts, what solves
+/// it, and how the view follows the hero: "follow" (it scrolls when the hero nears the edge) or
+/// "rooms" (it flips a screen at a time).
 pub struct LevelFile {
   pub name: text,
+  pub camera: text,
   pub level: rules::Level,
   pub start_x: integer,
   pub start_y: integer,
@@ -50,8 +63,19 @@ fn num(v: const JsonValue, default: integer) -> integer {
   if v.kind() == "JInteger" || v.kind() == "JNumber" { (v.as_number() as integer) ?? default } else { default }
 }
 
+fn str(v: const JsonValue, default: text) -> text {
+  if v.kind() == "JString" { v.as_text() } else { default }
+}
+
+fn side_of(letter: text) -> integer {
+  if letter == "N" { tile_world::NORTH }
+  else if letter == "E" { tile_world::EAST }
+  else if letter == "S" { tile_world::SOUTH }
+  else { tile_world::WEST }
+}
+
 /// The level a level file's JSON holds, its kinds named through `k`.  Null when it does not
-/// parse; a legend entry or a thing naming a kind `k` does not declare reads as void, nothing.
+/// parse; a name `k` does not declare reads as unset, nothing, no edge.
 pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
   v = json_parse(raw);
   if v.kind() != "JObject" { return null; }
@@ -59,7 +83,14 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
   legend: hash<LegendChar[ch]> = [];
   lg = v.field("legend");
   for c in lg.keys() {
-    legend += [LegendChar { ch: c, kind: rules::terrain_id(k, lg.field(c).as_text()) }];
+    name = lg.field(c).as_text();
+    legend += [LegendChar { ch: c, kind: if name == "void" { PIT } else { rules::terrain_id(k, name) } }];
+  }
+  gr = v.field("ground");
+  for i in 0..gr.len() {
+    g = gr.item(i);
+    tile_world::set_ground(l.w, num(g.field("z"), 0), rules::terrain_id(k, str(g.field("kind"), "")),
+                           num(g.field("tile"), 0));
   }
   chunks = v.field("chunks");
   for i in 0..chunks.len() {
@@ -73,7 +104,11 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
       for ch in rows.item(j).as_text() {
         e = legend["{ch}"];
         kind = if e { e.kind } else { 0 };
-        if kind != 0 { tile_world::set_terrain(l.w, x, y0 + j, z, kind); }
+        if kind == PIT {
+          tile_world::set_terrain(l.w, x, y0 + j, z, tile_world::VOID);
+        } else if kind != 0 {
+          tile_world::set_terrain(l.w, x, y0 + j, z, kind);
+        }
         x += 1;
       }
     }
@@ -98,6 +133,17 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
     z = num(t.item(2), 0);
     tile_world::set_terrain(l.w, x, y, z, tile_world::terrain(l.w, x, y, z), num(t.item(3), 0));
   }
+  edges = v.field("edges");
+  for i in 0..edges.len() {
+    e = edges.item(i);
+    tile_world::set_edge(l.w, num(e.item(0), 0), num(e.item(1), 0), num(e.item(2), 0),
+                         side_of(str(e.item(3), "")), rules::edge_id(k, str(e.item(4), "")));
+  }
+  rises = v.field("rises");
+  for i in 0..rises.len() {
+    r = rises.item(i);
+    tile_world::set_rise(l.w, num(r.item(0), 0), num(r.item(1), 0), num(r.item(2), 0), num(r.item(3), 0));
+  }
   st = v.field("start");
   sx = num(st.item(0), 0);
   sy = num(st.item(1), 0);
@@ -106,12 +152,14 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
   g = v.field("goal");
   ga = g.field("at");
   goal = Goal {
-    kind: if g.field("type").kind() == "JString" { g.field("type").as_text() } else { "" },
+    kind: str(g.field("type"), ""),
     x: num(ga.item(0), 0), y: num(ga.item(1), 0),
     z: if g.has_field("z") { num(g.field("z"), 0) } else { num(ga.item(2), 0) }
   };
-  name = if v.field("name").kind() == "JString" { v.field("name").as_text() } else { "" };
-  LevelFile { name: name, level: l, start_x: sx, start_y: sy, start_z: sz, goal: goal }
+  LevelFile {
+    name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
+    start_x: sx, start_y: sy, start_z: sz, goal: goal
+  }
 }
 
 /// The level in file `path`, or null when it does not read or parse.
@@ -144,9 +192,10 @@ fn quoted(s: text) -> text {
 }
 
 // The legend: each terrain kind's glyph, or the first free character when its glyph is taken,
-// is a space, or is not one character.
+// is a space or `_`, or is not one character.
 fn legend_of(k: const rules::Kinds) -> hash<LegendChar[ch]> {
   legend: hash<LegendChar[ch]> = [];
+  legend += [LegendChar { ch: "_", kind: PIT }];
   spare = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for id in rules::terrain_ids(k) {
     g = rules::terrain_glyph(k, id);
@@ -164,13 +213,67 @@ fn legend_of(k: const rules::Kinds) -> hash<LegendChar[ch]> {
   legend
 }
 
-/// The level file's JSON for `lf`, with its level as it is now: the world's cells and things,
-/// the start and the goal of `lf`.  The same level always writes the same text.
+// The legend character of a cell: a space when it is unset, `_` when it is void set on purpose.
+fn cell_char(l: const rules::Level, legend: const hash<LegendChar[ch]>, x: integer, y: integer, z: integer) -> text {
+  if !tile_world::is_set(l.w, x, y, z) { return " "; }
+  kind = tile_world::terrain(l.w, x, y, z);
+  if kind == tile_world::VOID { return "_"; }
+  for e in legend {
+    if e.kind == kind { return e.ch; }
+  }
+  " "
+}
+
+/// The level file's JSON for `lf`, with its level as it is now: the world's cells, grounds,
+/// edges, rises and things, the start, the goal and the camera of `lf`.  The same level always
+/// writes the same text.
 pub fn save(lf: const LevelFile) -> text {
   l = lf.level;
   k = l.k;
   legend = legend_of(k);
-  out = "{{\n  \"name\": {quoted(lf.name)},\n  \"legend\": {{";
+  chunks_text = "";
+  pits = false;
+  overrides: vector<(integer, integer, integer, integer)> = [];
+  edges: vector<(integer, integer, integer, text, integer)> = [];
+  rises: vector<(integer, integer, integer, integer)> = [];
+  first = true;
+  for z in tile_world::layers(l.w) {
+    for c in tile_world::chunks(l.w, z) {
+      rows: vector<text> = [];
+      for j in 0..CHUNK {
+        row = "";
+        for i in 0..CHUNK {
+          x = c.0 * CHUNK + i;
+          y = c.1 * CHUNK + j;
+          ch = cell_char(l, legend, x, y, z);
+          if ch == "_" { pits = true; }
+          row += ch;
+          if ch != " " && ch != "_" {
+            t = tile_world::tile(l.w, x, y, z);
+            if t != 0 { overrides += [(x, y, z, t)]; }
+          }
+          n = tile_world::edge(l.w, x, y, z, tile_world::NORTH);
+          if n != 0 { edges += [(x, y, z, "N", n)]; }
+          wst = tile_world::edge(l.w, x, y, z, tile_world::WEST);
+          if wst != 0 { edges += [(x, y, z, "W", wst)]; }
+          up = tile_world::rise(l.w, x, y, z);
+          if up != 0 { rises += [(x, y, z, up)]; }
+        }
+        rows += [row.trim_end()];
+      }
+      while len(rows) > 0 && rows[len(rows) - 1] == "" { rows = rows[0..len(rows) - 1]; }
+      if len(rows) == 0 { continue; }
+      chunks_text += if first { "\n" } else { ",\n" };
+      chunks_text += "    {{ \"cx\": {c.0}, \"cy\": {c.1}, \"z\": {z}, \"rows\": [\n";
+      for r in 0..len(rows) {
+        chunks_text += "      {quoted(rows[r])}";
+        chunks_text += if r + 1 < len(rows) { ",\n" } else { "\n" };
+      }
+      chunks_text += "    ] }}";
+      first = false;
+    }
+  }
+  out = "{{\n  \"name\": {quoted(lf.name)},\n  \"camera\": {quoted(lf.camera)},\n  \"legend\": {{";
   first = true;
   for id in rules::terrain_ids(k) {
     for e in legend {
@@ -181,41 +284,18 @@ pub fn save(lf: const LevelFile) -> text {
       }
     }
   }
-  out += " }},\n  \"chunks\": [";
-  first = true;
-  overrides: vector<(integer, integer, integer, integer)> = [];
-  for z in tile_world::layers(l.w) {
-    for c in tile_world::chunks(l.w, z) {
-      rows: vector<text> = [];
-      for j in 0..CHUNK {
-        row = "";
-        for i in 0..CHUNK {
-          x = c.0 * CHUNK + i;
-          y = c.1 * CHUNK + j;
-          kind = tile_world::terrain(l.w, x, y, z);
-          ch = " ";
-          for e in legend {
-            if e.kind == kind { ch = e.ch; }
-          }
-          row += ch;
-          t = tile_world::tile(l.w, x, y, z);
-          if t != 0 { overrides += [(x, y, z, t)]; }
-        }
-        rows += [row.trim_end()];
-      }
-      while len(rows) > 0 && rows[len(rows) - 1] == "" { rows = rows[0..len(rows) - 1]; }
-      if len(rows) == 0 { continue; }
-      out += if first { "\n" } else { ",\n" };
-      out += "    {{ \"cx\": {c.0}, \"cy\": {c.1}, \"z\": {z}, \"rows\": [\n";
-      for r in 0..len(rows) {
-        out += "      {quoted(rows[r])}";
-        out += if r + 1 < len(rows) { ",\n" } else { "\n" };
-      }
-      out += "    ] }}";
-      first = false;
-    }
+  if pits {
+    out += if first { " " } else { ", " };
+    out += "\"_\": \"void\"";
   }
-  out += "\n  ],\n  \"things\": [";
+  out += " }},\n  \"ground\": [";
+  first = true;
+  for z in tile_world::ground_layers(l.w) {
+    out += if first { " " } else { ", " };
+    out += "{{ \"z\": {z}, \"kind\": {quoted(rules::terrain_name(k, tile_world::ground(l.w, z)))}, \"tile\": {tile_world::ground_tile(l.w, z)} }}";
+    first = false;
+  }
+  out += " ],\n  \"chunks\": [" + chunks_text + "\n  ],\n  \"things\": [";
   first = true;
   for s in tile_world::stacks(l.w) {
     names = "";
@@ -232,6 +312,20 @@ pub fn save(lf: const LevelFile) -> text {
   for o in overrides {
     out += if first { " " } else { ", " };
     out += "[{o.0}, {o.1}, {o.2}, {o.3}]";
+    first = false;
+  }
+  out += " ],\n  \"edges\": [";
+  first = true;
+  for e in edges {
+    out += if first { " " } else { ", " };
+    out += "[{e.0}, {e.1}, {e.2}, {quoted(e.3)}, {quoted(rules::edge_name(k, e.4))}]";
+    first = false;
+  }
+  out += " ],\n  \"rises\": [";
+  first = true;
+  for r in rises {
+    out += if first { " " } else { ", " };
+    out += "[{r.0}, {r.1}, {r.2}, {r.3}]";
     first = false;
   }
   out += " ],\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";

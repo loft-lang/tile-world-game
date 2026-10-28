@@ -1,6 +1,8 @@
 {
   "name": "the first climb",
+  "camera": "follow",
   "legend": { ".": "floor", "#": "wall", "~": "water", "=": "rail" },
+  "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [
       "#############",
@@ -26,6 +28,8 @@
     { "at": [2, 6, 0], "stack": ["chair"] }
   ],
   "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
   "start": [1, 1, 0],
   "goal": { "type": "layer", "z": 1 }
 }
