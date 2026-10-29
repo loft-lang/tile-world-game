@@ -13,8 +13,8 @@ tile_world         loft-libs-world      main
 audio              loft-libs-game       main
 input              loft-libs-game       main
 screen             loft-libs-game       main
-tiles              loft-libs-graphics   tuxedo-tiles-shade
-imaging            loft-libs-graphics   tuxedo-imaging-c
+tiles              loft-libs-graphics   main
+imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
 mesh3d             loft-libs-assets     main
 glb                loft-libs-assets     main
