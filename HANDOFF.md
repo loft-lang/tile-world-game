@@ -61,9 +61,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    by pictures driven through the real keys (`TW_KEYS`, README), and the play frames are
    byte-identical to before.  Ctrl+O opens the next level of `order.json` until `input` reads
    typed text (EDITOR.md step 7).
-3. **Rules still to build** (DESIGN.md slice 2): 4-step layers (so a slope's top and a chair on a
-   table both step onto the layer above), fence climbing, doors that open, stairs, chests and
-   the signpost, the held item (sword, axe), enemies, guards, wells.
+3. **Rules still to build** (DESIGN.md slice 2).  Built: 4-step layers and slopes, ceilings,
+   fence (cell and edge), tree, doors that open, stairs, the held item (full hands — ANY held
+   item blocks push/pull/lift, the owner's rule — drop on X, the axe).  Open: chests and the
+   signpost (how a chest is opened is not decided: walking into one pushes it), falls (wait for
+   health), enemies, guards, wells and safe points, the sword's fighting.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
 
 ## Elsewhere (all landed or handed over)
