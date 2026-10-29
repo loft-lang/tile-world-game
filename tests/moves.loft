@@ -422,3 +422,55 @@ fn test_stairs_change_layer() {
   tile_world::set_terrain(w.w, 2, 0, 1, tile_world::VOID);
   assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "nothing above: {at(w)}");
 }
+
+// Picked up on the way, an axe fells the tree at x 2 and the fence at x 3 to floor: each one
+// move, the hero staying put, and the next step walks on.
+fn test_an_axe_fells_trees_and_fences() {
+  w = row(5);
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "axe"));
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
+  tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "fence"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "1,0,0 h0", "the tree felled: {at(w)}");
+  assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "floor"), "to floor");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "where it stood: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "2,0,0 h0", "the fence, not climbed: {at(w)}");
+  assert(tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"), "the fence to floor");
+}
+
+// Holding an item (a sword), a rock at x 3 is not pushed and a chair behind is not pulled: the
+// hero only walks.  Put down (x 1), the sword lies under the hero, and the next pull drags the
+// chair.
+fn test_holding_an_item_keeps_the_hands_busy() {
+  w = row(5);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "sword"));
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "rock"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "sword"), "the sword taken");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "the rock is not pushed");
+  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "rock"), "it stays at x 3");
+  _ = tile_world::take(w.w, 3, 0, 0);
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "chair"));
+  assert(rules::pull(w, -1, 0) == rules::Step.Walked && at(w) == "1,0,0 h0", "a walk, alone: {at(w)}");
+  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "chair"), "the chair stays at x 3");
+  assert(rules::drop(w) == rules::Step.Placed && w.hero_item == 0, "the sword put down");
+  assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "sword"), "under the hero");
+  assert(rules::drop(w) == rules::Step.Blocked, "nothing left to put down");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "back east");
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && tile_world::top(w.w, 2, 0, 0) == rules::th(w, "chair"),
+         "hands free, the chair is dragged");
+}
+
+// Walking over an item swaps it with the one held: the sword stays where the axe was.
+fn test_walking_over_an_item_swaps_it() {
+  w = row(4);
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "sword"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "axe"));
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(w.hero_item == rules::th(w, "axe"), "holds the axe");
+  assert(tile_world::top(w.w, 2, 0, 0) == rules::th(w, "sword") && tile_world::top(w.w, 1, 0, 0) == 0,
+         "the sword left at x 2");
+}

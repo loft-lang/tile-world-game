@@ -76,10 +76,12 @@ This is what the game built on tile_world should be.
 
 - **One item, no inventory.** The hero holds at most one item, and it is always on screen.
   - Walking over an item swaps it with the one held.
-  - `drop` puts the held item down.
-- **Sword.** The hero fights with it. While holding it, the hero cannot push, pull or lift
-  anything.
-- **Axe.** Walking into a fence or a tree with it chops it down to floor.
+  - `drop` (X) puts the held item down.
+  - **Full hands.** While holding any item, the hero cannot push, pull or lift anything. So
+    the cellar's torch is put down beside the rock before the rock is pushed.
+  - Built (slice 2): the swap, drop and full hands.
+- **Sword.** The hero fights with it (it waits for enemies).
+- **Axe.** Walking into a fence or a tree with it chops it down to floor (built, slice 2).
 - **Bow.**
   - Shoots enemies higher up on walls (bats, spiders), with no ammunition limit.
   - **Aim.** The aim locks onto an enemy in the general direction the hero faces. The lock is
@@ -144,6 +146,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open and stairs built; a fall waits for health |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe) built; a fall waits for health |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

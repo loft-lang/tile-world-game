@@ -73,7 +73,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -84,6 +84,7 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "left", ab_keys: [97, 130] },
       input::ActionBinding { ab_name: "right", ab_keys: [100, 131] },
       input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
+      input::ActionBinding { ab_name: "drop", ab_keys: [120] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
       input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] },
@@ -211,6 +212,8 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "bump", 0.5);
   } else if step == rules::Step.Took {
     sound(g, "pickup");
+  } else if step == rules::Step.Chopped {
+    sound(g, "chop");
   } else if step == rules::Step.Opened {
     sound(g, "door_open");
   } else if step == rules::Step.Placed {
@@ -397,6 +400,13 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   g.was_boosted = boosted;
   if g.keys.is_action_just_pressed("restart") {
     restart(g);
+    return true;
+  }
+  if !g.won && g.keys.is_action_just_pressed("drop") {
+    if rules::drop(g.world) == rules::Step.Placed {
+      g.moves += 1;
+      sound(g, "drop");
+    }
     return true;
   }
   if g.won && g.keys.is_action_just_pressed("next") {

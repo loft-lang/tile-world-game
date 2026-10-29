@@ -7,14 +7,18 @@
 //            itself: a fence is climbed like a one-step stack), blocks_things (nothing is pushed
 //            or pulled onto it, so a train stops at it), opens_to (walking into it turns it
 //            into that kind: a door opens), stairs (1 or -1: walking onto it takes the hero to
-//            the same cell a layer up or down).
+//            the same cell a layer up or down), chopped_to (walking into it holding a thing
+//            that chops turns it into that kind: a tree or a fence, felled to floor).
 //   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
 //            crosses: a fence between two cells).
 //   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
 //            (a lifting thing can rest on it), move ("none", "push", "push_pull"), rails (moves
 //            only along rail terrain), train (a line of them moves as one), lift (pulled up or
 //            down onto a surface), walk_on ("boost" or "take": walked over rather than into),
-//            mount (can be fixed to mount terrain), light (gives light, carried or set down).
+//            mount (can be fixed to mount terrain), light (gives light, carried or set down),
+//            chops (held, it fells what can be chopped: an axe).
+//
+// The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
 // Height counts in steps — a cell's rise and the things stacked on it — and a layer is
 // `layer_height` steps, so the floor of the layer above stands `layer_height` high.  The hero
@@ -42,6 +46,7 @@ struct TerrainProps {
   blocks_things: boolean,
   opens_to: text,
   stairs: integer,
+  chopped_to: text,
   glyph: text
 }
 
@@ -67,6 +72,7 @@ struct ThingProps {
   walk_on: text,
   mount: boolean,
   light: boolean,
+  chops: boolean,
   glyph: text
 }
 
@@ -116,7 +122,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
       rail: flag(e, "rail"), mount: flag(e, "mount"), height: num(e, "height", 0),
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
-      stairs: num(e, "stairs", 0), glyph: word(e, "glyph", "?")
+      stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""), glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -134,7 +140,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       id: num(e, "id", 0), name: name, height: num(e, "height", 1), stand: flag(e, "stand"),
       surface: flag(e, "surface"), move: word(e, "move", "none"), rails: flag(e, "rails"),
       train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
-      mount: flag(e, "mount"), light: flag(e, "light"), glyph: word(e, "glyph", "?")
+      mount: flag(e, "mount"), light: flag(e, "light"), chops: flag(e, "chops"),
+      glyph: word(e, "glyph", "?")
     }];
   }
   k
@@ -254,7 +261,9 @@ pub enum Step {
   Took,
   Placed,
   /// The hero opened a door.
-  Opened
+  Opened,
+  /// The hero felled a tree or a fence with what it holds.
+  Chopped
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -406,6 +415,25 @@ fn lifts(l: const Level, thing: integer) -> boolean {
   p.lift
 }
 
+// Does what the hero holds fell what can be chopped (an axe)?
+fn holds_chopper(l: const Level) -> boolean {
+  p = l.k.things[l.hero_item];
+  if !p { return false; }
+  p.chops
+}
+
+/// Are the hero's hands too busy to push, pull or lift?  They are while it holds an item.
+pub fn hands_busy(l: const Level) -> boolean {
+  l.hero_item != 0
+}
+
+// The kind terrain `kind` becomes when chopped (a tree, to floor), 0 when it cannot be.
+fn chopped_to(l: const Level, kind: integer) -> integer {
+  p = l.k.terrain[kind];
+  if !p || p.chopped_to == "" { return 0; }
+  terrain_id(l.k, p.chopped_to)
+}
+
 fn mounts(l: const Level, thing: integer) -> boolean {
   p = l.k.things[thing];
   if !p { return false; }
@@ -482,6 +510,16 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
 }
 
 // --- Strength and time ---
+
+/// Put down what the hero holds, on the floor where it stands: the hero then stands on it, and
+/// picks it up again only by walking off and back on.  Step.Placed, or Blocked when it holds
+/// nothing or does not stand on the floor.
+pub fn drop(l: Level) -> Step {
+  if l.hero_item == 0 || l.hero_h != 0 { return Step.Blocked; }
+  tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.hero_item);
+  l.hero_item = 0;
+  Step.Placed
+}
 
 /// Advance the level's clock by `ms` milliseconds.
 pub fn tick(l: Level, ms: integer) {
@@ -585,6 +623,12 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // climbed over.
   if !hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
   kind = tile_world::terrain(l.w, tx, ty, z);
+  // Holding an axe, a tree or a fence is felled; the hero stays where it is.
+  felled = chopped_to(l, kind);
+  if felled != 0 && holds_chopper(l) {
+    tile_world::set_terrain(l.w, tx, ty, z, felled);
+    return Step.Chopped;
+  }
   // A closed door opens; the hero stays where it is.
   open = opens_to(l, kind);
   if open != 0 {
@@ -609,7 +653,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   surface = height(l, tx, ty, z);
   base = surface - thing_height(l, thing);
   // A train moves as one, when the hero is strong enough and the cell after it takes it.
-  if trainlike(l, thing) && l.hero_h == 0 {
+  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) {
     n = train(l, tx, ty, z, dx, dy);
     if n > push_strength(l) || !fits(l, thing, tx + n * dx, ty + n * dy, z, 0)
         || !crosses(l, tx, ty, z, dx, dy, n) {
@@ -625,7 +669,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     return Step.Pushed;
   }
   // Any other movable thing at the hero's own level is pushed, when it can go one cell on.
-  if movable(l, thing) && base == l.hero_h && fits(l, thing, tx + dx, ty + dy, z, base)
+  if movable(l, thing) && !hands_busy(l) && base == l.hero_h && fits(l, thing, tx + dx, ty + dy, z, base)
       && tile_world::crossable(l.w, tx, ty, z, dx, dy) {
     t = tile_world::take(l.w, tx, ty, z);
     tile_world::place(l.w, tx + dx, ty + dy, z, t);
@@ -660,7 +704,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
       || height(l, tx, ty, z) > l.hero_h {
     return Step.Blocked;
   }
-  thing = tile_world::top(l.w, bx, by, z);
+  thing = if hands_busy(l) { 0 } else { tile_world::top(l.w, bx, by, z) };
   // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
   left = height(l, fx, fy, z);
   base = height(l, bx, by, z) - thing_height(l, thing);
@@ -699,12 +743,17 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
 // --- Playing ---
 
 /// Play a line of moves: `w` `a` `s` `d` walk north, west, south and east; `pw` `pa` `ps` `pd`
-/// pull.  Moves are separated by spaces; anything else is skipped.  Answers how many moves were
+/// pull; `x` puts down what the hero holds.  Moves are separated by spaces; anything else is
+/// skipped.  Answers how many moves were
 /// not Blocked.
 pub fn play(l: Level, moves: text) -> integer {
   done = 0;
   for m in moves.split(' ') {
     t = m.trim();
+    if t == "x" {
+      if drop(l) != Step.Blocked { done += 1; }
+      continue;
+    }
     pulling = t.starts_with("p");
     d = if pulling { t[1..] } else { t };
     dx = if d == "a" { -1 } else if d == "d" { 1 } else { 0 };

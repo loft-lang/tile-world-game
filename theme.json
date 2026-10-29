@@ -80,11 +80,23 @@
     },
     "potion": "dungeon:114",
     "staff": "dungeon:129",
-    "chest": "dungeon:89"
+    "chest": "dungeon:89",
+    "axe": "dungeon:118",
+    "sword": "dungeon:104"
   },
   "carried": {
     "staff": {
       "tile": "dungeon:129",
+      "dx": 7,
+      "dy": -2
+    },
+    "axe": {
+      "tile": "dungeon:118",
+      "dx": 7,
+      "dy": -2
+    },
+    "sword": {
+      "tile": "dungeon:104",
       "dx": 7,
       "dy": -2
     }
