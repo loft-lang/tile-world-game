@@ -12,7 +12,8 @@ A traversal-puzzle game on the `tile_world` library.  Run it:
 loft --native --lib libs main.loft
 ```
 
-Arrows or WASD move.  Hold Shift (or P) while moving to pull; X puts down what the hero holds.  R restarts the level, N (or
+Arrows or WASD move.  Hold Shift (or P) while moving to pull; X puts down what the hero holds.
+The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.  R restarts the level, N (or
 Enter) goes to the next one when this one is solved, Esc or Q quits.
 
 **E opens the editor** (EDITOR.md § 4) on the level being played:

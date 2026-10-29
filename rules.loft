@@ -24,11 +24,12 @@
 //
 // Height counts in steps — a cell's rise and the things stacked on it — and a layer is
 // `layer_height` steps, so the floor of the layer above stands `layer_height` high.  The hero
-// steps up at most 1 and down any amount short of a full layer (a fall: it will cost health;
-// until the hero has health, it is not taken).  So one step below a layer's height — a chair on
-// a table, a slope's top — climbs onto the floor of the layer above beside it, unless a ceiling
-// is over the hero (the layer above set over its own cell); and walking into the void steps
-// down onto what stands on the layer below.  Walking into a thing pushes
+// steps up at most 1 and down any amount short of a full layer.  So one step below a layer's
+// height — a chair on a table, a slope's top — climbs onto the floor of the layer above beside
+// it, unless a ceiling is over the hero (the layer above set over its own cell); and walking
+// into the void steps down onto what stands below.  A drop of a full layer or more is a FALL:
+// it costs `fall_damage[n - 1]` of the hero's `health` for n layers fallen (the last entry for
+// deeper falls), and a hero with no health left moves no more.  Walking into a thing pushes
 // it one cell when it can go there, and climbs onto it when it cannot and can be stood on.  A
 // train is pushed up to `push_strength` long and pulled up to `pull_strength`; a walk_on
 // "boost" thing adds `boost` to both for `boost_ms` of the level's clock.
@@ -90,7 +91,10 @@ pub struct Kinds {
   pub pull_strength: integer,
   pub boost: integer,
   pub boost_ms: integer,
-  pub layer_height: integer
+  pub layer_height: integer,
+  /// The hero's health at the start, and what a fall of 1, 2, 3, ... layers costs.
+  pub health: integer,
+  pub fall_damage: vector<integer>
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -118,8 +122,12 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     pull_strength: num(r, "pull_strength", 2),
     boost: num(r, "boost", 2),
     boost_ms: num(r, "boost_ms", 60000),
-    layer_height: num(r, "layer_height", 4)
+    layer_height: num(r, "layer_height", 4),
+    health: num(r, "health", 6),
+    fall_damage: []
   };
+  fd = r.field("fall_damage");
+  for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
   t = v.field("terrain");
   for name in t.keys() {
     e = t.field(name);
@@ -160,11 +168,11 @@ pub fn kinds() -> Kinds {
     if raw != "" {
       k = kinds_from_json(raw);
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
-                                 boost: 2, boost_ms: 60000, layer_height: 4 }; }
+                                 boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [] }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
-          layer_height: 4 }
+          layer_height: 4, health: 6, fall_damage: [] }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -255,7 +263,9 @@ pub struct Level {
   /// What the hero holds: 0 for nothing, or a thing it took.
   pub hero_item: integer,
   /// The points scored: a chest opened is one.
-  pub points: integer
+  pub points: integer,
+  /// The hero's health: a fall costs some; at 0 the hero moves no more.
+  pub health: integer
 }
 
 /// What a step did.
@@ -272,6 +282,8 @@ pub enum Step {
   Opened,
   /// The hero read a signpost: `closed` says what it told.
   Read,
+  /// The hero fell a layer or more, and lost health.
+  Fell,
   /// The hero felled a tree or a fence with what it holds.
   Chopped
 }
@@ -291,7 +303,7 @@ pub fn level(k: const Kinds) -> Level {
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
-          points: 0 }
+          points: 0, health: k.health }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -612,23 +624,63 @@ fn climb(l: Level, dx: integer, dy: integer) -> Step? {
     arrive(l, tx, ty, z + 1);
     return Step.Climbed;
   }
-  // Down: into the void beside, onto what stands on the layer below — a thing the hero can
-  // stand on, or a rise.
-  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1))
-      && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && hero_crosses(l, l.hero_x, l.hero_y, z - 1, dx, dy) {
-    t = tile_world::top(l.w, tx, ty, z - 1);
-    h = height(l, tx, ty, z - 1);
-    if (t == 0 || standable(l, t)) && reach(l, up + l.hero_h, h) {
-      arrive(l, tx, ty, z - 1);
-      return Step.Climbed;
-    }
+  // Down: into the void beside, onto the first cell below that is not void — a floor, a rise, a
+  // thing the hero can stand on, some layers down.  Less than a layer is a step down; a layer or
+  // more is a fall.
+  if tile_world::terrain(l.w, tx, ty, z) == VOID && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
+    bottom = lowest_layer(l);
+    zb = z - 1;
+    while zb >= bottom && tile_world::terrain(l.w, tx, ty, zb) == VOID { zb -= 1; }
+    if zb < bottom || !walkable(l, tile_world::terrain(l.w, tx, ty, zb)) { return null; }
+    if zb == z - 1 && !hero_crosses(l, l.hero_x, l.hero_y, zb, dx, dy) { return null; }
+    t = tile_world::top(l.w, tx, ty, zb);
+    if t != 0 && !standable(l, t) && !item(l, t) { return null; }
+    from = (z - zb) * up + l.hero_h;
+    to = height(l, tx, ty, zb);
+    if to > from + 1 { return null; }
+    arrive(l, tx, ty, zb);
+    fallen = (from - to) / up ?? 0;
+    if fallen == 0 { return Step.Climbed; }
+    hurt(l, fallen);
+    return Step.Fell;
   }
   null
+}
+
+// The lowest layer the level has.
+fn lowest_layer(l: const Level) -> integer {
+  low = 0;
+  first = true;
+  for z in tile_world::layers(l.w) {
+    if first || z < low { low = z; }
+    first = false;
+  }
+  low
+}
+
+// The cost of falling `layers` layers: the kinds' fall_damage for that many, the last entry for
+// more.
+fn fall_cost(l: const Level, layers: integer) -> integer {
+  n = len(l.k.fall_damage);
+  if n == 0 { return 0; }
+  l.k.fall_damage[if layers < n { layers - 1 } else { n - 1 }] ?? 0
+}
+
+// The hero falls `layers` layers and loses that fall's cost, down to no health.
+fn hurt(l: Level, layers: integer) {
+  l.health -= fall_cost(l, layers);
+  if l.health < 0 { l.health = 0; }
+}
+
+/// Has the hero health left to move?
+pub fn alive(l: const Level) -> boolean {
+  l.health > 0
 }
 
 /// Move the hero one cell (dx, dy one of the four directions): walk, push, climb onto a thing,
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
+  if !alive(l) { return Step.Blocked; }
   c = climb(l, dx, dy);
   if c != null { return c ?? Step.Blocked; }
   tx = l.hero_x + dx;
@@ -731,6 +783,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
 /// nothing did, Blocked when the hero cannot take the step (a plain one, onto a cell no higher
 /// than the hero stands).
 pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
+  if !alive(l) { return Step.Blocked; }
   fx = l.hero_x;
   fy = l.hero_y;
   z = l.hero_z;

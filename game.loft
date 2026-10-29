@@ -73,7 +73,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -217,6 +217,8 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "chop");
   } else if step == rules::Step.Opened {
     sound(g, if thing == 0 { "door_open" } else { "chest_open" });
+  } else if step == rules::Step.Fell {
+    sound(g, if rules::alive(w) { "fall" } else { "game_over" }, 1.0);
   } else if step == rules::Step.Read {
     sound(g, "signpost");
   } else if step == rules::Step.Placed {
@@ -516,12 +518,26 @@ pub fn draw(g: Game) {
   }
   if g.won {
     write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
-  } else if g.note != "" {
-    write(g, g.note, 0, (ROWS - 1) * 16);
+  } else if !rules::alive(w) {
+    write(g, "NO HEARTS - R", 0, (ROWS - 1) * 16);
   } else {
-    strong = if rules::boosted(w) { " +{(w.boost_until - w.now) / 1000}" } else { "" };
-    write(g, "MOVES {g.moves}{strong}", 0, (ROWS - 1) * 16);
+    status(g, if g.note != "" { g.note } else { "MOVES {g.moves}" });
   }
+}
+
+// The play status line: `left` from the left, and at the right the seconds a boost has left
+// and the hero's health, a heart and a number.  `left` is cut short to leave them room.
+fn status(g: Game, left: text) {
+  w = g.world;
+  ts = g.look.tile_size;
+  y = (ROWS - 1) * ts;
+  right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
+  cells = len(right) + 2;
+  write(g, right, (COLS - cells) * ts, y);
+  theme::put(g.surface, g.look.heart, (COLS - 2) * ts, y, 0);
+  write(g, "{w.health}", (COLS - 1) * ts, y);
+  room = COLS - cells - 1;
+  write(g, if len(left) > room { left.char_slice(0, room) } else { left }, 0, y);
 }
 
 // A one-cell frame round cell (x, y) of the view, `inset` pixels inside it.

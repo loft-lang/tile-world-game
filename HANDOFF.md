@@ -65,7 +65,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    fence (cell and edge), tree, doors that open, stairs, the held item (full hands — ANY held
    item blocks push/pull/lift, the owner's rule — drop on X, the axe), chests (never moved,
    the owner's rule; walked into they open, a point; from a chair walked on like a table) and
-   the signpost.  Open: falls (wait for health), enemies, guards, wells and safe points, the
+   the signpost.  Built since: health and falls (1/3/6 for 1/2/3 layers).  Open: enemies, guards, wells and safe points, the
    sword's fighting, a chest's money.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
 

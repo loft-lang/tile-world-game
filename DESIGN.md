@@ -34,8 +34,11 @@ This is what the game built on tile_world should be.
     layer's floor.
   - A slope is cells rising one step at a time, and its top (3) steps onto the layer above too.
   - Built with 4-step layers, slopes included (slice 2, `tests/moves.loft`).
-- **Falling.** Falling a full wall height (4) costs the hero health. Until the hero has health,
-  a full fall is not taken: the step is blocked. A bomb that drops a level
+- **Falling.** A drop of a full layer (4 steps) or more is a fall, and costs health by the layers
+  fallen: 1 layer costs 1, 2 cost 3, 3 cost 6 (kinds.json `fall_damage`; deeper falls cost the
+  last).  The hero starts with 6 (`health`), so a fall of three layers takes it all.  A shorter
+  drop — onto a chair below a ledge — costs nothing.  With no health left the hero moves no
+  more; until wells and safe points exist, R restarts the level.  Built (slice 2). A bomb that drops a level
   explodes on landing.
 - **Ceilings.** A cell has a ceiling when the layer above it is not void.
   - The ceiling is never drawn.
@@ -148,6 +151,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost built; a fall waits for health |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost built |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

@@ -340,14 +340,41 @@ fn test_a_steep_rise_blocks() {
   assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h0", "two steps up: {at(w)}");
 }
 
-// Off layer 1's floor at x 4, east into the void: bare floor below is a full layer down (a
-// fall, not taken); a chair there (1) is three steps down, and is stepped onto.
-fn test_a_full_layer_down_is_a_fall() {
-  w = slope();
-  rules::put_hero(w, 4, 0, 1);
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "4,0,1 h0", "onto bare floor: {at(w)}");
-  tile_world::place(w.w, 5, 0, 0, rules::th(w, "chair"));
-  assert(rules::walk(w, 1, 0) == rules::Step.Climbed && at(w) == "5,0,0 h1", "onto the chair: {at(w)}");
+// A ledge `levels` layers up at x 4, the void east of it down to layer 0's floor at x 5.
+fn ledge(levels: integer) -> rules::Level {
+  w = row(6);
+  tile_world::set_terrain(w.w, 4, 0, levels, rules::tr(w, "floor"));
+  rules::put_hero(w, 4, 0, levels);
+  w
+}
+
+// Off the ledge east into the void: a fall of 1, 2 and 3 layers costs 1, 3 and 6 of the
+// hero's 6 health (kinds.json), and lands on the floor below.  A chair there (1) makes a
+// one-layer drop three steps: no fall, no cost.  With no health left the hero moves no more.
+fn test_falls_cost_health() {
+  one = ledge(1);
+  assert(one.health == 6, "full health: {one.health}");
+  assert(rules::walk(one, 1, 0) == rules::Step.Fell && at(one) == "5,0,0 h0", "a layer: {at(one)}");
+  assert(one.health == 5, "costs 1: {one.health}");
+  chair = ledge(1);
+  tile_world::place(chair.w, 5, 0, 0, rules::th(chair, "chair"));
+  assert(rules::walk(chair, 1, 0) == rules::Step.Climbed && at(chair) == "5,0,0 h1", "onto the chair: {at(chair)}");
+  assert(chair.health == 6, "costs nothing: {chair.health}");
+  two = ledge(2);
+  assert(rules::walk(two, 1, 0) == rules::Step.Fell && at(two) == "5,0,0 h0" && two.health == 3,
+         "two layers cost 3: {at(two)} {two.health}");
+  three = ledge(3);
+  assert(rules::walk(three, 1, 0) == rules::Step.Fell && three.health == 0, "three cost 6: {three.health}");
+  assert(!rules::alive(three) && rules::walk(three, -1, 0) == rules::Step.Blocked, "no health, no moves");
+}
+
+// With nothing below the void — no layer under it holds that cell — the step is not taken.
+fn test_no_fall_into_nothing() {
+  w = rules::level(rules::kinds());
+  tile_world::set_terrain(w.w, 0, 0, 1, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 1);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "0,0,1 h0", "nothing below: {at(w)}");
+  assert(w.health == 6, "unhurt");
 }
 
 // A ceiling over the slope's top (layer 1 set over x 3): the hero does not climb up through it,

@@ -4,7 +4,9 @@
     "pull_strength": 2,
     "boost": 2,
     "boost_ms": 60000,
-    "layer_height": 4
+    "layer_height": 4,
+    "health": 6,
+    "fall_damage": [1, 3, 6]
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

@@ -20,6 +20,7 @@
     }
   },
   "hero": "dungeon:97",
+  "heart": "battle:195",
   "terrain": {
     "floor": {
       "tile": "dungeon:48",
