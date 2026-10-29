@@ -420,9 +420,11 @@ fn draw_cell(g: Game, w: const rules::Level, x: integer, y: integer, z: integer,
   px = (x - g.cam_x) * ts;
   py = (y - g.cam_y) * ts;
   k = tile_world::terrain(w.w, x, y, z);
+  // A kind drawn over another (a rail, a tree, a fence over the floor) draws that one first.
+  under = theme::under(g.look, k);
+  if under != 0 { theme::put(g.surface, theme::terrain_sprite(g.look, under, x, y, false), px, py, shade); }
   if theme::is_line(g.look, k) {
-    // A line (a rail) is drawn over the terrain under it, across or along its neighbours.
-    theme::put(g.surface, theme::terrain_sprite(g.look, theme::under(g.look, k), x, y, false), px, py, shade);
+    // A line (a rail, a fence) runs across or along its neighbours of the same kind.
     across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
     theme::put(g.surface, theme::line_sprite(g.look, k, across), px, py, shade);
   } else {

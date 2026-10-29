@@ -341,3 +341,50 @@ fn test_no_climb_through_a_ceiling() {
   rules::put_hero(w, 3, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "4,0,0 h0", "under the ceiling: {at(w)}");
 }
+
+// A tree stops the hero but not light or sight.
+fn test_a_tree_blocks_and_lets_light_through() {
+  w = row(4);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h0", "the tree: {at(w)}");
+  assert(!tile_world::opaque(w.w, 2, 0, 0), "light passes the tree");
+  assert(tile_world::line_of_sight(w.w, 1, 0, 3, 0, 0), "and so does sight");
+}
+
+// A fence cell is climbed like a one-step stack, and keeps things off: a chair pushed at it
+// stays, so the hero climbs the chair (1), steps onto the fence (1) and down beyond (0).
+//
+//   . h % .
+//  x 0 1 2 3
+fn test_the_hero_climbs_a_fence_and_nothing_crosses_it() {
+  w = row(4);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "fence"));
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "1,0,0 h1", "onto the chair, not pushed: {at(w)}");
+  assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "chair"), "the chair stays at x 1");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h1", "onto the fence: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "3,0,0 h0", "over it: {at(w)}");
+  // Pulling the chair back west from x 3 would drag it onto the fence: the hero walks, alone.
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::walk(w, 1, 0);
+  rules::put_hero(w, 2, 0, 0);
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "chair"));
+  assert(rules::pull(w, -1, 0) == rules::Step.Walked, "not dragged onto the fence");
+  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "chair"), "the chair stays at x 3");
+}
+
+// A fence edge between x 1 and x 2: the hero climbs over it; a chair pushed at it does not
+// cross, so the hero climbs the chair instead.  A wall edge there stops the hero.
+fn test_a_fence_edge_is_climbed_over() {
+  w = row(4);
+  tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, rules::ed(w, "fence"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "over the fence: {at(w)}");
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "1,0,0 h1", "the chair stays: {at(w)}");
+  tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, rules::ed(w, "wall"));
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h1", "a wall edge: {at(w)}");
+}

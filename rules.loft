@@ -3,7 +3,11 @@
 // data (kinds.json), and every rule here reads a kind's properties, never its name:
 //
 //   terrain: walk (can be stood on), opaque (stops sight and light), rail (carts run on it),
-//            mount (a mountable thing can be fixed to it: a wall).
+//            mount (a mountable thing can be fixed to it: a wall), height (the steps it stands
+//            itself: a fence is climbed like a one-step stack), blocks_things (nothing is pushed
+//            or pulled onto it, so a train stops at it).
+//   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
+//            crosses: a fence between two cells).
 //   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
 //            (a lifting thing can rest on it), move ("none", "push", "push_pull"), rails (moves
 //            only along rail terrain), train (a line of them moves as one), lift (pulled up or
@@ -32,6 +36,8 @@ struct TerrainProps {
   opaque: boolean,
   rail: boolean,
   mount: boolean,
+  height: integer,
+  blocks_things: boolean,
   glyph: text
 }
 
@@ -40,6 +46,7 @@ struct EdgeProps {
   name: text,
   walk: boolean,
   opaque: boolean,
+  climb: boolean,
   glyph: text
 }
 
@@ -103,7 +110,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     e = t.field(name);
     k.terrain += [TerrainProps {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
-      rail: flag(e, "rail"), mount: flag(e, "mount"), glyph: word(e, "glyph", "?")
+      rail: flag(e, "rail"), mount: flag(e, "mount"), height: num(e, "height", 0),
+      blocks_things: flag(e, "blocks_things"), glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -111,7 +119,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     e = ed.field(name);
     k.edges += [EdgeProps {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
-      glyph: word(e, "glyph", "|")
+      climb: flag(e, "climb"), glyph: word(e, "glyph", "|")
     }];
   }
   th = v.field("things");
@@ -281,6 +289,31 @@ pub fn walkable(l: const Level, kind: integer) -> boolean {
   p.walk
 }
 
+/// How high cell (x, y, z) stands, in steps: its terrain's own height (a fence), its rise, and
+/// the things stacked on it.
+pub fn height(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  p = l.k.terrain[tile_world::terrain(l.w, x, y, z)];
+  (if p { p.height } else { 0 }) + tile_world::height(l.w, x, y, z)
+}
+
+// Does terrain `kind` keep things off: nothing pushed or pulled onto it?
+fn blocks_things(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.blocks_things
+}
+
+/// Can the hero cross from (x, y, z) to the cell (dx, dy) beside it: no edge between, an edge
+/// that is walked through (a door), or one it climbs over (a fence)?
+pub fn hero_crosses(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  if tile_world::crossable(l.w, x, y, z, dx, dy) { return true; }
+  side = if dx > 0 { tile_world::EAST } else if dx < 0 { tile_world::WEST }
+         else if dy > 0 { tile_world::SOUTH } else { tile_world::NORTH };
+  p = l.k.edges[tile_world::edge(l.w, x, y, z, side)];
+  if !p { return false; }
+  p.climb
+}
+
 fn rail(l: const Level, kind: integer) -> boolean {
   p = l.k.terrain[kind];
   if !p { return false; }
@@ -377,7 +410,7 @@ pub fn put_hero(l: Level, x: integer, y: integer, z: integer) {
   l.hero_x = x;
   l.hero_y = y;
   l.hero_z = z;
-  l.hero_h = tile_world::height(l.w, x, y, z);
+  l.hero_h = height(l, x, y, z);
 }
 
 /// The light the hero carries, for `tile_world::shades`: its cell when it holds a light.
@@ -399,8 +432,8 @@ pub fn view(l: const Level, x0: integer, y0: integer, x1: integer, y1: integer, 
 // thing goes only onto rail terrain's floor; a lifting thing also onto a surface's top.
 fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base: integer) -> boolean {
   k = tile_world::terrain(l.w, x, y, z);
-  if !walkable(l, k) { return false; }
-  surface = tile_world::height(l.w, x, y, z);
+  if !walkable(l, k) || blocks_things(l, k) { return false; }
+  surface = height(l, x, y, z);
   if surface != base { return false; }
   if on_rails(l, thing) { return rail(l, k) && surface == 0; }
   if surface == 0 { return true; }
@@ -413,7 +446,7 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
   l.hero_x = x;
   l.hero_y = y;
   l.hero_z = z;
-  l.hero_h = tile_world::height(l.w, x, y, z);
+  l.hero_h = height(l, x, y, z);
   if l.hero_h != 0 { return; }
   t = tile_world::top(l.w, x, y, z);
   effect = walk_on(l, t);
@@ -467,7 +500,7 @@ fn crosses(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: 
 // Is (x, y, z) one car of a train: a train thing alone on its floor.
 fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
   t = tile_world::top(l.w, x, y, z);
-  trainlike(l, t) && tile_world::height(l.w, x, y, z) == thing_height(l, t)
+  trainlike(l, t) && height(l, x, y, z) == thing_height(l, t)
 }
 
 // The climb between layers, or null when this step is not one.
@@ -486,15 +519,17 @@ fn climb(l: Level, dx: integer, dy: integer) -> Step? {
   // rise — never up through a ceiling.
   if walkable(l, tile_world::terrain(l.w, tx, ty, z + 1)) && tile_world::top(l.w, tx, ty, z + 1) == 0
       && tile_world::terrain(l.w, l.hero_x, l.hero_y, z + 1) == VOID
+      && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && hero_crosses(l, l.hero_x, l.hero_y, z + 1, dx, dy)
       && reach(l, l.hero_h, up + tile_world::rise(l.w, tx, ty, z + 1)) {
     arrive(l, tx, ty, z + 1);
     return Step.Climbed;
   }
   // Down: into the void beside, onto what stands on the layer below — a thing the hero can
   // stand on, or a rise.
-  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1)) {
+  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1))
+      && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && hero_crosses(l, l.hero_x, l.hero_y, z - 1, dx, dy) {
     t = tile_world::top(l.w, tx, ty, z - 1);
-    h = tile_world::height(l.w, tx, ty, z - 1);
+    h = height(l, tx, ty, z - 1);
     if (t == 0 || standable(l, t)) && reach(l, up + l.hero_h, h) {
       arrive(l, tx, ty, z - 1);
       return Step.Climbed;
@@ -526,16 +561,17 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     }
   }
   if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
-  // An edge between the hero and the cell it steps to: a wall, a window or a fence stops it.
-  if !tile_world::crossable(l.w, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
+  // An edge between the hero and the cell it steps to: a wall or a window stops it; a fence is
+  // climbed over.
+  if !hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
   thing = tile_world::top(l.w, tx, ty, z);
   if thing == 0 || item(l, thing) {
     // A rise is stepped like a stack: up one at most.
-    if !reach(l, l.hero_h, tile_world::height(l.w, tx, ty, z)) { return Step.Blocked; }
+    if !reach(l, l.hero_h, height(l, tx, ty, z)) { return Step.Blocked; }
     arrive(l, tx, ty, z);
     return Step.Walked;
   }
-  surface = tile_world::height(l.w, tx, ty, z);
+  surface = height(l, tx, ty, z);
   base = surface - thing_height(l, thing);
   // A train moves as one, when the hero is strong enough and the cell after it takes it.
   if trainlike(l, thing) && l.hero_h == 0 {
@@ -583,16 +619,16 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
   bx = fx - dx;
   by = fy - dy;
   if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
-  if !tile_world::crossable(l.w, fx, fy, z, dx, dy) { return Step.Blocked; }
+  if !hero_crosses(l, fx, fy, z, dx, dy) { return Step.Blocked; }
   target = tile_world::top(l.w, tx, ty, z);
   if (target != 0 && !item(l, target) && !standable(l, target))
-      || tile_world::height(l.w, tx, ty, z) > l.hero_h {
+      || height(l, tx, ty, z) > l.hero_h {
     return Step.Blocked;
   }
   thing = tile_world::top(l.w, bx, by, z);
   // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
-  left = tile_world::height(l.w, fx, fy, z);
-  base = tile_world::height(l.w, bx, by, z) - thing_height(l, thing);
+  left = height(l, fx, fy, z);
+  base = height(l, bx, by, z) - thing_height(l, thing);
   if trainlike(l, thing) {
     // The whole train behind follows, one cell each, when the hero can pull it.
     n = train(l, bx, by, z, -dx, -dy);
@@ -615,6 +651,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
     reach = if lifts(l, thing) { 2 } else { 0 };
     ok = lift >= -reach && lift <= reach
          && (left == 0 || surface_kind(l, tile_world::top(l.w, fx, fy, z)))
+         && !blocks_things(l, tile_world::terrain(l.w, fx, fy, z))
          && tile_world::crossable(l.w, bx, by, z, dx, dy);
   }
   arrive(l, tx, ty, z);

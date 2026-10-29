@@ -236,6 +236,9 @@ pub fn save(lf: const LevelFile) -> text {
   overrides: vector<(integer, integer, integer, integer)> = [];
   edges: vector<(integer, integer, integer, text, integer)> = [];
   rises: vector<(integer, integer, integer, integer)> = [];
+  // The legend lists only the kinds the level uses, so a file does not change when kinds.json
+  // gains a kind.
+  used: vector<text> = [];
   first = true;
   for z in tile_world::layers(l.w) {
     for c in tile_world::chunks(l.w, z) {
@@ -247,6 +250,7 @@ pub fn save(lf: const LevelFile) -> text {
           y = c.1 * CHUNK + j;
           ch = cell_char(l, legend, x, y, z);
           if ch == "_" { pits = true; }
+          if ch != " " && ch != "_" && !used.contains(ch) { used += [ch]; }
           row += ch;
           if ch != " " && ch != "_" {
             t = tile_world::tile(l.w, x, y, z);
@@ -277,7 +281,7 @@ pub fn save(lf: const LevelFile) -> text {
   first = true;
   for id in rules::terrain_ids(k) {
     for e in legend {
-      if e.kind == id {
+      if e.kind == id && used.contains(e.ch) {
         out += if first { " " } else { ", " };
         out += "{quoted(e.ch)}: {quoted(rules::terrain_name(k, id))}";
         first = false;

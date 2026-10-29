@@ -45,8 +45,9 @@ This is what the game built on tile_world should be.
   - Water: blocks walking, but bats fly over it.
   - Wall: rough walls are climbable by spiders; smooth walls (optional) are not.
   - Fence: the hero climbs over it like a height-1 step. Nothing is pushed or pulled across it,
-    and it stops trains. Bats fly over it.
-  - Tree: blocks walking.
+    and it stops trains. Bats fly over it. Built (slice 2) as a terrain cell and as an edge
+    between two cells; bats wait for enemies.
+  - Tree: blocks walking; light and sight pass it (built, slice 2).
   - Door.
   - Well.
 
@@ -142,6 +143,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes and ceilings built; a fall waits for health |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge) and tree built; a fall waits for health |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

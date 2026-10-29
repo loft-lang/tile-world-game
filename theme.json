@@ -40,6 +40,15 @@
       "under": "floor",
       "tile": "dungeon:77",
       "along": "dungeon:67"
+    },
+    "tree": {
+      "under": "floor",
+      "tile": "town:16"
+    },
+    "fence": {
+      "under": "floor",
+      "tile": "town:81",
+      "along": "town:71"
     }
   },
   "things": {

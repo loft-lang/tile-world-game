@@ -1,7 +1,7 @@
 {
   "name": "the cellar",
   "camera": "follow",
-  "legend": { ".": "floor", "#": "wall", "~": "water", "=": "rail" },
+  "legend": { ".": "floor", "#": "wall" },
   "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [

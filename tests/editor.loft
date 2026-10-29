@@ -22,6 +22,14 @@ fn first_climb() -> levels::LevelFile {
   }
 }
 
+// Pick the palette entry named `name`.
+fn pick(ed: editor::Editor, k: const rules::Kinds, name: text) {
+  for i in 0..len(ed.palette) {
+    if editor::name(k, ed.palette[i] ?? editor::picked(ed)) == name { ed.pick = i; }
+  }
+  assert(editor::name(k, editor::picked(ed)) == name, "the palette has {name}");
+}
+
 fn stack(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> text {
   t = "";
   for th in tile_world::things(lf.level.w, x, y, z) { t += "{th},"; }
@@ -34,15 +42,17 @@ fn main() {
   assert(ed.x == 1 && ed.y == 1 && ed.z == 0, "the cursor starts on the hero's start");
 }
 
-// void, the four terrain kinds, the eight things: 13 entries, round the end both ways.
+// void, the terrain kinds, then the things (the first is the cart, the last the chest), round
+// the end both ways.
 fn test_the_palette() {
   lf = first_climb();
   ed = editor::new_editor(lf);
   k = lf.level.k;
-  assert(len(ed.palette) == 13, "13 entries, got {len(ed.palette)}");
+  n = len(rules::terrain_ids(k));
+  assert(len(ed.palette) == 1 + n + len(rules::thing_ids(k)), "every kind, got {len(ed.palette)}");
   assert(editor::name(k, editor::picked(ed)) == "floor", "the first terrain kind is picked");
   assert(editor::name(k, ed.palette[0] ?? editor::picked(ed)) == "void", "void first");
-  assert(editor::name(k, ed.palette[5] ?? editor::picked(ed)) == "cart", "then the things");
+  assert(editor::name(k, ed.palette[1 + n] ?? editor::picked(ed)) == "cart", "then the things");
   editor::choose(ed, -1);
   editor::choose(ed, -1);
   assert(editor::name(k, editor::picked(ed)) == "chest", "back past void is the last: {ed.pick}");
@@ -61,7 +71,7 @@ fn test_paint_stack_undo_redo() {
   assert(!editor::paint(ed, lf), "the same wall again changes nothing");
   assert(tile_world::terrain(w, 1, 1, 0) == WALL, "(1, 1) is a wall");
   editor::move(ed, 1, 0);
-  ed.pick = 6;
+  pick(ed, lf.level.k, "chair");
   assert(editor::paint(ed, lf) && editor::paint(ed, lf), "two chairs stacked");
   assert(stack(lf, 2, 1, 0) == "{CHAIR},{CHAIR},", "the stack: {stack(lf, 2, 1, 0)}");
   assert(editor::undoable(ed) == 3, "three edits, got {editor::undoable(ed)}");
