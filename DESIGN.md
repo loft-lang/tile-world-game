@@ -130,7 +130,11 @@ This is what the game built on tile_world should be.
   approaches and the area is clear.
 - **Wells and safe points.** Drinking from a well saves the whole situation.
   - A well gives water only when the area is clear.
-  - A key returns to the saved situation, after a confirmation.
+  - A key returns to the saved situation, after a confirmation (B, then B again).
+  - Losing all health returns the hero to the last safe point; with none, R restarts.
+  - Built (slice 2): the well (walked into, it saves; the hero stays put), the return on no
+    health, B twice.  The clear-area condition waits for the enemies: until then the area is
+    always clear.
   - This is what makes the unsolvable states a wrong push or a bomb can create acceptable.
 
 ## What the player sees
@@ -151,6 +155,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost built |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost, wells and safe points built |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

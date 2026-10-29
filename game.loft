@@ -56,11 +56,18 @@ pub struct Game {
   pub editing: boolean,
   pub ed: editor::Editor,
   lit: boolean,
-  note: text,
+  pub note: text,
   /// The view's top-left cell, and the cells the level sets (for a view that follows).
   pub cam_x: integer,
   pub cam_y: integer,
-  area: (integer, integer, integer, integer)
+  area: (integer, integer, integer, integer),
+  /// The game's directory: theme.json, assets/ and levels/ are read from it.
+  pub dir: text,
+  /// The situation saved at the last well, whether there is one, and whether the player has
+  /// asked once to go back to it (a second B confirms).
+  pub saved: rules::Level,
+  pub has_save: boolean,
+  asking_back: boolean
 }
 
 struct Sound {
@@ -73,7 +80,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -85,6 +92,7 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "right", ab_keys: [100, 131] },
       input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
       input::ActionBinding { ab_name: "drop", ab_keys: [120] },
+      input::ActionBinding { ab_name: "back", ab_keys: [98] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
       input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] },
@@ -107,12 +115,14 @@ fn bindings() -> input::Bindings {
   }
 }
 
-/// A new game: its kinds from kinds.json, its look from theme.json (sheets relative to the
-/// game's directory), its sounds from `assets`.  Null when the theme or a sheet will not load.
-pub fn new_game(assets: text) -> Game? {
+/// A new game in directory `dir` (the game's own, "." for main.loft, ".." for a test): its kinds
+/// from kinds.json, its look from theme.json (sheets relative to `dir`), its sounds from
+/// `dir`/assets/sounds, its levels from `dir`/levels.  Null when the theme or a sheet will not
+/// load.
+pub fn new_game(dir: text) -> Game? {
   s = tiles::surface(W, H);
   k = rules::kinds();
-  th = theme::load(file("theme.json").content() ?? "", ".", k);
+  th = theme::load(file("{dir}/theme.json").content() ?? "", dir, k);
   if !s || !th { return null; }
   blank = levels::LevelFile {
     name: "", camera: "follow", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
@@ -122,13 +132,14 @@ pub fn new_game(assets: text) -> Game? {
   g = Game {
     world: rules::level(k),
     file: blank,
-    order: level_order(),
+    order: level_order(dir),
     surface: s ?? 0, kinds: k, look: th ?? return null,
     sounds: [],
     keys: input::input_new(bindings()),
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
     editing: false, ed: ed, lit: false, note: "",
-    cam_x: 0, cam_y: 0, area: (0, 0, 0, 0)
+    cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
+    dir: dir, saved: rules::level(k), has_save: false, asking_back: false
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -136,7 +147,7 @@ pub fn new_game(assets: text) -> Game? {
     n = parts[1] as integer ?? 1;
     clips: vector<integer> = [];
     for i in 0..n {
-      c = audio::load("{assets}/sounds/{name}_{i}.ogg");
+      c = audio::load("{dir}/assets/sounds/{name}_{i}.ogg");
       if c { clips += [c ?? 0]; }
     }
     g.sounds += [Sound { sd_name: name, sd_clips: clips, sd_next: 0 }];
@@ -157,16 +168,16 @@ pub fn sound(g: Game, name: text, volume: float = 0.8) {
 
 
 // The level names levels/order.json lists.
-fn level_order() -> vector<text> {
+fn level_order(dir: text) -> vector<text> {
   out: vector<text> = [];
-  o = json_parse(file("levels/order.json").content() ?? "").field("order");
+  o = json_parse(file("{dir}/levels/order.json").content() ?? "").field("order");
   for i in 0..o.len() { out += [o.item(i).as_text()]; }
   out
 }
 
 // The file of level number `level` of the order.
 fn level_path(g: const Game, level: integer) -> text {
-  "levels/{g.order[level] ?? ""}.json"
+  "{g.dir}/levels/{g.order[level] ?? ""}.json"
 }
 
 // Load level number `level` of the order into `g`, with a fresh editor on it; false when its
@@ -194,6 +205,8 @@ pub fn start_level(g: Game, level: integer) {
 /// the played copy dropped.  (`g.world = g.file.level` copies: an assignment into a field.)
 pub fn restart(g: Game) {
   g.note = "";
+  g.has_save = false;
+  g.asking_back = false;
   g.world = g.file.level;
   rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
   g.area = camera::bounds(g.world.w);
@@ -219,6 +232,8 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, if thing == 0 { "door_open" } else { "chest_open" });
   } else if step == rules::Step.Fell {
     sound(g, if rules::alive(w) { "fall" } else { "game_over" }, 1.0);
+  } else if step == rules::Step.Saved {
+    sound(g, "save");
   } else if step == rules::Step.Read {
     sound(g, "signpost");
   } else if step == rules::Step.Placed {
@@ -237,6 +252,7 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
 pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   if g.won { return; }
   g.note = "";
+  g.asking_back = false;
   w = g.world;
   z = w.hero_z;
   // What the move will act on: the thing ahead for a push, the thing behind for a pull.
@@ -247,6 +263,11 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   };
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
+  if step == rules::Step.Saved {
+    g.saved = g.world;
+    g.has_save = true;
+    g.note = "SAVED";
+  }
   if step != rules::Step.Blocked { g.moves += 1; }
   move_sound(g, step, thing, z);
   if !g.was_boosted && rules::boosted(w) {
@@ -257,7 +278,31 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     g.won = true;
     sound(g, "win", 1.0);
   }
+  // With no health left, the hero is back at the last well — when it drank from one.
+  if !rules::alive(g.world) && g.has_save { return_to_save(g); }
   aim(g);
+}
+
+// The situation saved at the last well, back: the world, the hero, its health.
+fn return_to_save(g: Game) {
+  g.world = g.saved;
+  g.asking_back = false;
+  g.note = "BACK AT WELL";
+  sound(g, "restore");
+  aim(g);
+}
+
+/// The player asks to go back to the last well: the first ask only asks ("BACK? B AGAIN"), the
+/// second goes.  Answers whether anything changed; false when there is no save.
+pub fn back(g: Game) -> boolean {
+  if !g.has_save { return false; }
+  if !g.asking_back {
+    g.asking_back = true;
+    g.note = "BACK? B AGAIN";
+    return true;
+  }
+  return_to_save(g);
+  true
 }
 
 // Point the view at the hero, the way the level's file says: "rooms" a screen at a time,
@@ -416,6 +461,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     restart(g);
     return true;
   }
+  if !g.won && g.keys.is_action_just_pressed("back") { return back(g); }
   if !g.won && g.keys.is_action_just_pressed("drop") {
     if rules::drop(g.world) == rules::Step.Placed {
       g.moves += 1;
@@ -521,7 +567,9 @@ pub fn draw(g: Game) {
   } else if !rules::alive(w) {
     write(g, "NO HEARTS - R", 0, (ROWS - 1) * 16);
   } else {
-    status(g, if g.note != "" { g.note } else { "MOVES {g.moves}" });
+    // A note (a signpost's count, SAVED, BACK? B AGAIN) has the whole line until the next
+    // move; the move count shares it with the boost and the hearts.
+    if g.note != "" { write(g, g.note, 0, (ROWS - 1) * 16); } else { status(g, "MOVES {g.moves}"); }
   }
 }
 
@@ -537,7 +585,9 @@ fn status(g: Game, left: text) {
   theme::put(g.surface, g.look.heart, (COLS - 2) * ts, y, 0);
   write(g, "{w.health}", (COLS - 1) * ts, y);
   room = COLS - cells - 1;
-  write(g, if len(left) > room { left.char_slice(0, room) } else { left }, 0, y);
+  // Bound first: a text `if` as a call argument does not compile on --native before loft#2225.
+  shown = if len(left) > room { left.char_slice(0, room) } else { left };
+  write(g, shown, 0, y);
 }
 
 // A one-cell frame round cell (x, y) of the view, `inset` pixels inside it.

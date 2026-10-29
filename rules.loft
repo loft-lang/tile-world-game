@@ -8,7 +8,9 @@
 //            or pulled onto it, so a train stops at it), opens_to (walking into it turns it
 //            into that kind: a door opens), stairs (1 or -1: walking onto it takes the hero to
 //            the same cell a layer up or down), chopped_to (walking into it holding a thing
-//            that chops turns it into that kind: a tree or a fence, felled to floor).
+//            that chops turns it into that kind: a tree or a fence, felled to floor), saves
+//            (walking into it saves the whole situation: a well — DESIGN.md's clear-area
+//            condition joins it with the enemies, until then the area is always clear).
 //   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
 //            crosses: a fence between two cells).
 //   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
@@ -50,6 +52,7 @@ struct TerrainProps {
   opens_to: text,
   stairs: integer,
   chopped_to: text,
+  saves: boolean,
   glyph: text
 }
 
@@ -135,7 +138,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
       rail: flag(e, "rail"), mount: flag(e, "mount"), height: num(e, "height", 0),
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
-      stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""), glyph: word(e, "glyph", "?")
+      stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
+      saves: flag(e, "saves"), glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -284,6 +288,8 @@ pub enum Step {
   Read,
   /// The hero fell a layer or more, and lost health.
   Fell,
+  /// The hero drank from a well: the game saves the whole situation here.
+  Saved,
   /// The hero felled a tree or a fence with what it holds.
   Chopped
 }
@@ -338,7 +344,8 @@ pub fn height(l: const Level, x: integer, y: integer, z: integer) -> integer {
 // The kind terrain `kind` turns into when walked into (a door, open), 0 for none.
 fn opens_to(l: const Level, kind: integer) -> integer {
   p = l.k.terrain[kind];
-  if !p || p.opens_to == "" { return 0; }
+  if !p { return 0; }
+  if p.opens_to == "" { return 0; }
   terrain_id(l.k, p.opens_to)
 }
 
@@ -441,7 +448,8 @@ fn lifts(l: const Level, thing: integer) -> boolean {
 // The thing `thing` turns into when walked into (a chest, open), 0 for none.
 fn thing_opens_to(l: const Level, thing: integer) -> integer {
   p = l.k.things[thing];
-  if !p || p.opens_to == "" { return 0; }
+  if !p { return 0; }
+  if p.opens_to == "" { return 0; }
   thing_id(l.k, p.opens_to)
 }
 
@@ -471,7 +479,8 @@ pub fn hands_busy(l: const Level) -> boolean {
 // The kind terrain `kind` becomes when chopped (a tree, to floor), 0 when it cannot be.
 fn chopped_to(l: const Level, kind: integer) -> integer {
   p = l.k.terrain[kind];
-  if !p || p.chopped_to == "" { return 0; }
+  if !p { return 0; }
+  if p.chopped_to == "" { return 0; }
   terrain_id(l.k, p.chopped_to)
 }
 
@@ -710,6 +719,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     tile_world::set_terrain(l.w, tx, ty, z, felled);
     return Step.Chopped;
   }
+  // A well saves the situation (the game keeps it); the hero stays where it is.
+  here = l.k.terrain[kind];
+  if here && here.saves { return Step.Saved; }
   // A closed door opens; the hero stays where it is.
   open = opens_to(l, kind);
   if open != 0 {

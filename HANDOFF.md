@@ -65,8 +65,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    fence (cell and edge), tree, doors that open, stairs, the held item (full hands — ANY held
    item blocks push/pull/lift, the owner's rule — drop on X, the axe), chests (never moved,
    the owner's rule; walked into they open, a point; from a chair walked on like a table) and
-   the signpost.  Built since: health and falls (1/3/6 for 1/2/3 layers).  Open: enemies, guards, wells and safe points, the
+   the signpost.  Built since: health and falls (1/3/6 for 1/2/3 layers), wells and safe points.  Open: enemies, guards, wells and safe points, the
    sword's fighting, a chest's money.
+   Follow-ups: `checks/game.loft` reports `1 stores not freed at program exit: Theme×3` on the
+   interpreter (the theme `new_game` loads; not yet looked at); game checks live in `checks/`
+   until loft#2234 lets `--tests` open a `--lib` library's C core.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
 
 ## Elsewhere (all landed or handed over)

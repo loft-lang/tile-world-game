@@ -13,7 +13,9 @@ loft --native --lib libs main.loft
 ```
 
 Arrows or WASD move.  Hold Shift (or P) while moving to pull; X puts down what the hero holds.
-The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.  R restarts the level, N (or
+The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
+Walking into a well saves the situation; losing all health brings the hero back there, and B
+(twice, to confirm) goes back by choice.  R restarts the level, N (or
 Enter) goes to the next one when this one is solved, Esc or Q quits.
 
 **E opens the editor** (EDITOR.md § 4) on the level being played:
@@ -47,6 +49,7 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | `DESIGN.md` | what the game should become, slice by slice |
 | `EDITOR.md` | the design of the in-game world editor |
 | `tests/` | the rules, played out: `loft --lib libs --tests tests` |
+| `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it) |
 | `fetch-libs.sh` | fetches the libraries into `libs/` from their repositories, until they are all published |
 

@@ -62,6 +62,10 @@
     },
     "stairs_down": {
       "tile": "dungeon:37"
+    },
+    "well": {
+      "under": "floor",
+      "tile": "farm:73"
     }
   },
   "things": {

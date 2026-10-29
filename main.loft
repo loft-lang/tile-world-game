@@ -64,12 +64,12 @@ fn picture(game: game::Game, shot: text) {
 }
 
 fn main() {
-  g = game::new_game("assets");
+  g = game::new_game(".");
   if !g {
     println("the pictures in assets/sheets did not load");
     return;
   }
-  game = g ?? game::new_game("assets") ?? return;
+  game = g ?? game::new_game(".") ?? return;
   shot = env_variable("TW_SHOT") ?? "";
   if shot != "" {
     picture(game, shot);

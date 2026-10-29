@@ -518,3 +518,11 @@ fn test_walking_over_an_item_swaps_it() {
   assert(tile_world::top(w.w, 2, 0, 0) == rules::th(w, "sword") && tile_world::top(w.w, 1, 0, 0) == 0,
          "the sword left at x 2");
 }
+
+// Walking into a well saves the situation — the game keeps it — and the hero stays put.
+fn test_a_well_saves() {
+  w = row(4);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "well"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Saved && at(w) == "1,0,0 h0", "saved: {at(w)}");
+}

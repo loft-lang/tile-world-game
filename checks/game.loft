@@ -1,0 +1,61 @@
+// The game itself, built from its directory one up: the safe point a well makes.
+//
+// A plain program, not a `tests/` file: under `loft --tests` a `--lib` library's `[c] shim`
+// is not opened (loft#2234), and the game draws through `tiles`, which is one.  Run it with
+// `loft --lib libs checks/game.loft`; it moves into tests/ when that is fixed.  The first
+// climb (levels/first_climb.json) starts the hero at (1, 1) on layer 0; a well is put at (1, 2)
+// below it.  Layer 1's ledge runs x 8..11 at y 1, with the void at x 7 over layer 0's floor:
+// stepping west off it is a fall of one layer, which costs 1 health.
+use tile_world;
+use rules;
+use game;
+
+fn main() {
+  assert(game::new_game("..") != null, "the game loads from its directory");
+  test_a_well_brings_the_hero_back();
+  test_b_twice_goes_back();
+  println("checks/game.loft: 2 passed");
+}
+
+// A fresh game on the first climb with a well under the start, the hero having drunk from it.
+fn at_the_well(g: game::Game) {
+  game::start_level(g, 0);
+  tile_world::set_terrain(g.world.w, 1, 2, 0, rules::tr(g.world, "well"));
+  game::move(g, 0, 1, false);
+}
+
+fn where(g: const game::Game) -> text {
+  w = g.world;
+  "{w.hero_x},{w.hero_y},{w.hero_z} health {w.health}"
+}
+
+// Drinking saves; a fall that takes the last health brings the hero back to the well, with the
+// health it had there.
+fn test_a_well_brings_the_hero_back() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  at_the_well(g);
+  assert(g.has_save && g.note == "SAVED" && where(g) == "1,1,0 health 6", "saved: {where(g)}");
+  rules::put_hero(g.world, 8, 1, 1);
+  g.world.health = 1;
+  game::move(g, -1, 0, false);
+  assert(where(g) == "1,1,0 health 6", "back at the well: {where(g)}");
+  assert(g.note == "BACK AT WELL", "said so: {g.note}");
+}
+
+// B asks first and goes on the second; a move between the two cancels the ask.  A restart
+// drops the save, and then B does nothing.
+fn test_b_twice_goes_back() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  at_the_well(g);
+  game::move(g, 1, 0, false);
+  assert(game::back(g) && where(g) == "2,1,0 health 6" && g.note == "BACK? B AGAIN", "asks: {where(g)}");
+  game::move(g, 1, 0, false);
+  assert(game::back(g) && where(g) == "3,1,0 health 6", "a move cancelled the ask: {where(g)}");
+  assert(game::back(g) && where(g) == "1,1,0 health 6", "the second B goes: {where(g)}");
+  game::restart(g);
+  assert(!g.has_save && !game::back(g), "no well drunk from, no way back");
+}
