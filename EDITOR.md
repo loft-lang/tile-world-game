@@ -229,5 +229,8 @@ has none.
    under the cursor, at most 4096 cells), R mark / R rectangle, I eyedropper, C copy (the
    marked box or the cursor's cell) and V paste — each one edit, undone as one.  Open: stamp
    files (`stamps/<name>.json`, needs typed names) and Shift+move as a rectangle.
-6. **The checks of § 5.**
+6. **The checks of § 5** — built: `editor::check` (tested in `tests/editor.loft`) and K in
+   the editor: the way from the start to a cell goal on its layer (dots, `PATH n` / `NO PATH!`),
+   the closed chests no walk from the start reaches (red) and those no walkable cell within 8
+   can see (magenta).  A "layer" or "daylight" goal has no one cell to search for.
 7. **Platforms**: the desktop pointer, typed text, browser storage, the Tanmatsu's SD card.

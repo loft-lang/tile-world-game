@@ -30,6 +30,9 @@ const CURSOR = 65535;
 const GOAL = 2016;
 const ABOVE = 16904;
 const PICKED = 65504;
+// The checks: a chest cut off from the start, a hidden one.
+const CUT_OFF = 63488;
+const HIDDEN = 63519;
 
 // Key codes beside the bindings: Ctrl and Shift held.
 const KEY_SHIFT = 132;
@@ -59,6 +62,8 @@ pub struct Game {
   pub editing: boolean,
   pub ed: editor::Editor,
   lit: boolean,
+  /// The editor shows the checks (K): the way to a cell goal, chests cut off or hidden.
+  pub checking: boolean,
   pub note: text,
   /// The view's top-left cell, and the cells the level sets (for a view that follows).
   pub cam_x: integer,
@@ -117,7 +122,8 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "rect", ab_keys: [114] },
       input::ActionBinding { ab_name: "pick", ab_keys: [105] },
       input::ActionBinding { ab_name: "copy", ab_keys: [99] },
-      input::ActionBinding { ab_name: "paste", ab_keys: [118] }
+      input::ActionBinding { ab_name: "paste", ab_keys: [118] },
+      input::ActionBinding { ab_name: "check", ab_keys: [107] }
     ],
     bnd_axes: []
   };
@@ -151,7 +157,7 @@ pub fn new_game(dir: text) -> Game? {
     sounds: [],
     keys: input::input_new(bindings()),
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
-    editing: false, ed: ed, lit: false, note: "",
+    editing: false, ed: ed, lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false
   };
@@ -399,6 +405,7 @@ pub fn edit(g: Game, word: text) {
   else if word == "pick" { _ = editor::pick_under(g.ed, g.file); }
   else if word == "copy" { editor::copy_box(g.ed, g.file); }
   else if word == "paste" { _ = editor::paste_box(g.ed, g.file); }
+  else if word == "check" { g.checking = !g.checking; }
   else if word.starts_with("cat") { _ = editor::jump(g.ed, g.kinds, word[3..] as integer ?? 0); }
   else if word == "paint" { _ = editor::paint(g.ed, g.file); }
   else if word == "erase" { _ = editor::erase(g.ed, g.file); }
@@ -461,6 +468,7 @@ fn update_editor(g: Game, now: integer) -> boolean {
   else if k.is_action_just_pressed("pick") { _ = editor::pick_under(g.ed, g.file); }
   else if k.is_action_just_pressed("copy") { editor::copy_box(g.ed, g.file); }
   else if k.is_action_just_pressed("paste") { _ = editor::paste_box(g.ed, g.file); }
+  else if k.is_action_just_pressed("check") { g.checking = !g.checking; }
   else if category_pressed(k) > 0 { _ = editor::jump(g.ed, g.kinds, category_pressed(k)); }
   else {
     d = direction(g, now);
@@ -629,6 +637,29 @@ fn status(g: Game, left: text) {
   write(g, shown, 0, y);
 }
 
+// The checks (EDITOR.md § 5) over layer z of the view: the way to a cell goal as dots, a chest
+// cut off from the start framed red, a hidden one magenta.  Hints only: a path search ignores
+// what pushing could change.
+fn draw_checks(g: Game, z: integer) {
+  r = editor::check(g.file);
+  ts = g.look.tile_size;
+  if r.searched && z == g.file.start_z {
+    for p in r.path {
+      tiles::rect(g.surface, (p.0 - g.cam_x) * ts + ts / 2 - 2, (p.1 - g.cam_y) * ts + ts / 2 - 2, 4, 4, GOAL);
+    }
+  }
+  for c in r.cut_off { if c.2 == z { box(g, c.0, c.1, 2, CUT_OFF); } }
+  for c in r.hidden { if c.2 == z { box(g, c.0, c.1, 4, HIDDEN); } }
+}
+
+// The status line while the checks show: the way to the goal, when it is a cell.
+fn check_note(g: Game) -> text {
+  r = editor::check(g.file);
+  if !r.searched { return "CHECKS ON"; }
+  if len(r.path) == 0 { return "NO PATH!"; }
+  "PATH {len(r.path)}"
+}
+
 // A one-cell frame round cell (x, y) of the view, `inset` pixels inside it.
 fn box(g: Game, x: integer, y: integer, inset: integer, colour: integer) {
   ts = g.look.tile_size;
@@ -676,6 +707,7 @@ pub fn draw_editor(g: Game) {
     bh = (if ed.mark_y > ed.y { ed.mark_y } else { ed.y }) - y0 + 1;
     tiles::frame(g.surface, (x0 - g.cam_x) * ts, (y0 - g.cam_y) * ts, bw * ts, bh * ts, PICKED);
   }
+  if g.checking { draw_checks(g, z); }
   box(g, ed.x, ed.y, 0, CURSOR);
   box(g, ed.x, ed.y, 1, 0);
   n = len(ed.palette);
@@ -689,7 +721,7 @@ pub fn draw_editor(g: Game) {
     theme::put(g.surface, entry_sprite(g, ed.palette[i] ?? editor::picked(ed)), px, py, 0);
     if i == ed.pick { tiles::frame(g.surface, px, py, ts, ts, PICKED); }
   }
-  status = if g.note != "" { g.note } else {
+  status = if g.note != "" { g.note } else if g.checking { check_note(g) } else {
     "{ed.x} {ed.y} {z} {editor::name(l.k, editor::picked(ed))}"
   };
   if len(status) > COLS { status = status.char_slice(0, COLS); }

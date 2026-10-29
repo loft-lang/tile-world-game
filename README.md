@@ -34,6 +34,7 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | R | mark a corner; R again paints the rectangle from it to the cursor |
 | I | pick what is under the cursor into the palette (eyedropper) |
 | C, V | copy the marked box (or the cursor's cell), paste it with its corner at the cursor |
+| K | the checks: the way from the start to a cell goal (dots; NO PATH! when there is none), chests cut off (red) or hidden (magenta) — hints, since a search ignores pushing |
 | Ctrl+Z / Ctrl+Y | undo / redo |
 | Ctrl+S | save the level to its file in `levels/` |
 | Ctrl+O | open the next level of `levels/order.json` (by name once `input` reads typed text) |

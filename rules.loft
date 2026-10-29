@@ -453,6 +453,17 @@ fn thing_opens_to(l: const Level, thing: integer) -> integer {
   thing_id(l.k, p.opens_to)
 }
 
+/// Where the things still to open (closed chests) are, stack by stack.
+pub fn closed_at(l: const Level) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  for s in tile_world::stacks(l.w) {
+    for t in tile_world::things(l.w, s.0, s.1, s.2) {
+      if thing_opens_to(l, t) != 0 { out += [s]; }
+    }
+  }
+  out
+}
+
 /// How many things in the level are still to open (closed chests).
 pub fn closed(l: const Level) -> integer {
   n = 0;

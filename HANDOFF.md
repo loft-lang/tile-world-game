@@ -72,6 +72,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    until loft#2234 lets `--tests` open a `--lib` library's C core.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8) — built: grass, path, lake, castle wall, palette categories; fences as an autotile line set open.
    Step 5 brushes built (fill, rectangle, eyedropper, copy/paste) on tile_world 0.5.0 (loft-libs-world#39, merged); stamp files open.
+   Step 6 checks built (K: path to a cell goal, chests cut off / hidden).  Next: step 7 platforms (typed text in `input` → names, Ctrl+O by name, stamp files, signs).
 
 ## Elsewhere (all landed or handed over)
 

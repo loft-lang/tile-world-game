@@ -506,3 +506,56 @@ pub fn redo(ed: Editor, lf: levels::LevelFile) -> boolean {
 pub fn undoable(ed: const Editor) -> integer {
   ed.done
 }
+
+// --- The checks a level designer asks (EDITOR.md § 5) ---
+
+/// How far the checks search: a path of at most this many steps, a chest seen from a walkable
+/// cell at most this many cells away.
+pub const CHECK_STEPS = 128;
+pub const SIGHT = 8;
+
+/// What the checks found.  A path search ignores what pushing could change, so these are hints,
+/// never proof: a level's solution test stays the proof.
+pub struct Report {
+  /// A "cell" goal on the start's layer: whether it was searched, and the path (empty: the
+  /// goal cannot be reached).
+  pub searched: boolean,
+  pub path: vector<(integer, integer)>,
+  /// The closed chests on the start's layer no walk from the start reaches, and those no
+  /// walkable cell within SIGHT can see (DESIGN.md: a chest is never hidden).
+  pub cut_off: vector<(integer, integer, integer)>,
+  pub hidden: vector<(integer, integer, integer)>
+}
+
+// Can a walkable cell within SIGHT of the chest at (x, y, z) see it?
+fn seen(w: const tile_world::World, x: integer, y: integer, z: integer) -> boolean {
+  for dy in -SIGHT..=SIGHT {
+    for dx in -SIGHT..=SIGHT {
+      if (dx != 0 || dy != 0) && tile_world::passable(w, x + dx, y + dy, z)
+          && tile_world::line_of_sight(w, x + dx, y + dy, x, y, z) {
+        return true;
+      }
+    }
+  }
+  false
+}
+
+/// The checks of level `lf` as it is now: the way from the start to a cell goal, and the
+/// chests cut off or hidden.
+pub fn check(lf: const levels::LevelFile) -> Report {
+  l = lf.level;
+  w = l.w;
+  r = Report { searched: false, path: [], cut_off: [], hidden: [] };
+  g = lf.goal;
+  if g.kind == "cell" && g.z == lf.start_z {
+    r.searched = true;
+    r.path = tile_world::shortest_path(w, lf.start_x, lf.start_y, g.x, g.y, g.z, CHECK_STEPS);
+  }
+  for c in rules::closed_at(l) {
+    if c.2 == lf.start_z && len(tile_world::shortest_path(w, lf.start_x, lf.start_y, c.0, c.1, c.2, CHECK_STEPS)) == 0 {
+      r.cut_off += [c];
+    }
+    if !seen(w, c.0, c.1, c.2) { r.hidden += [c]; }
+  }
+  r
+}
