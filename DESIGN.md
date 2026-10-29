@@ -63,10 +63,11 @@ This is what the game built on tile_world should be.
 - **Rocks and anvils.** Pushed only, never pulled, and never by a cart or another rock. On the
   rails they block trains (slice 1).
 - **Chests.**
-  - A chest is pushed like a rock: pushed only, never pulled, never by a cart or another
-    rock, and on the rails it blocks trains.
-  - It is climbed like a table (height 2), but nothing stands on it: a chair is not lifted
-    onto it.
+  - A chest never moves: it is not pushed or pulled.
+  - Walking into a closed chest opens it (one move; the hero stays put).
+  - With a chair beside it, it is walked on like a table (height 2), but nothing stands on it:
+    a chair is not lifted onto it.
+  - Built (slice 2).
 - **Chairs.**
   - A chair slides on the floor or along tables.
   - It is pulled up onto a table the hero stands on (slice 1).
@@ -95,12 +96,13 @@ This is what the game built on tile_world should be.
 
 ## Goals: chests and points
 
-- **A point per chest.**  Opening a chest gives its money and one point.  A region or a
+- **A point per chest.**  Opening a chest gives its money and one point (the point is built;
+  money waits).  A level's goal `chests` is solved when no chest is left closed.  A region or a
   dungeon has a fixed number of chests, so the points it can give are limited.
 - **A chest is never hidden.**  It may stand out of the direct route — a door behind a tree is
   a fair way to it — but never behind or beside a wall where it cannot be seen.
 - **The signpost counts.**  Walking into a farm signpost lists how many of the region's chests
-  are still unopened.
+  are still unopened (built: the status line, until the next move).
 
 ## Enemies
 
@@ -146,6 +148,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe) built; a fall waits for health |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost built; a fall waits for health |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

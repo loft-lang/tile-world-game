@@ -73,7 +73,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -193,6 +193,7 @@ pub fn start_level(g: Game, level: integer) {
 /// Start the level again, as the file in memory holds it: the editor's edits included, and
 /// the played copy dropped.  (`g.world = g.file.level` copies: an assignment into a field.)
 pub fn restart(g: Game) {
+  g.note = "";
   g.world = g.file.level;
   rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
   g.area = camera::bounds(g.world.w);
@@ -215,7 +216,9 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
   } else if step == rules::Step.Chopped {
     sound(g, "chop");
   } else if step == rules::Step.Opened {
-    sound(g, "door_open");
+    sound(g, if thing == 0 { "door_open" } else { "chest_open" });
+  } else if step == rules::Step.Read {
+    sound(g, "signpost");
   } else if step == rules::Step.Placed {
     sound(g, "drop");
   } else if step == rules::Step.Climbed {
@@ -231,6 +234,7 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
 /// One move: walk (or pull, with `pull`) one cell.  Plays its sound and counts it.
 pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   if g.won { return; }
+  g.note = "";
   w = g.world;
   z = w.hero_z;
   // What the move will act on: the thing ahead for a push, the thing behind for a pull.
@@ -240,6 +244,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     tile_world::top(w.w, w.hero_x + dx, w.hero_y + dy, z)
   };
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
+  if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
   if step != rules::Step.Blocked { g.moves += 1; }
   move_sound(g, step, thing, z);
   if !g.was_boosted && rules::boosted(w) {
@@ -383,6 +388,13 @@ fn update_editor(g: Game, now: integer) -> boolean {
   changed
 }
 
+// What a signpost says: how many chests are still closed.
+fn chests_left(n: integer) -> text {
+  if n == 0 { return "ALL OPEN!"; }
+  if n == 1 { return "1 CHEST LEFT"; }
+  "{n} CHESTS LEFT"
+}
+
 /// Advance the world's clock by `ms` and read the keys of this tick (already fed into
 /// `g.keys`); `now` is the time in milliseconds.  Answers whether the picture changed, and
 /// false for "quit" through `g.won`... see `quit`.
@@ -504,6 +516,8 @@ pub fn draw(g: Game) {
   }
   if g.won {
     write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
+  } else if g.note != "" {
+    write(g, g.note, 0, (ROWS - 1) * 16);
   } else {
     strong = if rules::boosted(w) { " +{(w.boost_until - w.now) / 1000}" } else { "" };
     write(g, "MOVES {g.moves}{strong}", 0, (ROWS - 1) * 16);

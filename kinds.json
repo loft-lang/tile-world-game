@@ -32,8 +32,10 @@
     "anvil":  { "id": 5, "height": 1, "move": "push", "glyph": "a" },
     "potion": { "id": 6, "height": 0, "walk_on": "boost", "glyph": "g" },
     "staff":  { "id": 7, "height": 0, "walk_on": "take", "mount": true, "light": true, "glyph": "i" },
-    "chest":  { "id": 8, "height": 2, "stand": true, "move": "push", "glyph": "C" },
+    "chest":  { "id": 8, "height": 2, "stand": true, "opens_to": "open_chest", "points": 1, "glyph": "C" },
     "axe":    { "id": 9, "height": 0, "walk_on": "take", "chops": true, "glyph": "x" },
-    "sword":  { "id": 10, "height": 0, "walk_on": "take", "glyph": "s" }
+    "sword":  { "id": 10, "height": 0, "walk_on": "take", "glyph": "s" },
+    "open_chest": { "id": 11, "height": 2, "stand": true, "glyph": "U" },
+    "signpost": { "id": 12, "height": 1, "tells": "chests", "glyph": "!" }
   }
 }

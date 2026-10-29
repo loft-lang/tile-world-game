@@ -82,7 +82,9 @@
     "staff": "dungeon:129",
     "chest": "dungeon:89",
     "axe": "dungeon:118",
-    "sword": "dungeon:104"
+    "sword": "dungeon:104",
+    "open_chest": "dungeon:91",
+    "signpost": "town:83"
   },
   "carried": {
     "staff": {

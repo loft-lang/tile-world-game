@@ -176,6 +176,7 @@ pub fn solved(lf: const LevelFile, l: const rules::Level) -> boolean {
   if lf.goal.kind == "cell" {
     return l.hero_x == lf.goal.x && l.hero_y == lf.goal.y && l.hero_z == lf.goal.z;
   }
+  if lf.goal.kind == "chests" { return rules::closed(l) == 0; }
   false
 }
 

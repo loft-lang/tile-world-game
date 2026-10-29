@@ -16,7 +16,9 @@
 //            only along rail terrain), train (a line of them moves as one), lift (pulled up or
 //            down onto a surface), walk_on ("boost" or "take": walked over rather than into),
 //            mount (can be fixed to mount terrain), light (gives light, carried or set down),
-//            chops (held, it fells what can be chopped: an axe).
+//            chops (held, it fells what can be chopped: an axe), opens_to (walking into it
+//            turns it into that thing and scores its `points`: a chest opens), tells ("chests":
+//            walking into it says how many things are still to open: a signpost).
 //
 // The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
@@ -73,6 +75,9 @@ struct ThingProps {
   mount: boolean,
   light: boolean,
   chops: boolean,
+  opens_to: text,
+  points: integer,
+  tells: text,
   glyph: text
 }
 
@@ -141,6 +146,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       surface: flag(e, "surface"), move: word(e, "move", "none"), rails: flag(e, "rails"),
       train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
       mount: flag(e, "mount"), light: flag(e, "light"), chops: flag(e, "chops"),
+      opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -247,7 +253,9 @@ pub struct Level {
   pub now: integer,
   pub boost_until: integer,
   /// What the hero holds: 0 for nothing, or a thing it took.
-  pub hero_item: integer
+  pub hero_item: integer,
+  /// The points scored: a chest opened is one.
+  pub points: integer
 }
 
 /// What a step did.
@@ -260,8 +268,10 @@ pub enum Step {
   /// The hero took a mounted thing off a wall, or fixed the one it held to a wall.
   Took,
   Placed,
-  /// The hero opened a door.
+  /// The hero opened a door or a chest.
   Opened,
+  /// The hero read a signpost: `closed` says what it told.
+  Read,
   /// The hero felled a tree or a fence with what it holds.
   Chopped
 }
@@ -280,7 +290,8 @@ pub fn level(k: const Kinds) -> Level {
     blocks = t.walk_on == "";
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light, t.glyph);
   }
-  Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0 }
+  Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
+          points: 0 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -413,6 +424,24 @@ fn lifts(l: const Level, thing: integer) -> boolean {
   p = l.k.things[thing];
   if !p { return false; }
   p.lift
+}
+
+// The thing `thing` turns into when walked into (a chest, open), 0 for none.
+fn thing_opens_to(l: const Level, thing: integer) -> integer {
+  p = l.k.things[thing];
+  if !p || p.opens_to == "" { return 0; }
+  thing_id(l.k, p.opens_to)
+}
+
+/// How many things in the level are still to open (closed chests).
+pub fn closed(l: const Level) -> integer {
+  n = 0;
+  for s in tile_world::stacks(l.w) {
+    for t in tile_world::things(l.w, s.0, s.1, s.2) {
+      if thing_opens_to(l, t) != 0 { n += 1; }
+    }
+  }
+  n
 }
 
 // Does what the hero holds fell what can be chopped (an axe)?
@@ -637,6 +666,18 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   }
   if !walkable(l, kind) { return Step.Blocked; }
   thing = tile_world::top(l.w, tx, ty, z);
+  // A closed thing (a chest) opens and scores its points; the hero stays where it is.
+  opened = thing_opens_to(l, thing);
+  if opened != 0 {
+    _ = tile_world::take(l.w, tx, ty, z);
+    tile_world::place(l.w, tx, ty, z, opened);
+    p = l.k.things[thing];
+    l.points += if p { p.points } else { 0 };
+    return Step.Opened;
+  }
+  // A thing that tells (a signpost) is read: `closed` answers what it says.
+  sign = l.k.things[thing];
+  if sign && sign.tells != "" { return Step.Read; }
   if thing == 0 || item(l, thing) {
     // A rise is stepped like a stack: up one at most.
     if !reach(l, l.hero_h, height(l, tx, ty, z)) { return Step.Blocked; }

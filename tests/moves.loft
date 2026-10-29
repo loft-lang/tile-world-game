@@ -264,29 +264,46 @@ fn test_a_potion_strengthens_for_a_minute() {
 }
 
 
-// A chest is data only (kinds.json: height 2, stand, move "push", no surface): pushed like a
-// rock, climbed like a table from a chair, and no chair is lifted onto it.
-fn test_a_chest_is_only_data() {
+// A chest never moves.  Walked into, it opens — a point, one move, the hero staying put — and
+// stays where it is; it is not pulled either.  An open chest is climbed like a table from a
+// chair (1, then 2), but holds no chair.
+fn test_a_chest_opens_and_is_climbed_from_a_chair() {
   w = row(7);
   chest = rules::th(w, "chest");
-  assert(chest > 0, "kinds.json declares the chest");
+  open = rules::th(w, "open_chest");
   tile_world::place(w.w, 2, 0, 0, chest);
   rules::put_hero(w, 1, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed like a rock");
-  assert(tile_world::top(w.w, 3, 0, 0) == chest && w.hero_x == 2, "the chest at 3, the hero at 2");
-  assert(rules::pull(w, -1, 0) == rules::Step.Walked && tile_world::top(w.w, 3, 0, 0) == chest,
-         "never pulled");
-  // A chair at 4, the chest at 5 against the east wall: the chair cannot be pushed into it, so
-  // the hero climbs the chair (1) and from it the chest (2).
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened && at(w) == "1,0,0 h0", "opened: {at(w)}");
+  assert(tile_world::top(w.w, 2, 0, 0) == open && w.points == 1, "open where it stood, a point");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h0", "not pushed, too high: {at(w)}");
+  assert(rules::pull(w, -1, 0) == rules::Step.Walked && tile_world::top(w.w, 2, 0, 0) == open, "never pulled");
+  // A chair at 4, a chest at 5: onto the chair (1); the closed chest opens first, then the
+  // hero steps onto it (2).
   v = row(7);
   tile_world::place(v.w, 4, 0, 0, rules::th(v, "chair"));
   tile_world::place(v.w, 5, 0, 0, chest);
   rules::put_hero(v, 3, 0, 0);
   assert(rules::walk(v, 1, 0) == rules::Step.Walked && v.hero_h == 1, "onto the chair");
-  assert(rules::walk(v, 1, 0) == rules::Step.Walked && v.hero_h == 2, "onto the chest: {v.hero_h}");
+  assert(rules::walk(v, 1, 0) == rules::Step.Opened && v.hero_h == 1, "the chest opens");
+  assert(rules::walk(v, 1, 0) == rules::Step.Walked && at(v) == "5,0,0 h2", "onto the chest: {at(v)}");
   // On the chest, pulling the chair from the floor west of it: a chest holds no chair.
   assert(rules::pull(v, 1, 0) != rules::Step.Pulled, "the chair stays on the floor");
   assert(tile_world::top(v.w, 4, 0, 0) == rules::th(v, "chair"), "still at 4");
+}
+
+// A signpost is read, not walked through, and tells how many chests are still closed.
+//
+//   C . ! C
+//  x 0 1 2 3
+fn test_the_signpost_counts_closed_chests() {
+  w = row(4);
+  tile_world::place(w.w, 0, 0, 0, rules::th(w, "chest"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "signpost"));
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "chest"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Read && at(w) == "1,0,0 h0", "read: {at(w)}");
+  assert(rules::closed(w) == 2, "two closed, got {rules::closed(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Opened && rules::closed(w) == 1, "one left");
 }
 
 // A slope: rises 1, 2, 3 at x 1..3 climb a step at a time, and its top (3) is one step below

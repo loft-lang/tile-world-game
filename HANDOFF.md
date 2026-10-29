@@ -63,9 +63,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    typed text (EDITOR.md step 7).
 3. **Rules still to build** (DESIGN.md slice 2).  Built: 4-step layers and slopes, ceilings,
    fence (cell and edge), tree, doors that open, stairs, the held item (full hands — ANY held
-   item blocks push/pull/lift, the owner's rule — drop on X, the axe).  Open: chests and the
-   signpost (how a chest is opened is not decided: walking into one pushes it), falls (wait for
-   health), enemies, guards, wells and safe points, the sword's fighting.
+   item blocks push/pull/lift, the owner's rule — drop on X, the axe), chests (never moved,
+   the owner's rule; walked into they open, a point; from a chair walked on like a table) and
+   the signpost.  Open: falls (wait for health), enemies, guards, wells and safe points, the
+   sword's fighting, a chest's money.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
 
 ## Elsewhere (all landed or handed over)

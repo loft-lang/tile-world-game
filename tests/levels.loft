@@ -93,3 +93,18 @@ fn test_a_world_survives_a_round_trip() {
   assert(b.hero_x == -2 && b.hero_y == -1 && b.hero_z == 0, "the hero at the start");
   assert(levels::save(back) == text, "and it saves to the same text again");
 }
+
+// A "chests" goal is solved when no chest is left closed: one chest beside the hero, opened.
+fn test_a_chests_goal() {
+  l = rules::level(rules::kinds());
+  tile_world::fill(l.w, 0, 0, 2, 0, 0, rules::tr(l, "floor"));
+  tile_world::place(l.w, 1, 0, 0, rules::th(l, "chest"));
+  rules::put_hero(l, 0, 0, 0);
+  lf = levels::LevelFile {
+    name: "chests", camera: "follow", level: l, start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "chests", x: 0, y: 0, z: 0 }
+  };
+  assert(!levels::solved(lf, lf.level), "a chest is closed");
+  assert(rules::walk(lf.level, 1, 0) == rules::Step.Opened, "opened");
+  assert(levels::solved(lf, lf.level), "every chest open");
+}
