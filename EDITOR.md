@@ -200,13 +200,16 @@ has none.
 1. **Level files** — built: `levels.loft` reads and writes the format of § 2, the two levels are
    `levels/*.json` played in `levels/order.json`'s order, and goals are data.  Materials (§ 1)
    join the legend in step 3; until then a legend names terrain kinds.
-2. **The editor's core**:
+2. **The editor's core** — built: `editor.loft` (tested in `tests/editor.loft`), drawn and
+   keyed in `game.loft`, the play view's camera in `camera.loft`:
    - the `E` toggle, cursor and scrolling, layers, the palette;
    - paint, erase and stack things;
    - the start and goal markers, save and open;
    - undo and play-test.
 
-   (Needs `tiles` `rect` / `frame`.)
+   Until materials (step 3) the palette is void, the terrain kinds and the things.  Opening is
+   the next level of `order.json`: by name waits for typed text (step 7).  Uses `tiles`
+   `rect` / `frame` (0.3.0).
 3. **Materials and autotiling**: grass, paths, shores, castle walls and fences from the Kenney
    sheets.
 4. **The new kinds and their rules**: `stairs`, `door`, `fence`, `tree`, and the roof cut-away;

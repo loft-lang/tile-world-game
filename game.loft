@@ -9,8 +9,11 @@ use input;
 use imaging;
 use theme;
 use levels;
+use editor;
+use camera;
 
-/// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.
+/// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
+/// editor gives a row of the level to its palette.
 pub const COLS = 13;
 pub const ROWS = 10;
 pub const W = 208;
@@ -19,6 +22,17 @@ pub const H = 160;
 /// Milliseconds a held direction waits before it repeats, and between repeats.
 const REPEAT_FIRST = 220;
 const REPEAT_NEXT = 140;
+
+// The editor's colours: the cursor, the goal cell, the outline of the layer above, and the
+// frame round the palette's picked entry.
+const CURSOR = 65535;
+const GOAL = 2016;
+const ABOVE = 16904;
+const PICKED = 65504;
+
+// Key codes beside the bindings: Ctrl and Shift held.
+const KEY_SHIFT = 132;
+const KEY_CTRL = 133;
 
 pub struct Game {
   pub world: rules::Level,
@@ -36,7 +50,17 @@ pub struct Game {
   pub won: boolean,
   held_since: integer,
   next_repeat: integer,
-  was_boosted: boolean
+  was_boosted: boolean,
+  /// Editing (E) rather than playing; the editor; whether the edit view shows the level's
+  /// light (L); a word the status line shows until the next key ("SAVED").
+  pub editing: boolean,
+  pub ed: editor::Editor,
+  lit: boolean,
+  note: text,
+  /// The view's top-left cell, and the cells the level sets (for a view that follows).
+  pub cam_x: integer,
+  pub cam_y: integer,
+  area: (integer, integer, integer, integer)
 }
 
 struct Sound {
@@ -62,7 +86,21 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
-      input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] }
+      input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] },
+      input::ActionBinding { ab_name: "edit", ab_keys: [101] },
+      input::ActionBinding { ab_name: "layer_up", ab_keys: [151] },
+      input::ActionBinding { ab_name: "layer_down", ab_keys: [152] },
+      input::ActionBinding { ab_name: "palette", ab_keys: [9] },
+      input::ActionBinding { ab_name: "paint", ab_keys: [32] },
+      input::ActionBinding { ab_name: "erase", ab_keys: [8, 147] },
+      input::ActionBinding { ab_name: "start", ab_keys: [104] },
+      input::ActionBinding { ab_name: "goal", ab_keys: [103] },
+      input::ActionBinding { ab_name: "light", ab_keys: [108] },
+      input::ActionBinding { ab_name: "test", ab_keys: [112] },
+      input::ActionBinding { ab_name: "undo", ab_keys: [122] },
+      input::ActionBinding { ab_name: "redo", ab_keys: [121] },
+      input::ActionBinding { ab_name: "save", ab_keys: [115] },
+      input::ActionBinding { ab_name: "open", ab_keys: [111] }
     ],
     bnd_axes: []
   }
@@ -75,17 +113,21 @@ pub fn new_game(assets: text) -> Game? {
   k = rules::kinds();
   th = theme::load(file("theme.json").content() ?? "", ".", k);
   if !s || !th { return null; }
+  blank = levels::LevelFile {
+    name: "", camera: "follow", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+  };
+  ed = editor::new_editor(blank);
   g = Game {
     world: rules::level(k),
-    file: levels::LevelFile {
-      name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
-      goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
-    },
+    file: blank,
     order: level_order(),
     surface: s ?? 0, kinds: k, look: th ?? return null,
     sounds: [],
     keys: input::input_new(bindings()),
-    level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false
+    level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
+    editing: false, ed: ed, lit: false, note: "",
+    cam_x: 0, cam_y: 0, area: (0, 0, 0, 0)
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -121,13 +163,19 @@ fn level_order() -> vector<text> {
   out
 }
 
-// Load level number `level` of the order into `g`; false when its file does not load.
+// The file of level number `level` of the order.
+fn level_path(g: const Game, level: integer) -> text {
+  "levels/{g.order[level] ?? ""}.json"
+}
+
+// Load level number `level` of the order into `g`, with a fresh editor on it; false when its
+// file does not load.
 fn load_level(g: Game, level: integer) -> boolean {
-  name = g.order[level] ?? "";
-  m = levels::load(file("levels/{name}.json").content() ?? "", g.kinds);
+  m = levels::load(file(level_path(g, level)).content() ?? "", g.kinds);
   if !m { return false; }
   g.file = m;
-  g.world = g.file.level;
+  g.level = level;
+  g.ed = editor::new_editor(g.file);
   true
 }
 
@@ -135,9 +183,21 @@ fn solved(g: const Game) -> boolean {
   levels::solved(g.file, g.world)
 }
 
-/// Start the level again.
+/// Play level number `level` of the order from its start, as its file holds it.
+pub fn start_level(g: Game, level: integer) {
+  _ = load_level(g, level);
+  restart(g);
+}
+
+/// Start the level again, as the file in memory holds it: the editor's edits included, and
+/// the played copy dropped.  (`g.world = g.file.level` copies: an assignment into a field.)
 pub fn restart(g: Game) {
-  _ = load_level(g, g.level);
+  g.world = g.file.level;
+  rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
+  g.area = camera::bounds(g.world.w);
+  g.cam_x = g.area.0;
+  g.cam_y = g.area.1;
+  aim(g);
   g.moves = 0;
   g.won = false;
   g.was_boosted = false;
@@ -185,12 +245,148 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     g.won = true;
     sound(g, "win", 1.0);
   }
+  aim(g);
+}
+
+// Point the view at the hero, the way the level's file says: "rooms" a screen at a time,
+// "follow" a cell at a time near the edge, within the level.
+fn aim(g: Game) {
+  w = g.world;
+  rows = ROWS - 1;
+  if g.file.camera == "rooms" {
+    g.cam_x = camera::rooms(w.hero_x, COLS, g.area.0);
+    g.cam_y = camera::rooms(w.hero_y, rows, g.area.1);
+  } else {
+    g.cam_x = camera::follow(g.cam_x, w.hero_x, COLS, g.area.0, g.area.2);
+    g.cam_y = camera::follow(g.cam_y, w.hero_y, rows, g.area.1, g.area.3);
+  }
+}
+
+// The direction held this tick, (0, 0) when none or when a held one is waiting to repeat:
+// the first press steps at once, a held one after REPEAT_FIRST and then every REPEAT_NEXT.
+fn direction(g: Game, now: integer) -> (integer, integer) {
+  dx = 0;
+  dy = 0;
+  if g.keys.is_action_pressed("left") { dx = -1; }
+  if g.keys.is_action_pressed("right") { dx = 1; }
+  if g.keys.is_action_pressed("up") { dy = -1; }
+  if g.keys.is_action_pressed("down") { dy = 1; }
+  if dx != 0 && dy != 0 { dy = 0; }
+  if dx == 0 && dy == 0 {
+    g.held_since = 0;
+    return (0, 0);
+  }
+  first = g.keys.is_action_just_pressed("left") || g.keys.is_action_just_pressed("right")
+          || g.keys.is_action_just_pressed("up") || g.keys.is_action_just_pressed("down");
+  if first {
+    g.held_since = now;
+    g.next_repeat = now + REPEAT_FIRST;
+  } else if now < g.next_repeat {
+    return (0, 0);
+  } else {
+    g.next_repeat = now + REPEAT_NEXT;
+  }
+  (dx, dy)
+}
+
+/// Switch between playing and editing.  Leaving the editor play-tests: the level as edited,
+/// from the hero's start, on a copy.
+pub fn toggle_editor(g: Game) {
+  if g.editing {
+    g.editing = false;
+    restart(g);
+    return;
+  }
+  g.editing = true;
+  g.lit = false;
+  g.note = "";
+  aim_editor(g);
+}
+
+// Keep the cursor in sight, one cell from the view's edge.
+fn aim_editor(g: Game) {
+  g.cam_x = camera::keep(g.cam_x, g.ed.x, COLS, 1);
+  g.cam_y = camera::keep(g.cam_y, g.ed.y, ROWS - 2, 1);
+}
+
+/// One editor action by word, as a key would do it: `w` `a` `s` `d` move the cursor, `up` and
+/// `down` change layer, `tab` and `back` walk the palette, `paint`, `erase`, `start`, `goal`,
+/// `light`, `undo` and `redo`.  For scripts and pictures (main.loft's TW_EDIT); an unknown word
+/// does nothing.
+pub fn edit(g: Game, word: text) {
+  if word == "w" { editor::move(g.ed, 0, -1); }
+  else if word == "a" { editor::move(g.ed, -1, 0); }
+  else if word == "s" { editor::move(g.ed, 0, 1); }
+  else if word == "d" { editor::move(g.ed, 1, 0); }
+  else if word == "up" { editor::layer(g.ed, 1); }
+  else if word == "down" { editor::layer(g.ed, -1); }
+  else if word == "tab" { editor::choose(g.ed, 1); }
+  else if word == "back" { editor::choose(g.ed, -1); }
+  else if word == "paint" { _ = editor::paint(g.ed, g.file); }
+  else if word == "erase" { _ = editor::erase(g.ed, g.file); }
+  else if word == "start" { _ = editor::set_start(g.ed, g.file); }
+  else if word == "goal" { _ = editor::set_goal(g.ed, g.file); }
+  else if word == "light" { g.lit = !g.lit; }
+  else if word == "undo" { _ = editor::undo(g.ed, g.file); }
+  else if word == "redo" { _ = editor::redo(g.ed, g.file); }
+  aim_editor(g);
+}
+
+/// Write the level being edited to its file.  False when it could not be written.
+pub fn save(g: Game) -> boolean {
+  file(level_path(g, g.level)).write(levels::save(g.file)).ok()
+}
+
+// The editor's keys this tick (EDITOR.md § 4).  Answers whether the picture changed.
+fn update_editor(g: Game, now: integer) -> boolean {
+  k = g.keys;
+  if k.is_key_down(KEY_CTRL) {
+    if k.is_action_just_pressed("undo") {
+      g.note = if editor::undo(g.ed, g.file) { "" } else { "NOTHING TO UNDO" };
+    } else if k.is_action_just_pressed("redo") {
+      g.note = if editor::redo(g.ed, g.file) { "" } else { "NOTHING TO REDO" };
+    } else if k.is_action_just_pressed("save") {
+      g.note = if save(g) { "SAVED" } else { "NOT SAVED!" };
+    } else if k.is_action_just_pressed("open") {
+      if load_level(g, (g.level + 1) % len(g.order) ?? 0) { g.note = g.file.name; }
+    } else {
+      return false;
+    }
+    aim_editor(g);
+    return true;
+  }
+  if k.is_action_just_pressed("test") {
+    toggle_editor(g);
+    return true;
+  }
+  changed = true;
+  if k.is_action_just_pressed("layer_up") { editor::layer(g.ed, 1); }
+  else if k.is_action_just_pressed("layer_down") { editor::layer(g.ed, -1); }
+  else if k.is_action_just_pressed("palette") { editor::choose(g.ed, if k.is_key_down(KEY_SHIFT) { -1 } else { 1 }); }
+  else if k.is_action_just_pressed("paint") { _ = editor::paint(g.ed, g.file); }
+  else if k.is_action_just_pressed("erase") { _ = editor::erase(g.ed, g.file); }
+  else if k.is_action_just_pressed("start") { _ = editor::set_start(g.ed, g.file); }
+  else if k.is_action_just_pressed("goal") { _ = editor::set_goal(g.ed, g.file); }
+  else if k.is_action_just_pressed("light") { g.lit = !g.lit; }
+  else {
+    d = direction(g, now);
+    if d.0 == 0 && d.1 == 0 { return false; }
+    editor::move(g.ed, d.0, d.1);
+  }
+  g.note = "";
+  aim_editor(g);
+  changed
 }
 
 /// Advance the world's clock by `ms` and read the keys of this tick (already fed into
 /// `g.keys`); `now` is the time in milliseconds.  Answers whether the picture changed, and
 /// false for "quit" through `g.won`... see `quit`.
 pub fn update(g: Game, ms: integer, now: integer) -> boolean {
+  if g.keys.is_action_just_pressed("edit") {
+    toggle_editor(g);
+    return true;
+  }
+  if g.editing { return update_editor(g, now); }
   changed = false;
   rules::tick(g.world, ms);
   boosted = rules::boosted(g.world);
@@ -202,32 +398,12 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.won && g.keys.is_action_just_pressed("next") {
-    g.level = (g.level + 1) % len(g.order) ?? 0;
-    restart(g);
+    start_level(g, (g.level + 1) % len(g.order) ?? 0);
     return true;
   }
-  dx = 0;
-  dy = 0;
-  if g.keys.is_action_pressed("left") { dx = -1; }
-  if g.keys.is_action_pressed("right") { dx = 1; }
-  if g.keys.is_action_pressed("up") { dy = -1; }
-  if g.keys.is_action_pressed("down") { dy = 1; }
-  if dx != 0 && dy != 0 { dy = 0; }
-  if dx == 0 && dy == 0 {
-    g.held_since = 0;
-    return changed;
-  }
-  first = g.keys.is_action_just_pressed("left") || g.keys.is_action_just_pressed("right")
-          || g.keys.is_action_just_pressed("up") || g.keys.is_action_just_pressed("down");
-  if first {
-    g.held_since = now;
-    g.next_repeat = now + REPEAT_FIRST;
-  } else if now < g.next_repeat {
-    return changed;
-  } else {
-    g.next_repeat = now + REPEAT_NEXT;
-  }
-  move(g, dx, dy, g.keys.is_action_pressed("pull"));
+  d = direction(g, now);
+  if d.0 == 0 && d.1 == 0 { return changed; }
+  move(g, d.0, d.1, g.keys.is_action_pressed("pull"));
   true
 }
 
@@ -238,11 +414,11 @@ pub fn quit(g: const Game) -> boolean {
 
 // --- The picture ---
 
-fn draw_cell(g: Game, x: integer, y: integer, z: integer, upper: boolean, shade: integer) {
-  w = g.world;
+// Cell (x, y, z) of `w`, at its place in the view.
+fn draw_cell(g: Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean, shade: integer) {
   ts = g.look.tile_size;
-  px = x * ts;
-  py = y * ts;
+  px = (x - g.cam_x) * ts;
+  py = (y - g.cam_y) * ts;
   k = tile_world::terrain(w.w, x, y, z);
   if theme::is_line(g.look, k) {
     // A line (a rail) is drawn over the terrain under it, across or along its neighbours.
@@ -270,14 +446,25 @@ fn write(g: Game, s: text, x: integer, y: integer) {
   theme::write(g.surface, g.look, s, x, y);
 }
 
-// Every cell of layer z the view holds, at its light; `only_set` skips the void.
-fn draw_layer(g: Game, z: integer, upper: boolean, only_set: boolean) {
-  w = g.world;
-  sh = tile_world::shades(w.w, 0, 0, COLS - 1, ROWS - 2, z, rules::carried_lights(w));
-  for y in 0..ROWS - 1 {
+// The rows of the level the view shows: one fewer while editing, for the palette.
+fn view_rows(g: const Game) -> integer {
+  if g.editing { ROWS - 2 } else { ROWS - 1 }
+}
+
+// Every cell of layer z of `w` the view holds, at its light (or in full light when not `lit`),
+// but never lighter than `dim`; `only_set` skips the void.
+fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_set: boolean, lit: boolean,
+              dim: integer) {
+  rows = view_rows(g);
+  cx = g.cam_x;
+  cy = g.cam_y;
+  sh: vector<integer> = [];
+  if lit { sh = tile_world::shades(w.w, cx, cy, cx + COLS - 1, cy + rows - 1, z, rules::carried_lights(w)); }
+  for y in 0..rows {
     for x in 0..COLS {
-      if !only_set || tile_world::terrain(w.w, x, y, z) != tile_world::VOID {
-        draw_cell(g, x, y, z, upper, sh[y * COLS + x] ?? 0);
+      if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
+        shade = sh[y * COLS + x] ?? 0;
+        draw_cell(g, w, cx + x, cy + y, z, upper, if shade < dim { dim } else { shade });
       }
     }
   }
@@ -287,15 +474,19 @@ fn draw_layer(g: Game, z: integer, upper: boolean, only_set: boolean) {
 /// it stands: on a layer above another, the one below and its own over it; under the open sky,
 /// its own and the layer above (a ledge, drawn lighter); under a ceiling, only its own.
 pub fn draw(g: Game) {
+  if g.editing {
+    draw_editor(g);
+    return;
+  }
   tiles::clear(g.surface, 0);
   w = g.world;
   z = w.hero_z;
   if z > 0 {
-    draw_layer(g, z - 1, false, false);
-    draw_layer(g, z, false, true);
+    draw_layer(g, w, z - 1, false, false, true, 0);
+    draw_layer(g, w, z, false, true, true, 0);
   } else {
-    draw_layer(g, z, false, false);
-    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) { draw_layer(g, z + 1, true, true); }
+    draw_layer(g, w, z, false, false, true, 0);
+    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) { draw_layer(g, w, z + 1, true, true, true, 0); }
   }
   if g.won {
     write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
@@ -303,6 +494,64 @@ pub fn draw(g: Game) {
     strong = if rules::boosted(w) { " +{(w.boost_until - w.now) / 1000}" } else { "" };
     write(g, "MOVES {g.moves}{strong}", 0, (ROWS - 1) * 16);
   }
+}
+
+// A one-cell frame round cell (x, y) of the view, `inset` pixels inside it.
+fn box(g: Game, x: integer, y: integer, inset: integer, colour: integer) {
+  ts = g.look.tile_size;
+  tiles::frame(g.surface, (x - g.cam_x) * ts + inset, (y - g.cam_y) * ts + inset, ts - 2 * inset,
+               ts - 2 * inset, colour);
+}
+
+// The sprite of palette entry `e`; -1 for void, which draws as nothing.
+fn entry_sprite(g: const Game, e: const editor::Entry) -> integer {
+  if e.thing { return theme::thing_sprite(g.look, e.id); }
+  theme::terrain_sprite(g.look, e.id, 0, 0, false)
+}
+
+/// The editor's frame (EDITOR.md § 4): the cursor's layer over the one below (darker), an
+/// outline round each cell the layer above sets, the start (the hero) and a "cell" goal; the
+/// palette along the bottom, its picked entry framed; and a status line: the cursor's cell
+/// and layer and what paints, or a word after a save.
+pub fn draw_editor(g: Game) {
+  tiles::clear(g.surface, 0);
+  l = g.file.level;
+  ed = g.ed;
+  z = ed.z;
+  ts = g.look.tile_size;
+  rows = ROWS - 2;
+  draw_layer(g, l, z - 1, false, false, g.lit, 5);
+  draw_layer(g, l, z, false, true, g.lit, 0);
+  for y in 0..rows {
+    for x in 0..COLS {
+      if tile_world::terrain(l.w, g.cam_x + x, g.cam_y + y, z + 1) != tile_world::VOID {
+        box(g, g.cam_x + x, g.cam_y + y, 1, ABOVE);
+      }
+    }
+  }
+  goal = g.file.goal;
+  if goal.kind == "cell" && goal.z == z {
+    box(g, goal.x, goal.y, 2, GOAL);
+    box(g, goal.x, goal.y, 3, GOAL);
+  }
+  box(g, ed.x, ed.y, 0, CURSOR);
+  box(g, ed.x, ed.y, 1, 0);
+  n = len(ed.palette);
+  first = ed.pick - COLS / 2;
+  if first > n - COLS { first = n - COLS; }
+  if first < 0 { first = 0; }
+  py = rows * ts;
+  for i in first..n {
+    if i - first >= COLS { break; }
+    px = (i - first) * ts;
+    theme::put(g.surface, entry_sprite(g, ed.palette[i] ?? editor::picked(ed)), px, py, 0);
+    if i == ed.pick { tiles::frame(g.surface, px, py, ts, ts, PICKED); }
+  }
+  status = if g.note != "" { g.note } else {
+    "{ed.x} {ed.y} {z} {editor::name(l.k, editor::picked(ed))}"
+  };
+  if len(status) > COLS { status = status.char_slice(0, COLS); }
+  write(g, status, 0, (rows + 1) * ts);
 }
 
 /// Write the frame as it is now to a PNG at `path`, scaled by `scale` — a picture of the game

@@ -1,0 +1,186 @@
+// The editor's core on the first climb (levels/first_climb.json): the palette, paint, stack,
+// erase, the markers, undo and redo, a save of what was edited, and the camera.  The level's
+// layer 0 is a 13x9 room, walls round floor, the hero starting at (1, 1); a chair stands at
+// (2, 6).  kinds.json numbers the terrain floor 1, wall 2, water 3, rail 4, and the things
+// cart 1, chair 2, table 3, rock 4, anvil 5, potion 6, staff 7, chest 8.
+use tile_world;
+use rules;
+use levels;
+use editor;
+use camera;
+
+const FLOOR = 1;
+const WALL = 2;
+const CHAIR = 2;
+
+fn first_climb() -> levels::LevelFile {
+  m = levels::load(file("../levels/first_climb.json").content() ?? "", rules::kinds());
+  if !m { assert(false, "levels/first_climb.json loads"); }
+  m ?? levels::LevelFile {
+    name: "", level: rules::level(rules::kinds()), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+  }
+}
+
+fn stack(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> text {
+  t = "";
+  for th in tile_world::things(lf.level.w, x, y, z) { t += "{th},"; }
+  t
+}
+
+fn main() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  assert(ed.x == 1 && ed.y == 1 && ed.z == 0, "the cursor starts on the hero's start");
+}
+
+// void, the four terrain kinds, the eight things: 13 entries, round the end both ways.
+fn test_the_palette() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  k = lf.level.k;
+  assert(len(ed.palette) == 13, "13 entries, got {len(ed.palette)}");
+  assert(editor::name(k, editor::picked(ed)) == "floor", "the first terrain kind is picked");
+  assert(editor::name(k, ed.palette[0] ?? editor::picked(ed)) == "void", "void first");
+  assert(editor::name(k, ed.palette[5] ?? editor::picked(ed)) == "cart", "then the things");
+  editor::choose(ed, -1);
+  editor::choose(ed, -1);
+  assert(editor::name(k, editor::picked(ed)) == "chest", "back past void is the last: {ed.pick}");
+  editor::choose(ed, 1);
+  assert(ed.pick == 0, "and on again is void");
+}
+
+// Wall painted at (1, 1), then two chairs stacked at (2, 1); painting the same wall again
+// changes nothing and logs nothing.  Undo walks it all back, cursor following; redo replays it.
+fn test_paint_stack_undo_redo() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  w = lf.level.w;
+  editor::choose(ed, 1);
+  assert(editor::paint(ed, lf), "a wall painted");
+  assert(!editor::paint(ed, lf), "the same wall again changes nothing");
+  assert(tile_world::terrain(w, 1, 1, 0) == WALL, "(1, 1) is a wall");
+  editor::move(ed, 1, 0);
+  ed.pick = 6;
+  assert(editor::paint(ed, lf) && editor::paint(ed, lf), "two chairs stacked");
+  assert(stack(lf, 2, 1, 0) == "{CHAIR},{CHAIR},", "the stack: {stack(lf, 2, 1, 0)}");
+  assert(editor::undoable(ed) == 3, "three edits, got {editor::undoable(ed)}");
+  editor::move(ed, 5, 5);
+  assert(editor::undo(ed, lf), "undo the second chair");
+  assert(stack(lf, 2, 1, 0) == "{CHAIR},", "one chair left: {stack(lf, 2, 1, 0)}");
+  assert(ed.x == 2 && ed.y == 1, "the cursor back on the cell undone: {ed.x} {ed.y}");
+  assert(editor::undo(ed, lf) && editor::undo(ed, lf), "the chair and the wall undone");
+  assert(stack(lf, 2, 1, 0) == "" && tile_world::terrain(w, 1, 1, 0) == FLOOR, "as loaded");
+  assert(ed.x == 1 && ed.y == 1, "the cursor on the wall's cell");
+  assert(!editor::undo(ed, lf), "nothing left to undo");
+  assert(editor::redo(ed, lf) && editor::redo(ed, lf) && editor::redo(ed, lf), "all three redone");
+  assert(!editor::redo(ed, lf), "nothing left to redo");
+  assert(tile_world::terrain(w, 1, 1, 0) == WALL && stack(lf, 2, 1, 0) == "{CHAIR},{CHAIR},", "as edited");
+}
+
+// An edit after an undo drops what was undone: redo has nothing, and the undone wall stays gone.
+fn test_a_new_edit_drops_the_undone() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  editor::choose(ed, 1);
+  _ = editor::paint(ed, lf);
+  _ = editor::undo(ed, lf);
+  editor::move(ed, 1, 0);
+  _ = editor::paint(ed, lf);
+  assert(editor::undoable(ed) == 1, "one edit, got {editor::undoable(ed)}");
+  assert(!editor::redo(ed, lf), "the undone wall cannot be redone");
+  assert(tile_world::terrain(lf.level.w, 1, 1, 0) == FLOOR, "(1, 1) stays floor");
+  assert(tile_world::terrain(lf.level.w, 2, 1, 0) == WALL, "(2, 1) is the new wall");
+}
+
+// Erasing (2, 6) takes the chair off, then unsets the floor — with no ground on layer 0 it
+// reads as void.  Painting void at (3, 3) sets it: a pit, which saves as `_`.
+fn test_erase_and_void() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  w = lf.level.w;
+  editor::move(ed, 1, 5);
+  assert(editor::erase(ed, lf) && stack(lf, 2, 6, 0) == "", "the chair taken off");
+  assert(tile_world::is_set(w, 2, 6, 0), "the floor stays");
+  assert(editor::erase(ed, lf), "then the floor unset");
+  assert(!tile_world::is_set(w, 2, 6, 0) && tile_world::terrain(w, 2, 6, 0) == tile_world::VOID, "void");
+  assert(!editor::erase(ed, lf), "nothing left to erase");
+  assert(editor::undo(ed, lf) && tile_world::terrain(w, 2, 6, 0) == FLOOR, "the floor back");
+  assert(editor::undo(ed, lf) && stack(lf, 2, 6, 0) == "{CHAIR},", "the chair back");
+  editor::move(ed, 1, -3);
+  ed.pick = 0;
+  assert(editor::paint(ed, lf), "void painted on (3, 3)");
+  assert(tile_world::is_set(w, 3, 3, 0) && tile_world::terrain(w, 3, 3, 0) == tile_world::VOID, "a pit");
+  assert(levels::save(lf).find("\"#.._..~.....#\"") != null, "row 3 saves with `_` at x 3");
+}
+
+// The start moved to (5, 5, 0) carries the hero; the goal set at (11, 1, 1) becomes a "cell"
+// goal.  Undo puts back the "layer 1" goal and the start at (1, 1, 0).
+fn test_markers() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  editor::move(ed, 4, 4);
+  assert(editor::set_start(ed, lf), "the start moved");
+  assert(!editor::set_start(ed, lf), "the same start again changes nothing");
+  assert(lf.start_x == 5 && lf.start_y == 5 && lf.level.hero_x == 5 && lf.level.hero_y == 5, "the hero with it");
+  editor::move(ed, 6, -4);
+  editor::layer(ed, 1);
+  assert(editor::set_goal(ed, lf), "the goal set");
+  g = lf.goal;
+  assert(g.kind == "cell" && g.x == 11 && g.y == 1 && g.z == 1, "a cell goal: {g.kind} {g.x} {g.y} {g.z}");
+  assert(editor::undo(ed, lf), "the goal undone");
+  assert(lf.goal.kind == "layer" && lf.goal.z == 1, "the layer goal back: {lf.goal.kind} {lf.goal.z}");
+  assert(editor::undo(ed, lf), "the start undone");
+  assert(lf.start_x == 1 && lf.start_y == 1 && lf.level.hero_x == 1, "the start back");
+}
+
+// An edited level saves, loads back to the same cells and goal, and saves to the same text.
+fn test_an_edit_survives_a_save() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  editor::choose(ed, 1);
+  _ = editor::paint(ed, lf);
+  editor::move(ed, 1, 0);
+  _ = editor::set_goal(ed, lf);
+  saved = levels::save(lf);
+  m = levels::load(saved, rules::kinds());
+  assert(m != null, "it loads");
+  back = m ?? lf;
+  assert(tile_world::terrain(back.level.w, 1, 1, 0) == WALL, "the wall is in the file");
+  assert(back.goal.kind == "cell" && back.goal.x == 2 && back.goal.y == 1, "and the goal");
+  assert(levels::save(back) == saved, "it saves to the same text");
+}
+
+// Play-test plays a copy: the game assigns the level INTO a field (`g.world = g.file.level`),
+// which copies it, stacks and all.  (A bind of the field, `play = lf.level`, would be a view
+// of it, and every move would land in the edited level.)  Walking and placing on the copy
+// leaves the edited level as it was.
+struct Playing {
+  l: rules::Level
+}
+
+fn test_a_played_copy_leaves_the_level() {
+  lf = first_climb();
+  p = Playing { l: rules::level(rules::kinds()) };
+  p.l = lf.level;
+  _ = rules::walk(p.l, 1, 0);
+  tile_world::place(p.l.w, 5, 5, 0, CHAIR);
+  assert(p.l.hero_x == 2 && len(tile_world::things(p.l.w, 5, 5, 0)) == 1, "the copy moved");
+  assert(lf.level.hero_x == 1 && stack(lf, 5, 5, 0) == "", "the level did not: {lf.level.hero_x}");
+}
+
+// The first climb's cells span (0, 0) to (12, 8).  A 13-wide view follows within 0..39: it
+// moves when the hero passes cell 10 (two from its right edge) and stops at 27; a level as
+// wide as the view never moves.  Rooms of 13 count from the level's edge, both ways.
+fn test_camera() {
+  b = camera::bounds(first_climb().level.w);
+  assert(b.0 == 0 && b.1 == 0 && b.2 == 12 && b.3 == 8, "bounds {b.0} {b.1} {b.2} {b.3}");
+  assert(camera::follow(0, 10, 13, 0, 39) == 0, "inside the margin");
+  assert(camera::follow(0, 11, 13, 0, 39) == 1, "one cell past it");
+  assert(camera::follow(26, 39, 13, 0, 39) == 27, "held at the level's edge");
+  assert(camera::follow(0, 1, 13, 0, 12) == 0, "a level as wide as the view");
+  assert(camera::rooms(12, 13, 0) == 0 && camera::rooms(13, 13, 0) == 13, "room 0, room 1");
+  assert(camera::rooms(-1, 13, 0) == -13 && camera::rooms(-13, 13, 0) == -13, "room -1");
+  assert(camera::rooms(-14, 13, 0) == -26, "room -2");
+  assert(camera::keep(0, -3, 13, 0) == -3 && camera::keep(0, 13, 13, 0) == 1, "the cursor kept in sight");
+}

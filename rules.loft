@@ -186,6 +186,17 @@ pub fn terrain_ids(k: const Kinds) -> vector<integer> {
   out
 }
 
+/// The things kinds.json declares, by number, lowest first.
+pub fn thing_ids(k: const Kinds) -> vector<integer> {
+  out: vector<integer> = [];
+  for t in k.things {
+    at = 0;
+    while at < len(out) && (out[at] ?? 0) < t.id { at += 1; }
+    out.insert(at, t.id);
+  }
+  out
+}
+
 /// A terrain kind's glyph (its character in a level file), "" for void or an undeclared number.
 pub fn terrain_glyph(k: const Kinds, kind: integer) -> text {
   p = k.terrain[kind];

@@ -1,0 +1,60 @@
+// Where the view stands: the cell at its top-left, per axis (EDITOR.md § 4).  While playing, a
+// level's file names how the view follows the hero: "follow" moves it a whole cell at a time
+// when the hero nears an edge, and stops at the level's edges; "rooms" flips a whole screen
+// at a time.  While editing, the view keeps the cursor in sight and the world has no edges.
+use tile_world;
+
+/// How near the view's edge the hero may come before a "follow" view moves (in cells).
+pub const MARGIN = 2;
+
+/// The cells a level sets, on any layer: (x0, y0, x1, y1), both corners inside; (0, 0, 0, 0)
+/// for a level that sets none.
+pub fn bounds(w: const tile_world::World) -> (integer, integer, integer, integer) {
+  x0 = 0;
+  y0 = 0;
+  x1 = 0;
+  y1 = 0;
+  found = false;
+  for z in tile_world::layers(w) {
+    for c in tile_world::chunks(w, z) {
+      for j in 0..32 {
+        for i in 0..32 {
+          x = c.0 * 32 + i;
+          y = c.1 * 32 + j;
+          if tile_world::is_set(w, x, y, z) {
+            if !found || x < x0 { x0 = x; }
+            if !found || y < y0 { y0 = y; }
+            if !found || x > x1 { x1 = x; }
+            if !found || y > y1 { y1 = y; }
+            found = true;
+          }
+        }
+      }
+    }
+  }
+  (x0, y0, x1, y1)
+}
+
+/// A "follow" view along one axis: `cam` moved the least that keeps `at` at least `MARGIN`
+/// cells inside a `view` of cells, then held within the level's `lo`..`hi`.  A level narrower
+/// than the view stands at `lo`.
+pub fn follow(cam: integer, at: integer, view: integer, lo: integer, hi: integer) -> integer {
+  c = keep(cam, at, view, MARGIN);
+  if c > hi - view + 1 { c = hi - view + 1; }
+  if c < lo { c = lo; }
+  c
+}
+
+/// A "rooms" view along one axis: the screen of `view` cells, counted from `lo`, that holds `at`.
+pub fn rooms(at: integer, view: integer, lo: integer) -> integer {
+  d = at - lo;
+  n = if d >= 0 { d / view ?? 0 } else { (d + 1) / view - 1 ?? 0 };
+  lo + n * view
+}
+
+/// `cam` moved the least that keeps `at` at least `margin` cells inside a `view` of cells.
+pub fn keep(cam: integer, at: integer, view: integer, margin: integer) -> integer {
+  if at < cam + margin { return at - margin; }
+  if at > cam + view - 1 - margin { return at - view + 1 + margin; }
+  cam
+}

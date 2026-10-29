@@ -1,6 +1,6 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
-State on 2026-10-29, for picking the work up in a fresh session.  Paths are on the owner's
+State on 2026-10-29 (evening), for picking the work up in a fresh session.  Paths are on the owner's
 machine (`~/workspace`).
 
 ## Where things are
@@ -8,8 +8,8 @@ machine (`~/workspace`).
 | What | Where | State |
 |---|---|---|
 | The game | `~/workspace/tile-world-game` (this repo, local git) | **no GitHub remote yet**: creating `loft-lang/tile-world-game` was blocked by the session's permissions; the owner runs `gh repo create loft-lang/tile-world-game --public --source . --remote origin --push` |
-| Game libraries | `./fetch-libs.sh` → `libs/` (git-ignored) | **broken until fixed (step 1 below)**: it still fetches `tiles` from `tuxedo-tiles-shade` and `imaging` from `tuxedo-imaging-c`, and both branches were deleted when their PRs merged.  `libs/tile_world` is a hand copy of 0.4.1, which is now on `main` |
-| loft branch | `~/workspace/loft2`, branch `tuxedo-pln204-int32` @ `72602f4b6` | = `main` (ec098768e) + one commit, the loft#2222 fix; force-pushed, no PR yet |
+| Game libraries | `./fetch-libs.sh` → `libs/` (git-ignored) | every library from `main` |
+| loft branch | `~/workspace/loft2`, branch `tuxedo-pln204-int32` @ `72602f4b6` | = `main` (ec098768e) + one commit, the loft#2222 fix; force-pushed, no PR yet.  Use its RELEASE build (`target/release/loft`) for the game: an older loft stalls in `parse` on `input` → `graphics` → `mesh3d` |
 
 ## Library PRs — all merged
 
@@ -18,6 +18,7 @@ machine (`~/workspace`).
 | loft-libs-graphics#61 | imaging 0.5.0 (lodepng, a `[c]` shim) |
 | loft-libs-graphics#62, #63 | tiles 0.1.0, tiles 0.2.0 (8 shades) |
 | loft-libs-world#37, #38 | tile_world 0.4.0 (edges, ground, rise), 0.4.1 (`ground_layers`) |
+| loft-libs-graphics#65 | tiles 0.3.0 (`rect`, `frame`: the editor's cursor, goal and palette frames) |
 
 `drawing`'s red (which blocked #61–#63) was loft#2215: a library compiled for `--interpret`
 linked a remapped `#native` to the wrong function, so graphics' `save_png` answered `false`.
@@ -35,10 +36,9 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   no disagreement), `tests/value_record.rs`, `make rewrite-census`, both clippy legs.  Guard:
   `tests/scripts/a-function-of-many-record-temporaries-compiles-in-seconds.loft`.  Not run:
   the full `make ci` gate.  It reaches `main` only through a PR, which the owner opens.
-- **loft#2219** (open, sev:high, silent-wrong): `x = f() ?? return;` in a loop corrupts a
-  returned struct's nested hash from the second iteration, on both backends.  The game avoids
-  it (one load at a time).  Repro and boundary in the issue: only `?? return` triggers it; the
-  same unwrap through `if !m { return; }` is right.  Not yet fixed.
+- **loft#2219** (fixed-pending-merge, by another session on `tuxedo-pr2218-next`):
+  `x = f() ?? return;` in a loop corrupts a returned struct's nested hash from the second
+  iteration.  Until it reaches `main`, the game unwraps with `if !m { return; }` first.
 - loft#2215 and loft#2216: on `main` (#2218).
 
 ## The game, as it stands
@@ -55,15 +55,16 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 
 ## Next steps, in the order agreed
 
-1. In `fetch-libs.sh`, set the `tiles` and `imaging` refs to `main` (their branches are gone),
-   re-fetch, and run the 24 tests.
-2. **Editor step 2** (EDITOR.md § 8): `E` toggle, cursor and scrolling, layers, palette,
-   paint/erase/stack, start and goal markers, save and open, undo, play-test.  Needs `tiles`
-   `rect` / `frame` (a library addition) and the follow / rooms camera (EDITOR.md § 4).
+1. ~~`fetch-libs.sh` refs to `main`~~ — done; 32 tests pass on both backends.
+2. ~~**Editor step 2**~~ — done (EDITOR.md § 8): `editor.loft` (tested in `tests/editor.loft`),
+   drawn and keyed in `game.loft`, the play camera (`follow` / `rooms`) in `camera.loft`.  Checked
+   by pictures driven through the real keys (`TW_KEYS`, README), and the play frames are
+   byte-identical to before.  Ctrl+O opens the next level of `order.json` until `input` reads
+   typed text (EDITOR.md step 7).
 3. **Rules still to build** (DESIGN.md slice 2): 4-step layers (so a slope's top and a chair on a
    table both step onto the layer above), fence climbing, doors that open, stairs, chests and
    the signpost, the held item (sword, axe), enemies, guards, wells.
-4. Fix loft#2219.
+4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
 
 ## Elsewhere (all landed or handed over)
 

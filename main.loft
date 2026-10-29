@@ -8,6 +8,61 @@ use tiles;
 use audio;
 use input;
 
+// Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them.
+fn play_moves(game: game::Game, moves: text) {
+  for m in moves.split(' ') {
+    pull = m.starts_with("p");
+    d = if pull { m[1..] } else { m };
+    if d == "w" { game::move(game, 0, -1, pull); }
+    if d == "s" { game::move(game, 0, 1, pull); }
+    if d == "a" { game::move(game, -1, 0, pull); }
+    if d == "d" { game::move(game, 1, 0, pull); }
+  }
+}
+
+// Keys by code, a tick down and a tick up each, `+` joining keys held together — read by the
+// game exactly as a keyboard's are.
+fn press(game: game::Game, keys: text) {
+  now = 0;
+  up: vector<boolean> = [];
+  for _ in 0..256 { up += [false]; }
+  for chord in keys.split(' ') {
+    if chord == "" { continue; }
+    down = up;
+    for c in chord.split('+') {
+      code = c as integer ?? 0;
+      if code > 0 && code < 256 { down[code] = true; }
+    }
+    for pressed in [true, false] {
+      game.keys.input_tick_from_state(if pressed { down } else { up }, 0.0, 0.0, 0, 0);
+      now += 1000;
+      _ = game::update(game, 0, now);
+    }
+  }
+}
+
+// TW_SHOT=<file.png> [TW_LEVEL=1] [TW_MOVES="s d d"] [TW_EDIT="d d tab paint"]
+// [TW_KEYS="101 9 32 133+122"]: play those moves, then open the editor and make those edits
+// (game::edit's words), then press those keys (codes, `+` for keys held together) a tick
+// each as the game would read them, and write the frame as a picture — with no screen.
+// TW_CREDITS=1 writes the credits instead.
+fn picture(game: game::Game, shot: text) {
+  if (env_variable("TW_CREDITS") ?? "") != "" {
+    game::draw_credits(game);
+  } else {
+    game::start_level(game, (env_variable("TW_LEVEL") ?? "0") as integer ?? 0);
+    play_moves(game, env_variable("TW_MOVES") ?? "");
+    edits = env_variable("TW_EDIT") ?? "";
+    if edits != "" {
+      game::toggle_editor(game);
+      for e in edits.split(' ') { game::edit(game, e); }
+    }
+    press(game, env_variable("TW_KEYS") ?? "");
+    game::draw(game);
+  }
+  println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
+}
+
 fn main() {
   g = game::new_game("assets");
   if !g {
@@ -15,27 +70,9 @@ fn main() {
     return;
   }
   game = g ?? game::new_game("assets") ?? return;
-  // TW_SHOT=<file.png> [TW_LEVEL=1] [TW_MOVES="s d d"]: play those moves and write the frame,
-  // with no screen.
   shot = env_variable("TW_SHOT") ?? "";
-  if shot != "" && (env_variable("TW_CREDITS") ?? "") != "" {
-    game::draw_credits(game);
-    println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
-    return;
-  }
   if shot != "" {
-    game.level = (env_variable("TW_LEVEL") ?? "0") as integer ?? 0;
-    game::restart(game);
-    for m in (env_variable("TW_MOVES") ?? "").split(' ') {
-      pull = m.starts_with("p");
-      d = if pull { m[1..] } else { m };
-      if d == "w" { game::move(game, 0, -1, pull); }
-      if d == "s" { game::move(game, 0, 1, pull); }
-      if d == "a" { game::move(game, -1, 0, pull); }
-      if d == "d" { game::move(game, 1, 0, pull); }
-    }
-    game::draw(game);
-    println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
+    picture(game, shot);
     return;
   }
   if !screen::open(game::W, game::H, 4, "tile_world - the first climb") {
@@ -59,7 +96,7 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  game::restart(game);
+  game::start_level(game, 0);
   game::draw(game);
   screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
   last = ticks() / 1000;
