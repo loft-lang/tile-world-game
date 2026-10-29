@@ -5,7 +5,9 @@
 //   terrain: walk (can be stood on), opaque (stops sight and light), rail (carts run on it),
 //            mount (a mountable thing can be fixed to it: a wall), height (the steps it stands
 //            itself: a fence is climbed like a one-step stack), blocks_things (nothing is pushed
-//            or pulled onto it, so a train stops at it).
+//            or pulled onto it, so a train stops at it), opens_to (walking into it turns it
+//            into that kind: a door opens), stairs (1 or -1: walking onto it takes the hero to
+//            the same cell a layer up or down).
 //   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
 //            crosses: a fence between two cells).
 //   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
@@ -38,6 +40,8 @@ struct TerrainProps {
   mount: boolean,
   height: integer,
   blocks_things: boolean,
+  opens_to: text,
+  stairs: integer,
   glyph: text
 }
 
@@ -111,7 +115,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     k.terrain += [TerrainProps {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
       rail: flag(e, "rail"), mount: flag(e, "mount"), height: num(e, "height", 0),
-      blocks_things: flag(e, "blocks_things"), glyph: word(e, "glyph", "?")
+      blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
+      stairs: num(e, "stairs", 0), glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -247,7 +252,9 @@ pub enum Step {
   Climbed,
   /// The hero took a mounted thing off a wall, or fixed the one it held to a wall.
   Took,
-  Placed
+  Placed,
+  /// The hero opened a door.
+  Opened
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -294,6 +301,20 @@ pub fn walkable(l: const Level, kind: integer) -> boolean {
 pub fn height(l: const Level, x: integer, y: integer, z: integer) -> integer {
   p = l.k.terrain[tile_world::terrain(l.w, x, y, z)];
   (if p { p.height } else { 0 }) + tile_world::height(l.w, x, y, z)
+}
+
+// The kind terrain `kind` turns into when walked into (a door, open), 0 for none.
+fn opens_to(l: const Level, kind: integer) -> integer {
+  p = l.k.terrain[kind];
+  if !p || p.opens_to == "" { return 0; }
+  terrain_id(l.k, p.opens_to)
+}
+
+// Where terrain `kind` takes the hero who walks onto it: 1 a layer up, -1 down, 0 nowhere.
+fn stairs(l: const Level, kind: integer) -> integer {
+  p = l.k.terrain[kind];
+  if !p { return 0; }
+  p.stairs
 }
 
 // Does terrain `kind` keep things off: nothing pushed or pulled onto it?
@@ -560,14 +581,28 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
       return Step.Placed;
     }
   }
-  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
   // An edge between the hero and the cell it steps to: a wall or a window stops it; a fence is
   // climbed over.
   if !hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
+  kind = tile_world::terrain(l.w, tx, ty, z);
+  // A closed door opens; the hero stays where it is.
+  open = opens_to(l, kind);
+  if open != 0 {
+    tile_world::set_terrain(l.w, tx, ty, z, open);
+    return Step.Opened;
+  }
+  if !walkable(l, kind) { return Step.Blocked; }
   thing = tile_world::top(l.w, tx, ty, z);
   if thing == 0 || item(l, thing) {
     // A rise is stepped like a stack: up one at most.
     if !reach(l, l.hero_h, height(l, tx, ty, z)) { return Step.Blocked; }
+    // Stairs take the hero to the same cell a layer up or down, when it can stand there; the
+    // stairs it lands on do not take it on.
+    to = z + stairs(l, kind);
+    if to != z && walkable(l, tile_world::terrain(l.w, tx, ty, to)) && tile_world::top(l.w, tx, ty, to) == 0 {
+      arrive(l, tx, ty, to);
+      return Step.Climbed;
+    }
     arrive(l, tx, ty, z);
     return Step.Walked;
   }

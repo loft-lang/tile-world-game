@@ -212,8 +212,9 @@ has none.
    `rect` / `frame` (0.3.0).
 3. **Materials and autotiling**: grass, paths, shores, castle walls and fences from the Kenney
    sheets.
-4. **The new kinds and their rules**: `stairs`, `door`, `fence`, `tree`, and the roof cut-away;
-   then castles, houses and dungeons can be built and walked through.
+4. **The new kinds and their rules**: `stairs`, `door`, `fence`, `tree` — built (kinds.json,
+   rules.loft, tests/moves.loft) — and the roof cut-away; then castles, houses and dungeons can
+   be built and walked through.
 5. **Brushes and stamps**: fill, rectangle, eyedropper, copy and paste, stamp files.  (Needs
    `tile_world` `region` / `copy` / `paste`.)
 6. **The checks of § 5.**

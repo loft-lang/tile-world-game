@@ -48,7 +48,8 @@ This is what the game built on tile_world should be.
     and it stops trains. Bats fly over it. Built (slice 2) as a terrain cell and as an edge
     between two cells; bats wait for enemies.
   - Tree: blocks walking; light and sight pass it (built, slice 2).
-  - Door.
+  - Door: walking into a closed one opens it (built, slice 2).
+  - Stairs: walking onto them takes the hero to the same cell a layer up or down (built, slice 2).
   - Well.
 
 ## Moving things
@@ -143,6 +144,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge) and tree built; a fall waits for health |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, ceilings, fence (a cell or an edge), tree, doors that open and stairs built; a fall waits for health |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

@@ -73,7 +73,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1"]
+   "pickup:1", "drop:1", "door_open:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -211,6 +211,8 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "bump", 0.5);
   } else if step == rules::Step.Took {
     sound(g, "pickup");
+  } else if step == rules::Step.Opened {
+    sound(g, "door_open");
   } else if step == rules::Step.Placed {
     sound(g, "drop");
   } else if step == rules::Step.Climbed {

@@ -388,3 +388,37 @@ fn test_a_fence_edge_is_climbed_over() {
   tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, rules::ed(w, "wall"));
   assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h1", "a wall edge: {at(w)}");
 }
+
+// Walking into a closed door opens it — one move, the hero stays — and it no longer stops
+// light; the next step goes through.
+fn test_a_door_opens() {
+  w = row(4);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "door"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(tile_world::opaque(w.w, 2, 0, 0), "a closed door stops light");
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened && at(w) == "1,0,0 h0", "opened: {at(w)}");
+  assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "open_door"), "it is open");
+  assert(!tile_world::opaque(w.w, 2, 0, 0), "and lets light through");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "through it: {at(w)}");
+}
+
+// Stairs up at x 2 on layer 0 take the hero to x 2 on layer 1, where stairs down stand; it
+// lands there without going down again.  Back onto them from x 3 takes it down, onto the
+// stairs up, which do not take it up again.  With nothing to stand on above, the stairs up
+// are only floor.
+//
+//   layer 1:    . > .        layer 0:  . . < .
+//              x 1 2 3                x 0 1 2 3
+fn test_stairs_change_layer() {
+  w = row(4);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "stairs_up"));
+  tile_world::fill(w.w, 1, 0, 3, 0, 1, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 2, 0, 1, rules::tr(w, "stairs_down"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Climbed && at(w) == "2,0,1 h0", "up the stairs: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "3,0,1 h0", "off them: {at(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Climbed && at(w) == "2,0,0 h0", "down the stairs: {at(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Walked && at(w) == "1,0,0 h0", "off them: {at(w)}");
+  tile_world::set_terrain(w.w, 2, 0, 1, tile_world::VOID);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "nothing above: {at(w)}");
+}

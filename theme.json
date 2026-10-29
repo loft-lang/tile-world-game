@@ -49,6 +49,18 @@
       "under": "floor",
       "tile": "town:81",
       "along": "town:71"
+    },
+    "door": {
+      "tile": "dungeon:45"
+    },
+    "open_door": {
+      "tile": "dungeon:33"
+    },
+    "stairs_up": {
+      "tile": "dungeon:39"
+    },
+    "stairs_down": {
+      "tile": "dungeon:37"
     }
   },
   "things": {
