@@ -32,12 +32,14 @@ This is what the game built on tile_world should be.
   - The hero steps up 1 and down any amount.
   - So a chair climbs a table, and a chair on a table climbs a wall: the wall's top is the next
     layer's floor.
-  - Slice 1 builds this with a 3-step layer; slice 2 makes it 4.
-- **Falling.** Falling a full wall height (4) costs the hero health. A bomb that drops a level
+  - A slope is cells rising one step at a time, and its top (3) steps onto the layer above too.
+  - Built with 4-step layers, slopes included (slice 2, `tests/moves.loft`).
+- **Falling.** Falling a full wall height (4) costs the hero health. Until the hero has health,
+  a full fall is not taken: the step is blocked. A bomb that drops a level
   explodes on landing.
 - **Ceilings.** A cell has a ceiling when the layer above it is not void.
   - The ceiling is never drawn.
-  - The hero cannot climb up through a ceiling, and neither can a spider.
+  - The hero cannot climb up through a ceiling (built, slice 2), and neither can a spider.
 - **Terrain kinds.**
   - Floor and rails.
   - Water: blocks walking, but bats fly over it.
@@ -140,6 +142,6 @@ This is what the game built on tile_world should be.
 | slice | content | state |
 |---|---|---|
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
-| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | open |
+| 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes and ceilings built; a fall waits for health |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

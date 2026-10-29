@@ -4,7 +4,7 @@
     "pull_strength": 2,
     "boost": 2,
     "boost_ms": 60000,
-    "layer_height": 3
+    "layer_height": 4
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

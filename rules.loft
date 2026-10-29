@@ -10,9 +10,13 @@
 //            down onto a surface), walk_on ("boost" or "take": walked over rather than into),
 //            mount (can be fixed to mount terrain), light (gives light, carried or set down).
 //
-// Height counts in steps; a layer is `layer_height` steps.  The hero steps up at most 1 and
-// down any amount; standing `layer_height` high it climbs onto the layer above, and walking
-// into the void over such a stack from above climbs down onto it.  Walking into a thing pushes
+// Height counts in steps — a cell's rise and the things stacked on it — and a layer is
+// `layer_height` steps, so the floor of the layer above stands `layer_height` high.  The hero
+// steps up at most 1 and down any amount short of a full layer (a fall: it will cost health;
+// until the hero has health, it is not taken).  So one step below a layer's height — a chair on
+// a table, a slope's top — climbs onto the floor of the layer above beside it, unless a ceiling
+// is over the hero (the layer above set over its own cell); and walking into the void steps
+// down onto what stands on the layer below.  Walking into a thing pushes
 // it one cell when it can go there, and climbs onto it when it cannot and can be stood on.  A
 // train is pushed up to `push_strength` long and pulled up to `pull_strength`; a walk_on
 // "boost" thing adds `boost` to both for `boost_ms` of the level's clock.
@@ -92,7 +96,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     pull_strength: num(r, "pull_strength", 2),
     boost: num(r, "boost", 2),
     boost_ms: num(r, "boost_ms", 60000),
-    layer_height: num(r, "layer_height", 3)
+    layer_height: num(r, "layer_height", 4)
   };
   t = v.field("terrain");
   for name in t.keys() {
@@ -130,11 +134,11 @@ pub fn kinds() -> Kinds {
     if raw != "" {
       k = kinds_from_json(raw);
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
-                                 boost: 2, boost_ms: 60000, layer_height: 3 }; }
+                                 boost: 2, boost_ms: 60000, layer_height: 4 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
-          layer_height: 3 }
+          layer_height: 4 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -467,23 +471,34 @@ fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
 }
 
 // The climb between layers, or null when this step is not one.
+/// Can the hero go from height `from` to height `to`, both counted from the same floor: up at
+/// most one step, down less than a full layer?
+pub fn reach(l: const Level, from: integer, to: integer) -> boolean {
+  to <= from + 1 && from - to < l.k.layer_height
+}
+
 fn climb(l: Level, dx: integer, dy: integer) -> Step? {
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
   z = l.hero_z;
   up = l.k.layer_height;
-  // Up: from a stack a layer high onto the floor of the layer above, beside it.
-  if l.hero_h >= up && walkable(l, tile_world::terrain(l.w, tx, ty, z + 1))
-      && tile_world::top(l.w, tx, ty, z + 1) == 0 {
+  // Up: onto the floor of the layer above, beside the hero, a layer's height plus that cell's
+  // rise — never up through a ceiling.
+  if walkable(l, tile_world::terrain(l.w, tx, ty, z + 1)) && tile_world::top(l.w, tx, ty, z + 1) == 0
+      && tile_world::terrain(l.w, l.hero_x, l.hero_y, z + 1) == VOID
+      && reach(l, l.hero_h, up + tile_world::rise(l.w, tx, ty, z + 1)) {
     arrive(l, tx, ty, z + 1);
     return Step.Climbed;
   }
-  // Down: into the void over a stack a layer high on the layer below.
-  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1))
-      && tile_world::height(l.w, tx, ty, z - 1) == up
-      && standable(l, tile_world::top(l.w, tx, ty, z - 1)) {
-    arrive(l, tx, ty, z - 1);
-    return Step.Climbed;
+  // Down: into the void beside, onto what stands on the layer below — a thing the hero can
+  // stand on, or a rise.
+  if tile_world::terrain(l.w, tx, ty, z) == VOID && walkable(l, tile_world::terrain(l.w, tx, ty, z - 1)) {
+    t = tile_world::top(l.w, tx, ty, z - 1);
+    h = tile_world::height(l.w, tx, ty, z - 1);
+    if (t == 0 || standable(l, t)) && reach(l, up + l.hero_h, h) {
+      arrive(l, tx, ty, z - 1);
+      return Step.Climbed;
+    }
   }
   null
 }
@@ -515,6 +530,8 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   if !tile_world::crossable(l.w, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
   thing = tile_world::top(l.w, tx, ty, z);
   if thing == 0 || item(l, thing) {
+    // A rise is stepped like a stack: up one at most.
+    if !reach(l, l.hero_h, tile_world::height(l.w, tx, ty, z)) { return Step.Blocked; }
     arrive(l, tx, ty, z);
     return Step.Walked;
   }
