@@ -1,0 +1,117 @@
+// Materials and autotiling (materials.loft), read from the game's own theme.json.  Its sheets
+// are dungeon, town, farm, battle, ski: slots 0..4, so "town:t" is tile number 1 + 256 + t =
+// 257 + t and "dungeon:t" is 1 + t.  Grass is town 0 (257) with variants town 1, 2 (258, 259);
+// the path's pieces are town 12 13 14 / 24 25 26 / 36 37 38 and the inner corners 39..42:
+//   nw 269  n 270  ne 271 / w 281  c 282  e 283 / sw 293  s 294  se 295
+//   inner nw 296, ne 297, sw 298, se 299.
+// The lake (kind water) autotiles with the battle sheet's shore (slot 3: 769 + t): 18 19 20 /
+// 36 37 38 / 54 55 56, inner corners 90 91 93 92 —
+//   nw 787  n 788  ne 789 / w 805  c 806  e 807 / sw 823  s 824  se 825.
+use tile_world;
+use rules;
+use materials;
+
+fn mats() -> materials::Materials {
+  materials::load(file("../theme.json").content() ?? "", rules::kinds())
+}
+
+// A 5x5 floor on layer 0, x and y 0..4.
+fn field() -> rules::Level {
+  l = rules::level(rules::kinds());
+  tile_world::fill(l.w, 0, 0, 4, 4, 0, rules::tr(l, "floor"));
+  l
+}
+
+fn tiles(l: const rules::Level, y: integer) -> text {
+  t = "";
+  for x in 0..5 { t += "{tile_world::tile(l.w, x, y, 0)} "; }
+  t
+}
+
+fn main() {
+  assert(len(mats().list) == 3, "grass, path and lake");
+}
+
+fn test_tile_numbers() {
+  sheets = ["dungeon", "town", "farm"];
+  assert(materials::number(sheets, "town:0") == 257, "town 0");
+  assert(materials::number(sheets, "dungeon:48") == 49, "dungeon 48");
+  assert(materials::number(sheets, "farm:255") == 768, "farm 255: 1 + 512 + 255");
+  assert(materials::number(sheets, "nope:1") == 0, "an unknown sheet");
+  assert(materials::number(sheets, "town:256") == 0, "past a sheet's 256");
+  assert(materials::number(sheets, "town") == 0, "not sheet:tile");
+}
+
+fn test_the_materials_load() {
+  m = mats();
+  g = materials::named(m, "grass");
+  p = materials::named(m, "path");
+  assert(g >= 0 && p >= 0, "both named");
+  grass = m.list[g] ?? m.list[0] ?? return;
+  path = m.list[p] ?? m.list[0] ?? return;
+  assert(grass.kind == rules::terrain_id(rules::kinds(), "floor") && grass.tile == 257, "grass: floor, town 0");
+  assert(len(grass.variants) == 2 && (grass.variants[1] ?? 0) == 259, "its variants");
+  assert(len(path.pieces) == 13 && (path.pieces[0] ?? 0) == 269 && (path.pieces[12] ?? 0) == 299, "the pieces");
+  assert(path.tile == 282, "a path's own tile is its centre: {path.tile}");
+  assert(materials::of(m, 258) == g && materials::of(m, 296) == p && materials::of(m, 1) == -1, "owners");
+}
+
+// Grass picks a variant by position, (x * 7 + y * 13) % 11 below 2: (0, 0) is 0 -> 258,
+// (3, 1) is 34 % 11 = 1 -> 259, (1, 0) is 7 -> the plain 257, (0, 1) is 2 -> 257.
+fn test_variants_by_position() {
+  m = mats();
+  l = field();
+  g = materials::named(m, "grass");
+  for p in [(0, 0), (3, 1), (1, 0), (0, 1)] { materials::paint(m, l.w, g, p.0, p.1, 0); }
+  assert(tile_world::tile(l.w, 0, 0, 0) == 258 && tile_world::tile(l.w, 3, 1, 0) == 259, "variants");
+  assert(tile_world::tile(l.w, 1, 0, 0) == 257 && tile_world::tile(l.w, 0, 1, 0) == 257, "plain");
+}
+
+// A 3x3 square of path at x, y 1..3 takes the nine slices.  With its north-west cell erased,
+// the centre sees all four neighbours but not the north-west diagonal: the inner corner (296);
+// (2, 1) and (1, 2) lose their north-west and west / north neighbour: corners (269).
+fn test_a_path_square_is_sliced() {
+  m = mats();
+  l = field();
+  p = materials::named(m, "path");
+  for y in 1..4 {
+    for x in 1..4 { materials::paint(m, l.w, p, x, y, 0); }
+  }
+  assert(tiles(l, 1) == "0 269 270 271 0 ", "north row: {tiles(l, 1)}");
+  assert(tiles(l, 2) == "0 281 282 283 0 ", "middle row: {tiles(l, 2)}");
+  assert(tiles(l, 3) == "0 293 294 295 0 ", "south row: {tiles(l, 3)}");
+  tile_world::set_terrain(l.w, 1, 1, 0, rules::tr(l, "floor"));
+  materials::retile(m, l.w, 1, 1, 0);
+  assert(tiles(l, 1) == "0 0 269 271 0 ", "north row, its corner gone: {tiles(l, 1)}");
+  assert(tiles(l, 2) == "0 269 296 283 0 ", "the inner corner: {tiles(l, 2)}");
+}
+
+// A level loaded with the material's own tile everywhere, retiled once, is the same as one
+// painted cell by cell: retiling does not depend on the order.
+fn test_retile_all_matches_painting() {
+  m = mats();
+  p = materials::named(m, "path");
+  painted = field();
+  loaded = field();
+  for y in 1..4 {
+    for x in 1..4 {
+      materials::paint(m, painted.w, p, x, y, 0);
+      tile_world::set_terrain(loaded.w, x, y, 0, rules::tr(loaded, "floor"), 282);
+    }
+  }
+  materials::retile_all(m, loaded.w);
+  for y in 0..5 { assert(tiles(loaded, y) == tiles(painted, y), "row {y}: {tiles(loaded, y)}"); }
+}
+
+// A 3x3 lake in the field: shore all round its open water.
+fn test_a_lake_has_shores() {
+  m = mats();
+  l = field();
+  lake = materials::named(m, "lake");
+  for y in 1..4 {
+    for x in 1..4 { materials::paint(m, l.w, lake, x, y, 0); }
+  }
+  assert(tiles(l, 1) == "0 787 788 789 0 " && tiles(l, 2) == "0 805 806 807 0 ", "north and middle: {tiles(l, 1)}/ {tiles(l, 2)}");
+  assert(tiles(l, 3) == "0 823 824 825 0 ", "south: {tiles(l, 3)}");
+  assert(tile_world::terrain(l.w, 2, 2, 0) == rules::tr(l, "water"), "a lake is water");
+}

@@ -42,6 +42,9 @@ struct Glyph {
 pub struct Theme {
   pub tile_size: integer,
   sheets: hash<Sheet[name]>,
+  /// The sheets' handles in theme.json's order: a cell's tile number names a picture by that
+  /// order (materials.loft).
+  slots: vector<integer>,
   terrain: hash<TerrainLook[id]>,
   things: hash<ThingLook[id]>,
   carried: hash<CarriedLook[id]>,
@@ -82,7 +85,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
   if v.kind() != "JObject" { return null; }
   ts = num(v, "tile_size", 16);
   th = Theme {
-    tile_size: ts, sheets: [], terrain: [], things: [], carried: [], chars: [],
+    tile_size: ts, sheets: [], slots: [], terrain: [], things: [], carried: [], chars: [],
     hero: -1, heart: -1, font: 0, digits: 0, letters: 0
   };
   sheets = v.field("sheets");
@@ -90,6 +93,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     h = tiles::sheet_from_png("{dir}/{sheets.field(name).as_text()}", ts, ts);
     if !h { return null; }
     th.sheets += [Sheet { name: name, handle: h }];
+    th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
   th.heart = sprite(th, word(v, "heart"));
@@ -138,6 +142,15 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
 pub fn put(surface: integer, s: integer, px: integer, py: integer, shade: integer) {
   if s < 0 { return; }
   tiles::draw(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, false, false, false, shade);
+}
+
+/// The sprite a cell's tile number names (materials.loft: 1 + slot * 256 + tile), -1 for 0 or a
+/// slot theme.json does not have.
+pub fn tile_sprite(th: const Theme, n: integer) -> integer {
+  if n <= 0 { return -1; }
+  slot = (n - 1) / 256 ?? 0;
+  if slot >= len(th.slots) { return -1; }
+  (th.slots[slot] ?? 0) * 4096 + ((n - 1) % 256 ?? 0)
 }
 
 /// The sprite of terrain kind `kind` at cell (x, y): its tile, or one of its variants chosen by

@@ -1,0 +1,196 @@
+// Materials (EDITOR.md § 1): what the editor paints with.  A material is a terrain KIND (how
+// the cell behaves) with a LOOK (which picture it shows): grass and a path are both the kind
+// `floor`.  They are declared in theme.json beside the sheets, and read here from its text
+// alone — no picture is loaded — so the rules, the level files and the tests can use them.
+//
+//   "materials": {
+//     "grass": { "kind": "floor", "tile": "town:0", "variants": ["town:1", "town:2"], "glyph": "," },
+//     "path":  { "kind": "floor", "autotile": "path", "glyph": ":" }
+//   },
+//   "autotiles": {
+//     "path": { "nw": "town:12", "n": "town:13", ..., "inner_se": "town:42" }
+//   }
+//
+// A cell holds its kind and a TILE NUMBER: 0 for the kind's own look, else
+// `1 + slot * 256 + tile` — tile `tile` of the sheet theme.json lists `slot`-th (from 0).  The
+// number names a picture for as long as theme.json keeps its sheets in that order, so a new
+// sheet goes at the end.  A material's tile is worked out when it is painted or loaded, never
+// when it is drawn: a variant by the cell's position, an autotile piece by its neighbours.
+//
+// Autotiling is a nine-slice with inner corners.  Of a cell's four neighbours, those that hold
+// the same material decide the piece: a missing north and west is the north-west corner, a
+// missing north alone the north edge, and so on round the slice; with all four present, a
+// missing diagonal is that inner corner, and none missing the centre.  A strip one cell wide
+// has no piece of its own in the Kenney sheets and takes the slice's edge.
+use tile_world;
+use rules;
+
+/// The pieces of an autotile set, in the order a material keeps them.
+pub const PIECES = "nw n ne w c e sw s se inner_nw inner_ne inner_sw inner_se";
+
+pub struct Material {
+  pub name: text,
+  pub kind: integer,
+  /// The plain tile, and the variants a position may pick instead (empty: always `tile`).
+  pub tile: integer,
+  pub variants: vector<integer>,
+  /// The thirteen autotile pieces in PIECES order; empty for a material that is not autotiled.
+  pub pieces: vector<integer>,
+  pub glyph: text
+}
+
+struct Owner {
+  const tile: integer,
+  material: integer
+}
+
+pub struct Materials {
+  pub list: vector<Material>,
+  owners: hash<Owner[tile]>
+}
+
+/// An empty material: the fallback where an index read could miss.
+pub fn none_material() -> Material {
+  Material { name: "", kind: 0, tile: 0, variants: [], pieces: [], glyph: "" }
+}
+
+/// No materials: the level files and the editor then work with terrain kinds alone.
+pub fn none() -> Materials {
+  Materials { list: [], owners: [] }
+}
+
+fn word(v: const JsonValue, name: text) -> text {
+  f = v.field(name);
+  if f.kind() == "JString" { f.as_text() } else { "" }
+}
+
+/// The tile number of "sheet:tile" among `sheets` (theme.json's sheet names, in order); 0 when
+/// the sheet is unknown or the text is not one.
+pub fn number(sheets: const vector<text>, s: text) -> integer {
+  parts = s.split(':');
+  if len(parts) != 2 { return 0; }
+  t = parts[1] as integer ?? -1;
+  if t < 0 || t > 255 { return 0; }
+  for i in 0..len(sheets) {
+    if sheets[i] == parts[0] { return 1 + i * 256 + t; }
+  }
+  0
+}
+
+/// The materials theme.json's text declares, their kinds named through `k`.  A material whose
+/// kind `k` does not declare is left out.
+pub fn load(raw: text, k: const rules::Kinds) -> Materials {
+  m = none();
+  v = json_parse(raw);
+  if v.kind() != "JObject" { return m; }
+  sheets: vector<text> = [];
+  for name in v.field("sheets").keys() { sheets += [name]; }
+  sets = v.field("autotiles");
+  ms = v.field("materials");
+  for name in ms.keys() {
+    e = ms.field(name);
+    kind = rules::terrain_id(k, word(e, "kind"));
+    if kind == 0 { continue; }
+    vs: vector<integer> = [];
+    vars = e.field("variants");
+    for i in 0..vars.len() { vs += [number(sheets, vars.item(i).as_text())]; }
+    pieces: vector<integer> = [];
+    set = word(e, "autotile");
+    if set != "" {
+      s = sets.field(set);
+      for p in PIECES.split(' ') { pieces += [number(sheets, word(s, p))]; }
+    }
+    tile = number(sheets, word(e, "tile"));
+    if tile == 0 && len(pieces) > 4 { tile = pieces[4] ?? 0; }
+    index = len(m.list);
+    owned: vector<integer> = [tile];
+    owned += vs;
+    owned += pieces;
+    m.list += [Material { name: name, kind: kind, tile: tile, variants: vs, pieces: pieces, glyph: word(e, "glyph") }];
+    for t in owned {
+      if t != 0 && !m.owners[t] { m.owners += [Owner { tile: t, material: index }]; }
+    }
+  }
+  m
+}
+
+/// The material a tile number belongs to, -1 for none.
+pub fn of(m: const Materials, tile: integer) -> integer {
+  o = m.owners[tile];
+  if !o { return -1; }
+  o.material
+}
+
+/// The material by name, -1 when there is none.
+pub fn named(m: const Materials, name: text) -> integer {
+  for i in 0..len(m.list) {
+    if m.list[i].name == name { return i; }
+  }
+  -1
+}
+
+/// The material cell (x, y, z) holds, -1 for none: its tile's material, when that material is
+/// of the cell's kind.
+pub fn at(m: const Materials, w: const tile_world::World, x: integer, y: integer, z: integer) -> integer {
+  if !tile_world::is_set(w, x, y, z) { return -1; }
+  i = of(m, tile_world::tile(w, x, y, z));
+  if i < 0 { return -1; }
+  if (m.list[i].kind ?? 0) != tile_world::terrain(w, x, y, z) { return -1; }
+  i
+}
+
+// The tile material `i` shows at cell (x, y, z): its autotile piece, else a variant by position.
+fn tile_for(m: const Materials, i: integer, w: const tile_world::World, x: integer, y: integer, z: integer) -> integer {
+  mat = m.list[i];
+  if !mat { return 0; }
+  if len(mat.pieces) == 13 {
+    n = at(m, w, x, y - 1, z) == i;
+    s = at(m, w, x, y + 1, z) == i;
+    we = at(m, w, x - 1, y, z) == i;
+    e = at(m, w, x + 1, y, z) == i;
+    p = if !n && !we { 0 } else if !n && !e { 2 } else if !s && !we { 6 } else if !s && !e { 8 }
+        else if !n { 1 } else if !s { 7 } else if !we { 3 } else if !e { 5 }
+        else if at(m, w, x - 1, y - 1, z) != i { 9 } else if at(m, w, x + 1, y - 1, z) != i { 10 }
+        else if at(m, w, x - 1, y + 1, z) != i { 11 } else if at(m, w, x + 1, y + 1, z) != i { 12 }
+        else { 4 };
+    return mat.pieces[p] ?? mat.tile;
+  }
+  h = (x * 7 + y * 13) % 11 ?? 0;
+  if h < len(mat.variants) { return mat.variants[h] ?? mat.tile; }
+  mat.tile
+}
+
+// Give cell (x, y, z) the tile its material shows there; nothing for a cell of no material.
+fn retile_cell(m: const Materials, w: tile_world::World, x: integer, y: integer, z: integer) {
+  i = at(m, w, x, y, z);
+  if i < 0 { return; }
+  tile_world::set_terrain(w, x, y, z, tile_world::terrain(w, x, y, z), tile_for(m, i, w, x, y, z));
+}
+
+/// Retile (x, y, z) and its eight neighbours: what painting or erasing that cell changes.
+pub fn retile(m: const Materials, w: tile_world::World, x: integer, y: integer, z: integer) {
+  for dy in -1..=1 {
+    for dx in -1..=1 { retile_cell(m, w, x + dx, y + dy, z); }
+  }
+}
+
+/// Paint material `i` on (x, y, z) — its kind, and its tile there — and retile the neighbours.
+pub fn paint(m: const Materials, w: tile_world::World, i: integer, x: integer, y: integer, z: integer) {
+  mat = m.list[i];
+  if !mat { return; }
+  // The material's own tile first, so `at` reads it as the material while the piece is chosen.
+  tile_world::set_terrain(w, x, y, z, mat.kind, mat.tile);
+  retile(m, w, x, y, z);
+}
+
+/// Every cell of every layer of `w` holding a material, retiled: a level just loaded.
+pub fn retile_all(m: const Materials, w: tile_world::World) {
+  if len(m.list) == 0 { return; }
+  for z in tile_world::layers(w) {
+    for c in tile_world::chunks(w, z) {
+      for j in 0..32 {
+        for i in 0..32 { retile_cell(m, w, c.0 * 32 + i, c.1 * 32 + j, z); }
+      }
+    }
+  }
+}

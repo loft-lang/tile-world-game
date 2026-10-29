@@ -211,7 +211,14 @@ has none.
    the next level of `order.json`: by name waits for typed text (step 7).  Uses `tiles`
    `rect` / `frame` (0.3.0).
 3. **Materials and autotiling**: grass, paths, shores, castle walls and fences from the Kenney
-   sheets.
+   sheets.  Built: `materials.loft` (tested in `tests/materials.loft`) — a cell's tile number
+   names a picture (`1 + sheet slot * 256 + tile`, slots in theme.json's sheet order, so a new
+   sheet goes at the end), a material is a kind with a tile, variants by position or a
+   nine-slice autotile set with inner corners, worked out when painted or loaded; level
+   legends name materials (`levels::load_with` / `save_with`), the palette offers them, and an
+   edit logs every cell it retiled.  Materials so far: grass, path.  Open: shores, castle walls
+   and fences as sets (a wider piece set than the nine-slice where the sheet has one), and the
+   palette's categories (`1`..`9`).
 4. **The new kinds and their rules**: `stairs`, `door`, `fence`, `tree` — built (kinds.json,
    rules.loft, tests/moves.loft) — and the roof cut-away; then castles, houses and dungeons can
    be built and walked through.

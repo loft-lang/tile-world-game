@@ -11,6 +11,7 @@ use theme;
 use levels;
 use editor;
 use camera;
+use materials;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
 /// editor gives a row of the level to its palette.
@@ -42,6 +43,8 @@ pub struct Game {
   pub order: vector<text>,
   pub surface: integer,
   pub kinds: rules::Kinds,
+  /// What the editor paints with, and what level files' legends may name (theme.json's).
+  pub mats: materials::Materials,
   pub look: theme::Theme,
   sounds: hash<Sound[sd_name]>,
   pub keys: input::InputState,
@@ -122,24 +125,27 @@ fn bindings() -> input::Bindings {
 pub fn new_game(dir: text) -> Game? {
   s = tiles::surface(W, H);
   k = rules::kinds();
-  th = theme::load(file("{dir}/theme.json").content() ?? "", dir, k);
+  theme_text = file("{dir}/theme.json").content() ?? "";
+  th = theme::load(theme_text, dir, k);
+  mats = materials::load(theme_text, k);
   if !s || !th { return null; }
   blank = levels::LevelFile {
     name: "", camera: "follow", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
     goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
   };
-  ed = editor::new_editor(blank);
+  ed = editor::new_editor_with(blank, mats);
+  empty = rules::level(k);
   g = Game {
     world: rules::level(k),
     file: blank,
     order: level_order(dir),
-    surface: s ?? 0, kinds: k, look: th ?? return null,
+    surface: s ?? 0, kinds: k, mats: mats, look: th ?? return null,
     sounds: [],
     keys: input::input_new(bindings()),
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
     editing: false, ed: ed, lit: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
-    dir: dir, saved: rules::level(k), has_save: false, asking_back: false
+    dir: dir, saved: empty, has_save: false, asking_back: false
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -183,11 +189,11 @@ fn level_path(g: const Game, level: integer) -> text {
 // Load level number `level` of the order into `g`, with a fresh editor on it; false when its
 // file does not load.
 fn load_level(g: Game, level: integer) -> boolean {
-  m = levels::load(file(level_path(g, level)).content() ?? "", g.kinds);
+  m = levels::load_with(file(level_path(g, level)).content() ?? "", g.kinds, g.mats);
   if !m { return false; }
   g.file = m;
   g.level = level;
-  g.ed = editor::new_editor(g.file);
+  g.ed = editor::new_editor_with(g.file, g.mats);
   true
 }
 
@@ -391,7 +397,7 @@ pub fn edit(g: Game, word: text) {
 
 /// Write the level being edited to its file.  False when it could not be written.
 pub fn save(g: Game) -> boolean {
-  file(level_path(g, g.level)).write(levels::save(g.file)).ok()
+  file(level_path(g, g.level)).write(levels::save_with(g.file, g.mats)).ok()
 }
 
 // The editor's keys this tick (EDITOR.md § 4).  Answers whether the picture changed.
@@ -500,7 +506,9 @@ fn draw_cell(g: Game, w: const rules::Level, x: integer, y: integer, z: integer,
     across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
     theme::put(g.surface, theme::line_sprite(g.look, k, across), px, py, shade);
   } else {
-    theme::put(g.surface, theme::terrain_sprite(g.look, k, x, y, upper), px, py, shade);
+    // A material's cell names its own picture (its tile number); any other the kind's look.
+    own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
+    theme::put(g.surface, if own >= 0 { own } else { theme::terrain_sprite(g.look, k, x, y, upper) }, px, py, shade);
   }
   // The stack, bottom first, each thing lifted by the height under it (4 pixels a step).
   base = 0;
@@ -600,6 +608,7 @@ fn box(g: Game, x: integer, y: integer, inset: integer, colour: integer) {
 // The sprite of palette entry `e`; -1 for void, which draws as nothing.
 fn entry_sprite(g: const Game, e: const editor::Entry) -> integer {
   if e.thing { return theme::thing_sprite(g.look, e.id); }
+  if e.material >= 0 { return theme::tile_sprite(g.look, (g.mats.list[e.material] ?? materials::none_material()).tile); }
   theme::terrain_sprite(g.look, e.id, 0, 0, false)
 }
 

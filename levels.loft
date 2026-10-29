@@ -26,6 +26,7 @@
 // so the same level always writes the same file.
 use tile_world;
 use rules;
+use materials;
 
 const CHUNK = 32;
 
@@ -56,7 +57,9 @@ pub struct LevelFile {
 
 struct LegendChar {
   const ch: text,
-  kind: integer
+  kind: integer,
+  /// The material the character names (materials.loft), -1 for a bare terrain kind.
+  material: integer
 }
 
 fn num(v: const JsonValue, default: integer) -> integer {
@@ -77,6 +80,13 @@ fn side_of(letter: text) -> integer {
 /// The level a level file's JSON holds, its kinds named through `k`.  Null when it does not
 /// parse; a name `k` does not declare reads as unset, nothing, no edge.
 pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
+  load_with(raw, k, materials::none())
+}
+
+/// The same, with the materials the legend may name (theme.json's): a material's cells get its
+/// kind and, once every cell is read, the tile it shows there — a variant by position, an
+/// autotile piece by its neighbours.  A `tiles` override is applied after, and wins.
+pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materials) -> LevelFile? {
   v = json_parse(raw);
   if v.kind() != "JObject" { return null; }
   l = rules::level(k);
@@ -84,7 +94,12 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
   lg = v.field("legend");
   for c in lg.keys() {
     name = lg.field(c).as_text();
-    legend += [LegendChar { ch: c, kind: if name == "void" { PIT } else { rules::terrain_id(k, name) } }];
+    mi = materials::named(mats, name);
+    mk = if mi >= 0 { (mats.list[mi] ?? materials::none_material()).kind } else { 0 };
+    legend += [LegendChar {
+      ch: c, kind: if mi >= 0 { mk } else if name == "void" { PIT } else { rules::terrain_id(k, name) },
+      material: mi
+    }];
   }
   gr = v.field("ground");
   for i in 0..gr.len() {
@@ -104,8 +119,11 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
       for ch in rows.item(j).as_text() {
         e = legend["{ch}"];
         kind = if e { e.kind } else { 0 };
+        mi = if e { e.material } else { -1 };
         if kind == PIT {
           tile_world::set_terrain(l.w, x, y0 + j, z, tile_world::VOID);
+        } else if mi >= 0 {
+          tile_world::set_terrain(l.w, x, y0 + j, z, kind, (mats.list[mi] ?? materials::none_material()).tile);
         } else if kind != 0 {
           tile_world::set_terrain(l.w, x, y0 + j, z, kind);
         }
@@ -125,6 +143,7 @@ pub fn load(raw: text, k: const rules::Kinds) -> LevelFile? {
       }
     }
   }
+  materials::retile_all(mats, l.w);
   tiles = v.field("tiles");
   for i in 0..tiles.len() {
     t = tiles.item(i);
@@ -192,35 +211,42 @@ fn quoted(s: text) -> text {
   out + "\""
 }
 
-// The legend: each terrain kind's glyph, or the first free character when its glyph is taken,
-// is a space or `_`, or is not one character.
-fn legend_of(k: const rules::Kinds) -> hash<LegendChar[ch]> {
+// `g` when it can be a legend character not yet taken, else the first free spare one; "" when
+// none is left.
+fn free_char(legend: const hash<LegendChar[ch]>, g: text) -> text {
+  if len(g) == 1 && g != " " && !legend[g] { return g; }
+  for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" {
+    if !legend["{c}"] { return "{c}"; }
+  }
+  ""
+}
+
+// The legend: each terrain kind's glyph, then each material's, or the first free character when
+// a glyph is taken, is a space or `_`, or is not one character.
+fn legend_of(k: const rules::Kinds, mats: const materials::Materials) -> hash<LegendChar[ch]> {
   legend: hash<LegendChar[ch]> = [];
-  legend += [LegendChar { ch: "_", kind: PIT }];
-  spare = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  legend += [LegendChar { ch: "_", kind: PIT, material: -1 }];
   for id in rules::terrain_ids(k) {
-    g = rules::terrain_glyph(k, id);
-    if len(g) != 1 || g == " " || legend[g] {
-      g = "";
-      for c in spare {
-        if !legend["{c}"] {
-          g = "{c}";
-          break;
-        }
-      }
-    }
-    if g != "" { legend += [LegendChar { ch: g, kind: id }]; }
+    g = free_char(legend, rules::terrain_glyph(k, id));
+    if g != "" { legend += [LegendChar { ch: g, kind: id, material: -1 }]; }
+  }
+  for i in 0..len(mats.list) {
+    mat = mats.list[i] ?? materials::none_material();
+    g = free_char(legend, mat.glyph);
+    if g != "" { legend += [LegendChar { ch: g, kind: mat.kind, material: i }]; }
   }
   legend
 }
 
 // The legend character of a cell: a space when it is unset, `_` when it is void set on purpose.
-fn cell_char(l: const rules::Level, legend: const hash<LegendChar[ch]>, x: integer, y: integer, z: integer) -> text {
+fn cell_char(l: const rules::Level, legend: const hash<LegendChar[ch]>, mats: const materials::Materials,
+             x: integer, y: integer, z: integer) -> text {
   if !tile_world::is_set(l.w, x, y, z) { return " "; }
   kind = tile_world::terrain(l.w, x, y, z);
   if kind == tile_world::VOID { return "_"; }
+  mi = materials::at(mats, l.w, x, y, z);
   for e in legend {
-    if e.kind == kind { return e.ch; }
+    if e.material == mi && (mi >= 0 || e.kind == kind) { return e.ch; }
   }
   " "
 }
@@ -229,9 +255,15 @@ fn cell_char(l: const rules::Level, legend: const hash<LegendChar[ch]>, x: integ
 /// edges, rises and things, the start, the goal and the camera of `lf`.  The same level always
 /// writes the same text.
 pub fn save(lf: const LevelFile) -> text {
+  save_with(lf, materials::none())
+}
+
+/// The same, with the materials theme.json declares: a material's cell is written by its
+/// character, and only a tile no material shows there is an override.
+pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text {
   l = lf.level;
   k = l.k;
-  legend = legend_of(k);
+  legend = legend_of(k, mats);
   chunks_text = "";
   pits = false;
   overrides: vector<(integer, integer, integer, integer)> = [];
@@ -249,11 +281,11 @@ pub fn save(lf: const LevelFile) -> text {
         for i in 0..CHUNK {
           x = c.0 * CHUNK + i;
           y = c.1 * CHUNK + j;
-          ch = cell_char(l, legend, x, y, z);
+          ch = cell_char(l, legend, mats, x, y, z);
           if ch == "_" { pits = true; }
           if ch != " " && ch != "_" && !used.contains(ch) { used += [ch]; }
           row += ch;
-          if ch != " " && ch != "_" {
+          if ch != " " && ch != "_" && materials::at(mats, l.w, x, y, z) < 0 {
             t = tile_world::tile(l.w, x, y, z);
             if t != 0 { overrides += [(x, y, z, t)]; }
           }
@@ -282,9 +314,18 @@ pub fn save(lf: const LevelFile) -> text {
   first = true;
   for id in rules::terrain_ids(k) {
     for e in legend {
-      if e.kind == id && used.contains(e.ch) {
+      if e.material < 0 && e.kind == id && used.contains(e.ch) {
         out += if first { " " } else { ", " };
         out += "{quoted(e.ch)}: {quoted(rules::terrain_name(k, id))}";
+        first = false;
+      }
+    }
+  }
+  for i in 0..len(mats.list) {
+    for e in legend {
+      if e.material == i && used.contains(e.ch) {
+        out += if first { " " } else { ", " };
+        out += "{quoted(e.ch)}: {quoted((mats.list[i] ?? materials::none_material()).name)}";
         first = false;
       }
     }

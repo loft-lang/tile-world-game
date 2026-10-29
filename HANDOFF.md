@@ -70,7 +70,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    Follow-ups: `checks/game.loft` reports `1 stores not freed at program exit: Theme×3` on the
    interpreter (the theme `new_game` loads; not yet looked at); game checks live in `checks/`
    until loft#2234 lets `--tests` open a `--lib` library's C core.
-4. **Editor step 3**: materials and autotiling (EDITOR.md § 8).
+4. **Editor step 3**: materials and autotiling (EDITOR.md § 8) — framework, grass and path built; shores, castle walls, fences and palette categories open.
 
 ## Elsewhere (all landed or handed over)
 

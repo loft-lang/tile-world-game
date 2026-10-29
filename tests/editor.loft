@@ -8,6 +8,7 @@ use rules;
 use levels;
 use editor;
 use camera;
+use materials;
 
 const FLOOR = 1;
 const WALL = 2;
@@ -194,4 +195,29 @@ fn test_camera() {
   assert(camera::rooms(-1, 13, 0) == -13 && camera::rooms(-13, 13, 0) == -13, "room -1");
   assert(camera::rooms(-14, 13, 0) == -26, "room -2");
   assert(camera::keep(0, -3, 13, 0) == -3 && camera::keep(0, 13, 13, 0) == 1, "the cursor kept in sight");
+}
+
+// With theme.json's materials: a row of three path cells at x 2..4, y 2 takes the pieces
+// north-west, north and north-east (269 270 271 — tests/materials.loft has the numbers).
+// Erasing the middle one leaves (4, 2) with no west neighbour: a north-west piece too (269).
+// One undo puts back both: the erased cell and the neighbour's piece.
+fn test_materials_paint_retile_and_undo() {
+  lf = first_climb();
+  mats = materials::load(file("../theme.json").content() ?? "", lf.level.k);
+  ed = editor::new_editor_with(lf, mats);
+  w = lf.level.w;
+  pick(ed, lf.level.k, "path");
+  editor::move(ed, 1, 1);
+  for _ in 0..3 {
+    _ = editor::paint(ed, lf);
+    editor::move(ed, 1, 0);
+  }
+  row = "{tile_world::tile(w, 2, 2, 0)} {tile_world::tile(w, 3, 2, 0)} {tile_world::tile(w, 4, 2, 0)}";
+  assert(row == "269 270 271", "the row: {row}");
+  editor::move(ed, -2, 0);
+  assert(editor::erase(ed, lf), "the middle erased");
+  assert(tile_world::tile(w, 4, 2, 0) == 269, "its east neighbour turned: {tile_world::tile(w, 4, 2, 0)}");
+  assert(editor::undo(ed, lf), "undone");
+  row = "{tile_world::tile(w, 2, 2, 0)} {tile_world::tile(w, 3, 2, 0)} {tile_world::tile(w, 4, 2, 0)}";
+  assert(row == "269 270 271", "all three back: {row}");
 }

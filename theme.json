@@ -91,6 +91,41 @@
     "open_chest": "dungeon:91",
     "signpost": "town:83"
   },
+  "materials": {
+    "grass": {
+      "kind": "floor",
+      "tile": "town:0",
+      "variants": [
+        "town:1",
+        "town:2"
+      ],
+      "glyph": ","
+    },
+    "path": {
+      "kind": "floor",
+      "autotile": "path",
+      "glyph": ":"
+    },
+    "lake": {
+      "kind": "water",
+      "autotile": "shore",
+      "glyph": "*"
+    }
+  },
+  "autotiles": {
+    "path": {
+      "nw": "town:12", "n": "town:13", "ne": "town:14",
+      "w": "town:24", "c": "town:25", "e": "town:26",
+      "sw": "town:36", "s": "town:37", "se": "town:38",
+      "inner_nw": "town:39", "inner_ne": "town:40", "inner_sw": "town:41", "inner_se": "town:42"
+    },
+    "shore": {
+      "nw": "battle:18", "n": "battle:19", "ne": "battle:20",
+      "w": "battle:36", "c": "battle:37", "e": "battle:38",
+      "sw": "battle:54", "s": "battle:55", "se": "battle:56",
+      "inner_nw": "battle:90", "inner_ne": "battle:91", "inner_sw": "battle:93", "inner_se": "battle:92"
+    }
+  },
   "carried": {
     "staff": {
       "tile": "dungeon:129",

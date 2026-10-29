@@ -4,6 +4,7 @@
 use tile_world;
 use rules;
 use levels;
+use materials;
 
 fn read(name: text) -> text {
   file("../levels/{name}.json").content() ?? ""
@@ -107,4 +108,35 @@ fn test_a_chests_goal() {
   assert(!levels::solved(lf, lf.level), "a chest is closed");
   assert(rules::walk(lf.level, 1, 0) == rules::Step.Opened, "opened");
   assert(levels::solved(lf, lf.level), "every chest open");
+}
+
+// Materials in a level file (theme.json's grass and path): a row of grass over a 2x2 patch of
+// path writes the rows `,,,` `::` `::` with a legend of the two materials and no tile
+// overrides — each tile is worked out again when it loads — and loads back to the same tiles.
+fn test_materials_survive_a_round_trip() {
+  k = rules::kinds();
+  mats = materials::load(file("../theme.json").content() ?? "", k);
+  l = rules::level(k);
+  for x in 0..3 { materials::paint(mats, l.w, materials::named(mats, "grass"), x, 0, 0); }
+  for y in 1..3 {
+    for x in 0..2 { materials::paint(mats, l.w, materials::named(mats, "path"), x, y, 0); }
+  }
+  lf = levels::LevelFile {
+    name: "m", camera: "follow", level: l, start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "layer", x: 0, y: 0, z: 1 }
+  };
+  text = levels::save_with(lf, mats);
+  assert(text.find("\",,,\"") != null && text.find("\"::\"") != null, "the rows:\n{text}");
+  assert(text.find("\"legend\": {{ \",\": \"grass\", \":\": \"path\" }}") != null, "the legend:\n{text}");
+  assert(text.find("\"tiles\": [ ]") != null, "no overrides:\n{text}");
+  m = levels::load_with(text, k, mats);
+  if !m { assert(false, "it loads"); return; }
+  back = m ?? lf;
+  for y in 0..3 {
+    for x in 0..3 {
+      assert(tile_world::tile(back.level.w, x, y, 0) == tile_world::tile(l.w, x, y, 0),
+             "the tile at {x},{y}: {tile_world::tile(back.level.w, x, y, 0)}");
+    }
+  }
+  assert(levels::save_with(back, mats) == text, "and saves to the same text");
 }

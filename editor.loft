@@ -3,17 +3,23 @@
 // and redo forward.  It edits a level file's level and nothing else: no picture, no keys
 // (game.loft draws it and maps the keys to these calls), so a test can drive every action.
 //
-// The palette is "void" (a pit, void set on purpose), then the terrain kinds and then the
-// things of kinds.json, each by number.  Materials (EDITOR.md § 1) replace the terrain half
-// when theme.json gains them.
+// The palette is "void" (a pit, void set on purpose), then the terrain kinds of kinds.json
+// (painted with their own look), then theme.json's materials (EDITOR.md § 1: a kind with a
+// look, autotiled where it is a set), then the things.  Painting or erasing a cell retiles its
+// neighbours — a path's pieces follow the cells round it — so an edit is every cell it
+// changed, and undo puts all of them back.
 use tile_world;
 use rules;
 use levels;
+use materials;
 
-/// A palette entry: terrain kind `id` (0 is void), or thing `id`.
+/// A palette entry: terrain kind `id` (0 is void), material `material` (when 0 or more, with
+/// its name in `label`), or thing `id`.
 pub struct Entry {
   pub thing: boolean,
-  pub id: integer
+  pub id: integer,
+  pub material: integer,
+  pub label: text
 }
 
 // What one cell holds: whether it is set (else it reads as its layer's ground), its kind and
@@ -38,14 +44,22 @@ const CELL = 0;
 const START = 1;
 const GOAL = 2;
 
-// One edit: cell (x, y, z) was `was` and is `now`, or a marker was `was_at` and is `now_at`.
+// One cell an edit changed: it was `was` and is `now`.
+struct Change {
+  x: integer,
+  y: integer,
+  z: integer,
+  was: Cell,
+  now: Cell
+}
+
+// One edit at (x, y, z): the cells it changed, or a marker that was `was_at` and is `now_at`.
 struct Edit {
   what: integer,
   x: integer,
   y: integer,
   z: integer,
-  was: Cell,
-  now: Cell,
+  cells: vector<Change>,
   was_at: Marker,
   now_at: Marker
 }
@@ -58,35 +72,56 @@ pub struct Editor {
   /// The palette, and which entry paints.
   pub palette: vector<Entry>,
   pub pick: integer,
+  /// The materials it paints with (theme.json's), to retile what an edit touches.
+  pub mats: materials::Materials,
   log: vector<Edit>,
   /// How many of the log's edits are applied: undo steps back, redo forward, and a new edit
   /// drops the ones undone.
   done: integer
 }
 
-/// The palette of kinds `k`: void, the terrain kinds, then the things.
-pub fn palette(k: const rules::Kinds) -> vector<Entry> {
-  out: vector<Entry> = [Entry { thing: false, id: tile_world::VOID }];
-  for id in rules::terrain_ids(k) { out += [Entry { thing: false, id: id }]; }
-  for id in rules::thing_ids(k) { out += [Entry { thing: true, id: id }]; }
+fn kind_entry(id: integer) -> Entry {
+  Entry { thing: false, id: id, material: -1, label: "" }
+}
+
+/// The palette of kinds `k` and materials `mats`: void, the terrain kinds, the materials, then
+/// the things.
+pub fn palette(k: const rules::Kinds, mats: const materials::Materials) -> vector<Entry> {
+  out: vector<Entry> = [kind_entry(tile_world::VOID)];
+  for id in rules::terrain_ids(k) { out += [kind_entry(id)]; }
+  for i in 0..len(mats.list) {
+    mat = mats.list[i] ?? materials::none_material();
+    out += [Entry { thing: false, id: mat.kind, material: i, label: mat.name }];
+  }
+  for id in rules::thing_ids(k) { out += [Entry { thing: true, id: id, material: -1, label: "" }]; }
   out
 }
 
-/// An editor on `lf`, its cursor on the hero's start and its palette on the first terrain kind.
+/// An editor on `lf` with no materials.
 pub fn new_editor(lf: const levels::LevelFile) -> Editor {
-  p = palette(lf.level.k);
+  new_editor_with(lf, materials::none())
+}
+
+/// An editor on `lf` painting with `mats` too, its cursor on the hero's start and its palette
+/// on the first terrain kind.
+pub fn new_editor_with(lf: const levels::LevelFile, mats: const materials::Materials) -> Editor {
+  p = palette(lf.level.k, mats);
   pick = if len(p) > 1 { 1 } else { 0 };
-  Editor { x: lf.start_x, y: lf.start_y, z: lf.start_z, palette: p, pick: pick, log: [], done: 0 }
+  Editor {
+    x: lf.start_x, y: lf.start_y, z: lf.start_z, palette: p, pick: pick, mats: mats, log: [],
+    done: 0
+  }
 }
 
 /// The entry that paints.
 pub fn picked(ed: const Editor) -> Entry {
-  ed.palette[ed.pick] ?? Entry { thing: false, id: tile_world::VOID }
+  ed.palette[ed.pick] ?? kind_entry(tile_world::VOID)
 }
 
-/// An entry's name, as kinds.json has it; "void" for void.
+/// An entry's name, as kinds.json or theme.json has it; "void" for void.
 pub fn name(k: const rules::Kinds, e: const Entry) -> text {
   if e.thing { return rules::thing_name(k, e.id); }
+  if e.material >= 0 { return e.label; }
   if e.id == tile_world::VOID { return "void"; }
   rules::terrain_name(k, e.id)
 }
@@ -141,45 +176,68 @@ fn keep(ed: Editor, e: const Edit) {
   ed.done += 1;
 }
 
-// Log the change of the cursor's cell from `was` to what it holds now; false when it did not
-// change.
-fn logged(ed: Editor, lf: const levels::LevelFile, was: const Cell) -> boolean {
-  now = cell_of(lf.level.w, ed.x, ed.y, ed.z);
-  if now == was { return false; }
+// The 3x3 cells round the cursor, row by row: everything an edit there can change.
+fn around(ed: const Editor, w: const tile_world::World) -> vector<Cell> {
+  out: vector<Cell> = [];
+  for dy in -1..=1 {
+    for dx in -1..=1 { out += [cell_of(w, ed.x + dx, ed.y + dy, ed.z)]; }
+  }
+  out
+}
+
+// Log the cells round the cursor that changed from `before` (`around`, taken before the edit);
+// the cursor's own cell first, so undo and redo put the cursor back on it.  False when none
+// changed.
+fn logged(ed: Editor, lf: const levels::LevelFile, before: const vector<Cell>) -> boolean {
+  after = around(ed, lf.level.w);
+  changes: vector<Change> = [];
+  for at in [4, 0, 1, 2, 3, 5, 6, 7, 8] {
+    was = before[at] ?? no_cell();
+    now = after[at] ?? no_cell();
+    if was != now {
+      changes += [Change {
+        x: ed.x + (at % 3 ?? 0) - 1, y: ed.y + (at / 3 ?? 0) - 1, z: ed.z, was: was, now: now
+      }];
+    }
+  }
+  if len(changes) == 0 { return false; }
   keep(ed, Edit {
-    what: CELL, x: ed.x, y: ed.y, z: ed.z, was: was, now: now,
-    was_at: no_marker(), now_at: no_marker()
+    what: CELL, x: ed.x, y: ed.y, z: ed.z, cells: changes, was_at: no_marker(), now_at: no_marker()
   });
   true
 }
 
 /// Paint the picked entry at the cursor: a terrain kind replaces the cell's terrain (its tile
-/// back to the kind's own), a thing goes on top of the cell's stack.  False when nothing
-/// changed.
+/// back to the kind's own), a material sets its kind and the tile it shows there, a thing goes
+/// on top of the cell's stack.  The neighbours are retiled.  False when nothing changed.
 pub fn paint(ed: Editor, lf: levels::LevelFile) -> boolean {
   w = lf.level.w;
-  was = cell_of(w, ed.x, ed.y, ed.z);
+  before = around(ed, w);
   e = picked(ed);
   if e.thing {
     tile_world::place(w, ed.x, ed.y, ed.z, e.id);
+  } else if e.material >= 0 {
+    materials::paint(ed.mats, w, e.material, ed.x, ed.y, ed.z);
   } else {
     tile_world::set_terrain(w, ed.x, ed.y, ed.z, e.id);
+    materials::retile(ed.mats, w, ed.x, ed.y, ed.z);
   }
-  logged(ed, lf, was)
+  logged(ed, lf, before)
 }
 
 /// Take the top thing off the cursor's cell; on a cell with no things, unset its terrain, so
-/// it reads as its layer's ground again (void when the layer has none).  False when nothing
-/// changed.
+/// it reads as its layer's ground again (void when the layer has none), and retile the
+/// neighbours.  False when nothing changed.
 pub fn erase(ed: Editor, lf: levels::LevelFile) -> boolean {
   w = lf.level.w;
-  was = cell_of(w, ed.x, ed.y, ed.z);
-  if len(was.stack) > 0 {
+  before = around(ed, w);
+  if tile_world::top(w, ed.x, ed.y, ed.z) != 0 {
     _ = tile_world::take(w, ed.x, ed.y, ed.z);
   } else {
     tile_world::clear(w, ed.x, ed.y, ed.z);
+    materials::retile(ed.mats, w, ed.x, ed.y, ed.z);
   }
-  logged(ed, lf, was)
+  logged(ed, lf, before)
 }
 
 fn put_start(lf: levels::LevelFile, m: const Marker) {
@@ -199,8 +257,7 @@ fn put_goal(lf: levels::LevelFile, m: const Marker) {
 fn mark(ed: Editor, what: integer, was: const Marker, now: const Marker) -> boolean {
   if was == now { return false; }
   keep(ed, Edit {
-    what: what, x: now.x, y: now.y, z: now.z, was: no_cell(), now: no_cell(),
-    was_at: was, now_at: now
+    what: what, x: now.x, y: now.y, z: now.z, cells: [], was_at: was, now_at: now
   });
   true
 }
@@ -226,7 +283,7 @@ pub fn set_goal(ed: Editor, lf: levels::LevelFile) -> boolean {
 // cursor on the place it changed.
 fn apply(ed: Editor, lf: levels::LevelFile, e: const Edit, after: boolean) {
   if e.what == CELL {
-    put_cell(lf.level.w, e.x, e.y, e.z, if after { e.now } else { e.was });
+    for c in e.cells { put_cell(lf.level.w, c.x, c.y, c.z, if after { c.now } else { c.was }); }
   } else if e.what == START {
     put_start(lf, if after { e.now_at } else { e.was_at });
   } else {
