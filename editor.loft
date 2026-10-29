@@ -126,6 +126,23 @@ pub fn name(k: const rules::Kinds, e: const Entry) -> text {
   rules::terrain_name(k, e.id)
 }
 
+/// Pick the first entry of category `n` (from 1, theme.json's order) the palette has.  False
+/// when there is no such category, or the palette has none of its entries.
+pub fn jump(ed: Editor, k: const rules::Kinds, n: integer) -> boolean {
+  if n < 1 { return false; }
+  cat = ed.mats.categories[n - 1];
+  if !cat { return false; }
+  for want in cat.entries {
+    for i in 0..len(ed.palette) {
+      if name(k, ed.palette[i] ?? kind_entry(0)) == want {
+        ed.pick = i;
+        return true;
+      }
+    }
+  }
+  false
+}
+
 /// Move the cursor; the world has no edge, so neither has the cursor.
 pub fn move(ed: Editor, dx: integer, dy: integer) {
   ed.x += dx;

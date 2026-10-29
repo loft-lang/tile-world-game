@@ -24,7 +24,8 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 |---|---|
 | arrows / WASD | move the cursor; the view follows it |
 | PgUp / PgDn | the layer up / down: the one below is drawn darker, the one above as outlines |
-| Tab / Shift+Tab | the next / previous entry of the palette along the bottom: void, the terrain kinds, the things |
+| Tab / Shift+Tab | the next / previous entry of the palette along the bottom: void, the terrain kinds, the materials (theme.json), the things |
+| `1`..`9` | jump to a palette category (theme.json's `categories`: Outdoor, Water, Castle, House, Dungeon, Things) |
 | Space | paint the terrain, or put the thing on top of the cell's stack |
 | Backspace / Delete | take the top thing off; on a cell with none, unset it (its layer's ground, or void) |
 | H, G | the hero starts here; the level is solved here |

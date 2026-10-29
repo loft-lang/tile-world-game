@@ -87,7 +87,7 @@ fn sound_events() -> vector<text> {
 }
 
 fn bindings() -> input::Bindings {
-  input::Bindings {
+  b = input::Bindings {
     bnd_actions: [
       input::ActionBinding { ab_name: "up", ab_keys: [119, 128] },
       input::ActionBinding { ab_name: "down", ab_keys: [115, 129] },
@@ -115,7 +115,10 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "open", ab_keys: [111] }
     ],
     bnd_axes: []
-  }
+  };
+  // `1`..`9`: the editor's palette categories.
+  for n in 1..=9 { b.bnd_actions += [input::ActionBinding { ab_name: "category{n}", ab_keys: [48 + n] }]; }
+  b
 }
 
 /// A new game in directory `dir` (the game's own, "." for main.loft, ".." for a test): its kinds
@@ -385,6 +388,7 @@ pub fn edit(g: Game, word: text) {
   else if word == "down" { editor::layer(g.ed, -1); }
   else if word == "tab" { editor::choose(g.ed, 1); }
   else if word == "back" { editor::choose(g.ed, -1); }
+  else if word.starts_with("cat") { _ = editor::jump(g.ed, g.kinds, word[3..] as integer ?? 0); }
   else if word == "paint" { _ = editor::paint(g.ed, g.file); }
   else if word == "erase" { _ = editor::erase(g.ed, g.file); }
   else if word == "start" { _ = editor::set_start(g.ed, g.file); }
@@ -398,6 +402,14 @@ pub fn edit(g: Game, word: text) {
 /// Write the level being edited to its file.  False when it could not be written.
 pub fn save(g: Game) -> boolean {
   file(level_path(g, g.level)).write(levels::save_with(g.file, g.mats)).ok()
+}
+
+// The palette category key pressed this tick (`1`..`9`), 0 for none.
+fn category_pressed(k: const input::InputState) -> integer {
+  for n in 1..=9 {
+    if k.is_action_just_pressed("category{n}") { return n; }
+  }
+  0
 }
 
 // The editor's keys this tick (EDITOR.md § 4).  Answers whether the picture changed.
@@ -431,6 +443,7 @@ fn update_editor(g: Game, now: integer) -> boolean {
   else if k.is_action_just_pressed("start") { _ = editor::set_start(g.ed, g.file); }
   else if k.is_action_just_pressed("goal") { _ = editor::set_goal(g.ed, g.file); }
   else if k.is_action_just_pressed("light") { g.lit = !g.lit; }
+  else if category_pressed(k) > 0 { _ = editor::jump(g.ed, g.kinds, category_pressed(k)); }
   else {
     d = direction(g, now);
     if d.0 == 0 && d.1 == 0 { return false; }

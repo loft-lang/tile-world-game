@@ -216,9 +216,11 @@ has none.
    sheet goes at the end), a material is a kind with a tile, variants by position or a
    nine-slice autotile set with inner corners, worked out when painted or loaded; level
    legends name materials (`levels::load_with` / `save_with`), the palette offers them, and an
-   edit logs every cell it retiled.  Materials so far: grass, path.  Open: shores, castle walls
-   and fences as sets (a wider piece set than the nine-slice where the sheet has one), and the
-   palette's categories (`1`..`9`).
+   edit logs every cell it retiled.  Materials: grass, path, lake (shores), castle wall (a set
+   with no inner corners: a missing piece is drawn as the centre).  The palette's categories
+   are theme.json's `categories`, `1`..`9`.  Fences stay a line kind (across / along) until
+   a set reads a cell's four neighbours as a line rather than a slice; the town sheet's
+   one-row wall strip (99..101) waits for the same.
 4. **The new kinds and their rules**: `stairs`, `door`, `fence`, `tree` — built (kinds.json,
    rules.loft, tests/moves.loft) — and the roof cut-away; then castles, houses and dungeons can
    be built and walked through.

@@ -221,3 +221,15 @@ fn test_materials_paint_retile_and_undo() {
   row = "{tile_world::tile(w, 2, 2, 0)} {tile_world::tile(w, 3, 2, 0)} {tile_world::tile(w, 4, 2, 0)}";
   assert(row == "269 270 271", "all three back: {row}");
 }
+
+// Categories (theme.json): 2 is Water, whose first entry is the lake; 6 is Things, the cart
+// first; there is no 9th, nor a 0th, and the pick stays.
+fn test_palette_categories() {
+  lf = first_climb();
+  k = lf.level.k;
+  ed = editor::new_editor_with(lf, materials::load(file("../theme.json").content() ?? "", k));
+  assert(editor::jump(ed, k, 2) && editor::name(k, editor::picked(ed)) == "lake", "water: {editor::name(k, editor::picked(ed))}");
+  assert(editor::jump(ed, k, 6) && editor::name(k, editor::picked(ed)) == "cart", "things");
+  assert(!editor::jump(ed, k, 9) && !editor::jump(ed, k, 0), "no such category");
+  assert(editor::name(k, editor::picked(ed)) == "cart", "the pick stays");
+}

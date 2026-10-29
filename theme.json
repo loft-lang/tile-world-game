@@ -91,6 +91,14 @@
     "open_chest": "dungeon:91",
     "signpost": "town:83"
   },
+  "categories": {
+    "Outdoor": ["grass", "path", "tree", "fence"],
+    "Water": ["lake", "water"],
+    "Castle": ["castle_wall", "stairs_up", "stairs_down"],
+    "House": ["door", "open_door", "wall"],
+    "Dungeon": ["floor", "wall", "rail", "well"],
+    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "signpost"]
+  },
   "materials": {
     "grass": {
       "kind": "floor",
@@ -110,6 +118,11 @@
       "kind": "water",
       "autotile": "shore",
       "glyph": "*"
+    },
+    "castle_wall": {
+      "kind": "wall",
+      "autotile": "castle",
+      "glyph": "&"
     }
   },
   "autotiles": {
@@ -124,6 +137,11 @@
       "w": "battle:36", "c": "battle:37", "e": "battle:38",
       "sw": "battle:54", "s": "battle:55", "se": "battle:56",
       "inner_nw": "battle:90", "inner_ne": "battle:91", "inner_sw": "battle:93", "inner_se": "battle:92"
+    },
+    "castle": {
+      "nw": "town:96", "n": "town:97", "ne": "town:98",
+      "w": "town:108", "c": "town:109", "e": "town:110",
+      "sw": "town:120", "s": "town:121", "se": "town:122"
     }
   },
   "carried": {

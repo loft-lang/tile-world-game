@@ -29,7 +29,7 @@ fn tiles(l: const rules::Level, y: integer) -> text {
 }
 
 fn main() {
-  assert(len(mats().list) == 3, "grass, path and lake");
+  assert(len(mats().list) == 4, "grass, path, lake and castle wall");
 }
 
 fn test_tile_numbers() {
@@ -114,4 +114,19 @@ fn test_a_lake_has_shores() {
   assert(tiles(l, 1) == "0 787 788 789 0 " && tiles(l, 2) == "0 805 806 807 0 ", "north and middle: {tiles(l, 1)}/ {tiles(l, 2)}");
   assert(tiles(l, 3) == "0 823 824 825 0 ", "south: {tiles(l, 3)}");
   assert(tile_world::terrain(l.w, 2, 2, 0) == rules::tr(l, "water"), "a lake is water");
+}
+
+// The castle set has no inner corners: a 3x3 castle wall with its north-west cell taken away
+// gives the centre cell the centre piece (town 109 = 366) where the path took an inner corner.
+fn test_a_missing_piece_is_the_centre() {
+  m = mats();
+  l = field();
+  c = materials::named(m, "castle_wall");
+  for y in 1..4 {
+    for x in 1..4 { materials::paint(m, l.w, c, x, y, 0); }
+  }
+  assert(tiles(l, 1) == "0 353 354 355 0 ", "the north row, town 96 97 98: {tiles(l, 1)}");
+  tile_world::set_terrain(l.w, 1, 1, 0, rules::tr(l, "floor"));
+  materials::retile(m, l.w, 1, 1, 0);
+  assert(tile_world::tile(l.w, 2, 2, 0) == 366, "the centre stands in: {tile_world::tile(l.w, 2, 2, 0)}");
 }
