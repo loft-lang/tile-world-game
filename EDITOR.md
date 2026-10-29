@@ -188,8 +188,8 @@ has none.
 | Library | Addition | For |
 |---|---|---|
 | `tile_world` | `layers(w)`, `chunks(w, z)`, `stacks(w)` — built (0.3.1); edges, ground and rise — built (0.4.0); `ground_layers(w)` — on a branch (0.4.1) | saving a level; the view's scroll bounds; houses, open land, slopes |
-| `tile_world` | `region(w, x, y, z, limit)`: the connected cells of one kind and tile | flood fill |
-| `tile_world` | `copy(w, rect, z0, z1)` / `paste(w, from, at)` of cells and stacks | stamps, copy and paste |
+| `tile_world` | `region(w, x, y, z, limit)`: the connected cells of one kind and tile — built (0.5.0) | flood fill |
+| `tile_world` | `copy(w, x0, y0, x1, y1, z0, z1)` / `paste(w, from, x, y, z)` of cells, edges, rises and stacks — built (0.5.0) | stamps, copy and paste |
 | `tiles` | `rect(surface, x, y, w, h, colour)` and `frame(...)`: a filled and an outlined rectangle | the cursor, a selection, the palette's frame |
 | `screen` | the pointer (position, buttons) where the window has one | optional mouse editing on a desktop |
 | `screen` | the browser section (a canvas) | the editor and the game in a browser |
@@ -225,6 +225,9 @@ has none.
    rules.loft, tests/moves.loft) — and the roof cut-away; then castles, houses and dungeons can
    be built and walked through.
 5. **Brushes and stamps**: fill, rectangle, eyedropper, copy and paste, stamp files.  (Needs
-   `tile_world` `region` / `copy` / `paste`.)
+   `tile_world` `region` / `copy` / `paste`: tile_world 0.5.0.)  Built: F fill (the region
+   under the cursor, at most 4096 cells), R mark / R rectangle, I eyedropper, C copy (the
+   marked box or the cursor's cell) and V paste — each one edit, undone as one.  Open: stamp
+   files (`stamps/<name>.json`, needs typed names) and Shift+move as a rectangle.
 6. **The checks of § 5.**
 7. **Platforms**: the desktop pointer, typed text, browser storage, the Tanmatsu's SD card.

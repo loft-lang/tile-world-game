@@ -77,8 +77,20 @@ pub struct Editor {
   log: vector<Edit>,
   /// How many of the log's edits are applied: undo steps back, redo forward, and a new edit
   /// drops the ones undone.
-  done: integer
+  done: integer,
+  /// A corner marked with R: a rectangle, a copy, runs from it to the cursor.
+  pub marked: boolean,
+  pub mark_x: integer,
+  pub mark_y: integer,
+  /// What C copied (a `tile_world` stamp) and its size, for V.
+  clip: tile_world::World,
+  pub has_clip: boolean,
+  clip_w: integer,
+  clip_h: integer
 }
+
+/// How many cells a fill paints at most: a layer's open ground has no end.
+pub const FILL_LIMIT = 4096;
 
 fn kind_entry(id: integer) -> Entry {
   Entry { thing: false, id: id, material: -1, label: "" }
@@ -109,7 +121,8 @@ pub fn new_editor_with(lf: const levels::LevelFile, mats: const materials::Mater
   pick = if len(p) > 1 { 1 } else { 0 };
   Editor {
     x: lf.start_x, y: lf.start_y, z: lf.start_z, palette: p, pick: pick, mats: mats, log: [],
-    done: 0
+    done: 0, marked: false, mark_x: 0, mark_y: 0, clip: tile_world::world(), has_clip: false,
+    clip_w: 0, clip_h: 0
   }
 }
 
@@ -191,6 +204,157 @@ fn keep(ed: Editor, e: const Edit) {
   if ed.done < len(ed.log) { ed.log = ed.log[0..ed.done]; }
   ed.log += [e];
   ed.done += 1;
+}
+
+struct Spot {
+  const sx: integer,
+  const sy: integer
+}
+
+// The cells (x0..x1, y0..y1) of a layer and the ring round them: what painting them can change,
+// their neighbours' autotile pieces included.
+fn box_spots(x0: integer, y0: integer, x1: integer, y1: integer) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  for y in y0 - 1..=y1 + 1 {
+    for x in x0 - 1..=x1 + 1 { out += [(x, y)]; }
+  }
+  out
+}
+
+// What `spots` of layer z hold now.
+fn snapshot(w: const tile_world::World, z: integer, spots: const vector<(integer, integer)>) -> vector<Cell> {
+  out: vector<Cell> = [];
+  for p in spots { out += [cell_of(w, p.0, p.1, z)]; }
+  out
+}
+
+// Log the `spots` of the cursor's layer that changed from `before` (their `snapshot`) as one
+// edit at the cursor.  False when none changed.
+fn logged_spots(ed: Editor, w: const tile_world::World, spots: const vector<(integer, integer)>,
+                before: const vector<Cell>) -> boolean {
+  changes: vector<Change> = [];
+  for i in 0..len(spots) {
+    p = spots[i] ?? (0, 0);
+    was = before[i] ?? no_cell();
+    now = cell_of(w, p.0, p.1, ed.z);
+    if was != now { changes += [Change { x: p.0, y: p.1, z: ed.z, was: was, now: now }]; }
+  }
+  if len(changes) == 0 { return false; }
+  keep(ed, Edit {
+    what: CELL, x: ed.x, y: ed.y, z: ed.z, cells: changes, was_at: no_marker(), now_at: no_marker()
+  });
+  true
+}
+
+// Put entry `e` on (x, y) of the cursor's layer, the neighbours retiled: a thing on top of the
+// stack, a material with its tile, a kind with its own look.
+fn put_entry(ed: const Editor, w: tile_world::World, e: const Entry, x: integer, y: integer) {
+  if e.thing {
+    tile_world::place(w, x, y, ed.z, e.id);
+  } else if e.material >= 0 {
+    materials::paint(ed.mats, w, e.material, x, y, ed.z);
+  } else {
+    tile_world::set_terrain(w, x, y, ed.z, e.id);
+    materials::retile(ed.mats, w, x, y, ed.z);
+  }
+}
+
+// The marked box, corners sorted: from the mark to the cursor, or the cursor's cell alone.
+fn marked_box(ed: const Editor) -> (integer, integer, integer, integer) {
+  if !ed.marked { return (ed.x, ed.y, ed.x, ed.y); }
+  (if ed.mark_x < ed.x { ed.mark_x } else { ed.x }, if ed.mark_y < ed.y { ed.mark_y } else { ed.y },
+   if ed.mark_x > ed.x { ed.mark_x } else { ed.x }, if ed.mark_y > ed.y { ed.mark_y } else { ed.y })
+}
+
+/// Mark the cursor's cell as a corner (R): the next rectangle or copy runs from it.
+pub fn set_mark(ed: Editor) {
+  ed.marked = true;
+  ed.mark_x = ed.x;
+  ed.mark_y = ed.y;
+}
+
+/// Paint the picked entry over the marked box, as one edit, and drop the mark.  False when
+/// nothing changed.
+pub fn paint_box(ed: Editor, lf: levels::LevelFile) -> boolean {
+  b = marked_box(ed);
+  ed.marked = false;
+  w = lf.level.w;
+  spots = box_spots(b.0, b.1, b.2, b.3);
+  before = snapshot(w, ed.z, spots);
+  e = picked(ed);
+  for y in b.1..=b.3 {
+    for x in b.0..=b.2 { put_entry(ed, w, e, x, y); }
+  }
+  logged_spots(ed, w, spots, before)
+}
+
+/// Fill (F): paint the picked terrain or material over the region under the cursor — the
+/// connected cells of the same kind and tile, at most FILL_LIMIT — as one edit.  A thing is not
+/// filled.  False when nothing changed.
+pub fn fill(ed: Editor, lf: levels::LevelFile) -> boolean {
+  e = picked(ed);
+  if e.thing { return false; }
+  w = lf.level.w;
+  cells = tile_world::region(w, ed.x, ed.y, ed.z, FILL_LIMIT);
+  seen: hash<Spot[sx, sy]> = [];
+  spots: vector<(integer, integer)> = [];
+  for c in cells {
+    for dy in -1..=1 {
+      for dx in -1..=1 {
+        if !seen[c.0 + dx, c.1 + dy] {
+          seen += [Spot { sx: c.0 + dx, sy: c.1 + dy }];
+          spots += [(c.0 + dx, c.1 + dy)];
+        }
+      }
+    }
+  }
+  before = snapshot(w, ed.z, spots);
+  for c in cells { put_entry(ed, w, e, c.0, c.1); }
+  logged_spots(ed, w, spots, before)
+}
+
+/// The entry for what is under the cursor (I): the top thing, else the cell's material, else
+/// its kind.  False when the palette has none for it.
+pub fn pick_under(ed: Editor, lf: const levels::LevelFile) -> boolean {
+  w = lf.level.w;
+  t = tile_world::top(w, ed.x, ed.y, ed.z);
+  mi = materials::at(ed.mats, w, ed.x, ed.y, ed.z);
+  kind = tile_world::terrain(w, ed.x, ed.y, ed.z);
+  for i in 0..len(ed.palette) {
+    e = ed.palette[i] ?? kind_entry(0);
+    hit = if t != 0 { e.thing && e.id == t } else if mi >= 0 { e.material == mi }
+          else { !e.thing && e.material < 0 && e.id == kind };
+    if hit {
+      ed.pick = i;
+      return true;
+    }
+  }
+  false
+}
+
+/// Copy the marked box (C) — or the cursor's cell — with its stacks, rises and edges, and drop
+/// the mark.
+pub fn copy_box(ed: Editor, lf: const levels::LevelFile) {
+  b = marked_box(ed);
+  ed.marked = false;
+  ed.clip = tile_world::copy(lf.level.w, b.0, b.1, b.2, b.3, ed.z, ed.z);
+  ed.has_clip = true;
+  ed.clip_w = b.2 - b.0 + 1;
+  ed.clip_h = b.3 - b.1 + 1;
+}
+
+/// Paste what C copied with its corner at the cursor (V), as one edit.  False when nothing was
+/// copied or nothing changed.
+pub fn paste_box(ed: Editor, lf: levels::LevelFile) -> boolean {
+  if !ed.has_clip { return false; }
+  w = lf.level.w;
+  spots = box_spots(ed.x, ed.y, ed.x + ed.clip_w - 1, ed.y + ed.clip_h - 1);
+  before = snapshot(w, ed.z, spots);
+  tile_world::paste(w, ed.clip, ed.x, ed.y, ed.z);
+  for y in ed.y..ed.y + ed.clip_h {
+    for x in ed.x..ed.x + ed.clip_w { materials::retile(ed.mats, w, x, y, ed.z); }
+  }
+  logged_spots(ed, w, spots, before)
 }
 
 // The 3x3 cells round the cursor, row by row: everything an edit there can change.

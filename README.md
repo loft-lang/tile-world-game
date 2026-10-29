@@ -30,6 +30,10 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | Backspace / Delete | take the top thing off; on a cell with none, unset it (its layer's ground, or void) |
 | H, G | the hero starts here; the level is solved here |
 | L | the level's light on or off (editing shows it in full light) |
+| F | fill: paint the connected cells of the same terrain under the cursor |
+| R | mark a corner; R again paints the rectangle from it to the cursor |
+| I | pick what is under the cursor into the palette (eyedropper) |
+| C, V | copy the marked box (or the cursor's cell), paste it with its corner at the cursor |
 | Ctrl+Z / Ctrl+Y | undo / redo |
 | Ctrl+S | save the level to its file in `levels/` |
 | Ctrl+O | open the next level of `levels/order.json` (by name once `input` reads typed text) |

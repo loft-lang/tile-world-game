@@ -233,3 +233,75 @@ fn test_palette_categories() {
   assert(!editor::jump(ed, k, 9) && !editor::jump(ed, k, 0), "no such category");
   assert(editor::name(k, editor::picked(ed)) == "cart", "the pick stays");
 }
+
+// The brushes on the first climb, with theme.json's materials.  Its left floor is x 1..5 on
+// rows 1..3 and 5..7 (30 cells) and x 1..2 of row 4 before the rails (2): 32 cells, cut off
+// from the right by the river at x 6 and the rails at x 3..10 of row 4.
+fn brush_editor(lf: const levels::LevelFile) -> editor::Editor {
+  editor::new_editor_with(lf, materials::load(file("../theme.json").content() ?? "", lf.level.k))
+}
+
+fn grass_at(lf: const levels::LevelFile, ed: const editor::Editor, x: integer, y: integer) -> boolean {
+  materials::at(ed.mats, lf.level.w, x, y, 0) == materials::named(ed.mats, "grass")
+}
+
+// Fill from (1, 1) with grass paints the 32 cells and nothing past the river or onto the rails;
+// one undo takes all of it back.
+fn test_fill() {
+  lf = first_climb();
+  ed = brush_editor(lf);
+  pick(ed, lf.level.k, "grass");
+  assert(editor::fill(ed, lf), "filled");
+  assert(grass_at(lf, ed, 1, 1) && grass_at(lf, ed, 5, 7) && grass_at(lf, ed, 2, 4), "the left floor");
+  assert(!grass_at(lf, ed, 7, 1) && !grass_at(lf, ed, 3, 4), "not past the river, not the rails");
+  n = 0;
+  for y in 1..8 {
+    for x in 1..6 { if grass_at(lf, ed, x, y) { n += 1; } }
+  }
+  assert(n == 32, "32 cells: {n}");
+  assert(editor::undoable(ed) == 1 && editor::undo(ed, lf), "one edit, undone");
+  assert(!grass_at(lf, ed, 5, 7) && tile_world::tile(lf.level.w, 5, 7, 0) == 0, "all of it");
+}
+
+// R at (1, 1), the cursor to (3, 2), R again: a wall over x 1..3, y 1..2 — and (4, 1) stays
+// floor.  The mark is dropped.
+fn test_rectangle() {
+  lf = first_climb();
+  ed = brush_editor(lf);
+  pick(ed, lf.level.k, "wall");
+  editor::set_mark(ed);
+  editor::move(ed, 2, 1);
+  assert(editor::paint_box(ed, lf) && !ed.marked, "painted, mark dropped");
+  wall = rules::tr(lf.level, "wall");
+  w = lf.level.w;
+  assert(tile_world::terrain(w, 1, 1, 0) == wall && tile_world::terrain(w, 3, 2, 0) == wall, "the corners");
+  assert(tile_world::terrain(w, 4, 1, 0) == FLOOR, "not past them");
+}
+
+// The chair at (2, 6) copied (no mark: the cursor's cell) and pasted at (4, 6); undo takes the
+// pasted one away again.
+fn test_copy_and_paste() {
+  lf = first_climb();
+  ed = brush_editor(lf);
+  editor::move(ed, 1, 5);
+  editor::copy_box(ed, lf);
+  editor::move(ed, 2, 0);
+  assert(editor::paste_box(ed, lf), "pasted");
+  assert(tile_world::top(lf.level.w, 4, 6, 0) == CHAIR, "a chair at (4, 6)");
+  assert(editor::undo(ed, lf) && tile_world::top(lf.level.w, 4, 6, 0) == 0, "undone");
+}
+
+// The eyedropper: the chair on (2, 6), the floor kind on (1, 1), and grass once painted there.
+fn test_pick_under() {
+  lf = first_climb();
+  ed = brush_editor(lf);
+  k = lf.level.k;
+  editor::move(ed, 1, 5);
+  assert(editor::pick_under(ed, lf) && editor::name(k, editor::picked(ed)) == "chair", "the chair");
+  editor::move(ed, -1, -5);
+  assert(editor::pick_under(ed, lf) && editor::name(k, editor::picked(ed)) == "floor", "the floor");
+  pick(ed, k, "grass");
+  _ = editor::paint(ed, lf);
+  editor::choose(ed, 1);
+  assert(editor::pick_under(ed, lf) && editor::name(k, editor::picked(ed)) == "grass", "the grass");
+}

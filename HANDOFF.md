@@ -71,6 +71,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    interpreter (the theme `new_game` loads; not yet looked at); game checks live in `checks/`
    until loft#2234 lets `--tests` open a `--lib` library's C core.
 4. **Editor step 3**: materials and autotiling (EDITOR.md § 8) — built: grass, path, lake, castle wall, palette categories; fences as an autotile line set open.
+   Step 5 brushes built (fill, rectangle, eyedropper, copy/paste) on tile_world 0.5.0 (loft-libs-world#39, merged); stamp files open.
 
 ## Elsewhere (all landed or handed over)
 
