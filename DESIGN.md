@@ -428,12 +428,24 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     then walks home.  Called ones search the same way; one finding the place taken stands beside it.
   - **A blast draws them** (owner): within 8 cells they go to search its place instead of fleeing.
   - **Brave**: hurt, a cyclops fights on, and heals at its nest once nothing is left to search.
-- **Cyclopes** (owner, step 2 planned).  Hard to fight and living in groups; the way past them is stealth.
-  - They use weapons, and throw bombs at the hero — bombs like any other: they push, hurt, chain,
-    light or douse torches, and scare the ordinary enemies around.
-  - Without a weapon a cyclops pulls the hero towards its own nest; the hero breaks out of the pull
-    with some effort (open: how much — proposed, a few presses away from the cyclops).
+- **Cyclopes: step 2 built** (`tests/cyclops.loft`, `tests/levels.loft`; proposed numbers).
+  What a cyclops holds is its kind's (an axe) unless its level entry names another as a fifth
+  word: `["cyclops", x, y, z, "bomb"]`, or `"none"`.
+  - **Armed** (the axe), it strikes for 2.
+  - **Holding bombs** (3), it throws one when it sees the hero in its row or column, 5 to 8 cells
+    away, the way clear for a rolling bomb — nearer, its own blast would reach it.  The bomb is
+    like any other: fused, rolling at the throwing speed, heard (the hero's throw's sound), going
+    off where it meets something; it pushes, hurts, chains, lights or douses torches, scares the
+    ordinary enemies around.  Its last one thrown, it is unarmed.
+  - **Unarmed** — or beside the hero with bombs in hand — it grabs the hero (heard) instead of
+    striking, and every 800 ms steps towards its nest, the hero pulled into the cell it leaves;
+    at its nest it holds on, while its group gathers.  The hero pulled into the cell the cyclops
+    left goes only where the cyclops walks — never over a ledge (INTERACTIONS.md 30, proposed).
+  - **Breaking free**: 3 presses any way but into it (each a struggle, heard as a bump); the third
+    takes the step, and the cyclops staggers, acting again a blow's time later.  Walking into it
+    strikes it instead.
   - They search for what set a bomb off (above).
+  - Open: what a bested cyclops leaves (its axe, its bombs?).
 - **The hunter** (owner, planned).  An evil hunter shoots arrows as the hero does, and follows the
   ordinary enemies' rules (fleeing hurt, healing at its nest, scared by blasts).  It throws no
   bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit,

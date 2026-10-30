@@ -187,3 +187,105 @@ fn test_a_hurt_cyclops_fights_on_and_heals_at_home() {
   until(w, 16050);
   assert(at(w, 0) == "x1 y0 hp5" && w.health == 4, "16050: whole: {at(w, 0)}");
 }
+
+// --- Step 2: what a cyclops holds ---
+
+// Unarmed, it grabs and pulls the hero home.  The lit hero on x 0, the cyclops nesting on x 6
+// with nothing in hand: seen at 800 it comes (x 1 at 2600) and grabs at 3050 — no blow.  Every
+// 800 from 3850 it steps home, the hero pulled into the cell it leaves: x 1 at 3850 .. x 5 at
+// 7050, the cyclops then on its nest, holding on.
+fn test_an_unarmed_cyclops_pulls_the_hero_home() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  rules::arm_enemy(w, 0, "none");
+  until(w, 3050);
+  e = w.enemies[0];
+  assert(w.held_by == e.id && w.health == 6 && w.hero_x == 0, "3050: grabbed, unhurt");
+  until(w, 3849);
+  assert(w.hero_x == 0, "3849: not yet pulled");
+  until(w, 3850);
+  assert(w.hero_x == 1 && at(w, 0) == "x2 y0 hp5", "3850: pulled a cell: {w.hero_x} {at(w, 0)}");
+  until(w, 7050);
+  assert(w.hero_x == 5 && at(w, 0) == "x6 y0 hp5", "7050: at its nest: {w.hero_x} {at(w, 0)}");
+  until(w, 12000);
+  assert(w.hero_x == 5 && w.held_by == e.id && w.health == 6, "held there, unhurt");
+}
+
+// Three presses away break free: held on x 1 (the cyclops on x 2, at 3850), the hero presses west
+// twice — Struggled, still on x 1 — and the third time is free and on x 0; the cyclops acts again
+// a blow's time later (5050), not at its pull's (4650).  Walking into it instead strikes it.
+fn test_the_hero_breaks_free() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  rules::arm_enemy(w, 0, "none");
+  until(w, 3850);
+  assert(rules::walk(w, -1, 0) == rules::Step.Struggled && rules::walk(w, -1, 0) == rules::Step.Struggled
+         && w.hero_x == 1, "two presses: still held");
+  assert(rules::walk(w, -1, 0) == rules::Step.Walked && w.hero_x == 0 && w.held_by == 0, "the third: free");
+  e = w.enemies[0];
+  assert(e.due == 5050, "staggered: {e.due}");
+  v = hall(10, 1, true);
+  rules::put_hero(v, 0, 0, 0);
+  torch(v);
+  _ = rules::add_enemy(v, "cyclops", 6, 0, 0);
+  rules::arm_enemy(v, 0, "none");
+  until(v, 3850);
+  assert(rules::walk(v, 1, 0) == rules::Step.Attacked && at(v, 0) == "x2 y0 hp4" && v.held_by != 0,
+         "walking into it strikes it, still held: {at(v, 0)}");
+}
+
+// Holding bombs, it throws one along the line to the lit hero 8 away: at 800 a fused bomb sets out
+// from x 7 at speed 4 — x 6 at 950 .. x 3 at 1400 (slowing to 3), x 2 at 1600, x 1 at 1800 — and
+// at 2000 meets the hero: it goes off on x 1, a blast of 3 to the hero beside it, none to the
+// cyclops 7 away.  It has 2 left.  Its last one thrown, its hands are empty.
+fn test_a_cyclops_throws_a_bomb() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 8, 0, 0);
+  rules::arm_enemy(w, 0, "bomb");
+  until(w, 800);
+  e = w.enemies[0];
+  assert(w.hurled == 1 && e.bombs == 2 && e.x == 8 && tile_world::top(w.w, 7, 0, 0) == rules::th(w, "bomb"), "800: thrown");
+  until(w, 1999);
+  assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "bomb") && w.health == 6, "1999: x 1, beside the hero");
+  until(w, 2000);
+  assert(w.blasted == 1 && w.health == 3 && at(w, 0) == "x8 y0 hp5", "2000: the blast: health {w.health}, {at(w, 0)}");
+  v = hall(12, 1, true);
+  rules::put_hero(v, 0, 0, 0);
+  torch(v);
+  _ = rules::add_enemy(v, "cyclops", 8, 0, 0);
+  rules::arm_enemy(v, 0, "bomb");
+  v.enemies[0].bombs = 1;
+  until(v, 800);
+  f = v.enemies[0];
+  assert(v.hurled == 1 && f.item == 0, "the last one: hands empty");
+}
+
+// It does not throw at a hero nearer than 5 (the blast would reach it): 4 away it comes — x 3 at
+// 800, x 2 at 1250, x 1 at 1700 — and, beside the hero with bombs in hand, grabs at 2150.  Nor
+// with something in the way: a stick on x 4, it comes.
+fn test_a_cyclops_does_not_throw_near_or_blocked() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 4, 0, 0);
+  rules::arm_enemy(w, 0, "bomb");
+  until(w, 800);
+  assert(w.hurled == 0 && at(w, 0) == "x3 y0 hp5", "4 away: it comes: {at(w, 0)}");
+  until(w, 2150);
+  e = w.enemies[0];
+  assert(w.held_by == e.id && w.hurled == 0 && w.health == 6, "beside, bombs in hand: it grabs");
+  v = hall(12, 1, true);
+  rules::put_hero(v, 0, 0, 0);
+  torch(v);
+  tile_world::place(v.w, 4, 0, 0, rules::th(v, "stick"));
+  _ = rules::add_enemy(v, "cyclops", 8, 0, 0);
+  rules::arm_enemy(v, 0, "bomb");
+  until(v, 800);
+  assert(v.hurled == 0 && at(v, 0) == "x7 y0 hp5", "a stick in the way: it comes: {at(v, 0)}");
+}

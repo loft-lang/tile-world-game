@@ -108,7 +108,13 @@ struct EnemyProps {
   /// nothing is left to search).
   searches: boolean,
   calls: integer,
-  brave: boolean
+  brave: boolean,
+  /// What one holds unless its level says otherwise (a thing's name, "" for nothing), and how many
+  /// bombs one holding bombs carries.  Pulls: holding no weapon (nothing, or bombs, beside the
+  /// hero) it grabs the hero and pulls it towards its nest instead of striking (a cyclops).
+  holds: text,
+  bombs: integer,
+  pulls: boolean
 }
 
 struct EdgeProps {
@@ -215,6 +221,8 @@ pub struct Kinds {
   /// A searching enemy (a cyclops) searches a place this long after it last saw the hero there, or
   /// heard a blast there.
   pub search_ms: integer,
+  /// Presses away from a cyclops that holds the hero to break free.
+  pub struggle_presses: integer,
   /// How far an arrow flies, in cells, and how long it takes over one.
   pub arrow_range: integer,
   pub arrow_ms: integer
@@ -266,6 +274,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     scare_ms: num(r, "scare_ms", 5000),
     clear_area: num(r, "clear_area", 10),
     search_ms: num(r, "search_ms", 6000),
+    struggle_presses: num(r, "struggle_presses", 3),
     arrow_range: num(r, "arrow_range", 8),
     arrow_ms: num(r, "arrow_ms", 30)
   };
@@ -301,7 +310,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       roam: num(e, "roam", 3), heal_ms: num(e, "heal_ms", 4000), flies: flag(e, "flies"),
       climbs: flag(e, "climbs"), shuns_light: flag(e, "shuns_light"), likes_light: flag(e, "likes_light"),
       guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
-      calls: num(e, "calls", 0), brave: flag(e, "brave")
+      calls: num(e, "calls", 0), brave: flag(e, "brave"), holds: word(e, "holds", ""),
+      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls")
     }];
   }
   th = v.field("things");
@@ -336,14 +346,14 @@ pub fn kinds() -> Kinds {
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
                                  blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300,
-                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, search_ms: 6000, arrow_range: 8, arrow_ms: 30 }; }
+                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, arrow_range: 8, arrow_ms: 30 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
           blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300, hear_blast: 8,
-          scare_ms: 5000, clear_area: 10, search_ms: 6000, arrow_range: 8, arrow_ms: 30 }
+          scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, arrow_range: 8, arrow_ms: 30 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -514,8 +524,14 @@ pub struct Level {
   pub enemies: vector<Enemy>,
   pub next_enemy: integer,
   pub killed: integer,
-  /// How often a cyclops has spotted the hero (it shouts: the game plays it).
+  /// How often a cyclops has spotted the hero (it shouts: the game plays it), and thrown a bomb at
+  /// it (it rolls: heard).
   pub spotted: integer,
+  pub hurled: integer,
+  /// The enemy (its id, 0 for none) that holds the hero, pulling it; the hero's presses away from
+  /// it so far (breaking free at struggle_presses).
+  pub held_by: integer,
+  pub struggles: integer,
   /// The bow's aim: whether it is locked on a target, and that target's cell; the arrows shot (the
   /// game draws them flying).
   pub aiming: boolean,
@@ -564,13 +580,17 @@ pub struct Enemy {
   pub search_until: integer,
   pub search_x: integer,
   pub search_y: integer,
-  pub saw: boolean
+  pub saw: boolean,
+  /// What it holds (a thing, 0 for nothing) and, holding bombs, how many are left.
+  pub item: integer,
+  pub bombs: integer
 }
 
 // No enemy: what a missing index reads as.
 fn no_enemy() -> Enemy {
   Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0, nest_y: 0, nest_z: 0, hp: 0, due: 0, heal_due: 0, steps: 0,
-          face_x: 0, face_y: 1, scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false }
+          face_x: 0, face_y: 1, scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false,
+          item: 0, bombs: 0 }
 }
 
 /// A bomb rolling: on (x, y, z), moving (dx, dy) at `speed` (1 .. max_speed: a cell every
@@ -644,7 +664,9 @@ pub enum Step {
   /// The well gave no water: an enemy is near, in sight.
   Watched,
   /// The hero shot an arrow.
-  Shot
+  Shot,
+  /// The hero, held by a cyclops, pulled away from it, not yet free.
+  Struggled
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -666,7 +688,7 @@ pub fn level(k: const Kinds) -> Level {
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
-          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0, spotted: 0,
+          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0, spotted: 0, hurled: 0, held_by: 0, struggles: 0,
           aiming: false, aim_x: 0, aim_y: 0, shots: [], money: 0, spirit: 0 }
 }
 
@@ -1847,6 +1869,20 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     l.lean_y = dy;
     return Step.Leaned;
   }
+  // Held by a cyclops: walking into it strikes it (below); any other press is a struggle — the
+  // struggle_presses-th breaks free, and the step is taken, the cyclops staggered for a blow's time.
+  if l.held_by != 0 {
+    h = enemy_index(l, l.held_by);
+    holder = l.enemies[h] ?? no_enemy();
+    if h < 0 || !beside_hero(l, holder) {
+      l.held_by = 0;
+    } else if l.hero_x + dx != holder.x || l.hero_y + dy != holder.y {
+      l.struggles += 1;
+      if l.struggles < l.k.struggle_presses { return Step.Struggled; }
+      l.held_by = 0;
+      l.enemies[h].due = l.now + enemy_props(l, holder.kind).bite_ms;
+    }
+  }
   // Walking into an enemy strikes it, the hero staying where it is — not a guard (it blocks),
   // nor one up on a wall (out of the sword's reach).
   foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
@@ -2548,10 +2584,15 @@ pub fn throw(l: Level) -> Step {
     return Step.Blocked;
   }
   l.hero_item = 0;
-  tile_world::place(l.w, tx, ty, z, bomb);
-  sp = l.k.throw_speed;
-  l.bombs += [BombRoll { fused: true, x: tx, y: ty, z: z, dx: dx, dy: dy, speed: sp, due: l.now + l.k.roll_ms / sp, flat: 0 }];
+  roll_out(l, tx, ty, z, dx, dy, bomb);
   Step.Thrown
+}
+
+// A thrown bomb set down on (x, y, z), fused, rolling (dx, dy) at the throwing speed.
+fn roll_out(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer, bomb: integer) {
+  tile_world::place(l.w, x, y, z, bomb);
+  sp = l.k.throw_speed;
+  l.bombs += [BombRoll { fused: true, x: x, y: y, z: z, dx: dx, dy: dy, speed: sp, due: l.now + l.k.roll_ms / sp, flat: 0 }];
 }
 
 // A bomb lying at rest on a slope starts rolling down it: to the first side (north, east, south,
@@ -3053,10 +3094,12 @@ fn enemy_props(l: const Level, kind: text) -> EnemyProps {
   p = l.k.enemies[kind];
   if p { return p ?? EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
                      flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
-                     dark_sight: 5, searches: false, calls: 0, brave: false }; }
+                     dark_sight: 5, searches: false, calls: 0, brave: false, holds: "", bombs: 0,
+                     pulls: false }; }
   EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
                      flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
-                     dark_sight: 5, searches: false, calls: 0, brave: false }
+                     dark_sight: 5, searches: false, calls: 0, brave: false, holds: "", bombs: 0,
+                     pulls: false }
 }
 
 /// Put an enemy of `kind` on (x, y, z), its nest there; it first acts a wander's step from now.
@@ -3067,8 +3110,24 @@ pub fn add_enemy(l: Level, kind: text, x: integer, y: integer, z: integer) -> in
   l.next_enemy += 1;
   l.enemies += [Enemy { id: id, kind: kind, x: x, y: y, z: z, nest_x: x, nest_y: y, nest_z: z, hp: p.hp,
                         due: l.now + p.move_ms, heal_due: 0, steps: 0, face_x: 0, face_y: 1,
-                        scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false }];
+                        scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false,
+                        item: 0, bombs: 0 }];
+  arm_enemy(l, len(l.enemies) - 1, p.holds);
   id
+}
+
+/// Does enemy e hold what its kind holds unless told otherwise (a level file writes it only when not)?
+pub fn armed_as_kind(l: const Level, e: const Enemy) -> boolean {
+  h = enemy_props(l, e.kind).holds;
+  e.item == (if h == "" { 0 } else { th(l, h) })
+}
+
+/// Enemy i holds the thing named `name` ("" or "none": nothing); holding bombs, its kind's number.
+pub fn arm_enemy(l: Level, i: integer, name: text) {
+  e = l.enemies[i] ?? no_enemy();
+  t = if name == "" || name == "none" { 0 } else { th(l, name) };
+  l.enemies[i].item = t;
+  l.enemies[i].bombs = if t != 0 && is_bomb(l, t) { enemy_props(l, e.kind).bombs } else { 0 };
 }
 
 /// The enemy on (x, y, z), -1 for none.
@@ -3221,6 +3280,73 @@ fn way_to_dark(l: const Level, p: const EnemyProps, e: const Enemy) -> (integer,
 }
 
 // Does enemy e see the hero: on its layer, within its sight, nothing opaque between?
+// The index of the enemy with id `id`, -1 when it is gone.
+fn enemy_index(l: const Level, id: integer) -> integer {
+  for i in 0..len(l.enemies) {
+    if (l.enemies[i] ?? no_enemy()).id == id { return i; }
+  }
+  -1
+}
+
+// The hero in line with enemy e (its row or its column), between throw_near and its sight away,
+// with the way to it clear for a rolling bomb: (dx, dy) to throw, (0, 0) when not.  A bomb thrown
+// nearer would reach the thrower in its blast.
+fn bomb_line(l: const Level, e: const Enemy, sight: integer) -> (integer, integer) {
+  if e.z != l.hero_z || (e.x != l.hero_x && e.y != l.hero_y) { return (0, 0); }
+  n = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  if n < l.k.blast_radius + 2 || n > sight { return (0, 0); }
+  dx = if l.hero_x > e.x { 1 } else if l.hero_x < e.x { -1 } else { 0 };
+  dy = if l.hero_y > e.y { 1 } else if l.hero_y < e.y { -1 } else { 0 };
+  for k in 0..n - 1 {
+    x = e.x + k * dx;
+    y = e.y + k * dy;
+    tx = x + dx;
+    ty = y + dy;
+    kind = tile_world::terrain(l.w, tx, ty, e.z);
+    if !tile_world::crossable(l.w, x, y, e.z, dx, dy) || !walkable(l, kind) || blocks_things(l, kind)
+        || tile_world::top(l.w, tx, ty, e.z) != 0 || enemy_at(l, tx, ty, e.z) >= 0
+        || height(l, tx, ty, e.z) > height(l, x, y, e.z) + 1 {
+      return (0, 0);
+    }
+  }
+  (dx, dy)
+}
+
+// Enemy i throws a bomb (dx, dy): fused, rolling at the hero; one fewer left, none left its hands
+// are empty.
+fn hurl(l: Level, i: integer, e: const Enemy, p: const EnemyProps, dx: integer, dy: integer) {
+  roll_out(l, e.x + dx, e.y + dy, e.z, dx, dy, e.item);
+  l.hurled += 1;
+  left = e.bombs - 1;
+  l.enemies[i].bombs = left;
+  if left <= 0 { l.enemies[i].item = 0; }
+  l.enemies[i].face_x = dx;
+  l.enemies[i].face_y = dy;
+  l.enemies[i].due = e.due + p.bite_ms;
+}
+
+// Enemy i, holding the hero: a step towards its nest by the shortest way, the hero pulled into the
+// cell it leaves — so only where the enemy itself walks, never over a ledge.  At its nest, or with
+// no way, it holds on.  The hero no longer beside it (flung, fallen) is free.
+fn pull_hero(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
+  if !beside_hero(l, e) || !alive(l) {
+    l.held_by = 0;
+    l.enemies[i].due = e.due + p.chase_ms;
+    return;
+  }
+  w = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
+  if w.2 > 1 || (w.2 == 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1)) {
+    x = e.x;
+    y = e.y;
+    enemy_step(l, i, w.0, w.1, p.move_ms);
+    l.face_x = w.0;
+    l.face_y = w.1;
+    arrive(l, x, y, e.z);
+    return;
+  }
+  l.enemies[i].due = e.due + p.move_ms;
+}
+
 // Does enemy e see the hero, as its kind sees: within `sight` only when the hero stands in light,
 // within `dark_sight` in the dark too.
 fn sees(l: const Level, e: const Enemy, p: const EnemyProps) -> boolean {
@@ -3339,6 +3465,10 @@ fn enemy_act(l: Level, i: integer) {
     guard_act(l, i, e, p);
     return;
   }
+  if l.held_by == e.id {
+    pull_hero(l, i, e, p);
+    return;
+  }
   // Scared by a blast: it flees the place, as far as it can step.
   if e.due < e.scared_until {
     here = steps_apart(e.x, e.y, e.scare_x, e.scare_y);
@@ -3407,8 +3537,25 @@ fn enemy_act(l: Level, i: integer) {
   }
   if seen {
     if beside_hero(l, e) {
+      // With no weapon in hand (nothing, or bombs) a cyclops grabs the hero, to pull it home.
+      if p.pulls && (e.item == 0 || is_bomb(l, e.item)) && l.held_by == 0 {
+        l.held_by = e.id;
+        l.struggles = 0;
+        l.enemies[i].face_x = l.hero_x - e.x;
+        l.enemies[i].face_y = l.hero_y - e.y;
+        l.enemies[i].due = e.due + p.move_ms;
+        return;
+      }
       bite(l, i, p);
       return;
+    }
+    // Holding bombs, with the hero in line and the way clear, it throws one.
+    if e.item != 0 && is_bomb(l, e.item) {
+      b = bomb_line(l, e, p.sight);
+      if b.0 != 0 || b.1 != 0 {
+        hurl(l, i, e, p, b.0, b.1);
+        return;
+      }
     }
     // It comes at the hero — a light-shunning one only by a dark way.
     w = chosen_way(l, p, e, l.hero_x, l.hero_y, false, false);

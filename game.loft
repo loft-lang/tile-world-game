@@ -113,7 +113,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1", "grab:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -276,7 +276,7 @@ pub fn restart(g: Game) {
 // The sound a move makes, from what stood where the hero went before it moved.
 fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
   w = g.world;
-  if step == rules::Step.Blocked || step == rules::Step.Watched {
+  if step == rules::Step.Blocked || step == rules::Step.Watched || step == rules::Step.Struggled {
     sound(g, "bump", 0.5);
   } else if step == rules::Step.Took {
     sound(g, "pickup");
@@ -636,6 +636,8 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   rolled = g.world.rolled;
   blasted = g.world.blasted;
   spotted = g.world.spotted;
+  hurled = g.world.hurled;
+  held_by = g.world.held_by;
   health = g.world.health + g.world.spirit;
   hx = g.world.hero_x;
   hy = g.world.hero_y;
@@ -647,6 +649,9 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   }
   // A cyclops that spots the hero shouts.
   if g.world.spotted != spotted { sound(g, "spotted", 1.0); }
+  // A cyclops's bomb is heard rolling; its hands grabbing the hero are heard too.
+  if g.world.hurled != hurled { sound(g, "bomb_roll", 0.6); }
+  if g.world.held_by != 0 && held_by == 0 { sound(g, "grab", 1.0); }
   // A blast is heard, however far; while bombs roll and blasts flash the picture moves.
   if g.world.blasted != blasted {
     sound(g, "explosion", 1.0);
@@ -965,7 +970,7 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     m = motion::still();
     for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
     out += [Figure { x: e.x, y: e.y, h: tile_world::rise(w.w, e.x, e.y, z), sprite: theme::enemy_sprite(g.look, e.kind),
-                     item: 0, low: false, face_x: e.face_x, face_y: e.face_y,
+                     item: e.item, low: false, face_x: e.face_x, face_y: e.face_y,
                      pose: motion::pose(m, e.face_x, e.face_y, w.now) }];
   }
   if w.hero_z == z {

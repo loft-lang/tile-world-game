@@ -191,3 +191,21 @@ fn test_the_old_mine_plays_to_its_goal() {
   assert(len(l.enemies) == 2 && l.killed == 1, "the bat ended, the rats kept off");
   assert(levels::solved(lf, l) && l.health == 5, "the chest, bitten once (the bat): {l.hero_x},{l.hero_y} health {l.health}\n{rules::view(l, -1, -1, 16, 8, 0)}");
 }
+
+// What a cyclops holds rides on its entry: a fifth word when not its kind's axe — "bomb" (its 3),
+// "none" — and saves back the same; one holding the axe writes no fifth.
+fn test_what_a_cyclops_holds_loads_and_saves() {
+  raw = read("first_climb");
+  with = raw.replace("  \"start\":",
+    "  \"enemies\": [ [\"cyclops\", 3, 1, 0], [\"cyclops\", 4, 1, 0, \"bomb\"], [\"cyclops\", 5, 1, 0, \"none\"] ],\n  \"start\":");
+  m = levels::load(with, rules::kinds());
+  lf = m ?? level("first_climb");
+  l = lf.level;
+  a = l.enemies[0];
+  b = l.enemies[1];
+  c = l.enemies[2];
+  assert(a.item == rules::th(l, "axe") && b.item == rules::th(l, "bomb") && b.bombs == 3 && c.item == 0, "held as written");
+  out = levels::save(lf);
+  assert(out.contains("[\"cyclops\", 3, 1, 0], [\"cyclops\", 4, 1, 0, \"bomb\"], [\"cyclops\", 5, 1, 0, \"none\"]"),
+         "saved back: {out}");
+}

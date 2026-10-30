@@ -170,6 +170,8 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   for i in 0..ens.len() {
     e = ens.item(i);
     _ = rules::add_enemy(l, e.item(0).as_text(), num(e.item(1), 0), num(e.item(2), 0), num(e.item(3), 0));
+    // A fifth: what it holds, when not what its kind holds ("none": nothing).
+    if e.len() > 4 { rules::arm_enemy(l, len(l.enemies) - 1, e.item(4).as_text()); }
   }
   st = v.field("start");
   sx = num(st.item(0), 0);
@@ -388,7 +390,8 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     first = true;
     for e in l.enemies {
       out += if first { " " } else { ", " };
-      out += "[{quoted(e.kind)}, {e.nest_x}, {e.nest_y}, {e.nest_z}]";
+      held = if rules::armed_as_kind(l, e) { "" } else if e.item == 0 { ", \"none\"" } else { ", {quoted(rules::thing_name(l.k, e.item))}" };
+      out += "[{quoted(e.kind)}, {e.nest_x}, {e.nest_y}, {e.nest_z}{held}]";
       first = false;
     }
     out += " ],";
