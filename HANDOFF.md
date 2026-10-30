@@ -66,6 +66,15 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 
 ## Next steps, in the order agreed
 
+**State 2026-10-31** (200 tests on both backends; levels: first_climb, the_cellar, the_torch_room,
+the_old_mine, the_cyclops_hall).  Built since the list below: bombs, rats/bats/spiders/guards,
+the bow and aiming, potions and money, the editor's slopes and junctions, cyclopes (sight by
+light, shout, calls, search, blasts draw them; axe / bombs / unarmed pull), the hunter, and a
+world clock that steps from one due time to the next (`tests/clock.loft`).  Open for the owner:
+the hero's blow pace (one strike a press out-paces every enemy), what a bested cyclops drops.
+Not built: spiders fleeing to other levels, pulling a cart over a layer's edge, a figure hidden
+behind a ledge on a lower layer.
+
 1. ~~`fetch-libs.sh` refs to `main`~~ — done; 32 tests pass on both backends.
 2. ~~**Editor step 2**~~ — done (EDITOR.md § 8): `editor.loft` (tested in `tests/editor.loft`),
    drawn and keyed in `game.loft`, the play camera (`follow` / `rooms`) in `camera.loft`.  Checked
