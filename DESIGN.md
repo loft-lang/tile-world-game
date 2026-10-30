@@ -336,6 +336,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   - Without a weapon a cyclops pulls the hero towards its own nest; the hero breaks out of the pull
     with some effort (open: how much — proposed, a few presses away from the cyclops).
   - They search for what set a bomb off (above).
+- **The hunter** (owner, planned).  An evil hunter shoots arrows as the hero does, and follows the
+  ordinary enemies' rules (fleeing hurt, healing at its nest, scared by blasts).  It throws no
+  bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit.
 - **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
   way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,
   and they make light double-edged: a burning torch shows the hero to them.  How a cyclops

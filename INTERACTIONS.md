@@ -105,6 +105,10 @@ waits for the hero.
 30. **Ruling — the pull and the world.**  A cyclops pulls the hero towards its nest (owner): across a
     track a cart rolls along, over a ledge, through a lever's cell?  Does the pull stop at a ledge
     (as the hero would not walk off it), or drag the hero over — a fall the hero did not choose?
+31. **Puzzle — the hunter's arrows.**  Its arrows set off bombs as the hero's do (owner): standing
+    by a bomb in its line of fire, the hero is in danger of the hunter's own making — or, away
+    from it, the hunter clears a nest by shooting.  Its aim needs to see the hero, so the dark hides
+    from it.  Rulings: does its arrow hurt other enemies (infighting), and throw a lever it hits?
 24. **Puzzle — stealth against a cart.**  A cart rolling past a cyclops group draws its eye (noise
     or light) away from the hero sneaking by.
 
