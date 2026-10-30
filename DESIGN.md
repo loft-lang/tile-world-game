@@ -18,6 +18,12 @@ This is what the game built on tile_world should be.
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.
 - **Growth is never necessary.** Correct puzzle solving and fighting strategy must always let the
   base character beat every dungeon. It may get increasingly harder without upgrades.
+- **Real time** (owner, 2026-10-30).  The world runs on its clock whatever the hero does: carts
+  roll, blasts go off, torches burn while the player thinks.  It stays deterministic — the same
+  inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
+  must be readable before it arrives (proposed): a rolling cart is heard before it is seen, a
+  chain of bombs ripples (each one 150 ms after the blast that set it off) rather than all at
+  once, and a well gives no water while anything rolls towards the hero (no doomed save).
 - **A test enforces it.** Every shipped level carries a solution test played by the base character
   (`tests/first_climb.loft` is the model).
 
