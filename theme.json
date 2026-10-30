@@ -152,7 +152,7 @@
     "Dungeon": ["floor", "wall", "rail", "well"],
     "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
-    "Tracks": ["rail", "cart", "lever_straight", "lever_turn"]
+    "Tracks": ["rail", "cart", "lever_straight", "lever_turn", "junction 1", "junction 2", "junction 3", "junction 4", "junction 5", "junction 6", "junction 7", "junction 8"]
   },
   "materials": {
     "grass": {

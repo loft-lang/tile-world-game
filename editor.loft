@@ -19,16 +19,19 @@ pub struct Entry {
   pub thing: boolean,
   pub id: integer,
   pub material: integer,
-  pub label: text
+  pub label: text,
+  /// A painted piece (a junction): the kind with this picture (its tile number); 0 for none.
+  pub tile: integer
 }
 
 // What one cell holds: whether it is set (else it reads as its layer's ground), its kind and
-// tile, and its stack, bottom first.
+// tile, its stack, bottom first, and its rise (a slope's step).
 struct Cell {
   set: boolean,
   kind: integer,
   tile: integer,
-  stack: vector<integer>
+  stack: vector<integer>,
+  rise: integer
 }
 
 // A start or a goal: the goal's kind ("layer", "cell", ...) and its cell.
@@ -93,19 +96,28 @@ pub struct Editor {
 pub const FILL_LIMIT = 4096;
 
 fn kind_entry(id: integer) -> Entry {
-  Entry { thing: false, id: id, material: -1, label: "" }
+  Entry { thing: false, id: id, material: -1, label: "", tile: 0 }
 }
 
-/// The palette of kinds `k` and materials `mats`: void, the terrain kinds, the materials, then
-/// the things.
+/// The palette of kinds `k` and materials `mats`: void, the terrain kinds, the materials, the
+/// junctions, then the things.
 pub fn palette(k: const rules::Kinds, mats: const materials::Materials) -> vector<Entry> {
   out: vector<Entry> = [kind_entry(tile_world::VOID)];
   for id in rules::terrain_ids(k) { out += [kind_entry(id)]; }
   for i in 0..len(mats.list) {
     mat = mats.list[i] ?? materials::none_material();
-    out += [Entry { thing: false, id: mat.kind, material: i, label: mat.name }];
+    out += [Entry { thing: false, id: mat.kind, material: i, label: mat.name, tile: 0 }];
   }
-  for id in rules::thing_ids(k) { out += [Entry { thing: true, id: id, material: -1, label: "" }]; }
+  // The junctions, each as it is drawn set straight: "junction 1" .. in theme.json's order.
+  rail = rules::terrain_id(k, "rail");
+  n = 0;
+  for t in mats.track {
+    if t.toe != 0 && !t.set_turn {
+      n += 1;
+      out += [Entry { thing: false, id: rail, material: -1, label: "junction {n}", tile: t.tile }];
+    }
+  }
+  for id in rules::thing_ids(k) { out += [Entry { thing: true, id: id, material: -1, label: "", tile: 0 }]; }
   out
 }
 
@@ -134,7 +146,7 @@ pub fn picked(ed: const Editor) -> Entry {
 /// An entry's name, as kinds.json or theme.json has it; "void" for void.
 pub fn name(k: const rules::Kinds, e: const Entry) -> text {
   if e.thing { return rules::thing_name(k, e.id); }
-  if e.material >= 0 { return e.label; }
+  if e.material >= 0 || e.tile != 0 { return e.label; }
   if e.id == tile_world::VOID { return "void"; }
   rules::terrain_name(k, e.id)
 }
@@ -177,7 +189,8 @@ pub fn choose(ed: Editor, step: integer) {
 fn cell_of(w: const tile_world::World, x: integer, y: integer, z: integer) -> Cell {
   Cell {
     set: tile_world::is_set(w, x, y, z), kind: tile_world::terrain(w, x, y, z),
-    tile: tile_world::tile(w, x, y, z), stack: tile_world::things(w, x, y, z)
+    tile: tile_world::tile(w, x, y, z), stack: tile_world::things(w, x, y, z),
+    rise: tile_world::rise(w, x, y, z)
   }
 }
 
@@ -189,6 +202,7 @@ fn put_cell(w: tile_world::World, x: integer, y: integer, z: integer, c: const C
   }
   while tile_world::top(w, x, y, z) != 0 { _ = tile_world::take(w, x, y, z); }
   for t in c.stack { tile_world::place(w, x, y, z, t); }
+  if c.set { tile_world::set_rise(w, x, y, z, c.rise); }
 }
 
 fn no_marker() -> Marker {
@@ -196,7 +210,7 @@ fn no_marker() -> Marker {
 }
 
 fn no_cell() -> Cell {
-  Cell { set: false, kind: 0, tile: 0, stack: [] }
+  Cell { set: false, kind: 0, tile: 0, stack: [], rise: 0 }
 }
 
 // Keep edit `e` as the newest, dropping what was undone.
@@ -397,12 +411,27 @@ pub fn paint(ed: Editor, lf: levels::LevelFile) -> boolean {
   e = picked(ed);
   if e.thing {
     tile_world::place(w, ed.x, ed.y, ed.z, e.id);
+  } else if e.tile != 0 {
+    tile_world::set_terrain(w, ed.x, ed.y, ed.z, e.id, e.tile);
   } else if e.material >= 0 {
     materials::paint(ed.mats, w, e.material, ed.x, ed.y, ed.z);
   } else {
     tile_world::set_terrain(w, ed.x, ed.y, ed.z, e.id);
     materials::retile(ed.mats, w, ed.x, ed.y, ed.z);
   }
+  logged(ed, lf, before)
+}
+
+/// Raise the cursor's cell a step (`step` 1) or lower it (-1): a slope.  Its rise stays within the
+/// layer (0 .. layer_height - 1: a step higher is the layer above).  False when nothing changed —
+/// already at the top or the bottom, or the cell is not set.
+pub fn raise(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
+  w = lf.level.w;
+  if !tile_world::is_set(w, ed.x, ed.y, ed.z) { return false; }
+  r = tile_world::rise(w, ed.x, ed.y, ed.z) + step;
+  if r < 0 || r >= lf.level.k.layer_height { return false; }
+  before = around(ed, w);
+  tile_world::set_rise(w, ed.x, ed.y, ed.z, r);
   logged(ed, lf, before)
 }
 

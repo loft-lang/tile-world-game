@@ -133,6 +133,7 @@ layer and material.
 | Tab / Shift+Tab | the next / previous material or thing in the palette; `1`..`9` jump to a category |
 | Space | paint the material, or put the thing on top of the cell's stack |
 | Backspace / Delete | take the top thing off; on an empty cell, clear the terrain to void |
+| `]` / `[` | raise / lower the cell a step (a slope): 0 .. 3, a step higher is the layer above; undone like any edit, saved in `rises` |
 | `F` | fill: flood the connected area of the cursor's material with the palette's |
 | `R` (hold Shift + move) | rectangle: paint the rectangle from where Shift was pressed |
 | `I` | pick up the material under the cursor into the palette (eyedropper) |

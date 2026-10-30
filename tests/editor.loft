@@ -338,3 +338,40 @@ fn test_the_checks() {
   assert(cut == "1,7 10,6 " || cut == "10,6 1,7 ", "cut off: {cut}");
   assert(hid == "1,7 ", "hidden: {hid}");
 }
+
+// A slope painted: the cell under the cursor raised a step at a time, up to 3 (a step more is the
+// layer above), lowered back to 0 and no further; undone it is back where it was; saved, its rise
+// is in the file.
+fn test_raise_and_lower_a_slope() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  ed.x = 2;
+  ed.y = 2;
+  ed.z = 0;
+  for i in 0..3 { assert(editor::raise(ed, lf, 1), "raise {i}"); }
+  assert(tile_world::rise(lf.level.w, 2, 2, 0) == 3, "at 3");
+  assert(!editor::raise(ed, lf, 1), "no higher than 3");
+  assert(editor::undo(ed, lf) && tile_world::rise(lf.level.w, 2, 2, 0) == 2, "undone to 2");
+  assert(editor::raise(ed, lf, -1) && editor::raise(ed, lf, -1) && tile_world::rise(lf.level.w, 2, 2, 0) == 0, "lowered to 0");
+  assert(!editor::raise(ed, lf, -1), "no lower than 0");
+  assert(editor::raise(ed, lf, 1), "up again");
+  assert(levels::save(lf).contains("[2, 2, 0, 1]"), "the rise saved");
+}
+
+// A junction painted: "junction 1" puts a rail with that junction's picture, a piece the level
+// knows — its joins are the junction's, not the plain rail's.
+fn test_paint_a_junction() {
+  lf = first_climb();
+  mats = materials::load(file("../theme.json").content() ?? "", lf.level.k);
+  for t in mats.track { rules::add_piece(lf.level, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
+  ed = editor::new_editor_with(lf, mats);
+  pick(ed, lf.level.k, "junction 1");
+  ed.x = 2;
+  ed.y = 2;
+  ed.z = 0;
+  assert(editor::paint(ed, lf), "painted");
+  e = editor::picked(ed);
+  assert(tile_world::terrain(lf.level.w, 2, 2, 0) == rules::tr(lf.level, "rail") && tile_world::tile(lf.level.w, 2, 2, 0) == e.tile,
+         "a rail with the junction's picture");
+  assert(rules::joins(lf.level, 2, 2, 0) != 0 && editor::undo(ed, lf), "a piece; undone");
+}
