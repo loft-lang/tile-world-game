@@ -42,8 +42,13 @@ struct ThingLook {
   tile: integer,
   look: Frames,
   holding: vector<HeldLook>,
-  sound: text
+  sound: text,
+  /// A bomb's frames while it is lit (its fuse spitting sparks), SPARK_MS apart; empty for none.
+  fused: vector<integer>
 }
+
+/// How long one frame of a lit fuse's sparks shows: faster than a flame's flicker.
+pub const SPARK_MS = 100;
 
 struct CarriedLook {
   const id: integer,
@@ -82,6 +87,8 @@ pub struct Theme {
   carried: hash<CarriedLook[id]>,
   tracks: hash<TrackLook[mask]>,
   chars: hash<Glyph[ch]>,
+  /// A blast's frames — the flash, the fireball, the smoke — spread over its flash.
+  blast: vector<integer>,
   pub hero: integer,
   /// The sprite of one point of the hero's health, -1 for none.
   pub heart: integer,
@@ -138,7 +145,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
   if v.kind() != "JObject" { return null; }
   ts = num(v, "tile_size", 16);
   th = Theme {
-    tile_size: ts, sheets: [], slots: [], terrain: [], things: [], carried: [], tracks: [], chars: [],
+    tile_size: ts, sheets: [], slots: [], terrain: [], things: [], carried: [], tracks: [], chars: [], blast: [],
     hero: -1, heart: -1, font: 0, digits: 0, letters: 0
   };
   sheets = v.field("sheets");
@@ -149,6 +156,8 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
+  bl = v.field("blast");
+  for i in 0..bl.len() { th.blast += [sprite(th, bl.item(i).as_text())]; }
   th.heart = sprite(th, word(v, "heart"));
   f = v.field("font");
   fs = th.sheets[word(f, "sheet")];
@@ -184,8 +193,11 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     for held_name in hs.keys() {
       held += [HeldLook { thing: rules::thing_id(k, held_name), look: frames_of(th, hs.field(held_name)) }];
     }
+    fused: vector<integer> = [];
+    fu = e.field("fused");
+    for i in 0..fu.len() { fused += [sprite(th, fu.item(i).as_text())]; }
     th.things += [ThingLook { id: rules::thing_id(k, name), tile: tile, look: frames_of(th, e),
-                              holding: held, sound: sound }];
+                              holding: held, sound: sound, fused: fused }];
   }
   tr = v.field("tracks");
   for sides in tr.keys() {
@@ -285,6 +297,20 @@ pub fn thing_sprite_at(th: const Theme, thing: integer, now: integer, low: boole
   look = th.things[thing];
   if !look { return -1; }
   pick(look.look, now, low)
+}
+
+/// The picture of a lit bomb (`thing`) at `now`: its sparks' frame; -1 when the theme has none.
+pub fn fused_sprite(th: const Theme, thing: integer, now: integer) -> integer {
+  look = th.things[thing];
+  if !look || len(look.fused) == 0 { return -1; }
+  look.fused[(now / SPARK_MS) % len(look.fused) ?? 0] ?? -1
+}
+
+/// A blast's picture `elapsed` ms into its flash of `length` ms; -1 after it, or with none.
+pub fn blast_sprite(th: const Theme, elapsed: integer, length: integer) -> integer {
+  n = len(th.blast);
+  if n == 0 || elapsed < 0 || elapsed >= length { return -1; }
+  th.blast[elapsed * n / length ?? 0] ?? -1
 }
 
 /// The one picture of thing `holder` holding thing `held` (a socket with a torch in it) at

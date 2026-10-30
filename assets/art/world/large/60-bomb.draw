@@ -1,0 +1,15 @@
+# BOMB — an iron ball, its fuse at the top right; lying, not lit.
+# Drawn at 16x the tile; the reduction adds the 2 px outline.  Light from the top left.
+size 256x256
+Background transparent
+name body
+Circle (0.47,0.62) r=0.25 n=48 rgb=38,43,68
+name shade
+Circle (0.42,0.57) r=0.17 n=40 rgb=82,96,124
+name highlight
+Circle (0.37,0.51) r=0.07 n=24 rgb=139,155,180
+Circle (0.35,0.49) r=0.03 n=16 rgb=228,237,249
+name collar
+Poly (0.56,0.33) (0.69,0.38) (0.65,0.47) (0.52,0.42) rgb=82,96,124
+name fuse
+Poly (0.62,0.36) (0.70,0.22)~ (0.77,0.17) (0.80,0.22) (0.73,0.27)~ (0.68,0.39) rgb=189,108,74

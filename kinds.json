@@ -14,7 +14,7 @@
     "flicker_odds": 4,
     "roll_ms": 600,
     "max_speed": 4,
-    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2
+    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

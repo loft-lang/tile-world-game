@@ -595,11 +595,12 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     sound(g, "cart", 0.5);
     changed = true;
   }
-  // A blast is heard, however far.
+  // A blast is heard, however far; while bombs roll and blasts flash the picture moves.
   if g.world.blasted != blasted {
     sound(g, "explosion", 1.0);
     changed = true;
   }
+  if rules::blasting(g.world) { changed = true; }
   if g.world.health < health {
     sound(g, "hit_hero", 1.0);
     changed = true;
@@ -837,7 +838,10 @@ fn draw_stack(g: Game, w: const rules::Level, x: integer, y: integer, z: integer
       i += 2;
       continue;
     }
-    theme::put(g.surface, theme::thing_sprite_at(g.look, t, w.now, low), px, py - base * 4, shade);
+    // A lit bomb shows its fuse's sparks.
+    lit = if rules::fused_at(w, x, y, z) { theme::fused_sprite(g.look, t, w.now) } else { -1 };
+    theme::put(g.surface, if lit >= 0 { lit } else { theme::thing_sprite_at(g.look, t, w.now, low) }, px,
+               py - base * 4, shade);
     base += rules::thing_height(w, t);
     i += 1;
   }
@@ -942,6 +946,16 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
         if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
           shade = sh[y * COLS + x] ?? 0;
           draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade });
+        }
+      }
+    }
+    // A blast is drawn over the row it went off in.
+    if y >= 0 {
+      for b in w.blasts {
+        s = theme::blast_sprite(g.look, w.now - b.at, w.k.flash_ms);
+        if b.z == z && b.y == cy + y && s >= 0 {
+          theme::put(g.surface, s, (b.x - cx) * g.look.tile_size,
+                     y * g.look.tile_size - tile_world::rise(w.w, b.x, b.y, z) * 4, 0);
         }
       }
     }

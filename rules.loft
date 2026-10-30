@@ -161,7 +161,9 @@ pub struct Kinds {
   pub ripple_ms: integer,
   pub throw_speed: integer,
   /// A bomb that falls this many layers or more goes off where it lands, fused or not.
-  pub bomb_fall: integer
+  pub bomb_fall: integer,
+  /// A blast lights its surroundings for this long, fading.
+  pub flash_ms: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -204,7 +206,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     blast_radius: num(r, "blast_radius", 3),
     ripple_ms: num(r, "ripple_ms", 150),
     throw_speed: num(r, "throw_speed", 4),
-    bomb_fall: num(r, "bomb_fall", 2)
+    bomb_fall: num(r, "bomb_fall", 2),
+    flash_ms: num(r, "flash_ms", 300)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -258,13 +261,13 @@ pub fn kinds() -> Kinds {
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
-                                 blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2 }; }
+                                 blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
-          blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2 }
+          blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -1017,6 +1020,7 @@ pub fn lights(l: const Level, z: integer) -> vector<(integer, integer)> {
   if l.hero_item != 0 && gives_light(l, l.hero_item) { out += [(l.hero_x, l.hero_y)]; }
   if l.kindled {
     for f in l.flames { if f.z == z { out += [(f.x, f.y)]; } }
+    for b in l.blasts { if b.z == z && flashing(l, b) { out += [(b.x, b.y)]; } }
     return out;
   }
   for c in tile_world::stacks(l.w) {
@@ -1037,8 +1041,31 @@ pub fn light_starts(l: const Level, z: integer) -> vector<integer> {
   }
   if l.kindled {
     for f in l.flames { if f.z == z { out += [faded(l, f.until) + flicker(l, f.until, f.x, f.y, f.z)]; } }
+    // A blast's flash: full at once, fading three shades over flash_ms.
+    for b in l.blasts {
+      if b.z == z && flashing(l, b) { out += [(l.now - b.at) * 4 / l.k.flash_ms ?? 0]; }
+    }
   }
   out
+}
+
+// Is blast b still lighting its surroundings?
+fn flashing(l: const Level, b: const Blast) -> boolean {
+  l.now >= b.at && l.now - b.at < l.k.flash_ms
+}
+
+/// Is anything flashing or rolling — a blast's light, a bomb on its way?  (The picture moves then.)
+pub fn blasting(l: const Level) -> boolean {
+  if len(l.bombs) > 0 || len(l.fuses) > 0 { return true; }
+  for b in l.blasts { if flashing(l, b) { return true; } }
+  false
+}
+
+/// Is the bomb on (x, y, z) lit: thrown and on its way, or set off by a blast and about to go?
+pub fn fused_at(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  i = bomb_rolling_at(l, x, y, z);
+  if i >= 0 && (l.bombs[i].fused ?? false) { return true; }
+  fused(l, x, y, z, false)
 }
 
 /// Does anything burn — a flame set down, or the one the hero holds?  (The picture moves then.)

@@ -1,0 +1,14 @@
+# BLAST, frame 3 — the smoke: grey puffs lit from the top left, an ember or two.
+size 256x256
+Background transparent
+name puffs
+Circle (0.38,0.58) r=0.17 n=32 rgb=82,96,124
+Circle (0.62,0.52) r=0.16 n=32 rgb=82,96,124
+Circle (0.50,0.40) r=0.15 n=32 rgb=82,96,124
+name lit
+Circle (0.35,0.54) r=0.10 n=24 rgb=139,155,180
+Circle (0.59,0.48) r=0.09 n=24 rgb=139,155,180
+Circle (0.47,0.36) r=0.09 n=24 rgb=170,183,204
+name embers
+Circle (0.55,0.66) r=0.035 n=12 rgb=232,69,55
+Circle (0.42,0.70) r=0.025 n=12 rgb=254,174,52

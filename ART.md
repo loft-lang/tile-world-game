@@ -30,7 +30,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 0–1 | fire and light | tiles 0–12 below |
 | 2 | travel | 24: the horse |
 | 3–4 | tracks | 36–51: junctions; 52, 53: the lever |
-| 5– | later additions (monsters, …) | |
+| 5 | bombs | 60–62: the bomb, lying and lit; 63–65: the blast |
+| 6– | later additions (monsters, …) | |
 
 ### The tiles
 
@@ -51,6 +52,9 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 24 | horse | side view, facing right, saddled |
 | 36–51 | junctions | eight junctions — a straight (north-south or east-west) and a bend sharing a side, its toe — each set straight (even index) and set to turn (odd): Kenney's rail ring pieces laid over each other, the route set on top |
 | 52, 53 | lever | beside a junction: handle left (set straight), right (set to turn) |
+| 60 | bomb | an iron ball, its fuse at the top right: lying, not lit (and in the hand) |
+| 61, 62 | bomb, lit, frames A and B | the fuse spitting sparks — yellow (A), redder and turned (B) — while it is thrown and rolling, or set off by a blast; 100 ms a frame |
+| 63, 64, 65 | blast: flash, fireball, smoke | the three frames of a blast, spread over its 300 ms flash on the cell it went off in; the flash also lights the room (a light that fades three shades) |
 
 ## The style, measured from `tiny-dungeon.png`
 

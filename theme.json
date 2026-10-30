@@ -20,6 +20,7 @@
       "-": 127
     }
   },
+  "blast": ["world:63", "world:64", "world:65"],
   "hero": "dungeon:97",
   "heart": "battle:195",
   "terrain": {
@@ -96,6 +97,10 @@
     "lever_turn": "world:53",
     "stick": "world:0",
     "torch": "world:1",
+    "bomb": {
+      "tile": "world:60",
+      "fused": ["world:61", "world:62"]
+    },
     "burning_torch": {
       "tile": "world:2",
       "frames": ["world:2", "world:3"],
@@ -139,7 +144,7 @@
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall"],
     "Dungeon": ["floor", "wall", "rail", "well"],
-    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "signpost"],
+    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
     "Tracks": ["rail", "cart", "lever_straight", "lever_turn"]
   },
@@ -197,6 +202,9 @@
     },
     "sword": {
       "tile": "dungeon:104"
+    },
+    "bomb": {
+      "tile": "world:60"
     },
     "stick": {
       "tile": "world:0"

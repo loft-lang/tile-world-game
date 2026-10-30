@@ -1,0 +1,8 @@
+# BLAST, frame 1 — the flash: a white-hot core in a yellow star.
+size 256x256
+Background transparent
+name burst
+Petals (0.5,0.55) n=8 r=0.10 len=0.24 w=0.13 a0=0 rgb=254,174,52
+Circle (0.5,0.55) r=0.16 n=32 rgb=254,174,52
+Circle (0.5,0.55) r=0.11 n=24 rgb=254,231,97
+Circle (0.5,0.55) r=0.05 n=16 rgb=255,255,255

@@ -234,8 +234,9 @@ This is what the game built on tile_world should be.
     them, carts beside a blast blown onto the next rail or derailed, and derailed carts beside a
     blast pushed the same way — a rail they reach puts them back on a track (owner).  A bomb the
     blast sets off goes off where it lies, not thrown first; one 3 away is thrown like any item.
-    Not built: the bomb's and the blast's pictures (step 3: our own sheet, drawn as the torches
-    were).
+    **Built** (step 3): the pictures, in our own sheet (ART.md, tiles 60–65) — the bomb, its
+    sparks while it is lit, the blast's flash, fireball and smoke — and the blast as a light for
+    its 300 ms (`flash_ms`), fading three shades, so the room flashes.
   - **The blast** (the owner's rules, 2026-10-30, and proposals marked so).
     It reaches every cell within its radius (proposed 3) by the shortest way the blast can take:
     it spreads like light, so walls and closed doors stop it and a wall cell takes it but passes
