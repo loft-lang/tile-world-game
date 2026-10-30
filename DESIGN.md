@@ -101,6 +101,11 @@ This is what the game built on tile_world should be.
   - Built (slice 2): the swap, drop and full hands.
 - **Sword.** The hero fights with it (it waits for enemies).
 - **Axe.** Walking into a fence or a tree with it chops it down to floor (built, slice 2).
+  - A tree takes 4 blows (kinds.json `hits`); each tree counts its own, and a well's save keeps
+    the count.  A fence still falls at one.
+  - Every blow leaves a stick beside the tree (`drops`), when there is room: the side its place
+    prefers, then the other, as an item pushed aside.  A tree is where sticks come from — the
+    axe's link to the torches.  Built (`tests/moves.loft`).
 - **Bow.**
   - Shoots enemies higher up on walls (bats, spiders), with no ammunition limit.
   - **Aim.** The aim locks onto an enemy in the general direction the hero faces. The lock is

@@ -476,11 +476,91 @@ fn test_an_axe_fells_trees_and_fences() {
   tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "fence"));
   rules::put_hero(w, 0, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  for k in 0..3 {
+    assert(rules::walk(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "tree"),
+           "blow {k + 1}: still standing");
+  }
   assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "1,0,0 h0", "the tree felled: {at(w)}");
   assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "floor"), "to floor");
   assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "where it stood: {at(w)}");
   assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "2,0,0 h0", "the fence, not climbed: {at(w)}");
   assert(tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"), "the fence to floor");
+}
+
+// A three-row room x 0 .. 5, y 0 .. 2, walled; the hero swings east from (1, 1), so the tree at
+// (2, 1) drops its sticks north (y 0) or south (y 2), the side its place prefers first.
+fn grove() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 6, 3, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 5, 2, 0, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 2, 1, 0, rules::tr(w, "tree"));
+  rules::put_hero(w, 1, 1, 0);
+  w.hero_item = rules::th(w, "axe");
+  w
+}
+
+fn top_name(w: const rules::Level, x: integer, y: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, 0))
+}
+
+// Each blow leaves a stick beside the tree, while there is room: the preferred side, then the
+// other, then none.  The fourth blow fells it; the sticks stay.
+fn test_a_tree_drops_sticks_and_falls_at_the_fourth_blow() {
+  w = grove();
+  s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
+  o = 2 - s;
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, s) == "stick", "blow 1: a stick at y {s}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, o) == "stick", "blow 2: the other side");
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped, "blow 3: no room, still a blow");
+  assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "tree"), "standing after three");
+  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"),
+         "felled at the fourth");
+  assert(len(tile_world::things(w.w, 2, s, 0)) == 1 && len(tile_world::things(w.w, 2, o, 0)) == 1
+         && len(tile_world::things(w.w, 2, 1, 0)) == 0, "two sticks, one a cell");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 2, "where it stood");
+}
+
+// No room beside (a corridor): four blows fell it all the same, and nothing drops.
+fn test_a_tree_without_room_drops_nothing() {
+  w = row(5);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
+  rules::put_hero(w, 1, 0, 0);
+  w.hero_item = rules::th(w, "axe");
+  for _k in 0..4 { _ = rules::walk(w, 1, 0); }
+  assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "floor") && len(tile_world::stacks(w.w)) == 0,
+         "felled, nothing dropped");
+}
+
+// Each tree counts its own blows, and a saved situation keeps the count it had.
+fn test_each_tree_counts_its_blows() {
+  w = grove();
+  tile_world::set_terrain(w.w, 0, 1, 0, rules::tr(w, "tree"));
+  rules::play(w, "a a");
+  saved = w;
+  rules::play(w, "d d d d");
+  assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "the east tree, four blows: felled");
+  assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "tree"), "the west tree, two: standing");
+  rules::play(w, "a a");
+  assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "floor"), "two more: felled");
+  rules::play(saved, "a");
+  assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "tree"), "saved: three blows, standing");
+  rules::play(saved, "a");
+  assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "floor"), "saved: the fourth fells it");
+}
+
+// The tree's stick is a torch's stick: the axe swapped for it, dipped in tar.
+fn test_a_tree_stick_becomes_a_torch() {
+  w = grove();
+  tile_world::place(w.w, 4, 0, 0, rules::th(w, "tar_barrel"));
+  tile_world::place(w.w, 4, 2, 0, rules::th(w, "tar_barrel"));
+  _ = rules::walk(w, 1, 0);
+  s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
+  rules::play(w, if s == 2 { "s d" } else { "w d" });
+  assert(w.hero_item == rules::th(w, "stick") && top_name(w, 2, s) == "axe", "the stick taken, the axe left");
+  // Two asserts, not one `&&`: --native ran two identical calls in one assert once (loft#2259).
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "to the barrel");
+  assert(rules::walk(w, 1, 0) == rules::Step.Dipped, "dipped");
+  assert(w.hero_item == rules::th(w, "torch"), "a torch");
 }
 
 // Holding an item (a sword), a rock at x 3 is not pushed and a chair behind is not pulled: the

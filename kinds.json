@@ -18,7 +18,7 @@
     "wall":  { "id": 2, "opaque": true, "mount": true, "glyph": "#" },
     "water": { "id": 3, "glyph": "~" },
     "rail":  { "id": 4, "walk": true, "rail": true, "glyph": "=" },
-    "tree":  { "id": 5, "chopped_to": "floor", "glyph": "^" },
+    "tree":  { "id": 5, "chopped_to": "floor", "hits": 4, "drops": "stick", "glyph": "^" },
     "fence": { "id": 6, "walk": true, "height": 1, "blocks_things": true, "chopped_to": "floor", "glyph": "%" },
     "door":  { "id": 7, "opaque": true, "opens_to": "open_door", "glyph": "D" },
     "open_door":   { "id": 8, "walk": true, "glyph": "d" },

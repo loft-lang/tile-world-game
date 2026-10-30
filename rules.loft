@@ -8,7 +8,9 @@
 //            or pulled onto it, so a train stops at it), opens_to (walking into it turns it
 //            into that kind: a door opens), stairs (1 or -1: walking onto it takes the hero to
 //            the same cell a layer up or down), chopped_to (walking into it holding a thing
-//            that chops turns it into that kind: a tree or a fence, felled to floor), saves
+//            that chops turns it into that kind: a tree or a fence, felled to floor — after
+//            `hits` such blows, 1 when not given; each blow leaves a `drops` thing beside it,
+//            when there is room: a tree, a stick), saves
 //            (walking into it saves the whole situation: a well — DESIGN.md's clear-area
 //            condition joins it with the enemies, until then the area is always clear).
 //   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
@@ -59,6 +61,8 @@ struct TerrainProps {
   opens_to: text,
   stairs: integer,
   chopped_to: text,
+  hits: integer,
+  drops: text,
   saves: boolean,
   glyph: text
 }
@@ -167,6 +171,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       rail: flag(e, "rail"), mount: flag(e, "mount"), height: num(e, "height", 0),
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
       stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
+      hits: num(e, "hits", 1), drops: word(e, "drops", ""),
       saves: flag(e, "saves"), glyph: word(e, "glyph", "?")
     }];
   }
@@ -295,6 +300,14 @@ pub struct Flame {
   pub until: integer
 }
 
+/// A cell being felled, and the blows it has taken.
+pub struct Blows {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub n: integer
+}
+
 /// A level being played: the world, its kinds and the hero on it.
 pub struct Level {
   pub w: tile_world::World,
@@ -316,7 +329,9 @@ pub struct Level {
   pub flames: vector<Flame>,
   pub hero_until: integer,
   /// Has the clock met the flames the level started with (`tick` kindles them once)?
-  pub kindled: boolean
+  pub kindled: boolean,
+  /// The trees (and anything else taking more than one blow) part felled.
+  pub blows: vector<Blows>
 }
 
 /// What a step did.
@@ -362,7 +377,7 @@ pub fn level(k: const Kinds) -> Level {
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light && !t.flame, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
-          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false }
+          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [] }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -538,6 +553,35 @@ fn holds_chopper(l: const Level) -> boolean {
 /// Are the hero's hands too busy to push, pull or lift?  They are while it holds an item.
 pub fn hands_busy(l: const Level) -> boolean {
   l.hero_item != 0
+}
+
+// One blow of the axe at (x, y, z), a cell of terrain `kind` the hero strikes moving (dx, dy):
+// what it drops lands beside it (the side its place prefers, then the other) when there is room,
+// and at its last blow it is felled to `to`.
+fn strike(l: Level, kind: integer, to: integer, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  p = l.k.terrain[kind];
+  if !p { return; }
+  dropped = thing_id(l.k, p.drops);
+  if dropped != 0 {
+    s = aside(l, x, y, z, dx, dy);
+    if s.0 != 0 || s.1 != 0 { tile_world::place(l.w, x + s.0, y + s.1, z, dropped); }
+  }
+  n = 1;
+  i = 0;
+  while i < len(l.blows) {
+    b = l.blows[i];
+    if b.x == x && b.y == y && b.z == z {
+      n = b.n + 1;
+      _ = l.blows.remove(i);
+    } else {
+      i += 1;
+    }
+  }
+  if n >= p.hits {
+    tile_world::set_terrain(l.w, x, y, z, to);
+  } else {
+    l.blows += [Blows { x: x, y: y, z: z, n: n }];
+  }
 }
 
 // The kind terrain `kind` becomes when chopped (a tree, to floor), 0 when it cannot be.
@@ -1087,10 +1131,11 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // climbed over.
   if !hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
   kind = tile_world::terrain(l.w, tx, ty, z);
-  // Holding an axe, a tree or a fence is felled; the hero stays where it is.
+  // Holding an axe, a tree or a fence takes a blow, and falls at its last; the hero stays where
+  // it is.
   felled = chopped_to(l, kind);
   if felled != 0 && holds_chopper(l) {
-    tile_world::set_terrain(l.w, tx, ty, z, felled);
+    strike(l, kind, felled, tx, ty, z, dx, dy);
     return Step.Chopped;
   }
   // A well saves the situation (the game keeps it); the hero stays where it is.
