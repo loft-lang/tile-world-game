@@ -8,8 +8,10 @@
 use tile_world;
 use rules;
 
+// The flicker off: the rows below are exact at each instant (test_a_flame_flickers turns it on).
 fn corridor() -> rules::Level {
   w = rules::level(rules::kinds());
+  w.k.flicker_odds = 0;
   tile_world::fill(w.w, -1, -1, 7, 1, 0, rules::tr(w, "wall"));
   tile_world::fill(w.w, 0, 0, 6, 0, 0, rules::tr(w, "floor"));
   tile_world::fill(w.w, -1, -1, 7, 1, 1, rules::tr(w, "floor"));
@@ -158,6 +160,45 @@ fn test_a_flame_fades_as_it_burns() {
   assert(row(v) == "2,1,2,3,4,5,6,7,7,", "carried, at 2:30 one shade: {row(v)}");
   v.hero_item = rules::th(v, "staff");
   assert(row(v) == "1,0,1,2,3,4,5,6,7,", "the staff never fades: {row(v)}");
+}
+
+// The flicker: a burning torch's light is, now and then, one shade dimmer than its fade — never
+// more, never brighter, steady through each 500 ms step, about one step in four, and not in step
+// with a torch lit at the same moment elsewhere.  The staff is steady.  Sampled every 100 ms for
+// a minute, then a minute at 5:00 (faded two shades).
+fn test_a_flame_flickers() {
+  w = corridor();
+  w.k.flicker_odds = 4;
+  socket(w, -1, "burning_torch");
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "burning_torch"));
+  w.hero_item = rules::th(w, "staff");
+  rules::tick(w, 0);
+  dim = 0;
+  apart = 0;
+  prev_a = -1;
+  for k in 0..600 {
+    st = rules::light_starts(w, 0);
+    staff = st[0] ?? -1;
+    a = st[1] ?? -1;
+    b = st[2] ?? -1;
+    assert(staff == 0, "the staff is steady: {staff} at {w.now}");
+    assert(a == 0 || a == 1, "fresh: 0 or one dimmer, {a} at {w.now}");
+    if k % 5 != 0 {
+      assert(a == prev_a, "steady within a step: {a} after {prev_a} at {w.now}");
+    }
+    if k % 5 == 0 && a == 1 { dim += 1; }
+    if a != b { apart += 1; }
+    prev_a = a;
+    rules::tick(w, 100);
+  }
+  assert(dim >= 12 && dim <= 48, "about one step in four of 120 dimmed: {dim}");
+  assert(apart > 0, "the two torches lit together flicker apart");
+  rules::tick(w, 240000);
+  for _k in 0..120 {
+    a = rules::light_starts(w, 0)[1] ?? -1;
+    assert(a == 2 || a == 3, "at 5:00 the fade (2) or one dimmer: {a}");
+    rules::tick(w, 500);
+  }
 }
 
 // The torch the hero holds burns out in the hand: a stick, and the light goes with it.

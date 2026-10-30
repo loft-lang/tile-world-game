@@ -9,7 +9,9 @@
     "fall_damage": [1, 3, 6],
     "burn_ms": 600000,
     "low_ms": 60000,
-    "fade": 4
+    "fade": 4,
+    "flicker_ms": 500,
+    "flicker_odds": 4
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

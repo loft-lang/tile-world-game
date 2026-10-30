@@ -26,7 +26,8 @@
 //            into a torch), lit_to (lit from a flame it becomes that: a torch), flame (it burns:
 //            it lights what has a `lit_to`, and after `burn_ms` of the level's clock it becomes
 //            its `burns_to`, wherever it is — held, on the floor or in a socket; over that time
-//            its light fades by `fade` shades, the warning that it burns down).
+//            its light fades by `fade` shades, the warning that it burns down, and flickers: one
+//            shade dimmer now and then, a step of `flicker_ms` in `flicker_odds`).
 //
 // The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
@@ -115,7 +116,11 @@ pub struct Kinds {
   pub low_ms: integer,
   /// How many shades a flame's light fades over its burn_ms: it reaches that many cells less far
   /// at the end.
-  pub fade: integer
+  pub fade: integer,
+  /// A flame's light flickers: every `flicker_ms` it may be one shade dimmer, one step in
+  /// `flicker_odds` (0: never).
+  pub flicker_ms: integer,
+  pub flicker_odds: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -148,7 +153,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     fall_damage: [],
     burn_ms: num(r, "burn_ms", 600000),
     low_ms: num(r, "low_ms", 60000),
-    fade: num(r, "fade", 4)
+    fade: num(r, "fade", 4),
+    flicker_ms: num(r, "flicker_ms", 500),
+    flicker_odds: num(r, "flicker_odds", 4)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -196,11 +203,13 @@ pub fn kinds() -> Kinds {
       k = kinds_from_json(raw);
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
-                                 burn_ms: 600000, low_ms: 60000, fade: 4 }; }
+                                 burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
+                                 flicker_odds: 4 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
-          layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4 }
+          layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
+          flicker_ms: 500, flicker_odds: 4 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -703,6 +712,19 @@ fn faded(l: const Level, until: integer) -> integer {
   (l.k.burn_ms - left) * l.k.fade / l.k.burn_ms ?? 0
 }
 
+/// Does the flame burning until `until` at (x, y, z) flicker one shade dimmer now?  Once a
+/// `flicker_ms` step, one step in `flicker_odds`, chosen by a hash of the step and the flame (its
+/// end and its place), so two flames lit together do not flicker together.
+pub fn flicker(l: const Level, until: integer, x: integer, y: integer, z: integer) -> integer {
+  if l.k.flicker_ms <= 0 || l.k.flicker_odds <= 0 { return 0; }
+  // Kept to 31 bits between the steps: a product never leaves the integer range.
+  h = ((l.now / l.k.flicker_ms ?? 0) * 40503 + until * 7919 + x * 104729 + y * 1299709 + z * 15485863)
+      & 0x7FFFFFFF;
+  h = ((h ^ (h >> 13)) * 1274126177) & 0x7FFFFFFF;
+  h = h ^ (h >> 16);
+  if (h & 1023) % l.k.flicker_odds == 0 { 1 } else { 0 }
+}
+
 /// The lights the game gives `tile_world::shades` on layer z, and the shade each starts at
 /// (`light_starts`, the same order): what the hero carries, then every flame set down there.  A
 /// flame fades as it burns; the staff does not.  Before the clock has met the level's flames
@@ -726,10 +748,12 @@ pub fn lights(l: const Level, z: integer) -> vector<(integer, integer)> {
 pub fn light_starts(l: const Level, z: integer) -> vector<integer> {
   out: vector<integer> = [];
   if l.hero_item != 0 && gives_light(l, l.hero_item) {
-    out += [if is_flame(l, l.hero_item) { faded(l, l.hero_until) } else { 0 }];
+    out += [if is_flame(l, l.hero_item) {
+      faded(l, l.hero_until) + flicker(l, l.hero_until, l.hero_x, l.hero_y, l.hero_z)
+    } else { 0 }];
   }
   if l.kindled {
-    for f in l.flames { if f.z == z { out += [faded(l, f.until)]; } }
+    for f in l.flames { if f.z == z { out += [faded(l, f.until) + flicker(l, f.until, f.x, f.y, f.z)]; } }
   }
   out
 }

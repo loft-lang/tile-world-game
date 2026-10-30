@@ -145,6 +145,10 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   - **The warning:** its light fades as it burns, `fade` (4) shades over its life, a shade every
     2:30, so a fresh torch lights 7 cells and a dying one about 4.  In its last minute the
     flame is drawn low too (kinds.json `low_ms`).  A burning flame flickers between two pictures.
+  - **Its light flickers** (a torch's, not the staff's): now and then one shade dimmer than its
+    fade, never more and never brighter, steady through each 500 ms step, about one step in four
+    (kinds.json `flicker_ms`, `flicker_odds`), each torch on its own pattern — a living flame,
+    not a flashing screen.
   - At the end it is a stick again, in the hand, on the floor or in the socket, and can be
     dipped in tar again.
   - Each torch keeps its own time.  The time is part of the situation a well saves.
