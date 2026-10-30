@@ -16,7 +16,8 @@ machine (`~/workspace`).
 | PR | What |
 |---|---|
 | loft-libs-graphics#66 (merged) | tiles 0.4.0: `draw_ground` — a tile bent to its four corner lifts and lit by four corner shades, dithered |
-| loft-libs-graphics#68 (merged) | tiles 0.5.0: `draw_turned` — a tile turned about a pixel, every pixel kept (the figures' lean and swing).  Not published to the registry: publishing waits for the owner's go |
+| loft-libs-graphics#68 (merged) | tiles 0.5.0: `draw_turned` — a tile turned about a pixel, every pixel kept (the figures' lean and swing) |
+| loft-libs-graphics#69 (merged) | tiles 0.5.1: `categories`, which the registry requires of a new package.  **Published** 2026-10-30 (registry 53cdc19, signed with the local key on the owner's go); the GitHub release `tiles-v0.5.0` exists but never reached the index |
 | loft-libs-world#40 (merged) | tile_world 0.6.0: `shades` takes a start shade per light |
 | loft-libs-graphics#61 | imaging 0.5.0 (lodepng, a `[c]` shim) |
 | loft-libs-graphics#62, #63 | tiles 0.1.0, tiles 0.2.0 (8 shades) |
