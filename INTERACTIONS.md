@@ -86,10 +86,13 @@ waits for the hero.
     open a door, fell a tree (dropping sticks — a bomb as a harvester), break a fence?
 18. **Puzzle — water.**  A stone blown into water: does it sink (gone), or fill the cell (a
     stepping stone — the classic)?  Items blown into water are lost (falling rules).
-19. **Ruling — sockets in a blast.**  A torch in a socket within reach: knocked out (flung,
-    burning), or held by the iron?  Knocked out, a blast relights a dark room's floor.
 20. **Puzzle — arrows as remote hands.**  Arrows set off bombs (owner); if they also throw levers,
     a junction can be set from across a chasm.  (Ruling: do arrows throw levers?)
+
+27. **Puzzle — lighting a room from afar.**  A blast lights the unlit torches in the sockets it
+    reaches (owner): a bomb thrown into a dark room lights it — or an arrow sets off a bomb that
+    does.  Water douses a bomb (owner): a flooded cell between bombs breaks a chain, and a bomb
+    thrown short into water is a dud.
 
 ## Light, fire and enemies
 

@@ -207,6 +207,11 @@ This is what the game built on tile_world should be.
       stone or cart moves, so it lands ahead of it.
     - **Items lying on a track** are flung like any item; the track does not hold them.  A cart
       the blast sets rolling shoves the items ahead of it on the rails out of the way, as a push.
+  - **The blast lights a torch on a wall** (owner): an unlit torch in a socket within its reach
+    stays in the socket and burns, with its whole time; a burning one burns on (proposed); a
+    stick has no tar and is not lit.
+  - **Water douses a bomb** (owner): a bomb blown into water never goes off — lost in it, as any
+    item falling into water is — so water breaks a chain.
   - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner).  Proposed: a
     tar barrel within distance 1 bursts into a fire that burns like a flame (it lights torches)
     for its burn time, further out it is only pushed; a bomb riding a cart goes off when the cart
