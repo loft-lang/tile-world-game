@@ -1,0 +1,209 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Rolling carts (DESIGN.md § Tracks and rolling carts, step 3): a cart on a slope rolls down by
+// itself on the level's clock — at speed n a cell every 600 / n ms; a step down +1 (to 4), a step up
+// -2, on the flat -1 every 2 cells — links with the carts it meets, hurts the hero in its way, carries
+// the hero who rides it, and takes a junction the riding hero leans to.  Every time below is worked
+// by hand from those numbers.
+use tile_world;
+use rules;
+use materials;
+
+// The hill: rails along y 0 from x 0 to 12, rising 3, 2, 1 at x 0, 1, 2 and flat from x 3; walls
+// round (x -1, 13; y -1 and 1), floor beyond the rails' end at x 13 is wall.
+fn hill() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 13, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 12, 0, 0, rules::tr(w, "rail"));
+  tile_world::set_rise(w.w, 0, 0, 0, 3);
+  tile_world::set_rise(w.w, 1, 0, 0, 2);
+  tile_world::set_rise(w.w, 2, 0, 0, 1);
+  w.k.flicker_odds = 0;
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+// Where the carts are along y 0, west to east: "x3" for one cart at 3.
+fn carts(w: const rules::Level) -> text {
+  t = "";
+  for x in -1..14 {
+    if tile_world::top(w.w, x, 0, 0) == rules::th(w, "cart") { t += "x{x} "; }
+  }
+  t
+}
+
+// Advance the clock to `at` ms.
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn main() {
+  w = hill();
+  assert(carts(w) == "", "an empty hill");
+}
+
+// Down the hill, faster each step, then slowing on the flat until it stops at x 11.
+fn test_a_cart_rolls_down_and_coasts_to_a_stop() {
+  w = hill();
+  put(w, 0, 0, "cart");
+  rules::tick(w, 0);
+  assert(len(w.rolls) == 1, "it starts to roll");
+  until(w, 599);
+  assert(carts(w) == "x0 ", "not yet: {carts(w)}");
+  until(w, 600);
+  assert(carts(w) == "x1 ", "600: {carts(w)}");
+  until(w, 1100);
+  assert(carts(w) == "x3 ", "1100, at the bottom: {carts(w)}");
+  until(w, 1249);
+  assert(carts(w) == "x3 ", "1249: speed 4, a cell every 150 ms: {carts(w)}");
+  until(w, 1250);
+  assert(carts(w) == "x4 ", "1250: {carts(w)}");
+  until(w, 3599);
+  assert(carts(w) == "x10 ", "3599: {carts(w)}");
+  until(w, 3600);
+  assert(carts(w) == "x11 " && len(w.rolls) == 0, "3600: stopped at x 11: {carts(w)}");
+  until(w, 9000);
+  assert(carts(w) == "x11 ", "and stays: {carts(w)}");
+}
+
+// The hero rides: carried along; an arrow leans instead of walking; once stopped, it steps off.
+fn test_the_hero_rides() {
+  w = hill();
+  put(w, 0, 0, "cart");
+  rules::put_hero(w, 0, 0, 0);
+  rules::tick(w, 0);
+  until(w, 1100);
+  assert(w.hero_x == 3 && w.hero_h == 1, "carried to x 3: {w.hero_x} h {w.hero_h}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Leaned && w.hero_x == 3, "leans, does not walk");
+  until(w, 4000);
+  assert(w.hero_x == 11 && rules::riding(w) < 0, "stopped at x 11: {w.hero_x}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 12 && w.hero_h == 0, "steps off");
+}
+
+// A rolling cart meets one standing at x 6: they link at 3 x 1 / 2 = 1, and stop at x 7, x 8.
+fn test_carts_that_meet_link() {
+  w = hill();
+  put(w, 0, 0, "cart");
+  put(w, 6, 0, "cart");
+  rules::tick(w, 0);
+  until(w, 1600);
+  assert(carts(w) == "x5 x6 " && len(w.rolls) == 1, "1600: linked: {carts(w)}");
+  until(w, 2199);
+  assert(carts(w) == "x5 x6 ", "speed 1: {carts(w)}");
+  until(w, 2200);
+  assert(carts(w) == "x6 x7 ", "2200: {carts(w)}");
+  until(w, 2800);
+  assert(carts(w) == "x7 x8 " && len(w.rolls) == 0, "2800: stopped: {carts(w)}");
+}
+
+// The hero standing on the rails at x 8 is hit at speed 2 (health 6 - 2); walled in, it is taken on
+// board and rides to x 11.  With floor beside the rails it is pushed there instead.
+fn test_a_rolling_cart_hurts_the_hero() {
+  w = hill();
+  put(w, 0, 0, "cart");
+  rules::put_hero(w, 8, 0, 0);
+  rules::tick(w, 0);
+  until(w, 2099);
+  assert(w.health == 6, "not yet");
+  until(w, 2100);
+  assert(w.health == 4 && w.hero_x == 8 && w.hero_h == 1, "hit at speed 2, on board: {w.health} h {w.hero_h}");
+  until(w, 4000);
+  assert(w.hero_x == 11, "a passenger to x 11: {w.hero_x}");
+  v = hill();
+  tile_world::set_terrain(v.w, 8, 1, 0, rules::tr(v, "floor"));
+  tile_world::set_terrain(v.w, 8, -1, 0, rules::tr(v, "floor"));
+  put(v, 0, 0, "cart");
+  rules::put_hero(v, 8, 0, 0);
+  rules::tick(v, 0);
+  until(v, 2100);
+  side = if rules::prefers_right(8, 0, 0) { 1 } else { -1 };
+  assert(v.health == 4 && v.hero_x == 8 && v.hero_y == side && v.hero_h == 0,
+         "pushed aside to y {side}: {v.hero_x},{v.hero_y}");
+  assert(carts(v) == "x8 ", "the cart went on: {carts(v)}");
+}
+
+// A step up costs 2: at x 5 (rise 1) the speed 4 drops to 2, so the next cell comes at 1700, not 1550.
+fn test_a_step_up_slows_it() {
+  w = hill();
+  for x in 5..13 { tile_world::set_rise(w.w, x, 0, 0, 1); }
+  put(w, 0, 0, "cart");
+  rules::tick(w, 0);
+  until(w, 1400);
+  assert(carts(w) == "x5 ", "1400: up onto x 5: {carts(w)}");
+  until(w, 1699);
+  assert(carts(w) == "x5 ", "speed 2: {carts(w)}");
+  until(w, 1700);
+  assert(carts(w) == "x6 ", "1700: {carts(w)}");
+}
+
+// Pushed up a step, every cart counts twice: two are too heavy (the hero climbs on); one goes up —
+// and rolls back down by itself.
+fn test_pushing_uphill_counts_double() {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 8, 1, 0, rules::tr(w, "wall"));
+  tile_world::set_terrain(w.w, 0, 0, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 1, 0, 7, 0, 0, rules::tr(w, "rail"));
+  for x in 3..8 { tile_world::set_rise(w.w, x, 0, 0, 1); }
+  put(w, 1, 0, "cart");
+  put(w, 2, 0, "cart");
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_h == 1, "two up a step: too heavy, climbed");
+  v = rules::level(rules::kinds());
+  tile_world::fill(v.w, -1, -1, 8, 1, 0, rules::tr(v, "wall"));
+  tile_world::set_terrain(v.w, 0, 0, 0, rules::tr(v, "floor"));
+  tile_world::fill(v.w, 1, 0, 7, 0, 0, rules::tr(v, "rail"));
+  for x in 3..8 { tile_world::set_rise(v.w, x, 0, 0, 1); }
+  put(v, 2, 0, "cart");
+  rules::put_hero(v, 0, 0, 0);
+  _ = rules::walk(v, 1, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Pushed && carts(v) == "x3 ", "one up: {carts(v)}");
+  rules::put_hero(v, 0, 0, 0);
+  rules::tick(v, 0);
+  rules::tick(v, 600);
+  assert(carts(v) == "x2 ", "and back down: {carts(v)}");
+}
+
+// A light item on the rails is shoved ahead of a rolling cart.
+fn test_a_rolling_cart_sweeps_the_rails() {
+  w = hill();
+  put(w, 0, 0, "cart");
+  put(w, 4, 0, "stick");
+  rules::tick(w, 0);
+  until(w, 1250);
+  assert(carts(w) == "x4 " && tile_world::top(w.w, 5, 0, 0) == rules::th(w, "stick"), "the stick shoved on to x 5");
+}
+
+// Riding into a junction by its toe, set straight: the hero leaning east takes the bend; not
+// leaning, it goes on north.  A slope south of the junction starts the cart.
+fn junction_hill(lean: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -2, -2, 7, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, -1, -1, 6, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 3, 0, 3, 4, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 4, 2, 5, 2, 0, rules::tr(w, "rail"));
+  m = materials::load(file("../theme.json").content() ?? "", w.k);
+  for t in m.track { rules::add_piece(w, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
+  j = 0;
+  for t in m.track { if t.toe == 4 && t.straight == 1 && t.turn == 2 && !t.set_turn { j = t.tile; } }
+  tile_world::set_terrain(w.w, 3, 2, 0, rules::tr(w, "rail"), j);
+  tile_world::set_rise(w.w, 3, 4, 0, 2);
+  tile_world::set_rise(w.w, 3, 3, 0, 1);
+  tile_world::place(w.w, 3, 4, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 3, 4, 0);
+  rules::tick(w, 0);
+  if lean { _ = rules::walk(w, 1, 0); }
+  w
+}
+
+fn test_leaning_takes_the_branch() {
+  w = junction_hill(true);
+  until(w, 1100);
+  assert(w.hero_x == 4 && w.hero_y == 2, "leaning east: the bend, at {w.hero_x},{w.hero_y}");
+  v = junction_hill(false);
+  until(v, 1100);
+  assert(v.hero_x == 3 && v.hero_y == 1, "not leaning: on north, at {v.hero_x},{v.hero_y}");
+}

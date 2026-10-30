@@ -126,9 +126,14 @@ This is what the game built on tile_world should be.
   derailing past an open end.  Built, step 2 (`tests/tracks.loft`): painted pieces (a cell's
   picture, theme.json `tracks` and `junctions`, keeping parallel tracks apart), junctions (in by
   the toe: the setting; in by a branch: to the toe), the lever (walked into, it sets the junctions
-  beside it the other way: their twin picture, its handle over), and the lean's choice (taken
-  from a riding hero once carts roll).  Step 3 (slopes, rolling, riding, leaning by the arrows)
-  is not built; nor is a palette entry for painting a junction in the editor.
+  beside it the other way: their twin picture, its handle over), and the lean's choice.  Built,
+  step 3 (`tests/rolling.loft`): rails on slopes (a step up or down between rail cells; pushing
+  up a step counts every cart twice), rolling by itself on the world clock with speed that builds
+  and coasts (the times worked by hand in the tests, the same in one tick or many), linking by
+  weight, the hero hurt and pushed aside or taken on board, riding, and leaning by the arrows while
+  rolling.  The game hears every cell a cart rolls and returns a hero a cart kills to its well.
+  Not built: rolling over a slope's top onto the layer above; a palette entry for painting a
+  junction in the editor.  A hero riding a cart that derails stays on it (proposed, as built).
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
     side do not fuse.

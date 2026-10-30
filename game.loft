@@ -93,7 +93,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2"]
 }
 
 fn bindings() -> input::Bindings {
@@ -260,6 +260,8 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "potion");
   } else if step == rules::Step.Lit {
     sound(g, "point");
+  } else if step == rules::Step.Leaned {
+    sound(g, "step_wood", 0.3);
   } else if step == rules::Step.Opened {
     sound(g, if thing == 0 { "door_open" } else { "chest_open" });
   } else if step == rules::Step.Fell {
@@ -531,7 +533,20 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   frame = g.world.now / theme::FRAME_MS;
   held = g.world.hero_item;
   flames = len(g.world.flames);
+  rolled = g.world.rolled;
+  health = g.world.health;
   rules::tick(g.world, ms);
+  // A rolling cart is heard before it is seen: every cell it rolls rumbles; a hit hurts.
+  if g.world.rolled != rolled {
+    sound(g, "cart", 0.5);
+    changed = true;
+  }
+  if g.world.health < health {
+    sound(g, "hit_hero", 1.0);
+    changed = true;
+    // Run down by a cart with no health left: back at the last well, as after a fall.
+    if !rules::alive(g.world) && g.has_save { return_to_save(g); }
+  }
   // A flame flickers (its next frame), burns low or burns out: the picture moves.
   if rules::burning(g.world) && g.world.now / theme::FRAME_MS != frame { changed = true; }
   if len(g.world.flames) != flames { changed = true; }

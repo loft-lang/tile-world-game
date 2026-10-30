@@ -11,7 +11,10 @@
     "low_ms": 60000,
     "fade": 4,
     "flicker_ms": 500,
-    "flicker_odds": 4
+    "flicker_odds": 4,
+    "roll_ms": 600,
+    "max_speed": 4,
+    "coast": 2
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

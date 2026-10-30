@@ -135,7 +135,12 @@ pub struct Kinds {
   /// A flame's light flickers: every `flicker_ms` it may be one shade dimmer, one step in
   /// `flicker_odds` (0: never).
   pub flicker_ms: integer,
-  pub flicker_odds: integer
+  pub flicker_odds: integer,
+  /// A rolling train moves a cell every roll_ms / speed; its speed is 1 .. max_speed, and on the
+  /// flat it loses one every `coast` cells.
+  pub roll_ms: integer,
+  pub max_speed: integer,
+  pub coast: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -170,7 +175,10 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     low_ms: num(r, "low_ms", 60000),
     fade: num(r, "fade", 4),
     flicker_ms: num(r, "flicker_ms", 500),
-    flicker_odds: num(r, "flicker_odds", 4)
+    flicker_odds: num(r, "flicker_odds", 4),
+    roll_ms: num(r, "roll_ms", 600),
+    max_speed: num(r, "max_speed", 4),
+    coast: num(r, "coast", 2)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -221,12 +229,12 @@ pub fn kinds() -> Kinds {
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
-                                 flicker_odds: 4 }; }
+                                 flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
-          flicker_ms: 500, flicker_odds: 4 }
+          flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -327,6 +335,19 @@ pub struct Piece {
   pub twin: integer
 }
 
+/// A train rolling by itself: its carts' cells front first, on layer z, the way its front last
+/// moved, its speed (1 .. max_speed), when it moves next (the level's clock), and the cells it has
+/// run on the flat since it last slowed.
+pub struct Roll {
+  pub cells: vector<(integer, integer)>,
+  pub z: integer,
+  pub dx: integer,
+  pub dy: integer,
+  pub speed: integer,
+  pub due: integer,
+  pub flat: integer
+}
+
 /// A cell being felled, and the blows it has taken.
 pub struct Blows {
   pub x: integer,
@@ -360,7 +381,13 @@ pub struct Level {
   /// The trees (and anything else taking more than one blow) part felled.
   pub blows: vector<Blows>,
   /// The painted track pieces, by their picture (`add_piece`; theme.json's tracks and junctions).
-  pub pieces: hash<Piece[tile]>
+  pub pieces: hash<Piece[tile]>,
+  /// The trains rolling by themselves; the way the hero riding one leans (kept until the next
+  /// junction); how many cells all of them have rolled (the game hears it).
+  pub rolls: vector<Roll>,
+  pub lean_x: integer,
+  pub lean_y: integer,
+  pub rolled: integer
 }
 
 /// What a step did.
@@ -385,6 +412,8 @@ pub enum Step {
   Chopped,
   /// The hero threw a lever: the junctions beside it are set the other way.
   Switched,
+  /// The hero riding a rolling cart leaned (it keeps the lean until the next junction).
+  Leaned,
   /// The hero dipped what it holds (a stick, in a tar barrel).
   Dipped,
   /// A flame lit a torch: the one the hero holds, or the one in a socket.
@@ -408,7 +437,8 @@ pub fn level(k: const Kinds) -> Level {
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light && !t.flame, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
-          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [] }
+          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
+          rolls: [], lean_x: 0, lean_y: 0, rolled: 0 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -1112,6 +1142,8 @@ pub fn drop(l: Level) -> Step {
 pub fn tick(l: Level, ms: integer) {
   if !l.kindled { kindle(l); }
   if ms > 0 { l.now += ms; }
+  start_rolls(l);
+  roll_due(l);
   burn_out(l);
 }
 
@@ -1298,19 +1330,24 @@ pub fn train(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
 // along the rails onto a free cell (a light item there pushed out of the way), or off a track's
 // end onto free floor, where it derails.  Answers whether it moved.
 fn push_train(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  if rolling_at(l, x, y, z) >= 0 { return false; }
   tw = train_way(l, x, y, z, dx, dy);
   n = len(tw.cells);
-  if n == 0 || n > push_strength(l) || tw.how == STUCK { return false; }
+  if n == 0 || tw.how == STUCK { return false; }
   last = tw.cells[n - 1] ?? (x, y);
   fx = last.0 + tw.way.0;
   fy = last.1 + tw.way.1;
+  // Up a step every cart counts twice against the strength.
+  up = tile_world::rise(l.w, fx, fy, z) > tile_world::rise(l.w, last.0, last.1, z);
+  if (if up { 2 * n } else { n }) > push_strength(l) { return false; }
   front = base(l, last.0, last.1, z);
   if tw.how == ALONG {
-    if !fits(l, front, fx, fy, z, 0) || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) { return false; }
+    if !rail_room(l, last.0, last.1, fx, fy, z) || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) { return false; }
   } else {
     k = tile_world::terrain(l.w, fx, fy, z);
     if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, last.0, last.1, z, tw.way.0, tw.way.1)
-        || height(l, fx, fy, z) != 0 || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) {
+        || height(l, fx, fy, z) != tile_world::rise(l.w, last.0, last.1, z)
+        || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) {
       return false;
     }
     t = tile_world::top(l.w, fx, fy, z);
@@ -1336,7 +1373,17 @@ fn push_train(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: int
 // Is (x, y, z) one car of a train: a train thing on its floor (an item resting on it or not).
 fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
   t = base(l, x, y, z);
-  trainlike(l, t) && height(l, x, y, z) == thing_height(l, t)
+  trainlike(l, t) && height(l, x, y, z) == tile_world::rise(l.w, x, y, z) + thing_height(l, t)
+}
+
+// Room for a cart on rail cell (tx, ty, z) coming from (fx, fy, z): rail, nothing but an item on
+// it, and at most a step up or down — a slope.
+fn rail_room(l: const Level, fx: integer, fy: integer, tx: integer, ty: integer, z: integer) -> boolean {
+  if !rail(l, tile_world::terrain(l.w, tx, ty, z)) { return false; }
+  t = tile_world::top(l.w, tx, ty, z);
+  if t != 0 && !item(l, t) { return false; }
+  d = tile_world::rise(l.w, tx, ty, z) - tile_world::rise(l.w, fx, fy, z);
+  d >= -1 && d <= 1
 }
 
 // Can a line of n things from (x, y), each moving one step (dx, dy), cross every edge on the way.
@@ -1427,6 +1474,12 @@ pub fn alive(l: const Level) -> boolean {
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   if !alive(l) { return Step.Blocked; }
+  // Riding a rolling cart the hero does not walk: it leans, and the next junction takes it.
+  if riding(l) >= 0 {
+    l.lean_x = dx;
+    l.lean_y = dy;
+    return Step.Leaned;
+  }
   c = climb(l, dx, dy);
   if c != null { return c ?? Step.Blocked; }
   tx = l.hero_x + dx;
@@ -1608,8 +1661,11 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
     n = len(cars);
     under = tile_world::top(l.w, fx, fy, z);
     pulled_way = (fx - bx, fy - by);
-    can = left == 0 && (joins(l, fx, fy, z) & side_bit(bx - fx, by - fy)) != 0 && (under == 0 || item(l, under));
-    strong = n <= pull_strength(l);
+    rf = tile_world::rise(l.w, fx, fy, z);
+    rb = tile_world::rise(l.w, bx, by, z);
+    can = left == rf && rb - rf <= 1 && rf - rb <= 1 && rolling_at(l, bx, by, z) < 0
+          && (joins(l, fx, fy, z) & side_bit(bx - fx, by - fy)) != 0 && (under == 0 || item(l, under));
+    strong = (if rf > rb { 2 * n } else { n }) <= pull_strength(l);
     arrive(l, tx, ty, z);
     // An item where the hero stood goes out of the way, once the hero has moved on.
     if !can || !strong || !way_clear(l, fx, fy, z, pulled_way.0, pulled_way.1) { return Step.Walked; }
@@ -1671,4 +1727,328 @@ pub fn play(l: Level, moves: text) -> integer {
 pub fn in_daylight(l: const Level) -> boolean {
   tile_world::open_sky(l.w, l.hero_x, l.hero_y, l.hero_z)
     && tile_world::terrain(l.w, l.hero_x, l.hero_y, l.hero_z) != VOID
+}
+
+// --- Rolling carts ---
+//
+// A cart stands still on the flat; where its track leads one step down, it starts to roll by itself
+// (on the level's clock: at speed n a cell every roll_ms / n).  Each step down adds one to its speed,
+// up to max_speed; each step up takes two; on the flat it loses one every `coast` cells; at none it
+// stops (and on a slope rolls back down).  A rolling train goes along its track like a pushed one —
+// round bends, the junction's setting or the riding hero's lean, off an open end (derailing) — and
+// what it meets decides the rest: a cart links on, sharing the speed by weight; light items are
+// shoved out of the way; the hero is hurt by the speed and pushed aside (the side its place prefers,
+// then the other), or with no room taken on board; anything else stops it.
+
+// The rolling train with a cart on (x, y, z), -1 for none.
+fn rolling_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(l.rolls) {
+    r = l.rolls[i];
+    if r.z != z { continue; }
+    for c in r.cells ?? [] { if c.0 == x && c.1 == y { return i; } }
+  }
+  -1
+}
+
+/// The rolling train the hero rides (standing on one of its carts), -1 for none.
+pub fn riding(l: const Level) -> integer {
+  i = rolling_at(l, l.hero_x, l.hero_y, l.hero_z);
+  if i < 0 { return -1; }
+  if l.hero_h != height(l, l.hero_x, l.hero_y, l.hero_z) { return -1; }
+  i
+}
+
+// The carts behind the cart on (x, y, z) along its track, away from the way (dx, dy): the train it
+// leads, front first.
+fn train_behind(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [(x, y)];
+  cx = x;
+  cy = y;
+  ax = dx;
+  ay = dy;
+  while len(out) < 64 {
+    m = joins(l, cx, cy, z) - (joins(l, cx, cy, z) & side_bit(ax, ay));
+    found = false;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if found || (m & side_bit(d.0, d.1)) == 0 { continue; }
+      if car(l, cx + d.0, cy + d.1, z) && rolling_at(l, cx + d.0, cy + d.1, z) < 0 {
+        cx += d.0;
+        cy += d.1;
+        out += [(cx, cy)];
+        ax = -d.0;
+        ay = -d.1;
+        found = true;
+      }
+    }
+    if !found { return out; }
+  }
+  out
+}
+
+// Every standing cart whose track leads a step down starts its train rolling that way.
+fn start_rolls(l: Level) {
+  for c in tile_world::stacks(l.w) {
+    if !car(l, c.0, c.1, c.2) || rolling_at(l, c.0, c.1, c.2) >= 0 { continue; }
+    here = tile_world::rise(l.w, c.0, c.1, c.2);
+    m = joins(l, c.0, c.1, c.2);
+    started = false;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if started || (m & side_bit(d.0, d.1)) == 0 { continue; }
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      if tile_world::rise(l.w, nx, ny, c.2) != here - 1 || !rail_room(l, c.0, c.1, nx, ny, c.2) { continue; }
+      l.rolls += [Roll { cells: train_behind(l, c.0, c.1, c.2, d.0, d.1), z: c.2, dx: d.0, dy: d.1, speed: 1,
+                         due: l.now + l.k.roll_ms, flat: 0 }];
+      started = true;
+    }
+  }
+}
+
+// Move every train whose time has come, the earliest first, as often as its speed allows.
+fn roll_due(l: Level) {
+  guard = 0;
+  while guard < 1000 {
+    guard += 1;
+    first = -1;
+    for i in 0..len(l.rolls) {
+      r = l.rolls[i];
+      if r.due <= l.now && (first < 0 || r.due < (l.rolls[first].due ?? 0)) { first = i; }
+    }
+    if first < 0 { return; }
+    roll_step(l, first);
+  }
+}
+
+// Train ri stops: it is a standing train again.
+fn stop_roll(l: Level, ri: integer) {
+  _ = l.rolls.remove(ri);
+  if riding(l) < 0 {
+    l.lean_x = 0;
+    l.lean_y = 0;
+  }
+}
+
+// The way the hero is pushed aside from (x, y, z) by a train coming (dx, dy): the side the place
+// prefers, then the other; (0, 0) with no room either side.
+fn shove_aside(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> (integer, integer) {
+  first = if prefers_right(x, y, z) { (-dy, dx) } else { (dy, -dx) };
+  for d in [first, (-first.0, -first.1)] {
+    nx = x + d.0;
+    ny = y + d.1;
+    k = tile_world::terrain(l.w, nx, ny, z);
+    t = tile_world::top(l.w, nx, ny, z);
+    if walkable(l, k) && tile_world::crossable(l.w, x, y, z, d.0, d.1) && (t == 0 || item(l, t))
+        && height(l, nx, ny, z) == tile_world::rise(l.w, x, y, z) {
+      return d;
+    }
+  }
+  (0, 0)
+}
+
+// One cell on for rolling train ri.
+fn roll_step(l: Level, ri: integer) {
+  r = l.rolls[ri];
+  z = r.z;
+  n = len(r.cells);
+  front = r.cells[0] ?? (0, 0);
+  rider = -1;
+  if riding(l) == ri {
+    for i in 0..n {
+      c = r.cells[i] ?? (0, 0);
+      if c.0 == l.hero_x && c.1 == l.hero_y { rider = i; }
+    }
+  }
+  lean = if rider >= 0 { (l.lean_x, l.lean_y) } else { (0, 0) };
+  at_junction = junction_way(l, front.0, front.1, z, r.dx, r.dy).0 != 0
+                || junction_way(l, front.0, front.1, z, r.dx, r.dy).1 != 0;
+  // As for a pushed cart: a train starting from a track's end leaves by its one side.
+  w = way_on(l, front.0, front.1, z, r.dx, r.dy, true, lean);
+  if at_junction && rider >= 0 {
+    l.lean_x = 0;
+    l.lean_y = 0;
+  }
+  if w.2 == STUCK {
+    stop_roll(l, ri);
+    return;
+  }
+  nx = front.0 + w.0;
+  ny = front.1 + w.1;
+  if w.2 == DERAILS {
+    k = tile_world::terrain(l.w, nx, ny, z);
+    t = tile_world::top(l.w, nx, ny, z);
+    if walkable(l, k) && !blocks_things(l, k) && tile_world::crossable(l.w, front.0, front.1, z, w.0, w.1)
+        && (t == 0 || item(l, t)) && height(l, nx, ny, z) == tile_world::rise(l.w, front.0, front.1, z)
+        && way_clear(l, nx, ny, z, w.0, w.1) {
+      clear_way(l, nx, ny, z, w.0, w.1);
+      fb = base(l, front.0, front.1, z);
+      move_cars(l, ri, nx, ny, rider);
+      p = l.k.things[fb];
+      to = if p { thing_id(l.k, p.derails_to) } else { 0 };
+      if to != 0 { replace_base(l, nx, ny, z, to); }
+      if rider == 0 { l.hero_h = height(l, nx, ny, z); }
+    }
+    stop_roll(l, ri);
+    return;
+  }
+  // A cart there: the trains link and share the speed by weight.
+  if car(l, nx, ny, z) {
+    link(l, ri, nx, ny, w.0, w.1);
+    return;
+  }
+  // The hero in the way: hurt by the speed, pushed aside — or with no room, taken on board.
+  if l.hero_x == nx && l.hero_y == ny && l.hero_z == z && rider < 0 {
+    l.health -= r.speed;
+    if l.health < 0 { l.health = 0; }
+    a = shove_aside(l, nx, ny, z, w.0, w.1);
+    if a.0 != 0 || a.1 != 0 { arrive(l, nx + a.0, ny + a.1, z); }
+  }
+  if !rail_room(l, front.0, front.1, nx, ny, z) || !way_clear(l, nx, ny, z, w.0, w.1) {
+    stop_roll(l, ri);
+    return;
+  }
+  clear_way(l, nx, ny, z, w.0, w.1);
+  passenger = l.hero_x == nx && l.hero_y == ny && l.hero_z == z;
+  drop = tile_world::rise(l.w, front.0, front.1, z) - tile_world::rise(l.w, nx, ny, z);
+  move_cars(l, ri, nx, ny, rider);
+  if passenger { l.hero_h = height(l, nx, ny, z); }
+  l.rolled += 1;
+  sp = l.rolls[ri].speed ?? 0;
+  fl = l.rolls[ri].flat ?? 0;
+  if drop > 0 {
+    sp = if sp + 1 > l.k.max_speed { l.k.max_speed } else { sp + 1 };
+    fl = 0;
+  } else if drop < 0 {
+    sp -= 2;
+    fl = 0;
+  } else {
+    fl += 1;
+    if fl >= l.k.coast {
+      sp -= 1;
+      fl = 0;
+    }
+  }
+  if sp <= 0 {
+    stop_roll(l, ri);
+    return;
+  }
+  l.rolls[ri].dx = w.0;
+  l.rolls[ri].dy = w.1;
+  l.rolls[ri].speed = sp;
+  l.rolls[ri].flat = fl;
+  // From when this move was due, not from now: a tick that covers several moves (a slow frame)
+  // must give the same path as many small ones — the game is deterministic.
+  l.rolls[ri].due = (r.due ?? l.now) + l.k.roll_ms / sp;
+}
+
+// Move the carts of rolling train ri one cell on: its front to (nx, ny), each other cart into the
+// cell of the one before it; the hero riding cart `rider` moves with it.
+fn move_cars(l: Level, ri: integer, nx: integer, ny: integer, rider: integer) {
+  r = l.rolls[ri];
+  z = r.z;
+  old = r.cells;
+  n = len(old);
+  front = old[0] ?? (0, 0);
+  move_base(l, front.0, front.1, z, nx, ny);
+  for i in 1..n {
+    c = old[i] ?? (0, 0);
+    t = old[i - 1] ?? (0, 0);
+    move_base(l, c.0, c.1, z, t.0, t.1);
+  }
+  cells: vector<(integer, integer)> = [(nx, ny)];
+  for i in 0..n - 1 { cells += [old[i] ?? (0, 0)]; }
+  l.rolls[ri].cells = cells;
+  if rider >= 0 {
+    to = cells[rider] ?? (nx, ny);
+    l.hero_x = to.0;
+    l.hero_y = to.1;
+    l.hero_h = height(l, to.0, to.1, z);
+  }
+}
+
+// Rolling train ri, moving (dx, dy), meets a cart on (x, y): the two link into one train.  A standing
+// train is pushed on at the speed shared by weight (n moving at v, m standing: v * n / (n + m),
+// rounded down); a train rolling away is caught up (the two speeds shared by weight); one rolling
+// at it meets head on (the difference of the two, the heavier way).
+fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer) {
+  // The train's facts as plain values first: every write below changes l.rolls.
+  z = l.rolls[ri].z ?? 0;
+  mine: vector<(integer, integer)> = [];
+  for c in l.rolls[ri].cells ?? [] { cc = c; mine += [cc]; }
+  speed = l.rolls[ri].speed ?? 0;
+  due = l.rolls[ri].due ?? l.now;
+  n = len(mine);
+  oi = rolling_at(l, x, y, z);
+  if oi < 0 {
+    tw = train_way(l, x, y, z, dx, dy);
+    ahead = tw.cells;
+    m = len(ahead);
+    sp = speed * n / (n + m) ?? 0;
+    cells: vector<(integer, integer)> = [];
+    k = m - 1;
+    while k >= 0 {
+      cells += [ahead[k] ?? (x, y)];
+      k -= 1;
+    }
+    for c in mine { cc = c; cells += [cc]; }
+    d = if m >= 2 { ((ahead[m - 1] ?? (x, y)).0 - (ahead[m - 2] ?? (x, y)).0,
+                     (ahead[m - 1] ?? (x, y)).1 - (ahead[m - 2] ?? (x, y)).1) } else { (dx, dy) };
+    l.rolls[ri].cells = cells;
+    l.rolls[ri].dx = d.0;
+    l.rolls[ri].dy = d.1;
+    l.rolls[ri].speed = sp;
+    l.rolls[ri].flat = 0;
+    l.rolls[ri].due = due + l.k.roll_ms / (if sp > 0 { sp } else { 1 });
+    if sp <= 0 { stop_roll(l, ri); }
+    return;
+  }
+  theirs: vector<(integer, integer)> = [];
+  for c in l.rolls[oi].cells ?? [] { cc = c; theirs += [cc]; }
+  ospeed = l.rolls[oi].speed ?? 0;
+  m = len(theirs);
+  rear = theirs[m - 1] ?? (0, 0);
+  if rear.0 == x && rear.1 == y {
+    // Caught up: one train, the other's way, the speeds shared by weight.
+    sp = (speed * n + ospeed * m) / (n + m) ?? 0;
+    cells: vector<(integer, integer)> = [];
+    for c in theirs { cc = c; cells += [cc]; }
+    for c in mine { cc = c; cells += [cc]; }
+    l.rolls[oi].cells = cells;
+    l.rolls[oi].speed = sp;
+    l.rolls[oi].flat = 0;
+    _ = l.rolls.remove(ri);
+    return;
+  }
+  // Head on: the difference, the heavier train's way; even, both stop.
+  p = speed * n - ospeed * m;
+  if p == 0 {
+    j = if ri > oi { ri } else { oi };
+    i = if ri > oi { oi } else { ri };
+    _ = l.rolls.remove(j);
+    _ = l.rolls.remove(i);
+    return;
+  }
+  sp = (if p > 0 { p } else { -p }) / (n + m) ?? 0;
+  if p > 0 {
+    cells: vector<(integer, integer)> = [];
+    k = m - 1;
+    while k >= 0 {
+      cells += [theirs[k] ?? (0, 0)];
+      k -= 1;
+    }
+    for c in mine { cc = c; cells += [cc]; }
+    l.rolls[ri].cells = cells;
+    l.rolls[ri].speed = sp;
+    _ = l.rolls.remove(oi);
+  } else {
+    cells: vector<(integer, integer)> = [];
+    for c in theirs { cc = c; cells += [cc]; }
+    k = n - 1;
+    while k >= 0 {
+      cells += [mine[k] ?? (0, 0)];
+      k -= 1;
+    }
+    l.rolls[oi].cells = cells;
+    l.rolls[oi].speed = sp;
+    _ = l.rolls.remove(ri);
+  }
 }
