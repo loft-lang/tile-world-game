@@ -172,10 +172,38 @@ This is what the game built on tile_world should be.
     lost when that enemy goes out of the hero's view.
 - **Bomb.**
   - It is thrown like a bowling ball: it rolls in a straight line and ignites on impact.
-  - **The blast.**
-    - It moves every movable thing beside it one cell away.
-    - It breaks chairs and other fragile things.
-    - It damages enemies.
+  - **The blast** (designed, not built — the owner's rules, 2026-10-30, and proposals marked so).
+    It reaches every cell within its radius (proposed 3) by the shortest way the blast can take:
+    it spreads like light, so walls and closed doors stop it and a wall cell takes it but passes
+    none on.  Distance d counts those steps, 0 on the bomb's own cell.  Everything it reaches is
+    struck at once, resolved farthest first so nothing is pushed into a thing about to move.
+    - **Push, faster the nearer** (owner): a thing at distance d is pushed away from the bomb
+      with speed 4 - d (3 beside it, 1 at the edge).  "Away" is the axis the bomb lies further
+      along; on an even diagonal, the side that place prefers (as for items pushed aside).
+    - **Big things slide** that many cells, or until something stops them; a stone, a barrel,
+      an anvil, a chair.  A chest never moves.  Proposed: a big thing stopped by another big
+      thing stops there, without passing the push on.
+    - **Carts are pushed along their tracks** (owner): the push becomes the train's rolling speed
+      in the direction of the track nearest to "away" — a blast across the track does not move
+      it, and it never leaves the rails but past an open end (it derails).  Rolling, it is a cart
+      like any other: it slows on the flat, links with what it meets, hurts the hero.
+    - **Damage, more the nearer** (owner): the hero and enemies lose 4 - d health (proposed: 4 on
+      the bomb's own cell); the hero is also pushed, like a light thing.
+    - **Fragile things break**: a chair within distance 2 (proposed).
+  - **Small items in the blast** (proposed).  They are light, so they fly further: speed 4 - d + 1,
+    a cell a step, in the same "away".  They stop at the cell before a wall or a big thing; over
+    a drop they fall (and come to rest, roll off, or are lost, as any falling item); landing on
+    another item they roll off beside it.
+    - **A potion shatters** within distance 1: glass.  The rest survive.
+    - **A burning torch keeps burning** and its time; a flung torch is a moving light.
+    - **An item resting on a big thing is flung off it**: lighter, it flies further than its
+      stone or cart moves, so it lands ahead of it.
+    - **Items lying on a track** are flung like any item; the track does not hold them.  A cart
+      the blast sets rolling shoves the items ahead of it on the rails out of the way, as a push.
+  - **Chains** (proposed).  A bomb the blast reaches goes off too.  A tar barrel within distance
+    1 bursts into a fire that burns like a flame (it lights torches) for its burn time; further
+    out it is only pushed.  A bomb riding a cart goes off when the cart is stopped by something —
+    a way to send a blast down a track.
 
 ## Torches and light
 
