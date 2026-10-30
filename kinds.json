@@ -14,7 +14,7 @@
     "flicker_odds": 4,
     "roll_ms": 600,
     "max_speed": 4,
-    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300, "hear_blast": 8, "scare_ms": 5000, "clear_area": 10, "arrow_range": 8, "arrow_ms": 30
+    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300, "hear_blast": 8, "scare_ms": 5000, "clear_area": 10, "search_ms": 6000, "arrow_range": 8, "arrow_ms": 30
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },
@@ -65,6 +65,7 @@
     "rat": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 350, "bite_ms": 900, "sight": 5, "roam": 3, "heal_ms": 4000, "shuns_light": true },
     "bat": { "hp": 1, "bite": 1, "move_ms": 300, "chase_ms": 250, "bite_ms": 900, "sight": 4, "roam": 5, "heal_ms": 4000, "flies": true, "likes_light": true },
     "spider": { "hp": 2, "bite": 1, "move_ms": 500, "chase_ms": 350, "bite_ms": 1000, "sight": 5, "roam": 3, "heal_ms": 4000, "climbs": true },
-    "guard": { "hp": 1, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "guard": true }
+    "guard": { "hp": 1, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "guard": true },
+    "cyclops": { "hp": 5, "bite": 2, "move_ms": 800, "chase_ms": 450, "bite_ms": 1200, "sight": 8, "dark_sight": 2, "roam": 3, "heal_ms": 4000, "searches": true, "calls": 6, "brave": true }
   }
 }

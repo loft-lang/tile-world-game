@@ -98,7 +98,17 @@ struct EnemyProps {
   climbs: boolean,
   shuns_light: boolean,
   likes_light: boolean,
-  guard: boolean
+  guard: boolean,
+  /// How far it sees a hero standing in the dark (a cyclops: 2); at `sight` only a lit one.  The
+  /// same as `sight` for an enemy that sees as well in the dark.
+  dark_sight: integer,
+  /// It searches (a cyclops): having seen the hero it goes to where it last saw it, a blast it
+  /// hears draws it to the place instead of scaring it, and seeing the hero it calls the others of
+  /// its kind within `calls` cells there.  Brave: hurt, it fights on (and heals at its nest once
+  /// nothing is left to search).
+  searches: boolean,
+  calls: integer,
+  brave: boolean
 }
 
 struct EdgeProps {
@@ -202,6 +212,9 @@ pub struct Kinds {
   pub hear_blast: integer,
   pub scare_ms: integer,
   pub clear_area: integer,
+  /// A searching enemy (a cyclops) searches a place this long after it last saw the hero there, or
+  /// heard a blast there.
+  pub search_ms: integer,
   /// How far an arrow flies, in cells, and how long it takes over one.
   pub arrow_range: integer,
   pub arrow_ms: integer
@@ -252,6 +265,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     hear_blast: num(r, "hear_blast", 8),
     scare_ms: num(r, "scare_ms", 5000),
     clear_area: num(r, "clear_area", 10),
+    search_ms: num(r, "search_ms", 6000),
     arrow_range: num(r, "arrow_range", 8),
     arrow_ms: num(r, "arrow_ms", 30)
   };
@@ -280,12 +294,14 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
   en = v.field("enemies");
   for name in en.keys() {
     e = en.field(name);
+    sight = num(e, "sight", 5);
     k.enemies += [EnemyProps {
       name: name, hp: num(e, "hp", 3), bite: num(e, "bite", 1), move_ms: num(e, "move_ms", 600),
-      chase_ms: num(e, "chase_ms", 350), bite_ms: num(e, "bite_ms", 900), sight: num(e, "sight", 5),
+      chase_ms: num(e, "chase_ms", 350), bite_ms: num(e, "bite_ms", 900), sight: sight,
       roam: num(e, "roam", 3), heal_ms: num(e, "heal_ms", 4000), flies: flag(e, "flies"),
       climbs: flag(e, "climbs"), shuns_light: flag(e, "shuns_light"), likes_light: flag(e, "likes_light"),
-      guard: flag(e, "guard")
+      guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
+      calls: num(e, "calls", 0), brave: flag(e, "brave")
     }];
   }
   th = v.field("things");
@@ -320,14 +336,14 @@ pub fn kinds() -> Kinds {
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
                                  blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300,
-                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, arrow_range: 8, arrow_ms: 30 }; }
+                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, search_ms: 6000, arrow_range: 8, arrow_ms: 30 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
           blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300, hear_blast: 8,
-          scare_ms: 5000, clear_area: 10, arrow_range: 8, arrow_ms: 30 }
+          scare_ms: 5000, clear_area: 10, search_ms: 6000, arrow_range: 8, arrow_ms: 30 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -498,6 +514,8 @@ pub struct Level {
   pub enemies: vector<Enemy>,
   pub next_enemy: integer,
   pub killed: integer,
+  /// How often a cyclops has spotted the hero (it shouts: the game plays it).
+  pub spotted: integer,
   /// The bow's aim: whether it is locked on a target, and that target's cell; the arrows shot (the
   /// game draws them flying).
   pub aiming: boolean,
@@ -540,7 +558,19 @@ pub struct Enemy {
   /// Scared by a blast until this time, fleeing the place it went off.
   pub scared_until: integer,
   pub scare_x: integer,
-  pub scare_y: integer
+  pub scare_y: integer,
+  /// Searching (a cyclops) the place (search_x, search_y) until this time; whether it saw the hero
+  /// when it last acted (seeing it anew, it shouts).
+  pub search_until: integer,
+  pub search_x: integer,
+  pub search_y: integer,
+  pub saw: boolean
+}
+
+// No enemy: what a missing index reads as.
+fn no_enemy() -> Enemy {
+  Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0, nest_y: 0, nest_z: 0, hp: 0, due: 0, heal_due: 0, steps: 0,
+          face_x: 0, face_y: 1, scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false }
 }
 
 /// A bomb rolling: on (x, y, z), moving (dx, dy) at `speed` (1 .. max_speed: a cell every
@@ -636,7 +666,7 @@ pub fn level(k: const Kinds) -> Level {
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
-          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0,
+          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0, spotted: 0,
           aiming: false, aim_x: 0, aim_y: 0, shots: [], money: 0, spirit: 0 }
 }
 
@@ -2730,13 +2760,18 @@ fn blown(l: Level, dx: integer, dy: integer, n: integer) {
 }
 
 // A blast centred on (x, y, z) `at` (in water or not): everything in its reach, farthest first.
-// Ordinary enemies that hear it — within hear_blast cells, on its layer — flee it for scare_ms.
+// Ordinary enemies that hear it — within hear_blast cells, on its layer — flee it for scare_ms; a
+// searching one (a cyclops) goes to search the place for search_ms.
 fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: integer) {
   l.blasts += [Blast { x: x, y: y, z: z, at: at, water: water }];
   l.blasted += 1;
   for i in 0..len(l.enemies) {
     e = l.enemies[i];
-    if e.z == z && !enemy_props(l, e.kind).guard && steps_apart(e.x, e.y, x, y) <= l.k.hear_blast {
+    p = enemy_props(l, e.kind);
+    if e.z != z || p.guard || steps_apart(e.x, e.y, x, y) > l.k.hear_blast { continue; }
+    if p.searches {
+      search(l, i, x, y, at + l.k.search_ms);
+    } else {
       l.enemies[i].scared_until = at + l.k.scare_ms;
       l.enemies[i].scare_x = x;
       l.enemies[i].scare_y = y;
@@ -2754,9 +2789,7 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
     d = c.2;
     if l.hero_x == cx && l.hero_y == cy && l.hero_z == z { hero_d = d; }
     foe = enemy_at(l, cx, cy, z);
-    if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0, nest_y: 0,
-        nest_z: 0, hp: 0, due: 0, heal_due: 0, steps: 0, face_x: 0, face_y: 1, scared_until: 0, scare_x: 0,
-        scare_y: 0 }).kind).guard {
+    if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).guard {
       strike_enemy(l, foe, 4 - d);
     }
     t = tile_world::top(l.w, cx, cy, z);
@@ -3019,9 +3052,11 @@ fn push_cart(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
 fn enemy_props(l: const Level, kind: text) -> EnemyProps {
   p = l.k.enemies[kind];
   if p { return p ?? EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
-                     flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false }; }
+                     flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
+                     dark_sight: 5, searches: false, calls: 0, brave: false }; }
   EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
-                     flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false }
+                     flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
+                     dark_sight: 5, searches: false, calls: 0, brave: false }
 }
 
 /// Put an enemy of `kind` on (x, y, z), its nest there; it first acts a wander's step from now.
@@ -3032,7 +3067,7 @@ pub fn add_enemy(l: Level, kind: text, x: integer, y: integer, z: integer) -> in
   l.next_enemy += 1;
   l.enemies += [Enemy { id: id, kind: kind, x: x, y: y, z: z, nest_x: x, nest_y: y, nest_z: z, hp: p.hp,
                         due: l.now + p.move_ms, heal_due: 0, steps: 0, face_x: 0, face_y: 1,
-                        scared_until: 0, scare_x: 0, scare_y: 0 }];
+                        scared_until: 0, scare_x: 0, scare_y: 0, search_until: 0, search_x: 0, search_y: 0, saw: false }];
   id
 }
 
@@ -3186,6 +3221,39 @@ fn way_to_dark(l: const Level, p: const EnemyProps, e: const Enemy) -> (integer,
 }
 
 // Does enemy e see the hero: on its layer, within its sight, nothing opaque between?
+// Does enemy e see the hero, as its kind sees: within `sight` only when the hero stands in light,
+// within `dark_sight` in the dark too.
+fn sees(l: const Level, e: const Enemy, p: const EnemyProps) -> boolean {
+  if !sees_hero(l, e, p.sight) { return false; }
+  p.dark_sight >= p.sight || steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= p.dark_sight || hero_lit(l)
+}
+
+/// Does the hero stand in light (shade 2 or less: daylight, a flame near, its own torch)?  A
+/// cyclops sees it from afar only then.
+pub fn hero_lit(l: const Level) -> boolean {
+  lit_cell(shades_round(l, l.hero_x, l.hero_y, l.hero_z, 0), l.hero_x, l.hero_y)
+}
+
+// Enemy i searches (x, y) until `until`.
+fn search(l: Level, i: integer, x: integer, y: integer, until: integer) {
+  l.enemies[i].search_x = x;
+  l.enemies[i].search_y = y;
+  l.enemies[i].search_until = until;
+}
+
+// Enemy i, hurt, at its nest: the first time it settles in, then every heal_ms a point back.
+fn heal(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
+  if e.heal_due == 0 {
+    l.enemies[i].heal_due = e.due + p.heal_ms;
+    l.enemies[i].due = e.due + p.heal_ms;
+    return;
+  }
+  hp = e.hp + 1;
+  l.enemies[i].hp = hp;
+  l.enemies[i].heal_due = if hp < p.hp { e.heal_due + p.heal_ms } else { 0 };
+  l.enemies[i].due = if hp < p.hp { e.due + p.heal_ms } else { e.due + p.move_ms };
+}
+
 fn sees_hero(l: const Level, e: const Enemy, sight: integer) -> boolean {
   e.z == l.hero_z && alive(l) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= sight
     && tile_world::line_of_sight(l.w, e.x, e.y, l.hero_x, l.hero_y, e.z)
@@ -3265,8 +3333,7 @@ fn guard_act(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 
 // Enemy i acts: once, at its due time.
 fn enemy_act(l: Level, i: integer) {
-  e = l.enemies[i] ?? Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0, nest_y: 0, nest_z: 0, hp: 0, due: 0,
-                              heal_due: 0, steps: 0, face_x: 0, face_y: 1, scared_until: 0, scare_x: 0, scare_y: 0 };
+  e = l.enemies[i] ?? no_enemy();
   p = enemy_props(l, e.kind);
   if p.guard {
     guard_act(l, i, e, p);
@@ -3293,19 +3360,11 @@ fn enemy_act(l: Level, i: integer) {
       return;
     }
   }
-  if e.hp < p.hp {
+  home = e.x == e.nest_x && e.y == e.nest_y && e.z == e.nest_z;
+  if e.hp < p.hp && !p.brave {
     // Hurt.  Beside the hero with a step away from it, it takes it; at its nest it heals.
-    home = e.x == e.nest_x && e.y == e.nest_y && e.z == e.nest_z;
     if home && !beside_hero(l, e) {
-      if e.heal_due == 0 {
-        l.enemies[i].heal_due = e.due + p.heal_ms;
-        l.enemies[i].due = e.due + p.heal_ms;
-        return;
-      }
-      hp = e.hp + 1;
-      l.enemies[i].hp = hp;
-      l.enemies[i].heal_due = if hp < p.hp { e.heal_due + p.heal_ms } else { 0 };
-      l.enemies[i].due = if hp < p.hp { e.due + p.heal_ms } else { e.due + p.move_ms };
+      heal(l, i, e, p);
       return;
     }
     if !home {
@@ -3328,7 +3387,25 @@ fn enemy_act(l: Level, i: integer) {
     if beside_hero(l, e) { bite(l, i, p); } else { l.enemies[i].due = e.due + p.chase_ms; }
     return;
   }
-  if sees_hero(l, e, p.sight) {
+  seen = sees(l, e, p);
+  if p.searches {
+    // (`e` reads the list: what it saw last time is read before it is written.)
+    saw = e.saw;
+    l.enemies[i].saw = seen;
+    if seen {
+      // Seen anew, it shouts; it calls the others of its kind within `calls` cells to the place.
+      if !saw { l.spotted += 1; }
+      search(l, i, l.hero_x, l.hero_y, e.due + l.k.search_ms);
+      for j in 0..len(l.enemies) {
+        other = l.enemies[j] ?? no_enemy();
+        if j != i && other.z == e.z && enemy_props(l, other.kind).searches
+            && steps_apart(other.x, other.y, e.x, e.y) <= p.calls {
+          search(l, j, l.hero_x, l.hero_y, e.due + l.k.search_ms);
+        }
+      }
+    }
+  }
+  if seen {
     if beside_hero(l, e) {
       bite(l, i, p);
       return;
@@ -3337,6 +3414,31 @@ fn enemy_act(l: Level, i: integer) {
     w = chosen_way(l, p, e, l.hero_x, l.hero_y, false, false);
     if w.2 > 1 {
       enemy_step(l, i, w.0, w.1, p.chase_ms);
+      return;
+    }
+  }
+  // Searching (a cyclops): to the place, by the shortest way; there it stands looking until its
+  // search ends.
+  if p.searches && e.due < e.search_until {
+    if e.x != e.search_x || e.y != e.search_y {
+      w = enemy_way(l, p, e.x, e.y, e.z, e.search_x, e.search_y, false, no_shades());
+      if w.2 > 1 || (w.2 == 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1)) {
+        enemy_step(l, i, w.0, w.1, p.chase_ms);
+        return;
+      }
+    }
+    l.enemies[i].due = e.due + p.move_ms;
+    return;
+  }
+  // Brave and hurt, with nothing to search: home, to heal.
+  if p.brave && e.hp < p.hp {
+    if home {
+      heal(l, i, e, p);
+      return;
+    }
+    w = chosen_way(l, p, e, e.nest_x, e.nest_y, false, true);
+    if w.2 > 0 {
+      enemy_step(l, i, w.0, w.1, p.move_ms);
       return;
     }
   }
@@ -3563,9 +3665,7 @@ fn arrow_step(l: Level, i: integer) {
   l.shots[i].done = true;
   if m == 1 {
     foe = enemy_at(l, x, y, s.z);
-    if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0,
-        nest_y: 0, nest_z: 0, hp: 0, due: 0, heal_due: 0, steps: 0, face_x: 0, face_y: 1, scared_until: 0,
-        scare_x: 0, scare_y: 0 }).kind).guard {
+    if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).guard {
       strike_enemy(l, foe, 1);
     }
   } else if m == 2 {

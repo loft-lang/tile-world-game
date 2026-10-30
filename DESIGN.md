@@ -416,7 +416,19 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   away.  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).
   Cyclopes are not scared: slightly more intelligent, they go to search for what set the bomb off
   (owner) — a blast draws them to it.
-- **Cyclopes** (owner, planned).  Hard to fight and living in groups; the way past them is stealth.
+- **Cyclopes: step 1 built** (`tests/cyclops.loft`; Kenney's dungeon:109; the numbers and the
+  way they see are proposed, in kinds.json `enemies.cyclops`):
+  - **They see by light**: a hero standing in light (shade 2 or less: daylight, a flame near, its
+    own torch) within 8 cells in sight; one in the dark only within 2.  So the dark hides the
+    hero and a torch gives it away — the reason to move in the dark.
+  - **Seeing the hero anew, a cyclops shouts** (heard: the voice pack's "fight") and **calls** the
+    others of its kind within 6 cells to the place, seen or not; it comes at the hero (a cell
+    every 450 ms) and strikes for 2 (every 1200 ms).  Health 5.
+  - **Losing it, it searches** the place it last saw it, for 6 s after; there it stands looking,
+    then walks home.  Called ones search the same way; one finding the place taken stands beside it.
+  - **A blast draws them** (owner): within 8 cells they go to search its place instead of fleeing.
+  - **Brave**: hurt, a cyclops fights on, and heals at its nest once nothing is left to search.
+- **Cyclopes** (owner, step 2 planned).  Hard to fight and living in groups; the way past them is stealth.
   - They use weapons, and throw bombs at the hero — bombs like any other: they push, hurt, chain,
     light or douse torches, and scare the ordinary enemies around.
   - Without a weapon a cyclops pulls the hero towards its own nest; the hero breaks out of the pull
@@ -427,10 +439,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit,
   and they hurt other enemies too, but throw no levers (owner).  While wandering it hunts other enemies, but it prefers
   the hero: seen, the hero is its target.
-- **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
-  way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,
-  and they make light double-edged: a burning torch shows the hero to them.  How a cyclops
-  sees (light on the hero, distance, sight lines) is to be designed with them.
+- **Cyclopes and light.**  Light is double-edged: a burning torch shows the hero to them (step 1,
+  above).  Still open: whether a cyclops's own sight counts for a well's clear area in the dark
+  (INTERACTIONS.md 23) — for now any enemy in line of sight within 10 does.
 
 ## Guards, doors and wells
 

@@ -1,0 +1,189 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Cyclopes (DESIGN.md § Enemies): health 5, a blow of 2; they see a hero standing in light within
+// 8 cells, one in the dark only within 2; seeing the hero they shout and call the others of their
+// kind within 6 cells; losing it they search the place they last saw it for 6 s; a blast they hear
+// draws them to it; hurt, they fight on, and heal at their nest once nothing is left to search.
+// Every cyclops here first acts at 800, chases a cell every 450, waits 1200 after a blow and looks
+// round every 800.  Every time is worked by hand.
+use tile_world;
+use rules;
+
+// A corridor x 0 .. n - 1, y 0 .. rows - 1, walled; with `ceiling` under a roof (dark: only flames
+// light it), else in daylight.  A floor on (0, 0, 2), out of everyone's sight.
+fn hall(n: integer, rows: integer, ceiling: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  if ceiling { tile_world::fill(w.w, -1, -1, n, rows, 1, rules::tr(w, "floor")); }
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  w.k.flicker_odds = 0;
+  w
+}
+
+fn torch(w: rules::Level) {
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.k.burn_ms;
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn at(w: const rules::Level, i: integer) -> text {
+  e = w.enemies[i];
+  if !e { return "none"; }
+  "x{e.x} y{e.y} hp{e.hp}"
+}
+
+fn main() {
+  w = hall(4, 1, true);
+  _ = rules::add_enemy(w, "cyclops", 2, 0, 0);
+  assert(at(w, 0) == "x2 y0 hp5", "a cyclops: {at(w, 0)}");
+}
+
+// The dark hides the hero: on x 0, unlit, from a cyclops nesting on x 6 that roams x 3 .. 9 — it
+// never comes within 2, so never sees it, in 20 s.  With a torch the hero is seen from x 6 at 800:
+// it shouts and comes, x 5 .. 1 by 2600, and its blow at 3050 costs 2.  In daylight the same.
+fn test_a_cyclops_sees_the_hero_only_in_light() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  until(w, 20000);
+  assert(w.health == 6 && w.spotted == 0 && !rules::hero_lit(w), "unseen in the dark: {w.health} {at(w, 0)}");
+  for lit in [true, false] {
+    v = hall(10, 1, lit);
+    rules::put_hero(v, 0, 0, 0);
+    if lit { torch(v); }
+    _ = rules::add_enemy(v, "cyclops", 6, 0, 0);
+    assert(rules::hero_lit(v), "lit");
+    until(v, 800);
+    assert(at(v, 0) == "x5 y0 hp5" && v.spotted == 1, "800: seen, it shouts and comes: {at(v, 0)}");
+    until(v, 3049);
+    assert(at(v, 0) == "x1 y0 hp5" && v.health == 6, "3049: beside, not yet");
+    until(v, 3050);
+    assert(v.health == 4 && v.spotted == 1, "3050: a blow of 2, one shout: {v.health}");
+  }
+}
+
+// Within 2 the dark does not hide the hero: the cyclops on x 2 sees it at 800, steps to x 1, and
+// strikes at 1250.
+fn test_close_by_the_dark_does_not_hide() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::add_enemy(w, "cyclops", 2, 0, 0);
+  until(w, 1249);
+  assert(at(w, 0) == "x1 y0 hp5" && w.health == 6, "1249: beside");
+  until(w, 1250);
+  assert(w.health == 4, "1250: struck: {w.health}");
+}
+
+// Losing the hero it searches where it saw it.  A corridor along y 0 and a passage down x 0 to
+// y 4.  Seen with a torch on (0, 0) at 800, the hero snuffs it and slips down to (0, 4): out of the
+// cyclops's sight (dark, more than 2 away).  It goes on to (0, 0) — x 4 at 1250 .. x 0 at 3050 —
+// and stands looking there, 4 from the hero, till its search ends (6800); at 7500 it heads home.
+fn test_a_cyclops_searches_where_it_last_saw_the_hero() {
+  w = hall(10, 5, true);
+  tile_world::fill(w.w, 1, 1, 9, 4, 0, rules::tr(w, "wall"));
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  until(w, 800);
+  assert(at(w, 0) == "x5 y0 hp5", "800: seen");
+  w.hero_item = 0;
+  rules::put_hero(w, 0, 4, 0);
+  until(w, 3049);
+  assert(at(w, 0) == "x1 y0 hp5", "3049: x 1: {at(w, 0)}");
+  until(w, 3050);
+  assert(at(w, 0) == "x0 y0 hp5", "3050: where it saw the hero: {at(w, 0)}");
+  until(w, 7499);
+  assert(at(w, 0) == "x0 y0 hp5" && w.health == 6 && w.spotted == 1, "7499: still looking, the hero unseen: {at(w, 0)}");
+  until(w, 7500);
+  assert(at(w, 0) == "x1 y0 hp5", "7500: home it goes: {at(w, 0)}");
+}
+
+// Seeing the hero it calls the others within 6: a hall y 0 .. 1 and a corridor y 3, a wall
+// between but for x 9.  The one on (6, 0) sees the lit hero on (0, 0) at 800; the one on (6, 3)
+// cannot (the wall) but is called: it searches (0, 0) and takes the long way round, east first.
+// Called from 8 away (corridors y 0 and y 8) it is not.  (In a corridor one cell wide the first
+// would block the way: the called one stands and waits.)
+fn test_a_cyclops_calls_the_others() {
+  w = hall(10, 4, true);
+  tile_world::fill(w.w, 0, 2, 8, 2, 0, rules::tr(w, "wall"));
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  _ = rules::add_enemy(w, "cyclops", 6, 3, 0);
+  until(w, 800);
+  b = w.enemies[1];
+  assert(at(w, 1) == "x7 y3 hp5" && b.search_x == 0 && b.search_y == 0 && b.search_until == 6800,
+         "called, round by x 9: {at(w, 1)} {b.search_until}");
+  assert(w.spotted == 1, "one shout: the called one has not seen the hero");
+  v = hall(10, 9, true);
+  tile_world::fill(v.w, 0, 1, 8, 7, 0, rules::tr(v, "wall"));
+  rules::put_hero(v, 0, 0, 0);
+  torch(v);
+  _ = rules::add_enemy(v, "cyclops", 6, 0, 0);
+  _ = rules::add_enemy(v, "cyclops", 6, 8, 0);
+  until(v, 800);
+  far = v.enemies[1];
+  assert(far.search_until == 0, "8 away: not called");
+}
+
+// A blast draws it: a bomb on x 2 goes off at 100, the hero out of sight on layer 2.  The cyclops
+// on x 6 (out of the blast's reach of 3) goes to the place: x 5 at 800 .. x 2 at 2150.  A second
+// one, on x 7, follows — waiting where the first blocks the corridor — and from 4200 stands on
+// x 3: the place is taken (at 5000 it is still there, the search lasting till 6100).  A rat there flees it
+// instead, east.
+fn test_a_blast_draws_a_cyclops() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 2);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "bomb"));
+  w.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
+  _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
+  until(w, 100);
+  assert(w.blasted == 1 && at(w, 0) == "x6 y0 hp5", "the blast; untouched");
+  until(w, 2149);
+  assert(at(w, 0) == "x3 y0 hp5", "2149: x 3: {at(w, 0)}");
+  until(w, 2150);
+  assert(at(w, 0) == "x2 y0 hp5", "2150: at the blast's place: {at(w, 0)}");
+  u = hall(10, 1, true);
+  rules::put_hero(u, 0, 0, 2);
+  tile_world::place(u.w, 2, 0, 0, rules::th(u, "bomb"));
+  u.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
+  _ = rules::add_enemy(u, "cyclops", 6, 0, 0);
+  _ = rules::add_enemy(u, "cyclops", 7, 0, 0);
+  until(u, 5000);
+  assert(at(u, 0) == "x2 y0 hp5" && at(u, 1) == "x3 y0 hp5", "the place taken, the second beside it: {at(u, 1)}");
+  v = hall(10, 1, true);
+  rules::put_hero(v, 0, 0, 2);
+  tile_world::place(v.w, 2, 0, 0, rules::th(v, "bomb"));
+  v.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
+  _ = rules::add_enemy(v, "rat", 6, 0, 0);
+  until(v, 600);
+  assert(at(v, 0) == "x7 y0 hp3", "a rat flees it: {at(v, 0)}");
+}
+
+// Hurt, it fights on: struck to 3 beside the hero, it strikes back at 800 (a rat would step away).
+// The hero gone (up on layer 2), it searches (0, 0) — there at 2000 — till 6800, walks home to
+// x 1 at 7250, settles at 8050 and heals a point at 12050 and at 16050.
+fn test_a_hurt_cyclops_fights_on_and_heals_at_home() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::add_enemy(w, "cyclops", 1, 0, 0);
+  rules::strike_enemy(w, 0, 2);
+  until(w, 800);
+  assert(w.health == 4 && at(w, 0) == "x1 y0 hp3", "800: it strikes back: {w.health} {at(w, 0)}");
+  rules::put_hero(w, 0, 0, 2);
+  until(w, 2000);
+  assert(at(w, 0) == "x0 y0 hp3", "2000: searching where the hero was: {at(w, 0)}");
+  until(w, 7250);
+  assert(at(w, 0) == "x1 y0 hp3", "7250: home: {at(w, 0)}");
+  until(w, 12049);
+  assert(at(w, 0) == "x1 y0 hp3", "12049: settled, not yet");
+  until(w, 12050);
+  assert(at(w, 0) == "x1 y0 hp4", "12050: a point back: {at(w, 0)}");
+  until(w, 16050);
+  assert(at(w, 0) == "x1 y0 hp5" && w.health == 4, "16050: whole: {at(w, 0)}");
+}

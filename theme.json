@@ -20,7 +20,7 @@
       "-": 127
     }
   },
-  "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122", "guard": "dungeon:87" },
+  "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122", "guard": "dungeon:87", "cyclops": "dungeon:109" },
   "arrow": "world:67",
   "aim": "battle:61",
   "blast": ["world:63", "world:64", "world:65"],
