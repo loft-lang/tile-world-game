@@ -70,6 +70,9 @@ This is what the game built on tile_world should be.
     same place always goes the same way — the game is deterministic — but the pattern follows
     no row, column or checkerboard, so it is learnt by playing, not read off the grid.  Each
     layer has its own.
+  - **Over a drop an item falls**: shoved (or sent aside) into the void, a light item falls to
+    the first floor below with nothing on it, a burning torch keeping its time; with nowhere to
+    land there is no room.  A rock or a chair stops at the edge.
   - With no room for the item, the push or the pull does not happen.
   - The hero puts nothing down where an item lies; it stands on one only after a swap.
   - A burning torch pushed along keeps its time.
@@ -104,8 +107,11 @@ This is what the game built on tile_world should be.
   - A tree takes 4 blows (kinds.json `hits`); each tree counts its own, and a well's save keeps
     the count.  A fence still falls at one.
   - Every blow leaves a stick beside the tree (`drops`), when there is room: the side its place
-    prefers, then the other, as an item pushed aside.  A tree is where sticks come from — the
-    axe's link to the torches.  Built (`tests/moves.loft`).
+    prefers, then the other, as an item pushed aside — over a ledge it falls to the floor below.
+    A tree is where sticks come from — the axe's link to the torches.  So a tree reached only
+    from one ledge, its sticks falling to the layer below, is a puzzle: each stick costs the way
+    down and back up, and a player who wants several pays it several times.  Built
+    (`tests/moves.loft`, `tests/items.loft`).
 - **Bow.**
   - Shoots enemies higher up on walls (bats, spiders), with no ammunition limit.
   - **Aim.** The aim locks onto an enemy in the general direction the hero faces. The lock is

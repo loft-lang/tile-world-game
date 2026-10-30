@@ -520,6 +520,45 @@ fn test_a_tree_drops_sticks_and_falls_at_the_fourth_blow() {
   assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 2, "where it stood");
 }
 
+// A tree on a ledge: the drops beside it on layer 0 are void, layer -1 is floor below.  Its sticks
+// fall there — the preferred side, then the other — and the deeper drop or a taken cell below
+// steer them as on the level.
+fn ledge_tree() -> rules::Level {
+  w = grove();
+  tile_world::fill(w.w, -1, -1, 6, 3, -1, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 5, 2, -1, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 2, 0, 0, tile_world::VOID);
+  tile_world::set_terrain(w.w, 2, 2, 0, tile_world::VOID);
+  w
+}
+
+fn below(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, z))
+}
+
+fn test_a_ledge_tree_drops_its_sticks_below() {
+  w = ledge_tree();
+  s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
+  o = 2 - s;
+  _ = rules::walk(w, 1, 0);
+  assert(below(w, 2, s, -1) == "stick", "blow 1: fallen to layer -1 at y {s}");
+  _ = rules::walk(w, 1, 0);
+  assert(below(w, 2, o, -1) == "stick", "blow 2: the other side, below");
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "felled at the fourth");
+  assert(len(tile_world::stacks(w.w)) == 2, "two sticks, no more: {len(tile_world::stacks(w.w))}");
+  v = ledge_tree();
+  tile_world::set_terrain(v.w, 2, s, -1, tile_world::VOID);
+  tile_world::fill(v.w, 0, 0, 5, 2, -2, rules::tr(v, "floor"));
+  _ = rules::walk(v, 1, 0);
+  assert(below(v, 2, s, -2) == "stick", "two layers down");
+  u = ledge_tree();
+  tile_world::place(u.w, 2, s, -1, rules::th(u, "rock"));
+  _ = rules::walk(u, 1, 0);
+  assert(below(u, 2, o, -1) == "stick" && below(u, 2, s, -1) == "rock", "the cell below taken: the other side");
+}
+
 // No room beside (a corridor): four blows fell it all the same, and nothing drops.
 fn test_a_tree_without_room_drops_nothing() {
   w = row(5);

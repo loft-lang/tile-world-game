@@ -188,6 +188,52 @@ fn test_a_pushed_flame_keeps_its_time() {
          "aside, burnt out there: {at(v, 4, first_side(4))}");
 }
 
+// A ledge at x 5 on y 1: void on layer 0, floor below on layer -1.  A light item shoved over it
+// falls; a rock stops at it; with no floor anywhere below there is no room.
+fn ledge_room() -> rules::Level {
+  w = room();
+  tile_world::fill(w.w, -1, -1, 7, 3, -1, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 6, 2, -1, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 5, 1, 0, tile_world::VOID);
+  rules::put_hero(w, 2, 1, 0);
+  w
+}
+
+fn low(w: const rules::Level, x: integer, y: integer) -> text {
+  t = "";
+  for s in tile_world::things(w.w, x, y, -1) { t += "{rules::thing_name(w.k, s)},"; }
+  t
+}
+
+fn test_an_item_shoved_over_a_ledge_falls() {
+  w = ledge_room();
+  put(w, 3, 1, "rock");
+  put(w, 4, 1, "potion");
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 4, 1) == "rock," && low(w, 5, 1) == "potion,", "the potion fell: {low(w, 5, 1)}");
+  v = ledge_room();
+  put(v, 3, 1, "rock");
+  _ = rules::walk(v, 1, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Blocked && at(v, 4, 1) == "rock,", "a rock stops at the ledge");
+  u = ledge_room();
+  tile_world::set_terrain(u.w, 5, 1, -1, tile_world::VOID);
+  put(u, 3, 1, "rock");
+  put(u, 4, 1, "potion");
+  assert(rules::walk(u, 1, 0) == rules::Step.Blocked && at(u, 4, 1) == "potion,", "no floor below: no room");
+}
+
+// A burning torch shoved over the ledge keeps its time down there: a stick at 10:00.
+fn test_a_fallen_flame_keeps_its_time() {
+  w = ledge_room();
+  put(w, 3, 1, "rock");
+  put(w, 4, 1, "burning_torch");
+  rules::tick(w, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(low(w, 5, 1) == "burning_torch,", "fallen, burning");
+  rules::tick(w, 600000);
+  assert(low(w, 5, 1) == "stick," && len(w.flames) == 0, "out at 10:00 below: {low(w, 5, 1)}");
+}
+
 // A chair pulled onto the axe the hero just put down: the axe goes on, under the hero.
 fn test_a_pull_clears_the_cell_the_hero_leaves() {
   w = room();

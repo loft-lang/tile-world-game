@@ -564,7 +564,9 @@ fn strike(l: Level, kind: integer, to: integer, x: integer, y: integer, z: integ
   dropped = thing_id(l.k, p.drops);
   if dropped != 0 {
     s = aside(l, x, y, z, dx, dy);
-    if s.0 != 0 || s.1 != 0 { tile_world::place(l.w, x + s.0, y + s.1, z, dropped); }
+    if s.0 != 0 || s.1 != 0 {
+      tile_world::place(l.w, x + s.0, y + s.1, landing(l, x, y, z, s.0, s.1, false), dropped);
+    }
   }
   n = 1;
   i = 0;
@@ -874,17 +876,39 @@ fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base
 // prefers first, then the other), if there is room, and the first slides into its cell.  With no room the push or the
 // pull does not happen.
 
-// Can the item on (x, y, z) slide one cell (dx, dy): onto floor at its own height that holds
-// nothing (with `leaving`, what lies there is about to go aside), not kept off things, across an
-// edge things cross?
-fn slides(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
-          leaving: boolean) -> boolean {
+/// The layer `landing` answers when there is no room.
+pub const NOWHERE = -1000000;
+
+// Where an item on (x, y, z) lands moving one cell (dx, dy), across an edge things cross: that
+// cell, when it is floor at the item's height holding nothing (with `leaving`, what lies there is
+// about to go aside) and not kept off things; or, when that cell is a drop (void), the first
+// floor below it holding nothing — the item falls, light as it is.  The layer it lands on, or
+// NOWHERE.
+fn landing(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+           leaving: boolean) -> integer {
   nx = x + dx;
   ny = y + dy;
+  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return NOWHERE; }
   k = tile_world::terrain(l.w, nx, ny, z);
-  if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
-  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return false; }
-  height(l, nx, ny, z) == height(l, x, y, z)
+  if k == VOID {
+    bottom = lowest_layer(l);
+    zb = z - 1;
+    while zb >= bottom && tile_world::terrain(l.w, nx, ny, zb) == VOID { zb -= 1; }
+    if zb < bottom { return NOWHERE; }
+    kb = tile_world::terrain(l.w, nx, ny, zb);
+    if !walkable(l, kb) || blocks_things(l, kb) || tile_world::top(l.w, nx, ny, zb) != 0 { return NOWHERE; }
+    return zb;
+  }
+  if !walkable(l, k) || blocks_things(l, k) { return NOWHERE; }
+  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return NOWHERE; }
+  if height(l, nx, ny, z) != height(l, x, y, z) { return NOWHERE; }
+  z
+}
+
+// Is there room for the item on (x, y, z) one cell (dx, dy) on (`landing`)?
+fn slides(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+          leaving: boolean) -> boolean {
+  landing(l, x, y, z, dx, dy, leaving) != NOWHERE
 }
 
 // The side the item on (x, y, z) goes to, out of the way (dx, dy): the side that place prefers
@@ -906,14 +930,18 @@ fn way_clear(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
   a.0 != 0 || a.1 != 0
 }
 
-// Move the top thing of (x, y, z) one cell (dx, dy); a flame takes its time along.
+// Move the item on top of (x, y, z) one cell (dx, dy), to where it lands (falling, over a drop);
+// a flame takes its time along.
 fn shift(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  lz = landing(l, x, y, z, dx, dy, false);
+  if lz == NOWHERE { lz = z; }
   t = tile_world::take(l.w, x, y, z);
-  tile_world::place(l.w, x + dx, y + dy, z, t);
+  tile_world::place(l.w, x + dx, y + dy, lz, t);
   i = flame_at(l, x, y, z);
   if i >= 0 {
     l.flames[i].x = x + dx;
     l.flames[i].y = y + dy;
+    l.flames[i].z = lz;
   }
 }
 
