@@ -325,9 +325,11 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     ceiling).
   - Their nest is never on a wall.
 - **Enemies act on the world clock**, so every behaviour is testable at exact times.
-- **Explosions scare them** (owner): an enemy that hears a blast flees, even from its nest, and
-  returns to its nest after a while.  Open: how far a blast is heard, how long they stay away.
-  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).
+- **Explosions scare them** (owner): an ordinary enemy that hears a blast flees, even from its
+  nest, and returns to its nest after a while.  Open: how far a blast is heard, how long they stay
+  away.  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).
+  Cyclopes are not scared: slightly more intelligent, they go to search for what set the bomb off
+  (owner) — a blast draws them to it.
 - **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
   way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,
   and they make light double-edged: a burning torch shows the hero to them.  How a cyclops

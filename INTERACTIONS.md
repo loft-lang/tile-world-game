@@ -93,10 +93,11 @@ waits for the hero.
     area counts enemies in sight; in the dark the player cannot see them.  With cyclopes, sight
     must mean something in the dark.  The cyclopes' design will settle it; until then a well in a
     dark room may refuse for a reason the screen does not show.
-28. **Puzzle — a blast as a scare.**  Explosions make enemies flee, even from their nests, until a
-    timer brings them back (owner).  A bomb set off away from anything worth pushing clears a nest
-    for a while — the way past a cyclops group too strong to fight.  Its cost: the noise, and the
-    bomb.
+28. **Puzzle — a blast as a scare, and as a decoy.**  Explosions make ordinary enemies flee, even
+    from their nests, until a timer brings them back (owner): a bomb clears a nest for a while.
+    Cyclopes instead search for what set it off (owner): a bomb set off far from the way through —
+    by an arrow, from a distance — draws a cyclops group there while the hero sneaks past; one set
+    off near the hero brings them to it.
 24. **Puzzle — stealth against a cart.**  A cart rolling past a cyclops group draws its eye (noise
     or light) away from the hero sneaking by.
 
