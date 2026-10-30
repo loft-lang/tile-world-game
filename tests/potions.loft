@@ -1,0 +1,70 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Potions and money (DESIGN.md § The principle, § Goals): a health potion walked over restores 3
+// health, up to the start's 6; a spirit potion gives 2 temporary health above it, lost first when
+// the hero is hurt — by a bite, a blast or a fall — and never fading; a chest opened gives its money
+// (10) with its point.
+use tile_world;
+use rules;
+
+fn row(n: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, 0, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 0);
+  w
+}
+
+fn put(w: rules::Level, x: integer, name: text) {
+  tile_world::place(w.w, x, 0, 0, rules::th(w, name));
+}
+
+fn main() {
+  w = row(3);
+  assert(w.health == 6 && w.spirit == 0 && w.money == 0, "a fresh hero");
+}
+
+// From 2, a health potion gives 3: 5; from 5, only up to 6.
+fn test_a_health_potion_restores_up_to_the_start() {
+  w = row(4);
+  w.health = 2;
+  put(w, 1, "health_potion");
+  put(w, 2, "health_potion");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.health == 5, "2 + 3: {w.health}");
+  _ = rules::walk(w, 1, 0);
+  assert(w.health == 6 && tile_world::top(w.w, 2, 0, 0) == 0, "capped at 6: {w.health}");
+}
+
+// A spirit potion gives 2 above the 6; hurt 1 (a bite), the spirit goes first: 1 + 6; hurt 3 (a
+// blast beside the hero), the last spirit then 2 health: 0 + 4.  It never fades: an hour on, the
+// same.
+fn test_temporary_health_is_lost_first_and_never_fades() {
+  w = row(3);
+  put(w, 1, "spirit_potion");
+  _ = rules::walk(w, 1, 0);
+  assert(w.spirit == 2 && w.health == 6, "6 + 2");
+  rules::tick(w, 3600000);
+  assert(w.spirit == 2, "an hour on, still 2");
+  rules::harm(w, 1);
+  assert(w.spirit == 1 && w.health == 6, "a bite: spirit first: {w.spirit} + {w.health}");
+  rules::harm(w, 3);
+  assert(w.spirit == 0 && w.health == 4, "a blast: the last spirit, then health: {w.spirit} + {w.health}");
+}
+
+// A rat's bite takes the spirit first, too: the hero 6 + 2 beside a rat; at its bite (900 ms after
+// it first acts at 600: it is beside the hero at once, so it bites at 600) the spirit is 1.
+fn test_a_bite_takes_the_spirit_first() {
+  w = row(4);
+  w.spirit = 2;
+  _ = rules::add_enemy(w, "rat", 1, 0, 0);
+  rules::tick(w, 600);
+  assert(w.spirit == 1 && w.health == 6, "bitten: {w.spirit} + {w.health}");
+}
+
+// A chest opened gives its point and its money.
+fn test_a_chest_gives_its_money() {
+  w = row(3);
+  put(w, 1, "chest");
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened && w.points == 1 && w.money == 10, "a point and 10");
+}

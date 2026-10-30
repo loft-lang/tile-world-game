@@ -32,7 +32,10 @@ This is what the game built on tile_world should be.
   Special potions, and later stat growth, give the hero temporary hitpoints (owner): health above
   the start's 6, to survive more hazardous situations — never needed (growth is never necessary).
   They are lost first when the hero is hit, and do not fade with time (owner).  Later, sleep and a
-  day-night cycle clear them, and lingering ailments with them (owner, planned).
+  day-night cycle clear them, and lingering ailments with them (owner, planned).  **Built**
+  (`tests/potions.loft`): the red health potion (Kenney's 115) restores 3 up to the start's 6; the
+  blue spirit potion (116) gives 2 temporary health — every hurt (a bite, a blast, a fall, a cart)
+  takes it first (`rules::harm`), and it never fades.  The status line shows `6+2`.
   A blast pushes the hero over a ledge, and the fall's cost adds to the blast's (owner): a rule
   that stays, and one the level designer keeps in mind — a bomb, or a cart at speed, beside a
   ledge is a level's choice to make deadly or not.
@@ -351,8 +354,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## Goals: chests and points
 
-- **A point per chest.**  Opening a chest gives its money and one point (the point is built;
-  money waits).  A level's goal `chests` is solved when no chest is left closed.  A region or a
+- **A point per chest.**  Opening a chest gives its money and one point (built: a chest's
+  `money`, 10 proposed; the status line shows GOLD once there is any, and the coins are heard).  A level's goal `chests` is solved when no chest is left closed.  A region or a
   dungeon has a fixed number of chests, so the points it can give are limited.
 - **A chest is never hidden.**  It may stand out of the direct route — a door behind a tree is
   a fair way to it — but never behind or beside a wall where it cannot be seen.

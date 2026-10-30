@@ -89,6 +89,8 @@
       "sound": "push_anvil"
     },
     "potion": "dungeon:114",
+    "health_potion": "dungeon:115",
+    "spirit_potion": "dungeon:116",
     "staff": "dungeon:129",
     "chest": "dungeon:89",
     "axe": "dungeon:118",
@@ -148,7 +150,7 @@
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall"],
     "Dungeon": ["floor", "wall", "rail", "well"],
-    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
+    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
     "Tracks": ["rail", "cart", "lever_straight", "lever_turn"]
   },

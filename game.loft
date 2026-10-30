@@ -113,7 +113,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2", "coins:2"]
 }
 
 fn bindings() -> input::Bindings {
@@ -324,7 +324,11 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   oy = w.hero_y;
   oz = w.hero_z;
   oh = w.hero_h;
+  health = w.health + w.spirit;
+  money = w.money;
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
+  if w.health + w.spirit > health { sound(g, "potion"); }
+  if w.money > money { sound(g, "coins"); }
   animate(g, step, ox, oy, oz, oh, dx, dy);
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
   if step == rules::Step.Saved {
@@ -624,7 +628,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   flames = len(g.world.flames);
   rolled = g.world.rolled;
   blasted = g.world.blasted;
-  health = g.world.health;
+  health = g.world.health + g.world.spirit;
   hx = g.world.hero_x;
   hy = g.world.hero_y;
   rules::tick(g.world, ms);
@@ -639,7 +643,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     changed = true;
   }
   if rules::blasting(g.world) || len(g.world.enemies) > 0 || g.world.aiming { changed = true; }
-  if g.world.health < health {
+  if g.world.health + g.world.spirit < health {
     sound(g, "hit_hero", 1.0);
     changed = true;
     // A bite: the enemies beside the hero, facing it, lunge.
@@ -1125,7 +1129,9 @@ pub fn draw(g: Game) {
   } else {
     // A note (a signpost's count, SAVED, BACK? B AGAIN) has the whole line until the next
     // move; the move count shares it with the boost and the hearts.
-    if g.note != "" { write(g, g.note, 0, (ROWS - 1) * 16); } else { status(g, "MOVES {g.moves}"); }
+    if g.note != "" { write(g, g.note, 0, (ROWS - 1) * 16); }
+    else if w.money > 0 { status(g, "GOLD {w.money}"); }
+    else { status(g, "MOVES {g.moves}"); }
   }
 }
 
@@ -1136,10 +1142,12 @@ fn status(g: Game, left: text) {
   ts = g.look.tile_size;
   y = (ROWS - 1) * ts;
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
-  cells = len(right) + 2;
+  // Health, and the temporary health above it ("6+2").
+  hearts = if w.spirit > 0 { "{w.health}+{w.spirit}" } else { "{w.health}" };
+  cells = len(right) + 1 + len(hearts);
   write(g, right, (COLS - cells) * ts, y);
-  theme::put(g.surface, g.look.heart, (COLS - 2) * ts, y, 0);
-  write(g, "{w.health}", (COLS - 1) * ts, y);
+  theme::put(g.surface, g.look.heart, (COLS - len(hearts) - 1) * ts, y, 0);
+  write(g, hearts, (COLS - len(hearts)) * ts, y);
   room = COLS - cells - 1;
   // Bound first: a text `if` as a call argument does not compile on --native before loft#2225.
   shown = if len(left) > room { left.char_slice(0, room) } else { left };

@@ -150,6 +150,10 @@ struct ThingProps {
   damage: integer,
   /// It shoots arrows (a bow).
   shoots: boolean,
+  /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
+  heals: integer,
+  /// The money opening it gives (a chest).
+  money: integer,
   glyph: text
 }
 
@@ -298,6 +302,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
       rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0), shoots: flag(e, "shoots"),
+      heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -458,6 +463,10 @@ pub struct Level {
   pub hero_item: integer,
   /// The points scored: a chest opened is one.
   pub points: integer,
+  /// The money the hero has found (chests), and its temporary health: above `health`, lost first
+  /// when hurt, never fading (owner).
+  pub money: integer,
+  pub spirit: integer,
   /// The hero's health: a fall costs some; at 0 the hero moves no more.
   pub health: integer,
   /// The flames set down in the world, and when the one the hero holds burns out.
@@ -628,7 +637,7 @@ pub fn level(k: const Kinds) -> Level {
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
           bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0,
-          aiming: false, aim_x: 0, aim_y: 0, shots: [] }
+          aiming: false, aim_x: 0, aim_y: 0, shots: [], money: 0, spirit: 0 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -1376,6 +1385,17 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
   if effect == "boost" {
     _ = tile_world::take(l.w, x, y, z);
     l.boost_until = l.now + l.k.boost_ms;
+  } else if effect == "heal" {
+    // A health potion: back up to the start's health, `heals` at most.
+    _ = tile_world::take(l.w, x, y, z);
+    p = l.k.things[t];
+    l.health += if p { p.heals } else { 0 };
+    if l.health > l.k.health { l.health = l.k.health; }
+  } else if effect == "spirit" {
+    // A spirit potion: temporary health, above the start's.
+    _ = tile_world::take(l.w, x, y, z);
+    p = l.k.things[t];
+    l.spirit += if p { p.heals } else { 0 };
   } else if effect == "take" {
     held = l.hero_item;
     held_until = l.hero_until;
@@ -1769,7 +1789,14 @@ fn fall_cost(l: const Level, layers: integer) -> integer {
 
 // The hero falls `layers` layers and loses that fall's cost, down to no health.
 fn hurt(l: Level, layers: integer) {
-  l.health -= fall_cost(l, layers);
+  harm(l, fall_cost(l, layers));
+}
+
+/// The hero is hurt `n`: its temporary health goes first, then its health, down to none.
+pub fn harm(l: Level, n: integer) {
+  from_spirit = if n < l.spirit { n } else { l.spirit };
+  l.spirit -= from_spirit;
+  l.health -= n - from_spirit;
   if l.health < 0 { l.health = 0; }
 }
 
@@ -1872,6 +1899,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     replace_base(l, tx, ty, z, opened);
     p = l.k.things[thing];
     l.points += if p { p.points } else { 0 };
+    l.money += if p { p.money } else { 0 };
     return Step.Opened;
   }
   // A thing that tells (a signpost) is read: `closed` answers what it says.
@@ -2227,8 +2255,7 @@ fn roll_step(l: Level, ri: integer) {
   }
   // The hero in the way: hurt by the speed, pushed aside — or with no room, taken on board.
   if l.hero_x == nx && l.hero_y == ny && l.hero_z == nz && rider < 0 {
-    l.health -= speed;
-    if l.health < 0 { l.health = 0; }
+    harm(l, speed);
     a = shove_aside(l, nx, ny, nz, w.0, w.1);
     if a.0 != 0 || a.1 != 0 { arrive(l, nx + a.0, ny + a.1, nz); }
   }
@@ -2782,8 +2809,7 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
       l.hero_until = 0;
     }
   }
-  l.health -= 4 - hero_d;
-  if l.health < 0 { l.health = 0; }
+  harm(l, 4 - hero_d);
   a = away(l, x, y, l.hero_x, l.hero_y, z);
   blown(l, a.0, a.1, 5 - hero_d);
 }
@@ -3174,8 +3200,7 @@ fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
 
 // Enemy i bites the hero beside it.
 fn bite(l: Level, i: integer, p: const EnemyProps) {
-  l.health -= p.bite;
-  if l.health < 0 { l.health = 0; }
+  harm(l, p.bite);
   l.enemies[i].face_x = l.hero_x - (l.enemies[i].x ?? 0);
   l.enemies[i].face_y = l.hero_y - (l.enemies[i].y ?? 0);
   l.enemies[i].due = (l.enemies[i].due ?? l.now) + p.bite_ms;
