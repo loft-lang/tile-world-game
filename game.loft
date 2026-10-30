@@ -87,7 +87,11 @@ pub struct Game {
   pub motion: motion::Motion,
   was_moving: boolean,
   /// How each enemy moves on screen, by its id, and where and how healthy it was last drawn.
-  movers: vector<Mover>
+  movers: vector<Mover>,
+  /// How far up the layer being drawn is drawn, in pixels: a tile for each layer above layer 0 —
+  /// the height of a wall in the pictures (a raised block is a row of wall tops over one row of
+  /// wall face).  Fixed per layer, so the world stays still when the hero changes layer.
+  lift: integer
 }
 
 /// An enemy as last drawn: its id, its motion, its cell and its health.
@@ -182,7 +186,7 @@ pub fn new_game(dir: text) -> Game? {
     editing: false, ed: ed, lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
-    just_back: false, motion: motion::still(), was_moving: false, movers: []
+    just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -377,10 +381,12 @@ fn animate(g: Game, step: rules::Step, ox: integer, oy: integer, oz: integer, oh
   } else if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     motion::swing(g.motion, now);
     if step == rules::Step.Attacked { sound(g, "hit_enemy", 0.8); }
-  } else if w.hero_z == oz && (w.hero_x != ox || w.hero_y != oy) {
-    motion::walk(g.motion, now, w.hero_x - ox, w.hero_y - oy, (w.hero_h - oh) * 4, w.face_x, w.face_y);
-  } else if w.hero_z != oz {
+  } else if step == rules::Step.Fell {
     g.motion = motion::still();
+  } else if w.hero_x != ox || w.hero_y != oy || w.hero_z != oz {
+    // A step glides — up or down a slope, and onto another layer, a tile a layer.
+    motion::walk(g.motion, now, w.hero_x - ox, w.hero_y - oy,
+                 (w.hero_h - oh) * 4 + (w.hero_z - oz) * g.look.tile_size, w.face_x, w.face_y);
   }
 }
 
@@ -431,10 +437,10 @@ fn aim(g: Game) {
   rows = ROWS - 1;
   if g.file.camera == "rooms" {
     g.cam_x = camera::rooms(w.hero_x, COLS, g.area.0);
-    g.cam_y = camera::rooms(w.hero_y, rows, g.area.1);
+    g.cam_y = camera::rooms(w.hero_y - w.hero_z, rows, g.area.1);
   } else {
     g.cam_x = camera::follow(g.cam_x, w.hero_x, COLS, g.area.0, g.area.2);
-    g.cam_y = camera::follow(g.cam_y, w.hero_y, rows, g.area.1, g.area.3);
+    g.cam_y = camera::follow(g.cam_y, w.hero_y - w.hero_z, rows, g.area.1, g.area.3);
   }
 }
 
@@ -482,7 +488,8 @@ pub fn toggle_editor(g: Game) {
 // Keep the cursor in sight, one cell from the view's edge.
 fn aim_editor(g: Game) {
   g.cam_x = camera::keep(g.cam_x, g.ed.x, COLS, 1);
-  g.cam_y = camera::keep(g.cam_y, g.ed.y, ROWS - 2, 1);
+  // A layer is drawn a row higher: the view keeps the cursor's row on screen.
+  g.cam_y = camera::keep(g.cam_y, g.ed.y - g.ed.z, ROWS - 2, 1);
 }
 
 /// One editor action by word, as a key would do it: `w` `a` `s` `d` move the cursor, `up` and
@@ -685,32 +692,53 @@ pub fn quit(g: const Game) -> boolean {
 // --- The picture ---
 
 // Cell (x, y, z) of `w`, at its place in the view.
-/// The ground around the view: for each cell one beyond it on every side, its rise, its light
-/// (a shade, 0 .. 7), whether it is set (not the void) and whether it is ground (set, not
-/// standing up) — what a cell's corners are made of.
+/// The ground around the view: for each cell one beyond it on every side, its height in steps
+/// over this layer's floor — its rise, or over the void a cell of the layer above (a layer's
+/// steps up) or below (down) — whether it has one, its light (a shade, 0 .. 7), whether it is set
+/// (not the void) and whether it is this layer's ground (set, not standing up): what a cell's
+/// corners are made of, so ground meets ground across a layer's edge too.
 struct Ground {
   x0: integer,
   y0: integer,
   w: integer,
   h: integer,
   rise: vector<integer>,
+  has: vector<boolean>,
   shade: vector<integer>,
   set: vector<boolean>,
   ground: vector<boolean>
 }
 
 fn ground_of(g: const Game, w: const rules::Level, z: integer, rows: integer, lit: boolean) -> Ground {
-  out = Ground { x0: g.cam_x - 1, y0: g.cam_y - 1, w: COLS + 2, h: rows + 2, rise: [], shade: [], set: [], ground: [] };
+  out = Ground { x0: g.cam_x - 1, y0: g.cam_y + z - 1, w: COLS + 2, h: rows + 2, rise: [], has: [], shade: [], set: [], ground: [] };
+  steps = w.k.layer_height;
   if lit {
     out.shade = tile_world::shades(w.w, out.x0, out.y0, out.x0 + out.w - 1, out.y0 + out.h - 1, z,
                                    rules::lights(w, z), rules::light_starts(w, z));
   }
   for j in 0..out.h {
     for i in 0..out.w {
-      k = tile_world::terrain(w.w, out.x0 + i, out.y0 + j, z);
-      out.rise += [tile_world::rise(w.w, out.x0 + i, out.y0 + j, z)];
+      x = out.x0 + i;
+      y = out.y0 + j;
+      k = tile_world::terrain(w.w, x, y, z);
+      own = k != tile_world::VOID && !theme::upright(g.look, k);
+      up = tile_world::terrain(w.w, x, y, z + 1);
+      down = tile_world::terrain(w.w, x, y, z - 1);
+      h = 0;
+      has = own;
+      if own {
+        h = tile_world::rise(w.w, x, y, z);
+      } else if k == tile_world::VOID && up != tile_world::VOID && !theme::upright(g.look, up) {
+        h = steps + tile_world::rise(w.w, x, y, z + 1);
+        has = true;
+      } else if k == tile_world::VOID && down != tile_world::VOID && !theme::upright(g.look, down) {
+        h = tile_world::rise(w.w, x, y, z - 1) - steps;
+        has = true;
+      }
+      out.rise += [h];
+      out.has += [has];
       out.set += [k != tile_world::VOID];
-      out.ground += [k != tile_world::VOID && !theme::upright(g.look, k)];
+      out.ground += [own];
     }
   }
   out
@@ -727,7 +755,7 @@ fn corner(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, di
   me = (y - gr.y0) * gr.w + (x - gr.x0);
   r0 = gr.rise[me] ?? 0;
   north = me - gr.w;
-  if cy == 0 && y - 1 > gr.y0 && (gr.ground[north] ?? false) {
+  if cy == 0 && y - 1 > gr.y0 && (gr.has[north] ?? false) {
     rn = gr.rise[north] ?? 0;
     if rn - r0 <= 1 && r0 - rn <= 1 { return corner(gr, x, y - 1, cx, 1, dim); }
   }
@@ -737,12 +765,13 @@ fn corner(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, di
   sn = 0;
   for d in [(cx - 1, cy - 1), (cx, cy - 1), (cx - 1, cy), (cx, cy)] {
     i = me + d.1 * gr.w + d.0;
-    if !(gr.ground[i] ?? false) { continue; }
+    if !(gr.has[i] ?? false) { continue; }
     r = gr.rise[i] ?? 0;
     if r - r0 <= 1 && r0 - r <= 1 {
       rs += r;
       rn += 1;
     }
+    if !(gr.ground[i] ?? false) { continue; }
     sh = gr.shade[i] ?? 0;
     ss += if sh < dim { dim } else { sh };
     sn += 1;
@@ -760,7 +789,7 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
                upper: boolean, dim: integer) {
   ts = g.look.tile_size;
   px = (x - g.cam_x) * ts;
-  py = (y - g.cam_y) * ts;
+  py = (y - g.cam_y) * ts - g.lift;
   k = tile_world::terrain(w.w, x, y, z);
   tl = corner(gr, x, y, 0, 0, dim);
   tr = corner(gr, x, y, 1, 0, dim);
@@ -783,7 +812,7 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
   }
   // The bank: from this cell's bottom edge down to the top edge of the ground south of it.
   south = (y + 1 - gr.y0) * gr.w + (x - gr.x0);
-  if base >= 0 && (gr.ground[south] ?? false) {
+  if base >= 0 && (gr.has[south] ?? false) {
     sl = corner(gr, x, y + 1, 0, 0, dim);
     sr = corner(gr, x, y + 1, 1, 0, dim);
     if bl.0 > sl.0 || br.0 > sr.0 {
@@ -816,7 +845,7 @@ fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y
     // Standing at its rise, lit gradually like the ground beside it.
     ts = g.look.tile_size;
     up = tile_world::rise(w.w, x, y, z) * 4;
-    theme::put_ground(g.surface, kind_sprite(g, w, x, y, z, upper), (x - g.cam_x) * ts, (y - g.cam_y) * ts,
+    theme::put_ground(g.surface, kind_sprite(g, w, x, y, z, upper), (x - g.cam_x) * ts, (y - g.cam_y) * ts - g.lift,
                       (up, up, up, up),
                       (standing_light(gr, x, y, 0, 0, dim), standing_light(gr, x, y, 1, 0, dim),
                        standing_light(gr, x, y, 0, 1, dim), standing_light(gr, x, y, 1, 1, dim)));
@@ -843,7 +872,7 @@ fn kind_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: 
 fn draw_stack(g: Game, w: const rules::Level, x: integer, y: integer, z: integer, shade: integer) {
   ts = g.look.tile_size;
   px = (x - g.cam_x) * ts;
-  py = (y - g.cam_y) * ts;
+  py = (y - g.cam_y) * ts - g.lift;
   // The stack, bottom first, each thing lifted by the height under it (4 pixels a step), the
   // rise included.  A thing that holds another (a socket and its torch) is one picture when
   // the theme has it; a flame shows its frame at the level's clock, and its low picture in its
@@ -926,7 +955,7 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   ts = g.look.tile_size;
   p = f.pose;
   bx = (f.x - g.cam_x) * ts + p.x;
-  by = (f.y - g.cam_y) * ts - f.h * 4 + p.y;
+  by = (f.y - g.cam_y) * ts - g.lift - f.h * 4 + p.y;
   hd = hand(f.face_x, f.face_y);
   behind = f.face_y < 0 && f.face_x == 0;
   if f.item != 0 && behind {
@@ -953,7 +982,10 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
               dim: integer) {
   rows = view_rows(g);
   cx = g.cam_x;
-  cy = g.cam_y;
+  // Layer z is drawn z tiles up, so the view shows its cells z rows further south: view row y
+  // is the layer's row cy + y.
+  cy = g.cam_y + z;
+  g.lift = z * g.look.tile_size;
   gr = ground_of(g, w, z, rows, lit);
   // A view cell's shade, from the ground grid (one cell wider each side).
   sh: vector<integer> = [];
@@ -979,9 +1011,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
           draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade });
         }
       }
-    }
-    // A blast is drawn over the row it went off in.
-    if y >= 0 {
+      // A blast is drawn over the row it went off in.
       for b in w.blasts {
         s = theme::blast_sprite(g.look, w.now - b.at, w.k.flash_ms);
         if b.z == z && b.y == cy + y && s >= 0 {
@@ -991,7 +1021,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
       }
     }
     for f in figs {
-      d = depth_row(g, f);
+      d = depth_row(g, f) - z;
       if d == y || (y == -1 && d < -1) || (y == rows - 1 && d >= rows) {
         fx = f.x - cx;
         fy = f.y - cy;

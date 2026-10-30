@@ -481,9 +481,15 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
 - **Shape by light.** The light falls from the top left, as in the pictures: ground falling away
   from it (its top-left corner higher than its bottom-right) is a shade darker for a step of
   slope, two at most, so a mound reads as one.
-- **Open:** layers are still drawn at one place, so the top of a slope (12 px up) meets the
-  floor of the layer above drawn at 0 — whether a layer is drawn a tile higher is the owner's
-  call.
+- **A layer is a wall high** (owner: the wall pictures set it).  Kenney's raised blocks are a
+  row of wall tops over exactly one row of wall face (tile 40), so a layer stands one tile — 16 px
+  — above the one below, and a step of the rules (4 a layer) is 4 px: the slopes already rise at
+  that pitch.  Every layer is drawn its number of tiles up from layer 0, so the world stays still
+  when the hero changes layer, and a step onto another layer glides like any other.  The ground's
+  corners look across a layer's edge (a cell of the layer above is 4 steps up, of the one below 4
+  down), so a slope's top meets the floor above without a step, and a ledge's edge has its bank
+  down to the floor below.  The view follows the hero's row less its layer (a layer is a row up).
+  Open: a figure on a lower layer just behind a ledge is hidden by the ledge drawn after it.
 
 ## Slices
 
