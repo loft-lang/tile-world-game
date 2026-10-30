@@ -2127,59 +2127,78 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
   ty = fy + dy;
   bx = fx - dx;
   by = fy - dy;
-  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) { return Step.Blocked; }
+  bz = z;
   if !hero_crosses(l, fx, fy, z, dx, dy) { return Step.Blocked; }
-  target = tile_world::top(l.w, tx, ty, z);
-  if (target != 0 && !item(l, target) && !standable(l, target))
-      || height(l, tx, ty, z) > l.hero_h {
+  // Where the hero goes: on its layer — never up — or down over a layer's edge, into the void
+  // beside onto the ground just below it (a slope's top), less than a layer down.
+  tz = z;
+  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) {
+    if tile_world::terrain(l.w, tx, ty, z) != VOID || !walkable(l, tile_world::terrain(l.w, tx, ty, z - 1)) {
+      return Step.Blocked;
+    }
+    drop_by = z * l.k.layer_height + l.hero_h - ((z - 1) * l.k.layer_height + height(l, tx, ty, z - 1));
+    if drop_by < 0 || drop_by >= l.k.layer_height { return Step.Blocked; }
+    tz = z - 1;
+  } else if height(l, tx, ty, z) > l.hero_h {
     return Step.Blocked;
   }
+  target = tile_world::top(l.w, tx, ty, tz);
+  if target != 0 && !item(l, target) && !standable(l, target) { return Step.Blocked; }
   // Behind the hero on a track is the rail cell its own joins, other than the way it goes — round
-  // a bend too; elsewhere the cell behind it.
+  // a bend too, over a layer's edge too; elsewhere the cell behind it.
   m = joins(l, fx, fy, z) - (joins(l, fx, fy, z) & side_bit(dx, dy));
   if m == 1 || m == 2 || m == 4 || m == 8 {
     bw = bit_way(m);
-    if car(l, fx + bw.0, fy + bw.1, z) {
+    nz = rail_next(l, fx, fy, z, bw.0, bw.1);
+    if nz != NOWHERE && car(l, fx + bw.0, fy + bw.1, nz) {
       bx = fx + bw.0;
       by = fy + bw.1;
+      bz = nz;
     }
   }
-  thing = if hands_busy(l) { 0 } else { base(l, bx, by, z) };
+  thing = if hands_busy(l) { 0 } else { base(l, bx, by, bz) };
   // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
   left = height(l, fx, fy, z);
-  base = height(l, bx, by, z) - thing_height(l, thing);
+  base = height(l, bx, by, bz) - thing_height(l, thing);
   if trainlike(l, thing) {
     // The whole train behind follows along its track, one cell each, when the hero can pull it
     // and the cell it leaves is rail the train's track joins.
-    cars: vector<(integer, integer)> = [];
+    // Each car on its own layer: a train can span a layer's edge.
+    cars: vector<(integer, integer, integer)> = [];
     cx = bx;
     cy = by;
+    cz = bz;
     d = (bx - fx, by - fy);
-    while car(l, cx, cy, z) && len(cars) < 64 {
-      cars += [(cx, cy)];
-      w = way_on(l, cx, cy, z, d.0, d.1, false);
+    while car(l, cx, cy, cz) && len(cars) < 64 {
+      cars += [(cx, cy, cz)];
+      w = way_on(l, cx, cy, cz, d.0, d.1, false);
       if w.2 != ALONG { break; }
+      nz = rail_next(l, cx, cy, cz, w.0, w.1);
+      if nz == NOWHERE { break; }
       cx += w.0;
       cy += w.1;
+      cz = nz;
       d = (w.0, w.1);
     }
     n = len(cars);
     under = tile_world::top(l.w, fx, fy, z);
     pulled_way = (fx - bx, fy - by);
     rf = tile_world::rise(l.w, fx, fy, z);
-    rb = tile_world::rise(l.w, bx, by, z);
-    can = left == rf && rb - rf <= 1 && rf - rb <= 1 && rolling_at(l, bx, by, z) < 0
+    hf = level_h(l, fx, fy, z);
+    hb = level_h(l, bx, by, bz);
+    can = left == rf && hb - hf <= 1 && hf - hb <= 1 && rolling_at(l, bx, by, bz) < 0
           && (joins(l, fx, fy, z) & side_bit(bx - fx, by - fy)) != 0 && (under == 0 || item(l, under));
-    strong = (if rf > rb { 2 * n } else { n }) <= pull_strength(l);
-    arrive(l, tx, ty, z);
+    // Up a step (onto the hero's cell, over a layer's edge too) every cart counts twice.
+    strong = (if hf > hb { 2 * n } else { n }) <= pull_strength(l);
+    arrive(l, tx, ty, tz);
     // An item where the hero stood goes out of the way, once the hero has moved on.
     if !can || !strong || !way_clear(l, fx, fy, z, pulled_way.0, pulled_way.1) { return Step.Walked; }
     clear_way(l, fx, fy, z, pulled_way.0, pulled_way.1);
-    move_base(l, bx, by, z, fx, fy);
+    move_base_to(l, bx, by, bz, fx, fy, z);
     for k in 1..n {
-      c = cars[k] ?? (bx, by);
-      t = cars[k - 1] ?? (bx, by);
-      move_base(l, c.0, c.1, z, t.0, t.1);
+      c = cars[k] ?? (bx, by, bz);
+      t = cars[k - 1] ?? (bx, by, bz);
+      move_base_to(l, c.0, c.1, c.2, t.0, t.1, t.2);
     }
     return Step.Pulled;
   }
@@ -2192,9 +2211,9 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
     ok = lift >= -reach && lift <= reach
          && (left == 0 || surface_kind(l, tile_world::top(l.w, fx, fy, z)))
          && !blocks_things(l, tile_world::terrain(l.w, fx, fy, z))
-         && tile_world::crossable(l.w, bx, by, z, dx, dy);
+         && tile_world::crossable(l.w, bx, by, z, dx, dy) && bz == z;
   }
-  arrive(l, tx, ty, z);
+  arrive(l, tx, ty, tz);
   if !ok || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
   clear_way(l, fx, fy, z, dx, dy);
   move_base(l, bx, by, z, fx, fy);

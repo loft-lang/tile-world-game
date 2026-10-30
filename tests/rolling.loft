@@ -300,3 +300,67 @@ fn test_a_cart_is_pushed_up_over_a_layers_edge() {
   rules::put_hero(w, 4, 0, 0);
   assert(rules::walk(w, -1, 0) == rules::Step.Pushed && carts_z(w) == "x2z1 ", "pushed up a layer: {carts_z(w)}");
 }
+
+// Pulled over the layer's edge (long_hill: the rail from layer 1's x 2, its floor, over the edge onto
+// layer 0's x 3, the slope's top).  Up: the hero on x 2 above, the upper track made level, pulls
+// west — the cart on x 3 below comes up onto x 2 (a step up: it counts double, within the pull of
+// 2).  Down: the hero on the slope's top pulls east, down the slope — the cart above comes down onto
+// x 3.  The hero stepping down over the edge, the cart behind on layer 1 follows onto the edge cell.
+// The hero cannot step up over it while pulling (it never steps up pulling).
+fn test_a_cart_is_pulled_over_a_layers_edge() {
+  w = long_hill();
+  tile_world::set_rise(w.w, 0, 0, 1, 0);
+  tile_world::set_rise(w.w, 1, 0, 1, 0);
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 2, 0, 1);
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && carts_z(w) == "x2z1 " && w.hero_x == 1 && w.hero_z == 1,
+         "up over the edge: {carts_z(w)}");
+  v = long_hill();
+  tile_world::place(v.w, 2, 0, 1, rules::th(v, "cart"));
+  rules::put_hero(v, 3, 0, 0);
+  assert(rules::pull(v, 1, 0) == rules::Step.Pulled && carts_z(v) == "x3z0 " && v.hero_x == 4 && v.hero_z == 0,
+         "down over the edge: {carts_z(v)}");
+  u = long_hill();
+  tile_world::place(u.w, 1, 0, 1, rules::th(u, "cart"));
+  rules::put_hero(u, 2, 0, 1);
+  assert(rules::pull(u, 1, 0) == rules::Step.Pulled && carts_z(u) == "x2z1 " && u.hero_x == 3 && u.hero_z == 0,
+         "the hero down over the edge, the cart after it: {carts_z(u)}, hero {u.hero_x} z {u.hero_z}");
+  t = long_hill();
+  tile_world::place(t.w, 4, 0, 0, rules::th(t, "cart"));
+  rules::put_hero(t, 3, 0, 0);
+  assert(rules::pull(t, -1, 0) == rules::Step.Blocked && carts_z(t) == "x4z0 " && t.hero_z == 0, "never up, pulling");
+}
+
+// A train of two across the edge is pulled as one: the carts on x 2 above and x 3 below, the hero
+// on x 1 above (the upper track made level) pulling west.  As for a push, the step that counts is
+// the one onto the hero's cell — level here — so two carts are within the pull of 2: the front one
+// to x 1, the rear one up over the edge to x 2.
+fn test_a_train_across_the_edge_is_pulled_as_one() {
+  w = long_hill();
+  tile_world::set_rise(w.w, 0, 0, 1, 0);
+  tile_world::set_rise(w.w, 1, 0, 1, 0);
+  tile_world::place(w.w, 2, 0, 1, rules::th(w, "cart"));
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 1, 0, 1);
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && carts_z(w) == "x1z1 x2z1 " && w.hero_x == 0,
+         "the train, its rear up over the edge: {carts_z(w)}");
+}
+
+// Over the edge only a step down: with the slope's top flattened (x 3 below at rise 0) the drop
+// from the floor above is a full layer — pulling, the hero does not take it.  And up a step every
+// cart counts twice: two carts below (x 3, x 4) pulled up over the edge are beyond the pull of 2 —
+// the hero walks on, the carts stay.
+fn test_pulling_over_the_edge_has_its_limits() {
+  w = long_hill();
+  tile_world::set_rise(w.w, 3, 0, 0, 0);
+  tile_world::place(w.w, 1, 0, 1, rules::th(w, "cart"));
+  rules::put_hero(w, 2, 0, 1);
+  assert(rules::pull(w, 1, 0) == rules::Step.Blocked && w.hero_z == 1 && carts_z(w) == "x1z1 ", "a full layer down: no");
+  v = long_hill();
+  tile_world::set_rise(v.w, 0, 0, 1, 0);
+  tile_world::set_rise(v.w, 1, 0, 1, 0);
+  tile_world::place(v.w, 3, 0, 0, rules::th(v, "cart"));
+  tile_world::place(v.w, 4, 0, 0, rules::th(v, "cart"));
+  rules::put_hero(v, 2, 0, 1);
+  assert(rules::pull(v, -1, 0) == rules::Step.Walked && carts_z(v) == "x3z0 x4z0 " && v.hero_x == 1, "two up a step: too heavy: {carts_z(v)}");
+}

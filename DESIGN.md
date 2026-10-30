@@ -140,8 +140,11 @@ This is what the game built on tile_world should be.
   A track runs on over a layer's edge: a rail on a slope's top (rise 3, nothing overhead) joins the
   rail beside it on the layer above at its floor, both ways, so a long slope crosses layers and a
   train can span two; a cart is pushed up over the edge too.  The hero pushes standing on the
-  ground within a step of the cart's base, on a slope as well.  Not built: pulling a cart over a
-  layer's edge.  The editor paints junctions ("junction 1" .. "junction 8", each as drawn set
+  ground within a step of the cart's base, on a slope as well.  Pulled over the edge too
+  (`tests/rolling.loft`): the cart behind the hero is found along its track across the edge, a
+  train is followed car by car across it, and the hero may step down over the edge onto the
+  slope's top while pulling (less than a layer; never up, as everywhere while pulling); a step up
+  onto the hero's cell counts every cart twice.  The editor paints junctions ("junction 1" .. "junction 8", each as drawn set
   straight, in the Tracks category) and slopes (`]` / `[`).  A hero riding a cart that derails stays on it (proposed, as built).
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
