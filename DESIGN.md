@@ -330,6 +330,12 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   away.  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).
   Cyclopes are not scared: slightly more intelligent, they go to search for what set the bomb off
   (owner) — a blast draws them to it.
+- **Cyclopes** (owner, planned).  Hard to fight and living in groups; the way past them is stealth.
+  - They use weapons, and throw bombs at the hero — bombs like any other: they push, hurt, chain,
+    light or douse torches, and scare the ordinary enemies around.
+  - Without a weapon a cyclops pulls the hero towards its own nest; the hero breaks out of the pull
+    with some effort (open: how much — proposed, a few presses away from the cyclops).
+  - They search for what set a bomb off (above).
 - **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
   way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,
   and they make light double-edged: a burning torch shows the hero to them.  How a cyclops

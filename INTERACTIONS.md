@@ -98,6 +98,13 @@ waits for the hero.
     Cyclopes instead search for what set it off (owner): a bomb set off far from the way through —
     by an arrow, from a distance — draws a cyclops group there while the hero sneaks past; one set
     off near the hero brings them to it.
+29. **Puzzle — a cyclops's bomb used.**  A cyclops throws bombs like the hero's (owner): baited to
+    throw beside a cart it hops the cart to the next track, into water it douses the room's
+    torches, near a lying bomb it sets off a chain, and its blast scares off the ordinary enemies
+    around it.
+30. **Ruling — the pull and the world.**  A cyclops pulls the hero towards its nest (owner): across a
+    track a cart rolls along, over a ledge, through a lever's cell?  Does the pull stop at a ledge
+    (as the hero would not walk off it), or drag the hero over — a fall the hero did not choose?
 24. **Puzzle — stealth against a cart.**  A cart rolling past a cyclops group draws its eye (noise
     or light) away from the hero sneaking by.
 
