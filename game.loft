@@ -648,46 +648,158 @@ pub fn quit(g: const Game) -> boolean {
 // --- The picture ---
 
 // Cell (x, y, z) of `w`, at its place in the view.
-// The ground of cell (x, y, z): what lies under its kind (a rail's floor, a tree's), and the kind
-// itself when it is flat.
-fn draw_ground(g: Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean, shade: integer) {
+/// The ground around the view: for each cell one beyond it on every side, its rise, its light
+/// (a shade, 0 .. 7), whether it is set (not the void) and whether it is ground (set, not
+/// standing up) — what a cell's corners are made of.
+struct Ground {
+  x0: integer,
+  y0: integer,
+  w: integer,
+  h: integer,
+  rise: vector<integer>,
+  shade: vector<integer>,
+  set: vector<boolean>,
+  ground: vector<boolean>
+}
+
+fn ground_of(g: const Game, w: const rules::Level, z: integer, rows: integer, lit: boolean) -> Ground {
+  out = Ground { x0: g.cam_x - 1, y0: g.cam_y - 1, w: COLS + 2, h: rows + 2, rise: [], shade: [], set: [], ground: [] };
+  if lit {
+    out.shade = tile_world::shades(w.w, out.x0, out.y0, out.x0 + out.w - 1, out.y0 + out.h - 1, z,
+                                   rules::lights(w, z), rules::light_starts(w, z));
+  }
+  for j in 0..out.h {
+    for i in 0..out.w {
+      k = tile_world::terrain(w.w, out.x0 + i, out.y0 + j, z);
+      out.rise += [tile_world::rise(w.w, out.x0 + i, out.y0 + j, z)];
+      out.set += [k != tile_world::VOID];
+      out.ground += [k != tile_world::VOID && !theme::upright(g.look, k)];
+    }
+  }
+  out
+}
+
+// Cell (x, y)'s corner (cx, cy) — 0 or 1 each, (0, 0) top-left — lifted and darkened: the
+// lift, in pixels, the mean rise of the ground cells sharing the corner that are within a step
+// of this one (a slope bends; a drop of more leaves a bank); the darkness, in sixteenths of a
+// shade, the mean light of the ground cells sharing it, never lighter than `dim` — light fades
+// across the ground, not through a wall.  A top corner of a cell within a step of the ground
+// north of it is that cell's bottom corner, so the two meet without a seam: a bank shows only
+// at a drop of two steps or more.
+fn corner(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, dim: integer) -> (integer, integer) {
+  me = (y - gr.y0) * gr.w + (x - gr.x0);
+  r0 = gr.rise[me] ?? 0;
+  north = me - gr.w;
+  if cy == 0 && y - 1 > gr.y0 && (gr.ground[north] ?? false) {
+    rn = gr.rise[north] ?? 0;
+    if rn - r0 <= 1 && r0 - rn <= 1 { return corner(gr, x, y - 1, cx, 1, dim); }
+  }
+  rs = 0;
+  rn = 0;
+  ss = 0;
+  sn = 0;
+  for d in [(cx - 1, cy - 1), (cx, cy - 1), (cx - 1, cy), (cx, cy)] {
+    i = me + d.1 * gr.w + d.0;
+    if !(gr.ground[i] ?? false) { continue; }
+    r = gr.rise[i] ?? 0;
+    if r - r0 <= 1 && r0 - r <= 1 {
+      rs += r;
+      rn += 1;
+    }
+    sh = gr.shade[i] ?? 0;
+    ss += if sh < dim { dim } else { sh };
+    sn += 1;
+  }
+  lift = if rn == 0 { r0 * 4 } else { (rs * 8 + rn) / (2 * rn) };
+  dark = if sn == 0 { dim * 16 } else { (ss * 32 + sn) / (2 * sn) };
+  (lift, dark)
+}
+
+// The ground of cell (x, y, z): what lies under its kind (a rail's floor, a tree's) and the kind
+// itself when it is flat, bent to its corners' lifts and lit by their light; and, where it
+// stands higher than the ground south of it, the bank between, its ground darkened two shades;
+// ground falling away from the light (the top left) a little darker.
+fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: integer, z: integer,
+               upper: boolean, dim: integer) {
   ts = g.look.tile_size;
   px = (x - g.cam_x) * ts;
   py = (y - g.cam_y) * ts;
   k = tile_world::terrain(w.w, x, y, z);
-  // A kind drawn over another (a rail, a tree, a fence over the floor) draws that one first.
+  tl = corner(gr, x, y, 0, 0, dim);
+  tr = corner(gr, x, y, 1, 0, dim);
+  bl = corner(gr, x, y, 0, 1, dim);
+  br = corner(gr, x, y, 1, 1, dim);
+  lift = (tl.0, tr.0, bl.0, br.0);
+  // The light comes from the top left, as in the pictures: ground falling away from it (its
+  // top-left corner higher than its bottom-right) is darker, a shade for a step of slope, two at
+  // most — so a mound and a ramp read as such.
+  away = (tl.0 - br.0) * 4;
+  away = if away < 0 { 0 } else if away > 32 { 32 } else { away };
+  dark = (tl.1 + away, tr.1 + away, bl.1 + away, br.1 + away);
   under = theme::under(g.look, k);
-  if under != 0 { theme::put(g.surface, theme::terrain_sprite(g.look, under, x, y, false), px, py, shade); }
-  if !theme::upright(g.look, k) { draw_kind(g, w, x, y, z, upper, shade); }
+  base = if under != 0 { theme::terrain_sprite(g.look, under, x, y, false) } else { -1 };
+  if base >= 0 { theme::put_ground(g.surface, base, px, py, lift, dark); }
+  if !theme::upright(g.look, k) {
+    own = kind_sprite(g, w, x, y, z, upper);
+    theme::put_ground(g.surface, own, px, py, lift, dark);
+    if base < 0 { base = own; }
+  }
+  // The bank: from this cell's bottom edge down to the top edge of the ground south of it.
+  south = (y + 1 - gr.y0) * gr.w + (x - gr.x0);
+  if base >= 0 && (gr.ground[south] ?? false) {
+    sl = corner(gr, x, y + 1, 0, 0, dim);
+    sr = corner(gr, x, y + 1, 1, 0, dim);
+    if bl.0 > sl.0 || br.0 > sr.0 {
+      theme::put_ground(g.surface, base, px, py + ts, (bl.0, br.0, ts + sl.0, ts + sr.0),
+                        (bl.1 + 32, br.1 + 32, sl.1 + 32, sr.1 + 32));
+    }
+  }
+}
+
+// The light at corner (cx, cy) of a standing cell (a wall): the mean of every set cell sharing
+// it, walls and ground alike, never lighter than `dim`, in sixteenths of a shade.
+fn standing_light(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, dim: integer) -> integer {
+  me = (y - gr.y0) * gr.w + (x - gr.x0);
+  ss = 0;
+  sn = 0;
+  for d in [(cx - 1, cy - 1), (cx, cy - 1), (cx - 1, cy), (cx, cy)] {
+    i = me + d.1 * gr.w + d.0;
+    if !(gr.set[i] ?? false) { continue; }
+    sh = gr.shade[i] ?? 0;
+    ss += if sh < dim { dim } else { sh };
+    sn += 1;
+  }
+  if sn == 0 { dim * 16 } else { (ss * 32 + sn) / (2 * sn) }
 }
 
 // What stands on cell (x, y, z): its kind when it stands up (a wall, a tree), and its stack.
-fn draw_standing(g: Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean,
-                 shade: integer) {
-  if theme::upright(g.look, tile_world::terrain(w.w, x, y, z)) { draw_kind(g, w, x, y, z, upper, shade); }
+fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: integer, z: integer,
+                 upper: boolean, dim: integer, shade: integer) {
+  if theme::upright(g.look, tile_world::terrain(w.w, x, y, z)) {
+    // Standing at its rise, lit gradually like the ground beside it.
+    ts = g.look.tile_size;
+    up = tile_world::rise(w.w, x, y, z) * 4;
+    theme::put_ground(g.surface, kind_sprite(g, w, x, y, z, upper), (x - g.cam_x) * ts, (y - g.cam_y) * ts,
+                      (up, up, up, up),
+                      (standing_light(gr, x, y, 0, 0, dim), standing_light(gr, x, y, 1, 0, dim),
+                       standing_light(gr, x, y, 0, 1, dim), standing_light(gr, x, y, 1, 1, dim)));
+  }
   draw_stack(g, w, x, y, z, shade);
 }
 
-// The picture of cell (x, y, z)'s terrain kind.
-fn draw_kind(g: Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean, shade: integer) {
-  ts = g.look.tile_size;
-  px = (x - g.cam_x) * ts;
-  py = (y - g.cam_y) * ts;
+// The picture of cell (x, y, z)'s terrain kind: a rail cell the piece of track its joins name
+// (what a cart follows is what is seen); a line (a fence) across or along its neighbours of
+// the same kind; a material's cell its own picture (its tile number); any other the kind's look.
+fn kind_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean) -> integer {
   k = tile_world::terrain(w.w, x, y, z);
   own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
   track = if rules::is_rail(w, k) && own < 0 { theme::track_sprite(g.look, rules::joins(w, x, y, z)) } else { -1 };
-  if track >= 0 {
-    // A rail cell shows the piece of track its joins name: what a cart follows is what is seen.
-    theme::put(g.surface, track, px, py, shade);
-  } else if theme::is_line(g.look, k) {
-    // A line (a rail, a fence) runs across or along its neighbours of the same kind.
+  if track >= 0 { return track; }
+  if theme::is_line(g.look, k) {
     across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
-    theme::put(g.surface, theme::line_sprite(g.look, k, across), px, py, shade);
-  } else {
-    // A material's cell names its own picture (its tile number); any other the kind's look.
-    own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
-    theme::put(g.surface, if own >= 0 { own } else { theme::terrain_sprite(g.look, k, x, y, upper) }, px, py, shade);
+    return theme::line_sprite(g.look, k, across);
   }
+  if own >= 0 { own } else { theme::terrain_sprite(g.look, k, x, y, upper) }
 }
 
 // The stack on cell (x, y, z).
@@ -695,10 +807,11 @@ fn draw_stack(g: Game, w: const rules::Level, x: integer, y: integer, z: integer
   ts = g.look.tile_size;
   px = (x - g.cam_x) * ts;
   py = (y - g.cam_y) * ts;
-  // The stack, bottom first, each thing lifted by the height under it (4 pixels a step).  A
-  // thing that holds another (a socket and its torch) is one picture when the theme has it; a
-  // flame shows its frame at the level's clock, and its low picture in its last minute.
-  base = 0;
+  // The stack, bottom first, each thing lifted by the height under it (4 pixels a step), the
+  // rise included.  A thing that holds another (a socket and its torch) is one picture when
+  // the theme has it; a flame shows its frame at the level's clock, and its low picture in its
+  // last minute.
+  base = tile_world::rise(w.w, x, y, z);
   st = tile_world::things(w.w, x, y, z);
   low = rules::low(w, x, y, z);
   i = 0;
@@ -793,10 +906,11 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   rows = view_rows(g);
   cx = g.cam_x;
   cy = g.cam_y;
+  gr = ground_of(g, w, z, rows, lit);
+  // A view cell's shade, from the ground grid (one cell wider each side).
   sh: vector<integer> = [];
-  if lit {
-    sh = tile_world::shades(w.w, cx, cy, cx + COLS - 1, cy + rows - 1, z, rules::lights(w, z),
-                            rules::light_starts(w, z));
+  for y in 0..rows {
+    for x in 0..COLS { sh += [gr.shade[(y + 1) * gr.w + x + 1] ?? 0]; }
   }
   // The ground first, all of it; then, row by row from the back, what stands — the upright
   // terrain, the stacks, and the figures whose feet stand at that row — so what is in front
@@ -804,8 +918,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   for y in 0..rows {
     for x in 0..COLS {
       if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
-        shade = sh[y * COLS + x] ?? 0;
-        draw_ground(g, w, cx + x, cy + y, z, upper, if shade < dim { dim } else { shade });
+        draw_ground(g, w, gr, cx + x, cy + y, z, upper, dim);
       }
     }
   }
@@ -815,7 +928,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
       for x in 0..COLS {
         if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
           shade = sh[y * COLS + x] ?? 0;
-          draw_standing(g, w, cx + x, cy + y, z, upper, if shade < dim { dim } else { shade });
+          draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade });
         }
       }
     }

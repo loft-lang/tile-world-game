@@ -421,6 +421,25 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
 - **The engine** turns pictures with `tiles::draw_turned` (tiles 0.5.0): every pixel kept at any
   angle, so a 4° rock does not smear the pixel art.
 
+### The ground: slopes bent to fit, light that fades (owner, built: `game.loft` § the ground)
+
+- **Slopes.** Every ground cell is drawn with `tiles::draw_ground` (tiles 0.4.0), bent to its four
+  corners: a corner is lifted 4 px a step by the mean rise of the ground cells sharing it that
+  are within a step of the cell, so a slope bends smoothly and a rail on it stays joined; a top
+  corner within a step of the ground north of it is that cell's bottom corner, so the two meet
+  exactly. A drop of two steps or more leaves a bank under the higher cell, its ground darkened
+  two shades. Things, upright terrain and figures stand at their cell's rise (the hero riding a
+  cart on a slope sits on it).
+- **Light fades.** A corner's light is the mean of the ground cells sharing it (a standing
+  cell's, of every set cell), so light fades across the ground and up the walls, dithered
+  between the shades, instead of in squares; not through a wall into the dark beyond.
+- **Shape by light.** The light falls from the top left, as in the pictures: ground falling away
+  from it (its top-left corner higher than its bottom-right) is a shade darker for a step of
+  slope, two at most, so a mound reads as one.
+- **Open:** layers are still drawn at one place, so the top of a slope (12 px up) meets the
+  floor of the layer above drawn at 0 — whether a layer is drawn a tile higher is the owner's
+  call.
+
 ## Slices
 
 | slice | content | state |

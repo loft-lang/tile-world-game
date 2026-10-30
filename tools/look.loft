@@ -1,16 +1,30 @@
 // A scene to look at how slopes draw: rails up a slope running east-west (y 2, rising west) and
-// north-south (x 9, rising north), a cart on each, the hero riding the east-west one.
+// north-south (x 9, rising north), a cart on each, the hero riding the east-west one; a mound
+// and a block two steps high (its bank).  Or, given a level's number, that level as it starts.
 //
-//   loft --lib libs tools/look.loft OUT.png      writes the frame, 4x
+//   loft --lib libs tools/look.loft OUT.png      writes the slope scene, 4x
+//   loft --lib libs tools/look.loft OUT.png 2    writes level 2 (order.json) as it starts
 use tile_world;
 use rules;
 use game;
 
 fn main() {
-  out = if len(arguments()) > 0 { arguments()[len(arguments()) - 1] } else { "look.png" };
+  args = arguments();
+  level = -1;
+  out = "look.png";
+  for a in args {
+    if a.ends_with(".png") { out = a; } else if len(a) > 0 && a.char_slice(0, 1) >= "0" && a.char_slice(0, 1) <= "9" { level = a as integer ?? -1; }
+  }
   m = game::new_game("..");
   if !m { println("the game does not load"); exit(1); }
   g = m;
+  if level >= 0 {
+    game::start_level(g, level);
+    game::draw(g);
+    if !game::snapshot(g, out, 4) { println("could not write {out}"); exit(1); }
+    println("{out}: level {level}");
+    return;
+  }
   game::start_level(g, 0);
   w = g.world;
   floor = rules::tr(w, "floor");
@@ -29,6 +43,13 @@ fn main() {
   tile_world::set_rise(w.w, 9, 1, 0, 3);
   tile_world::set_rise(w.w, 9, 2, 0, 2);
   tile_world::set_rise(w.w, 9, 3, 0, 1);
+  tile_world::set_rise(w.w, 5, 5, 0, 1);
+  tile_world::set_rise(w.w, 6, 5, 0, 1);
+  tile_world::set_rise(w.w, 5, 6, 0, 1);
+  for x in 1..4 {
+    for y in 5..7 { tile_world::set_rise(w.w, x, y, 0, 2); }
+  }
+  tile_world::place(w.w, 2, 5, 0, rules::th(w, "chest"));
   tile_world::place(w.w, 2, 2, 0, rules::th(w, "cart"));
   tile_world::place(w.w, 9, 2, 0, rules::th(w, "cart"));
   rules::put_hero(w, 2, 2, 0);

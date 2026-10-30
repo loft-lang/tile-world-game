@@ -312,6 +312,14 @@ pub fn put_turned(surface: integer, s: integer, px: integer, py: integer, degree
   tiles::draw_turned(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, degrees, pivot, false, false, false, shade);
 }
 
+/// Draw sprite `s` as ground at (px, py): its corners (top-left, top-right, bottom-left,
+/// bottom-right) lifted `lift` pixels and darkened `dark` sixteenths of a shade (tiles 0.4.0).
+pub fn put_ground(surface: integer, s: integer, px: integer, py: integer, lift: (integer, integer, integer, integer),
+                  dark: (integer, integer, integer, integer)) {
+  if s < 0 { return; }
+  tiles::draw_ground(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, lift, dark);
+}
+
 /// Draw `thing` held at the hand (hand_x, hand_y): its grip there, pointing `angle` degrees
 /// clockwise from up — the way its holder moves — pushed `reach` pixels the way it points (to
 /// the nearest of the four ways).  A flame shows its frame at `now`, and its low picture when
