@@ -8,7 +8,8 @@
     "health": 6,
     "fall_damage": [1, 3, 6],
     "burn_ms": 600000,
-    "low_ms": 60000
+    "low_ms": 60000,
+    "fade": 4
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },

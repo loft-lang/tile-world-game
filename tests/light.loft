@@ -18,7 +18,9 @@ fn corridor() -> rules::Level {
 
 fn row(w: const rules::Level) -> text {
   t = "";
-  for s in tile_world::shades(w.w, -1, 0, 7, 0, 0, rules::carried_lights(w)) { t += "{s},"; }
+  for s in tile_world::shades(w.w, -1, 0, 7, 0, 0, rules::lights(w, 0), rules::light_starts(w, 0)) {
+    t += "{s},";
+  }
   t
 }
 

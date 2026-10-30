@@ -113,6 +113,10 @@ The player lights the dungeon.  Built (`tests/torches.loft`, and `the torch room
 level, played to its goal in `tests/levels.loft`) except the enemies' part, which waits for the
 enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
+- **Light is a bonus, never a wall.**  The darkest shade is never black: the player can always
+  go on in the semi-dark, or spend the time to fetch sticks, tar them and relight.  For now
+  light helps (and draws bats); later, darkness becomes a tool too (see the cyclopes, under
+  Enemies), so carrying a torch is a choice with a cost as well as a gain.
 - **Dark by default.**  A dungeon cell is lit only by what gives light: open sky, a lit
   terrain, or a burning torch.  Light falls off one shade a step from it, darkest 7 steps away,
   and it never passes an opaque cell or edge.  This is `tile_world::shades` as it stands today.
@@ -138,8 +142,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     socket while holding a torch (burning or not), a stick or the staff fixes it there.
 - **Burning out.**  A torch burns for 10 minutes of the level's clock (kinds.json `burn_ms`,
   600 000) from the moment it is lit, wherever it is.
-  - In its last minute the flame is low (kinds.json `low_ms`; the tile says so, the light does
-    not change).  A burning flame flickers between two pictures.
+  - **The warning:** its light fades as it burns, `fade` (4) shades over its life, a shade every
+    2:30, so a fresh torch lights 7 cells and a dying one about 4.  In its last minute the
+    flame is drawn low too (kinds.json `low_ms`).  A burning flame flickers between two pictures.
   - At the end it is a stick again, in the hand, on the floor or in the socket, and can be
     dipped in tar again.
   - Each torch keeps its own time.  The time is part of the situation a well saves.
@@ -177,6 +182,10 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     ceiling).
   - Their nest is never on a wall.
 - **Enemies act on the world clock**, so every behaviour is testable at exact times.
+- **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
+  way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,
+  and they make light double-edged: a burning torch shows the hero to them.  How a cyclops
+  sees (light on the hero, distance, sight lines) is to be designed with them.
 
 ## Guards, doors and wells
 

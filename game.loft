@@ -609,7 +609,10 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   cx = g.cam_x;
   cy = g.cam_y;
   sh: vector<integer> = [];
-  if lit { sh = tile_world::shades(w.w, cx, cy, cx + COLS - 1, cy + rows - 1, z, rules::carried_lights(w)); }
+  if lit {
+    sh = tile_world::shades(w.w, cx, cy, cx + COLS - 1, cy + rows - 1, z, rules::lights(w, z),
+                            rules::light_starts(w, z));
+  }
   for y in 0..rows {
     for x in 0..COLS {
       if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {

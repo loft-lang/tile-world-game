@@ -25,7 +25,8 @@
 //            it turns what the hero holds into that thing's `dipped_to`: a tar barrel, a stick
 //            into a torch), lit_to (lit from a flame it becomes that: a torch), flame (it burns:
 //            it lights what has a `lit_to`, and after `burn_ms` of the level's clock it becomes
-//            its `burns_to`, wherever it is — held, on the floor or in a socket).
+//            its `burns_to`, wherever it is — held, on the floor or in a socket; over that time
+//            its light fades by `fade` shades, the warning that it burns down).
 //
 // The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
@@ -111,7 +112,10 @@ pub struct Kinds {
   pub fall_damage: vector<integer>,
   /// How long a flame burns, in the level's clock, and the last part of it it burns low.
   pub burn_ms: integer,
-  pub low_ms: integer
+  pub low_ms: integer,
+  /// How many shades a flame's light fades over its burn_ms: it reaches that many cells less far
+  /// at the end.
+  pub fade: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -143,7 +147,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     health: num(r, "health", 6),
     fall_damage: [],
     burn_ms: num(r, "burn_ms", 600000),
-    low_ms: num(r, "low_ms", 60000)
+    low_ms: num(r, "low_ms", 60000),
+    fade: num(r, "fade", 4)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -191,11 +196,11 @@ pub fn kinds() -> Kinds {
       k = kinds_from_json(raw);
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
-                                 burn_ms: 600000, low_ms: 60000 }; }
+                                 burn_ms: 600000, low_ms: 60000, fade: 4 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
-          layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000 }
+          layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -343,7 +348,9 @@ pub fn level(k: const Kinds) -> Level {
   }
   for t in k.things {
     blocks = t.walk_on == "";
-    tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light, t.glyph);
+    // A flame's light fades as it burns, so the game passes it in (`lights`); the world lights
+    // only what always shines (the staff).
+    tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light && !t.flame, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false }
@@ -686,6 +693,45 @@ pub fn low(l: const Level, x: integer, y: integer, z: integer) -> boolean {
 /// Is the flame the hero holds in its last `low_ms`?
 pub fn hero_low(l: const Level) -> boolean {
   is_flame(l, l.hero_item) && l.hero_until - l.now <= l.k.low_ms
+}
+
+// How far a flame burning until `until` has faded, in shades: 0 when lit, `fade` at its end.
+fn faded(l: const Level, until: integer) -> integer {
+  left = until - l.now;
+  if left >= l.k.burn_ms || l.k.burn_ms <= 0 { return 0; }
+  if left < 0 { left = 0; }
+  (l.k.burn_ms - left) * l.k.fade / l.k.burn_ms ?? 0
+}
+
+/// The lights the game gives `tile_world::shades` on layer z, and the shade each starts at
+/// (`light_starts`, the same order): what the hero carries, then every flame set down there.  A
+/// flame fades as it burns; the staff does not.  Before the clock has met the level's flames
+/// they are as bright as when lit.
+pub fn lights(l: const Level, z: integer) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  if l.hero_item != 0 && gives_light(l, l.hero_item) { out += [(l.hero_x, l.hero_y)]; }
+  if l.kindled {
+    for f in l.flames { if f.z == z { out += [(f.x, f.y)]; } }
+    return out;
+  }
+  for c in tile_world::stacks(l.w) {
+    if c.2 != z { continue; }
+    for t in tile_world::things(l.w, c.0, c.1, c.2) {
+      if is_flame(l, t) { out += [(c.0, c.1)]; }
+    }
+  }
+  out
+}
+
+pub fn light_starts(l: const Level, z: integer) -> vector<integer> {
+  out: vector<integer> = [];
+  if l.hero_item != 0 && gives_light(l, l.hero_item) {
+    out += [if is_flame(l, l.hero_item) { faded(l, l.hero_until) } else { 0 }];
+  }
+  if l.kindled {
+    for f in l.flames { if f.z == z { out += [faded(l, f.until)]; } }
+  }
+  out
 }
 
 /// Does anything burn — a flame set down, or the one the hero holds?  (The picture moves then.)
