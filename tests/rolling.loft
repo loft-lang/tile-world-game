@@ -207,3 +207,96 @@ fn test_leaning_takes_the_branch() {
   until(v, 1100);
   assert(v.hero_x == 3 && v.hero_y == 1, "not leaning: on north, at {v.hero_x},{v.hero_y}");
 }
+
+// The long hill: a slope over two layers.  Layer 1 has rails at x 0, 1, 2 (rise 2, 1, 0); layer 0 goes on
+// from x 3 under its void (rise 3, 2, 1, 0 at x 3 .. 6) and runs flat to x 14, walled round.  Layer
+// 1's floor stands 4 high, so x 2 (layer 1, rise 0) to x 3 (layer 0, rise 3) is one step down, like
+// any other on a slope.
+fn long_hill() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 15, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 3, 0, 14, 0, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 0, 0, 2, 0, 1, rules::tr(w, "rail"));
+  tile_world::set_rise(w.w, 0, 0, 1, 2);
+  tile_world::set_rise(w.w, 1, 0, 1, 1);
+  tile_world::set_rise(w.w, 3, 0, 0, 3);
+  tile_world::set_rise(w.w, 4, 0, 0, 2);
+  tile_world::set_rise(w.w, 5, 0, 0, 1);
+  w.k.flicker_odds = 0;
+  w
+}
+
+// Where the carts are, on either layer, west to east: "x3z0" for one on layer 0 at x 3.
+fn carts_z(w: const rules::Level) -> text {
+  t = "";
+  for x in -1..16 {
+    for z in 0..2 {
+      if tile_world::top(w.w, x, 0, z) == rules::th(w, "cart") { t += "x{x}z{z} "; }
+    }
+  }
+  t
+}
+
+// The track joins over the layer's edge both ways — and not with something overhead, nor where the
+// slope's top is not one step below the floor above.
+fn test_a_track_joins_over_a_layers_edge() {
+  w = long_hill();
+  assert((rules::joins(w, 3, 0, 0) & 8) != 0, "x 3 below joins west, up: {rules::joins(w, 3, 0, 0)}");
+  assert((rules::joins(w, 2, 0, 1) & 2) != 0, "x 2 above joins east, down: {rules::joins(w, 2, 0, 1)}");
+  v = long_hill();
+  tile_world::set_terrain(v.w, 3, 0, 1, rules::tr(v, "wall"));
+  assert((rules::joins(v, 3, 0, 0) & 8) == 0 && (rules::joins(v, 2, 0, 1) & 2) == 0, "a wall overhead: no join");
+  u = long_hill();
+  tile_world::set_rise(u.w, 3, 0, 0, 2);
+  assert((rules::joins(u, 3, 0, 0) & 8) == 0 && (rules::joins(u, 2, 0, 1) & 2) == 0, "two steps: no join");
+}
+
+// Down the long hill: 600 x 1, 900 x 2, 1100 over the edge onto x 3 of layer 0 (speed 4 from there),
+// 1250 x 4, 1400 x 5, 1550 x 6, then on the flat 1700 x 7, 1850 x 8 (3), 2050 x 9, 2250 x 10 (2),
+// 2550 x 11, 2850 x 12 (1), 3450 x 13, 4050 x 14 and stopped.  The hero rides it down a layer.
+fn test_a_cart_rolls_down_over_a_layers_edge() {
+  w = long_hill();
+  tile_world::place(w.w, 0, 0, 1, rules::th(w, "cart"));
+  rules::put_hero(w, 0, 0, 1);
+  rules::tick(w, 0);
+  assert(len(w.rolls) == 1, "it starts to roll");
+  until(w, 1099);
+  assert(carts_z(w) == "x2z1 ", "1099, still above: {carts_z(w)}");
+  until(w, 1100);
+  assert(carts_z(w) == "x3z0 " && w.hero_x == 3 && w.hero_z == 0 && w.hero_h == 4,
+         "1100, over the edge, the hero with it: {carts_z(w)} hero {w.hero_x},{w.hero_z} h {w.hero_h}");
+  until(w, 1249);
+  assert(carts_z(w) == "x3z0 ", "1249: speed 4: {carts_z(w)}");
+  until(w, 1250);
+  assert(carts_z(w) == "x4z0 ", "1250: {carts_z(w)}");
+  until(w, 4049);
+  assert(carts_z(w) == "x13z0 ", "4049: {carts_z(w)}");
+  until(w, 4050);
+  assert(carts_z(w) == "x14z0 " && len(w.rolls) == 0, "4050: stopped at x 14: {carts_z(w)}");
+}
+
+// A train of two over the edge: at 900 its front is on layer 0 and its rear still above; it rolls as
+// one, the front a cell ahead of the single cart's path, and stops at x 13, x 14.
+fn test_a_train_spans_two_layers() {
+  w = long_hill();
+  tile_world::place(w.w, 0, 0, 1, rules::th(w, "cart"));
+  tile_world::place(w.w, 1, 0, 1, rules::th(w, "cart"));
+  rules::tick(w, 0);
+  assert(len(w.rolls) == 1, "one train");
+  until(w, 900);
+  assert(carts_z(w) == "x2z1 x3z0 ", "900: over the edge: {carts_z(w)}");
+  until(w, 1100);
+  assert(carts_z(w) == "x3z0 x4z0 ", "1100: {carts_z(w)}");
+  until(w, 9000);
+  assert(carts_z(w) == "x13z0 x14z0 " && len(w.rolls) == 0, "stopped: {carts_z(w)}");
+}
+
+// Pushed up over the edge: from layer 0's x 3 onto layer 1's x 2 — a step up, so it counts double —
+// and from there it rolls back down by itself.
+fn test_a_cart_is_pushed_up_over_a_layers_edge() {
+  w = long_hill();
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "cart"));
+  tile_world::set_rise(w.w, 4, 0, 0, 3);
+  rules::put_hero(w, 4, 0, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && carts_z(w) == "x2z1 ", "pushed up a layer: {carts_z(w)}");
+}

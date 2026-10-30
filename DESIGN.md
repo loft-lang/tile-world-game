@@ -132,8 +132,11 @@ This is what the game built on tile_world should be.
   and coasts (the times worked by hand in the tests, the same in one tick or many), linking by
   weight, the hero hurt and pushed aside or taken on board, riding, and leaning by the arrows while
   rolling.  The game hears every cell a cart rolls and returns a hero a cart kills to its well.
-  Not built: rolling over a slope's top onto the layer above; a palette entry for painting a
-  junction in the editor.  A hero riding a cart that derails stays on it (proposed, as built).
+  A track runs on over a layer's edge: a rail on a slope's top (rise 3, nothing overhead) joins the
+  rail beside it on the layer above at its floor, both ways, so a long slope crosses layers and a
+  train can span two; a cart is pushed up over the edge too.  The hero pushes standing on the
+  ground within a step of the cart's base, on a slope as well.  Not built: pulling a cart over a
+  layer's edge; a palette entry for painting a junction in the editor; slopes drawn raised.  A hero riding a cart that derails stays on it (proposed, as built).
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
     side do not fuse.

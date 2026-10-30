@@ -335,12 +335,11 @@ pub struct Piece {
   pub twin: integer
 }
 
-/// A train rolling by itself: its carts' cells front first, on layer z, the way its front last
-/// moved, its speed (1 .. max_speed), when it moves next (the level's clock), and the cells it has
-/// run on the flat since it last slowed.
+/// A train rolling by itself: its carts' cells front first (with their layers: a train runs over a
+/// slope's top onto the next layer), the way its front last moved, its speed (1 .. max_speed), when
+/// it moves next (the level's clock), and the cells it has run on the flat since it last slowed.
 pub struct Roll {
-  pub cells: vector<(integer, integer)>,
-  pub z: integer,
+  pub cells: vector<(integer, integer, integer)>,
   pub dx: integer,
   pub dy: integer,
   pub speed: integer,
@@ -694,16 +693,22 @@ fn base(l: const Level, x: integer, y: integer, z: integer) -> integer {
 // Move the thing at the top of (x, y, z) to (nx, ny, z) — a big thing with the item resting on
 // it, which rides along (a flame with its time).
 fn move_base(l: Level, x: integer, y: integer, z: integer, nx: integer, ny: integer) {
+  move_base_to(l, x, y, z, nx, ny, z);
+}
+
+// The same, onto layer nz (a cart over a slope's top).
+fn move_base_to(l: Level, x: integer, y: integer, z: integer, nx: integer, ny: integer, nz: integer) {
   on = 0;
   if base(l, x, y, z) != tile_world::top(l.w, x, y, z) { on = tile_world::take(l.w, x, y, z); }
   t = tile_world::take(l.w, x, y, z);
-  tile_world::place(l.w, nx, ny, z, t);
+  tile_world::place(l.w, nx, ny, nz, t);
   if on == 0 { return; }
-  tile_world::place(l.w, nx, ny, z, on);
+  tile_world::place(l.w, nx, ny, nz, on);
   i = flame_at(l, x, y, z);
   if i >= 0 {
     l.flames[i].x = nx;
     l.flames[i].y = ny;
+    l.flames[i].z = nz;
   }
 }
 
@@ -1226,15 +1231,43 @@ pub fn joins(l: const Level, x: integer, y: integer, z: integer) -> integer {
   }
   m = 0;
   for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-    nx = x + d.0;
-    ny = y + d.1;
-    if rail(l, tile_world::terrain(l.w, nx, ny, z)) && tile_world::crossable(l.w, x, y, z, d.0, d.1) {
-      n = painted(l, nx, ny, z);
-      np = l.pieces[n];
-      if n == 0 || (np && (np.joins & side_bit(-d.0, -d.1)) != 0) { m += side_bit(d.0, d.1); }
-    }
+    nz = rail_next(l, x, y, z, d.0, d.1);
+    if nz == NOWHERE { continue; }
+    n = painted(l, x + d.0, y + d.1, nz);
+    np = l.pieces[n];
+    if n == 0 || (np && (np.joins & side_bit(-d.0, -d.1)) != 0) { m += side_bit(d.0, d.1); }
   }
   m
+}
+
+/// The layer `rail_next` answers when a side leads to no rail.
+pub const NOWHERE = -1000000;
+
+// The layer of the rail cell beside (x, y, z) on side (dx, dy), across an edge things cross: the
+// rail on its own layer; or — a track running over a slope — up from a slope's top (rise 3, nothing
+// overhead) onto the rail of the layer above at its floor (rise 0), or down from a floor (rise 0)
+// over the drop beside it onto the slope's top below (rise 3).  NOWHERE for none.
+fn rail_next(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
+  nx = x + dx;
+  ny = y + dy;
+  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return NOWHERE; }
+  if rail(l, tile_world::terrain(l.w, nx, ny, z)) { return z; }
+  top = l.k.layer_height - 1;
+  here = tile_world::rise(l.w, x, y, z);
+  if here == top && tile_world::terrain(l.w, x, y, z + 1) == VOID
+      && rail(l, tile_world::terrain(l.w, nx, ny, z + 1)) && tile_world::rise(l.w, nx, ny, z + 1) == 0 {
+    return z + 1;
+  }
+  if here == 0 && tile_world::terrain(l.w, nx, ny, z) == VOID
+      && rail(l, tile_world::terrain(l.w, nx, ny, z - 1)) && tile_world::rise(l.w, nx, ny, z - 1) == top {
+    return z - 1;
+  }
+  NOWHERE
+}
+
+// A cell's height over the bottom of everything: its layer's floor plus its rise.
+fn level_h(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  z * l.k.layer_height + tile_world::rise(l.w, x, y, z)
 }
 
 // The way a cart moving (dx, dy) in rail cell (x, y, z) goes on: the side it leaves by and what
@@ -1247,10 +1280,9 @@ fn way_on(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: i
   w = way_through(l, x, y, z, dx, dy, pushed, lean);
   if w.2 != ALONG { return w; }
   // The way out leads on only into rail that joins back; past rail that does not, it stops.
-  nx = x + w.0;
-  ny = y + w.1;
-  if (joins(l, nx, ny, z) & side_bit(-w.0, -w.1)) != 0 { return w; }
-  if rail(l, tile_world::terrain(l.w, nx, ny, z)) { return (0, 0, STUCK); }
+  nz = rail_next(l, x, y, z, w.0, w.1);
+  if nz != NOWHERE && (joins(l, x + w.0, y + w.1, nz) & side_bit(-w.0, -w.1)) != 0 { return w; }
+  if rail(l, tile_world::terrain(l.w, x + w.0, y + w.1, z)) { return (0, 0, STUCK); }
   (w.0, w.1, DERAILS)
 }
 
@@ -1294,7 +1326,7 @@ fn way_through(l: const Level, x: integer, y: integer, z: integer, dx: integer, 
 /// and how its front goes on: STUCK, ALONG (one cell on along the rails) or DERAILS (off the end,
 /// onto the floor), with the way it goes (`way`).
 pub struct TrainWay {
-  pub cells: vector<(integer, integer)>,
+  pub cells: vector<(integer, integer, integer)>,
   pub how: integer,
   pub way: (integer, integer)
 }
@@ -1304,17 +1336,21 @@ fn train_way(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
   if !car(l, x, y, z) { return out; }
   cx = x;
   cy = y;
+  cz = z;
   d = (dx, dy);
   first = true;
   while true {
-    out.cells += [(cx, cy)];
-    w = way_on(l, cx, cy, z, d.0, d.1, first);
+    out.cells += [(cx, cy, cz)];
+    w = way_on(l, cx, cy, cz, d.0, d.1, first);
     first = false;
     out.way = (w.0, w.1);
     out.how = w.2;
-    if w.2 != ALONG || !car(l, cx + w.0, cy + w.1, z) { return out; }
+    if w.2 != ALONG { return out; }
+    nz = rail_next(l, cx, cy, cz, w.0, w.1);
+    if nz == NOWHERE || !car(l, cx + w.0, cy + w.1, nz) { return out; }
     cx += w.0;
     cy += w.1;
+    cz = nz;
     d = (w.0, w.1);
     if len(out.cells) > 64 { out.how = STUCK; return out; }
   }
@@ -1334,37 +1370,40 @@ fn push_train(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: int
   tw = train_way(l, x, y, z, dx, dy);
   n = len(tw.cells);
   if n == 0 || tw.how == STUCK { return false; }
-  last = tw.cells[n - 1] ?? (x, y);
+  last = tw.cells[n - 1] ?? (x, y, z);
+  lz = last.2;
   fx = last.0 + tw.way.0;
   fy = last.1 + tw.way.1;
+  fz = if tw.how == ALONG { rail_next(l, last.0, last.1, lz, tw.way.0, tw.way.1) } else { lz };
+  if fz == NOWHERE { return false; }
   // Up a step every cart counts twice against the strength.
-  up = tile_world::rise(l.w, fx, fy, z) > tile_world::rise(l.w, last.0, last.1, z);
+  up = level_h(l, fx, fy, fz) > level_h(l, last.0, last.1, lz);
   if (if up { 2 * n } else { n }) > push_strength(l) { return false; }
-  front = base(l, last.0, last.1, z);
+  front = base(l, last.0, last.1, lz);
   if tw.how == ALONG {
-    if !rail_room(l, last.0, last.1, fx, fy, z) || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) { return false; }
+    if !rail_room(l, last.0, last.1, lz, fx, fy, fz) || !way_clear(l, fx, fy, fz, tw.way.0, tw.way.1) { return false; }
   } else {
-    k = tile_world::terrain(l.w, fx, fy, z);
-    if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, last.0, last.1, z, tw.way.0, tw.way.1)
-        || height(l, fx, fy, z) != tile_world::rise(l.w, last.0, last.1, z)
-        || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) {
+    k = tile_world::terrain(l.w, fx, fy, lz);
+    if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, last.0, last.1, lz, tw.way.0, tw.way.1)
+        || height(l, fx, fy, lz) != tile_world::rise(l.w, last.0, last.1, lz)
+        || !way_clear(l, fx, fy, lz, tw.way.0, tw.way.1) {
       return false;
     }
-    t = tile_world::top(l.w, fx, fy, z);
+    t = tile_world::top(l.w, fx, fy, lz);
     if t != 0 && !item(l, t) { return false; }
   }
-  clear_way(l, fx, fy, z, tw.way.0, tw.way.1);
-  move_base(l, last.0, last.1, z, fx, fy);
+  clear_way(l, fx, fy, fz, tw.way.0, tw.way.1);
+  move_base_to(l, last.0, last.1, lz, fx, fy, fz);
   if tw.how == DERAILS {
     p = l.k.things[front];
     to = if p { thing_id(l.k, p.derails_to) } else { 0 };
-    if to != 0 { replace_base(l, fx, fy, z, to); }
+    if to != 0 { replace_base(l, fx, fy, fz, to); }
   }
   k = n - 2;
   while k >= 0 {
-    c = tw.cells[k] ?? (x, y);
-    t = tw.cells[k + 1] ?? (x, y);
-    move_base(l, c.0, c.1, z, t.0, t.1);
+    c = tw.cells[k] ?? (x, y, z);
+    t = tw.cells[k + 1] ?? (x, y, z);
+    move_base_to(l, c.0, c.1, c.2, t.0, t.1, t.2);
     k -= 1;
   }
   true
@@ -1376,13 +1415,13 @@ fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
   trainlike(l, t) && height(l, x, y, z) == tile_world::rise(l.w, x, y, z) + thing_height(l, t)
 }
 
-// Room for a cart on rail cell (tx, ty, z) coming from (fx, fy, z): rail, nothing but an item on
-// it, and at most a step up or down — a slope.
-fn rail_room(l: const Level, fx: integer, fy: integer, tx: integer, ty: integer, z: integer) -> boolean {
-  if !rail(l, tile_world::terrain(l.w, tx, ty, z)) { return false; }
-  t = tile_world::top(l.w, tx, ty, z);
+// Room for a cart on rail cell (tx, ty, tz) coming from (fx, fy, fz): rail, nothing but an item on
+// it, and at most a step up or down — a slope, over a layer's edge too.
+fn rail_room(l: const Level, fx: integer, fy: integer, fz: integer, tx: integer, ty: integer, tz: integer) -> boolean {
+  if !rail(l, tile_world::terrain(l.w, tx, ty, tz)) { return false; }
+  t = tile_world::top(l.w, tx, ty, tz);
   if t != 0 && !item(l, t) { return false; }
-  d = tile_world::rise(l.w, tx, ty, z) - tile_world::rise(l.w, fx, fy, z);
+  d = level_h(l, tx, ty, tz) - level_h(l, fx, fy, fz);
   d >= -1 && d <= 1
 }
 
@@ -1587,7 +1626,11 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // A train moves as one, when the hero is strong enough and the cell after it takes it.
   // A train moves along its track (round a bend, off an open end), when the hero is strong
   // enough; one that cannot move is climbed, like a chair (below).
-  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) && push_train(l, tx, ty, z, dx, dy) {
+  // The hero pushes standing on the ground (not on a thing), within a step of the cart's base:
+  // from below or above on a slope too.
+  ground = l.hero_h == tile_world::rise(l.w, l.hero_x, l.hero_y, z);
+  if trainlike(l, thing) && ground && reach(l, l.hero_h, base) && reach(l, base, l.hero_h) && !hands_busy(l)
+      && push_train(l, tx, ty, z, dx, dy) {
     arrive(l, tx, ty, z);
     return Step.Pushed;
   }
@@ -1743,9 +1786,7 @@ pub fn in_daylight(l: const Level) -> boolean {
 // The rolling train with a cart on (x, y, z), -1 for none.
 fn rolling_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
   for i in 0..len(l.rolls) {
-    r = l.rolls[i];
-    if r.z != z { continue; }
-    for c in r.cells ?? [] { if c.0 == x && c.1 == y { return i; } }
+    for c in l.rolls[i].cells ?? [] { if c.0 == x && c.1 == y && c.2 == z { return i; } }
   }
   -1
 }
@@ -1760,21 +1801,26 @@ pub fn riding(l: const Level) -> integer {
 
 // The carts behind the cart on (x, y, z) along its track, away from the way (dx, dy): the train it
 // leads, front first.
-fn train_behind(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> vector<(integer, integer)> {
-  out: vector<(integer, integer)> = [(x, y)];
+fn train_behind(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer)
+    -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [(x, y, z)];
   cx = x;
   cy = y;
+  cz = z;
   ax = dx;
   ay = dy;
   while len(out) < 64 {
-    m = joins(l, cx, cy, z) - (joins(l, cx, cy, z) & side_bit(ax, ay));
+    m = joins(l, cx, cy, cz) - (joins(l, cx, cy, cz) & side_bit(ax, ay));
     found = false;
     for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
       if found || (m & side_bit(d.0, d.1)) == 0 { continue; }
-      if car(l, cx + d.0, cy + d.1, z) && rolling_at(l, cx + d.0, cy + d.1, z) < 0 {
+      nz = rail_next(l, cx, cy, cz, d.0, d.1);
+      if nz == NOWHERE { continue; }
+      if car(l, cx + d.0, cy + d.1, nz) && rolling_at(l, cx + d.0, cy + d.1, nz) < 0 {
         cx += d.0;
         cy += d.1;
-        out += [(cx, cy)];
+        cz = nz;
+        out += [(cx, cy, cz)];
         ax = -d.0;
         ay = -d.1;
         found = true;
@@ -1789,15 +1835,17 @@ fn train_behind(l: const Level, x: integer, y: integer, z: integer, dx: integer,
 fn start_rolls(l: Level) {
   for c in tile_world::stacks(l.w) {
     if !car(l, c.0, c.1, c.2) || rolling_at(l, c.0, c.1, c.2) >= 0 { continue; }
-    here = tile_world::rise(l.w, c.0, c.1, c.2);
+    here = level_h(l, c.0, c.1, c.2);
     m = joins(l, c.0, c.1, c.2);
     started = false;
     for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
       if started || (m & side_bit(d.0, d.1)) == 0 { continue; }
+      nz = rail_next(l, c.0, c.1, c.2, d.0, d.1);
+      if nz == NOWHERE { continue; }
       nx = c.0 + d.0;
       ny = c.1 + d.1;
-      if tile_world::rise(l.w, nx, ny, c.2) != here - 1 || !rail_room(l, c.0, c.1, nx, ny, c.2) { continue; }
-      l.rolls += [Roll { cells: train_behind(l, c.0, c.1, c.2, d.0, d.1), z: c.2, dx: d.0, dy: d.1, speed: 1,
+      if level_h(l, nx, ny, nz) != here - 1 || !rail_room(l, c.0, c.1, c.2, nx, ny, nz) { continue; }
+      l.rolls += [Roll { cells: train_behind(l, c.0, c.1, c.2, d.0, d.1), dx: d.0, dy: d.1, speed: 1,
                          due: l.now + l.k.roll_ms, flat: 0 }];
       started = true;
     }
@@ -1811,8 +1859,8 @@ fn roll_due(l: Level) {
     guard += 1;
     first = -1;
     for i in 0..len(l.rolls) {
-      r = l.rolls[i];
-      if r.due <= l.now && (first < 0 || r.due < (l.rolls[first].due ?? 0)) { first = i; }
+      d = l.rolls[i].due ?? 0;
+      if d <= l.now && (first < 0 || d < (l.rolls[first].due ?? 0)) { first = i; }
     }
     if first < 0 { return; }
     roll_step(l, first);
@@ -1847,23 +1895,28 @@ fn shove_aside(l: const Level, x: integer, y: integer, z: integer, dx: integer, 
 
 // One cell on for rolling train ri.
 fn roll_step(l: Level, ri: integer) {
-  r = l.rolls[ri];
-  z = r.z;
-  n = len(r.cells);
-  front = r.cells[0] ?? (0, 0);
+  // The train's facts as plain values first: link and stop change l.rolls.
+  cells: vector<(integer, integer, integer)> = [];
+  for c in l.rolls[ri].cells ?? [] { cc = c; cells += [cc]; }
+  dx = l.rolls[ri].dx ?? 0;
+  dy = l.rolls[ri].dy ?? 0;
+  speed = l.rolls[ri].speed ?? 0;
+  due = l.rolls[ri].due ?? l.now;
+  n = len(cells);
+  front = cells[0] ?? (0, 0, 0);
+  fz = front.2;
   rider = -1;
   if riding(l) == ri {
     for i in 0..n {
-      c = r.cells[i] ?? (0, 0);
-      if c.0 == l.hero_x && c.1 == l.hero_y { rider = i; }
+      c = cells[i] ?? (0, 0, 0);
+      if c.0 == l.hero_x && c.1 == l.hero_y && c.2 == l.hero_z { rider = i; }
     }
   }
   lean = if rider >= 0 { (l.lean_x, l.lean_y) } else { (0, 0) };
-  at_junction = junction_way(l, front.0, front.1, z, r.dx, r.dy).0 != 0
-                || junction_way(l, front.0, front.1, z, r.dx, r.dy).1 != 0;
+  jw = junction_way(l, front.0, front.1, fz, dx, dy);
   // As for a pushed cart: a train starting from a track's end leaves by its one side.
-  w = way_on(l, front.0, front.1, z, r.dx, r.dy, true, lean);
-  if at_junction && rider >= 0 {
+  w = way_on(l, front.0, front.1, fz, dx, dy, true, lean);
+  if (jw.0 != 0 || jw.1 != 0) && rider >= 0 {
     l.lean_x = 0;
     l.lean_y = 0;
   }
@@ -1874,45 +1927,50 @@ fn roll_step(l: Level, ri: integer) {
   nx = front.0 + w.0;
   ny = front.1 + w.1;
   if w.2 == DERAILS {
-    k = tile_world::terrain(l.w, nx, ny, z);
-    t = tile_world::top(l.w, nx, ny, z);
-    if walkable(l, k) && !blocks_things(l, k) && tile_world::crossable(l.w, front.0, front.1, z, w.0, w.1)
-        && (t == 0 || item(l, t)) && height(l, nx, ny, z) == tile_world::rise(l.w, front.0, front.1, z)
-        && way_clear(l, nx, ny, z, w.0, w.1) {
-      clear_way(l, nx, ny, z, w.0, w.1);
-      fb = base(l, front.0, front.1, z);
-      move_cars(l, ri, nx, ny, rider);
+    k = tile_world::terrain(l.w, nx, ny, fz);
+    t = tile_world::top(l.w, nx, ny, fz);
+    if walkable(l, k) && !blocks_things(l, k) && tile_world::crossable(l.w, front.0, front.1, fz, w.0, w.1)
+        && (t == 0 || item(l, t)) && height(l, nx, ny, fz) == tile_world::rise(l.w, front.0, front.1, fz)
+        && way_clear(l, nx, ny, fz, w.0, w.1) {
+      clear_way(l, nx, ny, fz, w.0, w.1);
+      fb = base(l, front.0, front.1, fz);
+      move_cars(l, ri, cells, nx, ny, fz, rider);
       p = l.k.things[fb];
       to = if p { thing_id(l.k, p.derails_to) } else { 0 };
-      if to != 0 { replace_base(l, nx, ny, z, to); }
-      if rider == 0 { l.hero_h = height(l, nx, ny, z); }
+      if to != 0 { replace_base(l, nx, ny, fz, to); }
+      if rider == 0 { l.hero_h = height(l, nx, ny, fz); }
     }
     stop_roll(l, ri);
     return;
   }
-  // A cart there: the trains link and share the speed by weight.
-  if car(l, nx, ny, z) {
-    link(l, ri, nx, ny, w.0, w.1);
-    return;
-  }
-  // The hero in the way: hurt by the speed, pushed aside — or with no room, taken on board.
-  if l.hero_x == nx && l.hero_y == ny && l.hero_z == z && rider < 0 {
-    l.health -= r.speed;
-    if l.health < 0 { l.health = 0; }
-    a = shove_aside(l, nx, ny, z, w.0, w.1);
-    if a.0 != 0 || a.1 != 0 { arrive(l, nx + a.0, ny + a.1, z); }
-  }
-  if !rail_room(l, front.0, front.1, nx, ny, z) || !way_clear(l, nx, ny, z, w.0, w.1) {
+  nz = rail_next(l, front.0, front.1, fz, w.0, w.1);
+  if nz == NOWHERE {
     stop_roll(l, ri);
     return;
   }
-  clear_way(l, nx, ny, z, w.0, w.1);
-  passenger = l.hero_x == nx && l.hero_y == ny && l.hero_z == z;
-  drop = tile_world::rise(l.w, front.0, front.1, z) - tile_world::rise(l.w, nx, ny, z);
-  move_cars(l, ri, nx, ny, rider);
-  if passenger { l.hero_h = height(l, nx, ny, z); }
+  // A cart there: the trains link and share the speed by weight.
+  if car(l, nx, ny, nz) {
+    link(l, ri, nx, ny, nz, w.0, w.1);
+    return;
+  }
+  // The hero in the way: hurt by the speed, pushed aside — or with no room, taken on board.
+  if l.hero_x == nx && l.hero_y == ny && l.hero_z == nz && rider < 0 {
+    l.health -= speed;
+    if l.health < 0 { l.health = 0; }
+    a = shove_aside(l, nx, ny, nz, w.0, w.1);
+    if a.0 != 0 || a.1 != 0 { arrive(l, nx + a.0, ny + a.1, nz); }
+  }
+  if !rail_room(l, front.0, front.1, fz, nx, ny, nz) || !way_clear(l, nx, ny, nz, w.0, w.1) {
+    stop_roll(l, ri);
+    return;
+  }
+  clear_way(l, nx, ny, nz, w.0, w.1);
+  passenger = l.hero_x == nx && l.hero_y == ny && l.hero_z == nz;
+  drop = level_h(l, front.0, front.1, fz) - level_h(l, nx, ny, nz);
+  move_cars(l, ri, cells, nx, ny, nz, rider);
+  if passenger { l.hero_h = height(l, nx, ny, nz); }
   l.rolled += 1;
-  sp = l.rolls[ri].speed ?? 0;
+  sp = speed;
   fl = l.rolls[ri].flat ?? 0;
   if drop > 0 {
     sp = if sp + 1 > l.k.max_speed { l.k.max_speed } else { sp + 1 };
@@ -1937,42 +1995,41 @@ fn roll_step(l: Level, ri: integer) {
   l.rolls[ri].flat = fl;
   // From when this move was due, not from now: a tick that covers several moves (a slow frame)
   // must give the same path as many small ones — the game is deterministic.
-  l.rolls[ri].due = (r.due ?? l.now) + l.k.roll_ms / sp;
+  l.rolls[ri].due = due + l.k.roll_ms / sp;
 }
 
-// Move the carts of rolling train ri one cell on: its front to (nx, ny), each other cart into the
-// cell of the one before it; the hero riding cart `rider` moves with it.
-fn move_cars(l: Level, ri: integer, nx: integer, ny: integer, rider: integer) {
-  r = l.rolls[ri];
-  z = r.z;
-  old = r.cells;
+// Move the carts of rolling train ri (its cells `old`, front first) one cell on: its front to
+// (nx, ny, nz), each other cart into the cell of the one before it; the hero riding cart `rider`
+// moves with it, from layer to layer too.
+fn move_cars(l: Level, ri: integer, old: const vector<(integer, integer, integer)>, nx: integer, ny: integer,
+             nz: integer, rider: integer) {
   n = len(old);
-  front = old[0] ?? (0, 0);
-  move_base(l, front.0, front.1, z, nx, ny);
+  front = old[0] ?? (0, 0, 0);
+  move_base_to(l, front.0, front.1, front.2, nx, ny, nz);
   for i in 1..n {
-    c = old[i] ?? (0, 0);
-    t = old[i - 1] ?? (0, 0);
-    move_base(l, c.0, c.1, z, t.0, t.1);
+    c = old[i] ?? (0, 0, 0);
+    t = old[i - 1] ?? (0, 0, 0);
+    move_base_to(l, c.0, c.1, c.2, t.0, t.1, t.2);
   }
-  cells: vector<(integer, integer)> = [(nx, ny)];
-  for i in 0..n - 1 { cells += [old[i] ?? (0, 0)]; }
+  cells: vector<(integer, integer, integer)> = [(nx, ny, nz)];
+  for i in 0..n - 1 { cc = old[i] ?? (0, 0, 0); cells += [cc]; }
   l.rolls[ri].cells = cells;
   if rider >= 0 {
-    to = cells[rider] ?? (nx, ny);
+    to = cells[rider] ?? (nx, ny, nz);
     l.hero_x = to.0;
     l.hero_y = to.1;
-    l.hero_h = height(l, to.0, to.1, z);
+    l.hero_z = to.2;
+    l.hero_h = height(l, to.0, to.1, to.2);
   }
 }
 
-// Rolling train ri, moving (dx, dy), meets a cart on (x, y): the two link into one train.  A standing
-// train is pushed on at the speed shared by weight (n moving at v, m standing: v * n / (n + m),
-// rounded down); a train rolling away is caught up (the two speeds shared by weight); one rolling
-// at it meets head on (the difference of the two, the heavier way).
-fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer) {
-  // The train's facts as plain values first: every write below changes l.rolls.
-  z = l.rolls[ri].z ?? 0;
-  mine: vector<(integer, integer)> = [];
+// Rolling train ri, moving (dx, dy), meets a cart on (x, y, z): the two link into one train.  A
+// standing train is pushed on at the speed shared by weight (n moving at v, m standing:
+// v * n / (n + m), rounded down); a train rolling away is caught up (the two speeds shared by
+// weight); one rolling at it meets head on (the difference of the two, the heavier way).
+fn link(l: Level, ri: integer, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  // The trains' facts as plain values first: every write below changes l.rolls.
+  mine: vector<(integer, integer, integer)> = [];
   for c in l.rolls[ri].cells ?? [] { cc = c; mine += [cc]; }
   speed = l.rolls[ri].speed ?? 0;
   due = l.rolls[ri].due ?? l.now;
@@ -1983,15 +2040,17 @@ fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer)
     ahead = tw.cells;
     m = len(ahead);
     sp = speed * n / (n + m) ?? 0;
-    cells: vector<(integer, integer)> = [];
+    cells: vector<(integer, integer, integer)> = [];
     k = m - 1;
     while k >= 0 {
-      cells += [ahead[k] ?? (x, y)];
+      cc = ahead[k] ?? (x, y, z);
+      cells += [cc];
       k -= 1;
     }
     for c in mine { cc = c; cells += [cc]; }
-    d = if m >= 2 { ((ahead[m - 1] ?? (x, y)).0 - (ahead[m - 2] ?? (x, y)).0,
-                     (ahead[m - 1] ?? (x, y)).1 - (ahead[m - 2] ?? (x, y)).1) } else { (dx, dy) };
+    a = ahead[m - 1] ?? (x, y, z);
+    b = ahead[m - 2] ?? (x - dx, y - dy, z);
+    d = if m >= 2 { (a.0 - b.0, a.1 - b.1) } else { (dx, dy) };
     l.rolls[ri].cells = cells;
     l.rolls[ri].dx = d.0;
     l.rolls[ri].dy = d.1;
@@ -2001,15 +2060,15 @@ fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer)
     if sp <= 0 { stop_roll(l, ri); }
     return;
   }
-  theirs: vector<(integer, integer)> = [];
+  theirs: vector<(integer, integer, integer)> = [];
   for c in l.rolls[oi].cells ?? [] { cc = c; theirs += [cc]; }
   ospeed = l.rolls[oi].speed ?? 0;
   m = len(theirs);
-  rear = theirs[m - 1] ?? (0, 0);
-  if rear.0 == x && rear.1 == y {
+  rear = theirs[m - 1] ?? (0, 0, 0);
+  if rear.0 == x && rear.1 == y && rear.2 == z {
     // Caught up: one train, the other's way, the speeds shared by weight.
     sp = (speed * n + ospeed * m) / (n + m) ?? 0;
-    cells: vector<(integer, integer)> = [];
+    cells: vector<(integer, integer, integer)> = [];
     for c in theirs { cc = c; cells += [cc]; }
     for c in mine { cc = c; cells += [cc]; }
     l.rolls[oi].cells = cells;
@@ -2028,11 +2087,12 @@ fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer)
     return;
   }
   sp = (if p > 0 { p } else { -p }) / (n + m) ?? 0;
+  cells: vector<(integer, integer, integer)> = [];
   if p > 0 {
-    cells: vector<(integer, integer)> = [];
     k = m - 1;
     while k >= 0 {
-      cells += [theirs[k] ?? (0, 0)];
+      cc = theirs[k] ?? (0, 0, 0);
+      cells += [cc];
       k -= 1;
     }
     for c in mine { cc = c; cells += [cc]; }
@@ -2040,11 +2100,11 @@ fn link(l: Level, ri: integer, x: integer, y: integer, dx: integer, dy: integer)
     l.rolls[ri].speed = sp;
     _ = l.rolls.remove(oi);
   } else {
-    cells: vector<(integer, integer)> = [];
     for c in theirs { cc = c; cells += [cc]; }
     k = n - 1;
     while k >= 0 {
-      cells += [mine[k] ?? (0, 0)];
+      cc = mine[k] ?? (0, 0, 0);
+      cells += [cc];
       k -= 1;
     }
     l.rolls[oi].cells = cells;
