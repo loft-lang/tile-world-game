@@ -136,7 +136,7 @@ This is what the game built on tile_world should be.
   rail beside it on the layer above at its floor, both ways, so a long slope crosses layers and a
   train can span two; a cart is pushed up over the edge too.  The hero pushes standing on the
   ground within a step of the cart's base, on a slope as well.  Not built: pulling a cart over a
-  layer's edge; a palette entry for painting a junction in the editor; slopes drawn raised.  A hero riding a cart that derails stays on it (proposed, as built).
+  layer's edge; a palette entry for painting a junction in the editor.  A hero riding a cart that derails stays on it (proposed, as built).
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
     side do not fuse.
@@ -189,7 +189,7 @@ This is what the game built on tile_world should be.
   - **Full hands.** While holding any item, the hero cannot push, pull or lift anything. So
     the cellar's torch is put down beside the rock before the rock is pushed.
   - Built (slice 2): the swap, drop and full hands.
-- **Sword.** The hero fights with it (it waits for enemies).
+- **Sword.** The hero fights with it: a blow costs an enemy 2 (§ Enemies; built with the rats).
 - **Axe.** Walking into a fence or a tree with it chops it down to floor (built, slice 2).
   - A tree takes 4 blows (kinds.json `hits`); each tree counts its own, and a well's save keeps
     the count.  A fence still falls at one.
