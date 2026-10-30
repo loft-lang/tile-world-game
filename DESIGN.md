@@ -390,6 +390,37 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   - Standing beside a pit, the layers below are drawn, darker with each level, up to about 4 deep.
 - **Drawing.** It uses the `tiles` library's shaded palettes (100 / 75 / 50 / 35 %).
 
+### Figures: how characters move (owner, built: `motion.loft`, `tests/motion.loft`)
+
+The hero and every enemy are **figures**: cut-outs, as South Park animates them. The body is one
+picture that glides, hops and rocks; a weapon is a second picture, held at the hand, swinging a
+little on its own. No frames are drawn for it: the motion is all there is. It is drawing only;
+the rules stay cell by cell, and it runs on the world clock, so it is the same at any frame rate.
+
+- **Walking.** A step glides to the next cell in 140 ms (no longer than a held key's repeat),
+  hopping 2 px and rocking 4° about the feet, one way on one step and the other way on the next:
+  the hobble. A step taken mid-step glides on from where the body was drawn.
+- **Standing.** After a step the figure stands still (owner): no idle bob.
+- **The weapon leads.** Held at the hand, it points the way the figure faces (up, right, down,
+  left) and trails the rock by a quarter step. Facing up it is behind the body. It is the
+  figure's only sign of direction (owner): the body faces the viewer. A carried thing that is
+  no weapon (a torch, a stick) is held as before.
+- **Facing** is the way the figure last tried to walk, a wall included; pulling, it faces what
+  it pulls (`Level.face_x`, `face_y`).
+- **The swing** (Space): a wind-up 70° behind the facing, a strike through to 70° beyond with a
+  2 px lunge, and the recovery, 240 ms. It strikes the cell faced (`rules::swing`): an axe chops a
+  tree there as walking into it does; a sword cuts the air until enemies exist.
+- **The stagger** (owner): walking into something that does not give way knocks the figure
+  3 px back and lets it wobble back, 280 ms, its weapon flung back. A hit (a rolling cart) is
+  the same stagger, and a figure the hit moves (shoved aside) glides there while it staggers.
+- **Depth** (owner): figures can stand slightly behind what is in front of them. The ground is
+  drawn first; then, row by row from the back, the upright terrain (`"upright"` in theme.json:
+  walls, trees, fences, doors, wells), the stacks, and the figures whose feet stand at that
+  row. So a chest raised on a table in the row in front hides the hero's feet, and a figure
+  stepping into the row behind stays behind that row's things until its feet pass them.
+- **The engine** turns pictures with `tiles::draw_turned` (tiles 0.5.0): every pixel kept at any
+  angle, so a 4° rock does not smear the pixel art.
+
 ## Slices
 
 | slice | content | state |

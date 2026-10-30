@@ -13,7 +13,7 @@ tile_world         loft-libs-world      main
 audio              loft-libs-game       main
 input              loft-libs-game       main
 screen             loft-libs-game       main
-tiles              loft-libs-graphics   main
+tiles              loft-libs-graphics   tiles-turned
 imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
 mesh3d             loft-libs-assets     main

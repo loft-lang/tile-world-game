@@ -1,0 +1,211 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// How a character moves on screen, as a cut-out: the body is one picture that glides, hops and
+// rocks; the weapon is a second one, held at the hand, pointing the way the character faces,
+// swinging a little on its own.  No frames are drawn for it — the motion is all there is.
+//
+// A character's `Motion` is what it last did (a step, a stagger, a swing) and when; `pose` reads
+// where its pieces are at any moment of the world clock.  The rules stay cell by cell: this is
+// drawing only, the same for the hero and, later, every enemy.  Once an act is over the
+// character stands still.
+//
+// Angles are degrees clockwise, the weapon's measured from pointing up: facing right it points
+// at 90, down 180, left 270.  Pixels are the 1x surface's.  Every number is an integer, and a
+// negative one is always a sign times a magnitude, so the rounding of a division never depends
+// on the sign.
+
+/// How long each act takes, in milliseconds.  A step is no longer than the key's repeat, so a
+/// held key walks without a pause.
+pub const WALK_MS = 140;
+pub const STAGGER_MS = 280;
+pub const SWING_MS = 240;
+
+/// The hobble: a step hops `HOP` pixels and rocks `ROCK` degrees at its height, one way on one
+/// step and the other on the next; the weapon trails the rock by a quarter of the step and
+/// sways `SWAY` degrees.
+pub const HOP = 2;
+pub const ROCK = 4;
+pub const SWAY = 8;
+
+/// A stagger knocks the body `KNOCK` pixels back and flings the weapon `FLING` degrees.
+pub const KNOCK = 3;
+pub const FLING = 35;
+
+/// A swing winds up `ARC` degrees behind the facing and strikes through to `ARC` beyond it,
+/// lunging `LUNGE` pixels: the wind-up takes `WIND_MS`, the strike `STRIKE_MS`, the rest is the
+/// recovery.
+pub const ARC = 70;
+pub const LUNGE = 2;
+pub const WIND_MS = 80;
+pub const STRIKE_MS = 60;
+
+pub enum Act {
+  Still,
+  Walk,
+  Stagger,
+  Swing
+}
+
+/// What a character last did, from when (the world clock).  A step glides from (from_x,
+/// from_y), its offset from its cell when the step began; a stagger knocks it (knock_x,
+/// knock_y); `steps` counts the steps, so the rock changes side each step.
+pub struct Motion {
+  pub act: Act,
+  pub start: integer,
+  pub from_x: integer,
+  pub from_y: integer,
+  pub knock_x: integer,
+  pub knock_y: integer,
+  pub steps: integer
+}
+
+/// Where a character's pieces are: the body (x, y) pixels off its place (y up is negative, the
+/// hop included — `hop` is that part: where its feet are on the ground is y + hop) and turned
+/// `tilt` degrees about its feet; the weapon at `weapon` degrees, pushed `reach` pixels out the
+/// way it points.
+pub struct Pose {
+  pub x: integer,
+  pub y: integer,
+  pub hop: integer,
+  pub tilt: integer,
+  pub weapon: integer,
+  pub reach: integer
+}
+
+/// Standing still.
+pub fn still() -> Motion {
+  Motion { act: Act.Still, start: 0, from_x: 0, from_y: 0, knock_x: 0, knock_y: 0, steps: 0 }
+}
+
+/// The weapon's angle facing (fx, fy): up 0, right 90, down 180, left 270.
+pub fn facing(fx: integer, fy: integer) -> integer {
+  if fx > 0 { 90 } else if fx < 0 { 270 } else if fy > 0 { 180 } else { 0 }
+}
+
+// How long act `a` lasts.
+fn length(a: Act) -> integer {
+  if a == Act.Walk { WALK_MS } else if a == Act.Stagger { STAGGER_MS } else if a == Act.Swing { SWING_MS } else { 0 }
+}
+
+/// Is the character still moving at `now`?
+pub fn busy(m: const Motion, now: integer) -> boolean {
+  m.act != Act.Still && now >= m.start && now < m.start + length(m.act)
+}
+
+// `top` scaled by e / n, rounded half up, for 0 <= e <= n.
+fn part(top: integer, e: integer, n: integer) -> integer {
+  (top * e * 2 + n) / (2 * n)
+}
+
+// A rise and fall to `top` over a phase e of n: the triangle top * min(e, n - e) / (n / 2),
+// rounded half up.
+fn arc(top: integer, e: integer, n: integer) -> integer {
+  part(top, if e < n - e { e } else { n - e }, n - n / 2)
+}
+
+fn sign(v: integer) -> integer {
+  if v > 0 { 1 } else if v < 0 { -1 } else { 0 }
+}
+
+fn magnitude(v: integer) -> integer {
+  if v < 0 { -v } else { v }
+}
+
+// The sweep of a swing facing (fx, fy): clockwise (+1) facing right or down, the other way
+// facing left or up — the weapon arm's natural stroke on either side.
+fn sweep(fx: integer, fy: integer) -> integer {
+  if fx > 0 || fy > 0 { 1 } else { -1 }
+}
+
+/// The pose of a character with motion `m`, facing (fx, fy), at `now`.
+pub fn pose(m: const Motion, fx: integer, fy: integer, now: integer) -> Pose {
+  face = facing(fx, fy);
+  out = Pose { x: 0, y: 0, hop: 0, tilt: 0, weapon: face, reach: 0 };
+  if !busy(m, now) { return out; }
+  e = now - m.start;
+  if m.act == Act.Walk {
+    n = WALK_MS;
+    // Gliding in from where the step began, hopping and rocking; the weapon leads the way and
+    // trails the rock by a quarter step.
+    out.x = sign(m.from_x) * part(magnitude(m.from_x), n - e, n);
+    out.hop = arc(HOP, e, n);
+    out.y = sign(m.from_y) * part(magnitude(m.from_y), n - e, n) - out.hop;
+    side = if m.steps % 2 == 0 { 1 } else { -1 };
+    out.tilt = side * arc(ROCK, e, n);
+    lag = if e < n / 4 { 0 } else { e - n / 4 };
+    out.weapon = face - side * arc(SWAY, lag, n - n / 4);
+    out.reach = 1;
+  } else if m.act == Act.Stagger {
+    n = STAGGER_MS;
+    // Knocked back fast (a quarter of the time), then back slowly — gliding in, when the knock
+    // moved it a cell; the body wobbles away from the knock and the weapon is flung back
+    // against its stroke.
+    q = n / 4;
+    d = if e < q { part(KNOCK, e, q) } else { part(KNOCK, n - e, n - q) };
+    out.x = sign(m.from_x) * part(magnitude(m.from_x), n - e, n) + m.knock_x * d;
+    out.y = sign(m.from_y) * part(magnitude(m.from_y), n - e, n) + m.knock_y * d;
+    wobble = [-6, 5, -3, 1];
+    away = if m.knock_x < 0 { -1 } else { 1 };
+    out.tilt = away * (wobble[e * 4 / n] ?? 0);
+    out.weapon = face - sweep(fx, fy) * part(FLING, n - e, n);
+  } else if m.act == Act.Swing {
+    n = SWING_MS;
+    dir = sweep(fx, fy);
+    if e < WIND_MS {
+      // Winding up: back behind the facing, leaning away.
+      out.weapon = face - dir * part(ARC, e, WIND_MS);
+      out.tilt = -dir * 2;
+    } else if e < WIND_MS + STRIKE_MS {
+      // The strike: through the facing to beyond it, lunging into it.
+      out.weapon = face - dir * ARC + dir * part(2 * ARC, e - WIND_MS, STRIKE_MS);
+      out.tilt = dir * 3;
+      out.x = fx * LUNGE;
+      out.y = fy * LUNGE;
+      out.reach = 2;
+    } else {
+      // Recovering: back to the facing, the lunge drawn in.
+      r = n - e;
+      rest = n - WIND_MS - STRIKE_MS;
+      out.weapon = face + dir * part(ARC, r, rest);
+      out.tilt = dir * part(3, r, rest);
+      out.x = fx * part(LUNGE, r, rest);
+      out.y = fy * part(LUNGE, r, rest);
+      out.reach = part(2, r, rest);
+    }
+  }
+  out
+}
+
+/// A step begins at `now`: the character's cell moved by (cell_dx, cell_dy) cells and its height
+/// by `rise` pixels (up is positive), so it glides in from where it was drawn — mid-step too,
+/// when the key is held.
+pub fn walk(m: Motion, now: integer, cell_dx: integer, cell_dy: integer, rise: integer, fx: integer, fy: integer) {
+  was = pose(m, fx, fy, now);
+  hop = if m.act == Act.Walk && busy(m, now) { arc(HOP, now - m.start, WALK_MS) } else { 0 };
+  m.from_x = was.x - cell_dx * 16;
+  m.from_y = was.y + hop - cell_dy * 16 + rise;
+  m.act = Act.Walk;
+  m.start = now;
+  m.steps += 1;
+}
+
+/// The character staggers at `now`, knocked (kx, ky): back from a wall it walked into, or by a
+/// hit — which may move it (cell_dx, cell_dy) cells (a cart shoving it aside), so it glides
+/// there from where it was drawn while it staggers.
+pub fn stagger(m: Motion, now: integer, kx: integer, ky: integer, cell_dx: integer, cell_dy: integer,
+               fx: integer, fy: integer) {
+  was = pose(m, fx, fy, now);
+  m.from_x = was.x - cell_dx * 16;
+  m.from_y = was.y - cell_dy * 16;
+  m.act = Act.Stagger;
+  m.start = now;
+  m.knock_x = kx;
+  m.knock_y = ky;
+}
+
+/// The character swings its weapon at `now`.
+pub fn swing(m: Motion, now: integer) {
+  m.act = Act.Swing;
+  m.start = now;
+}

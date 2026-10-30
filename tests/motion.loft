@@ -1,0 +1,85 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The cut-out motion (motion.loft): a step, a stagger and a swing, read at chosen moments.  Every
+// number is worked by hand from the constants — a step 140 ms, hop 2, rock 4, sway 8; a stagger
+// 280 ms, knock 3, fling 35; a swing 80 + 60 + 100 ms through 70 degrees either side, lunging 2 —
+// with part(top, e, n) = (2 top e + n) / 2n (rounded half up) and the arc a triangle over n.
+use motion;
+
+fn show(p: const motion::Pose) -> text {
+  "x{p.x} y{p.y} t{p.tilt} w{p.weapon} r{p.reach}"
+}
+
+fn main() {
+  assert(motion::facing(1, 0) == 90 && motion::facing(-1, 0) == 270, "right and left");
+  assert(motion::facing(0, 1) == 180 && motion::facing(0, -1) == 0, "down and up");
+}
+
+// One step right from standing (the first step rocks to the left): it glides in from 16 px back,
+// hops and rocks to the top at 70 ms, and the weapon, pointing right, sways a quarter step late.
+//   35 ms: x -part(16, 105, 140) = -12, hop part(2, 35, 70) = 1, rock -part(4, 35, 70) = -2,
+//          the sway not begun;
+//   70 ms: x -8, hop 2, rock -4, the sway part(8, 35, 53) = 5 the other way: 95;
+//   140 ms: done — standing still.
+fn test_a_step_glides_hops_and_rocks() {
+  m = motion::still();
+  motion::walk(m, 1000, 1, 0, 0, 1, 0);
+  assert(show(motion::pose(m, 1, 0, 1000)) == "x-16 y0 t0 w90 r1", "0: {show(motion::pose(m, 1, 0, 1000))}");
+  assert(show(motion::pose(m, 1, 0, 1035)) == "x-12 y-1 t-2 w90 r1", "35: {show(motion::pose(m, 1, 0, 1035))}");
+  assert(show(motion::pose(m, 1, 0, 1070)) == "x-8 y-2 t-4 w95 r1", "70: {show(motion::pose(m, 1, 0, 1070))}");
+  assert(show(motion::pose(m, 1, 0, 1140)) == "x0 y0 t0 w90 r0", "after: {show(motion::pose(m, 1, 0, 1140))}");
+  assert(!motion::busy(m, 1140) && motion::busy(m, 1139), "busy for 140 ms");
+}
+
+// The next step rocks the other way; a step taken mid-step glides on from where the body was
+// drawn (x -8 at 70 ms, so 24 px back), its hop starting again from the ground; a step up a rise
+// starts 4 px below its new place.
+fn test_steps_alternate_and_chain() {
+  m = motion::still();
+  motion::walk(m, 0, 1, 0, 0, 1, 0);
+  motion::walk(m, 70, 1, 0, 0, 1, 0);
+  assert(m.from_x == -24 && m.from_y == 0, "from {m.from_x},{m.from_y}");
+  assert(motion::pose(m, 1, 0, 140).tilt == 4, "the second step rocks right: {motion::pose(m, 1, 0, 140).tilt}");
+  u = motion::still();
+  motion::walk(u, 0, 0, 1, 4, 0, 1);
+  assert(u.from_x == 0 && u.from_y == -12, "down a cell and up a step: from {u.from_x},{u.from_y}");
+}
+
+// Walking right into a wall: knocked 3 px back (left) in 70 ms, and slowly back; the body wobbles
+// (6, -5, 3, -1 in each quarter, away from the knock) and the weapon is flung back.
+//   35 ms: x -part(3, 35, 70) = -2, tilt 6, weapon 90 - part(35, 245, 280) = 59;
+//   70 ms: x -part(3, 210, 210) = -3, tilt -5, weapon 64;
+//   210 ms: x -part(3, 70, 210) = -1, tilt -1, weapon 81.
+fn test_a_stagger_knocks_back_and_wobbles() {
+  m = motion::still();
+  motion::stagger(m, 0, -1, 0, 0, 0, 1, 0);
+  assert(show(motion::pose(m, 1, 0, 35)) == "x-2 y0 t6 w59 r0", "35: {show(motion::pose(m, 1, 0, 35))}");
+  assert(show(motion::pose(m, 1, 0, 70)) == "x-3 y0 t-5 w64 r0", "70: {show(motion::pose(m, 1, 0, 70))}");
+  assert(show(motion::pose(m, 1, 0, 210)) == "x-1 y0 t-1 w81 r0", "210: {show(motion::pose(m, 1, 0, 210))}");
+  assert(show(motion::pose(m, 1, 0, 280)) == "x0 y0 t0 w90 r0", "after: {show(motion::pose(m, 1, 0, 280))}");
+}
+
+// A swing facing right, clockwise: wound up to 90 - 35 = 55 at 40 ms; at 110 ms mid-strike
+// 20 + part(140, 30, 60) = 90, lunging 2; at 139 ms nearly through, 158; recovering at 190 ms,
+// 90 + part(70, 50, 100) = 125, the lunge part(2, 50, 100) = 1.  Facing left it winds the other
+// way: 270 + 35 = 305.
+fn test_a_swing_winds_strikes_and_recovers() {
+  m = motion::still();
+  motion::swing(m, 0);
+  assert(show(motion::pose(m, 1, 0, 40)) == "x0 y0 t-2 w55 r0", "40: {show(motion::pose(m, 1, 0, 40))}");
+  assert(show(motion::pose(m, 1, 0, 110)) == "x2 y0 t3 w90 r2", "110: {show(motion::pose(m, 1, 0, 110))}");
+  assert(motion::pose(m, 1, 0, 139).weapon == 158, "139: {motion::pose(m, 1, 0, 139).weapon}");
+  assert(show(motion::pose(m, 1, 0, 190)) == "x1 y0 t2 w125 r1", "190: {show(motion::pose(m, 1, 0, 190))}");
+  assert(motion::pose(m, -1, 0, 40).weapon == 305, "left: {motion::pose(m, -1, 0, 40).weapon}");
+  assert(show(motion::pose(m, 1, 0, 240)) == "x0 y0 t0 w90 r0", "after: {show(motion::pose(m, 1, 0, 240))}");
+}
+
+// Hit and shoved a cell down (a cart): it glides in from 16 px up while knocked down 3 more:
+// at 70 ms y = -part(16, 210, 280) + 3 = -12 + 3 = -9; at 140 ms -8 + part(3, 140, 210) = -6.
+fn test_a_hit_that_moves_glides_while_it_staggers() {
+  m = motion::still();
+  motion::stagger(m, 0, 0, 1, 0, 1, 1, 0);
+  assert(motion::pose(m, 1, 0, 70).y == -9 && motion::pose(m, 1, 0, 70).x == 0, "70: {show(motion::pose(m, 1, 0, 70))}");
+  assert(motion::pose(m, 1, 0, 140).y == -6, "140: {show(motion::pose(m, 1, 0, 140))}");
+}

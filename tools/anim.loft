@@ -1,0 +1,53 @@
+// A scene played by the game itself, every frame saved: to watch how figures move (motion.loft)
+// — the hobble, the weapon leading in four directions, a bump into a wall, a swing, and the hero
+// passing behind a chest raised on a table.
+//
+//   loft --lib libs tools/anim.loft OUT_DIR      writes OUT_DIR/frame_000.png ... (40 ms apart, 3x)
+use tile_world;
+use rules;
+use game;
+
+const FRAME = 40;
+
+fn main() {
+  dir = if len(arguments()) > 0 { arguments()[len(arguments()) - 1] } else { "." };
+  m = game::new_game("..");
+  if !m { println("the game does not load"); exit(1); }
+  g = m;
+  game::start_level(g, 0);
+  w = g.world;
+  for c in tile_world::stacks(w.w) {
+    while tile_world::top(w.w, c.0, c.1, c.2) != 0 { _ = tile_world::take(w.w, c.0, c.1, c.2); }
+  }
+  for z in 0..3 { tile_world::fill(w.w, -2, -2, 16, 12, z, tile_world::VOID); }
+  tile_world::fill(w.w, -1, -1, 8, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 7, 5, 0, rules::tr(w, "floor"));
+  tile_world::place(w.w, 3, 3, 0, rules::th(w, "table"));
+  tile_world::place(w.w, 3, 3, 0, rules::th(w, "chest"));
+  rules::put_hero(w, 1, 2, 0);
+  w.hero_item = rules::th(w, "sword");
+  w.face_x = 1;
+  w.face_y = 0;
+  g.cam_x = -1;
+  g.cam_y = -1;
+  // (frame, act): r l u d a step that way, s a swing.
+  script = [(4, "r"), (8, "r"), (12, "r"), (18, "u"), (22, "u"), (26, "u"), (36, "d"), (40, "d"), (48, "s"), (60, "l")];
+  n = 0;
+  for f in 0..72 {
+    for a in script {
+      if a.0 == f {
+        if a.1 == "r" { game::move(g, 1, 0, false); }
+        else if a.1 == "l" { game::move(g, -1, 0, false); }
+        else if a.1 == "u" { game::move(g, 0, -1, false); }
+        else if a.1 == "d" { game::move(g, 0, 1, false); }
+        else if a.1 == "s" { game::swing(g); }
+      }
+    }
+    game::draw(g);
+    name = "{dir}/frame_{if f < 10 { "00" } else if f < 100 { "0" } else { "" }}{f}.png";
+    if !game::snapshot(g, name, 3) { println("could not write {name}"); exit(1); }
+    rules::tick(g.world, FRAME);
+    n += 1;
+  }
+  println("{n} frames in {dir}");
+}

@@ -98,6 +98,8 @@ struct ThingProps {
   mount: boolean,
   light: boolean,
   chops: boolean,
+  /// A weapon: the hero swings it (`swing`).
+  swings: boolean,
   opens_to: text,
   points: integer,
   tells: text,
@@ -210,7 +212,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       surface: flag(e, "surface"), move: word(e, "move", "none"), rails: flag(e, "rails"),
       train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
       mount: flag(e, "mount"), light: flag(e, "light"), chops: flag(e, "chops"),
-      opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
+      swings: flag(e, "swings"), opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
       rest: flag(e, "rest"), holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
@@ -386,7 +388,11 @@ pub struct Level {
   pub rolls: vector<Roll>,
   pub lean_x: integer,
   pub lean_y: integer,
-  pub rolled: integer
+  pub rolled: integer,
+  /// The way the hero faces: the way it last tried to walk (towards the thing it pulls), one
+  /// of (1, 0), (-1, 0), (0, 1), (0, -1).  What it swings at is the cell there.
+  pub face_x: integer,
+  pub face_y: integer
 }
 
 /// What a step did.
@@ -416,7 +422,9 @@ pub enum Step {
   /// The hero dipped what it holds (a stick, in a tar barrel).
   Dipped,
   /// A flame lit a torch: the one the hero holds, or the one in a socket.
-  Lit
+  Lit,
+  /// The hero swung its weapon at the cell it faces, and hit nothing there.
+  Swung
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -437,7 +445,7 @@ pub fn level(k: const Kinds) -> Level {
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
-          rolls: [], lean_x: 0, lean_y: 0, rolled: 0 }
+          rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -608,6 +616,32 @@ fn holds_chopper(l: const Level) -> boolean {
   p = l.k.things[l.hero_item];
   if !p { return false; }
   p.chops
+}
+
+/// Does the hero hold a weapon (a thing that swings)?
+pub fn armed(l: const Level) -> boolean {
+  p = l.k.things[l.hero_item];
+  if !p { return false; }
+  p.swings
+}
+
+/// The hero swings the weapon it holds at the cell it faces: an axe strikes a tree or a fence
+/// there as walking into it does (Chopped); anything else is a swing through the air (Swung).
+/// Without a weapon, or with no health, nothing happens (Blocked).  The hero does not move.
+pub fn swing(l: Level) -> Step {
+  if !alive(l) || !armed(l) { return Step.Blocked; }
+  dx = l.face_x;
+  dy = l.face_y;
+  z = l.hero_z;
+  tx = l.hero_x + dx;
+  ty = l.hero_y + dy;
+  kind = tile_world::terrain(l.w, tx, ty, z);
+  felled = chopped_to(l, kind);
+  if felled != 0 && holds_chopper(l) && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
+    strike(l, kind, felled, tx, ty, z, dx, dy);
+    return Step.Chopped;
+  }
+  Step.Swung
 }
 
 /// Are the hero's hands too busy to push, pull or lift?  They are while it holds an item.
@@ -1513,6 +1547,8 @@ pub fn alive(l: const Level) -> boolean {
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   if !alive(l) { return Step.Blocked; }
+  l.face_x = dx;
+  l.face_y = dy;
   // Riding a rolling cart the hero does not walk: it leans, and the next junction takes it.
   if riding(l) >= 0 {
     l.lean_x = dx;
@@ -1658,6 +1694,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
 /// than the hero stands).
 pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
   if !alive(l) { return Step.Blocked; }
+  // Pulling, the hero faces the thing it pulls, behind it.
+  l.face_x = -dx;
+  l.face_y = -dy;
   fx = l.hero_x;
   fy = l.hero_y;
   z = l.hero_z;

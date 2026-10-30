@@ -705,3 +705,46 @@ fn test_a_well_saves() {
   rules::put_hero(w, 1, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Saved && at(w) == "1,0,0 h0", "saved: {at(w)}");
 }
+
+// The hero faces the way it last tried to walk — a wall it bumps into too — and, pulling, the
+// thing it pulls.  It starts facing down.
+fn test_the_hero_faces_its_way() {
+  w = row(4);
+  rules::put_hero(w, 1, 0, 0);
+  assert(w.face_x == 0 && w.face_y == 1, "facing down at first");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.face_x == 1 && w.face_y == 0, "facing right");
+  assert(rules::walk(w, 0, -1) == rules::Step.Blocked && w.face_x == 0 && w.face_y == -1, "facing the wall it bumped");
+  _ = rules::pull(w, -1, 0);
+  assert(w.face_x == 1 && w.face_y == 0, "pulling west, facing east: {w.face_x},{w.face_y}");
+}
+
+// A swing strikes the cell the hero faces: with the axe, a tree there takes its blows as walking
+// into it does, the hero staying put; at the air, or with the sword, a swing hits nothing; with
+// nothing to swing (empty hands, a torch), nothing happens.
+fn test_a_swing_strikes_what_the_hero_faces() {
+  w = row(5);
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "axe"));
+  tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "tree"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::swing(w) == rules::Step.Blocked, "empty hands: no swing");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(rules::swing(w) == rules::Step.Swung && at(w) == "1,0,0 h0", "the air: a swing, no step: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "beside the tree");
+  for k in 0..3 {
+    assert(rules::swing(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "tree"),
+           "blow {k + 1}: standing");
+  }
+  assert(rules::swing(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"),
+         "the fourth blow fells it");
+  assert(at(w) == "2,0,0 h0", "the hero never moved: {at(w)}");
+  v = row(4);
+  tile_world::set_terrain(v.w, 2, 0, 0, rules::tr(v, "tree"));
+  rules::put_hero(v, 1, 0, 0);
+  v.hero_item = rules::th(v, "sword");
+  v.face_x = 1;
+  v.face_y = 0;
+  assert(rules::swing(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
+         "a sword does not chop");
+  v.hero_item = rules::th(v, "torch");
+  assert(rules::swing(v) == rules::Step.Blocked, "a torch is no weapon");
+}

@@ -31,7 +31,7 @@
       ],
       "upper": "dungeon:42"
     },
-    "wall": {
+    "wall": { "upright": true,
       "tile": "dungeon:40",
       "upper": "dungeon:57"
     },
@@ -43,19 +43,19 @@
       "tile": "dungeon:77",
       "along": "dungeon:67"
     },
-    "tree": {
+    "tree": { "upright": true,
       "under": "floor",
       "tile": "town:16"
     },
-    "fence": {
+    "fence": { "upright": true,
       "under": "floor",
       "tile": "town:81",
       "along": "town:71"
     },
-    "door": {
+    "door": { "upright": true,
       "tile": "dungeon:45"
     },
-    "open_door": {
+    "open_door": { "upright": true,
       "tile": "dungeon:33"
     },
     "stairs_up": {
@@ -64,7 +64,7 @@
     "stairs_down": {
       "tile": "dungeon:37"
     },
-    "well": {
+    "well": { "upright": true,
       "under": "floor",
       "tile": "farm:73"
     }
@@ -190,36 +190,24 @@
   },
   "carried": {
     "staff": {
-      "tile": "dungeon:129",
-      "dx": 7,
-      "dy": -2
+      "tile": "dungeon:129"
     },
     "axe": {
-      "tile": "dungeon:118",
-      "dx": 7,
-      "dy": -2
+      "tile": "dungeon:118"
     },
     "sword": {
-      "tile": "dungeon:104",
-      "dx": 7,
-      "dy": -2
+      "tile": "dungeon:104"
     },
     "stick": {
-      "tile": "world:0",
-      "dx": 7,
-      "dy": -2
+      "tile": "world:0"
     },
     "torch": {
-      "tile": "world:1",
-      "dx": 7,
-      "dy": -2
+      "tile": "world:1"
     },
     "burning_torch": {
       "tile": "world:2",
       "frames": ["world:2", "world:3"],
-      "low": "world:4",
-      "dx": 7,
-      "dy": -2
+      "low": "world:4"
     }
   }
 }

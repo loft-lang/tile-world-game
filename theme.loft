@@ -18,7 +18,10 @@ struct TerrainLook {
   variants: vector<integer>,
   upper: integer,
   under: integer,
-  along: integer
+  along: integer,
+  /// It stands up (a wall, a tree, a fence): drawn in depth order with the things and the
+  /// figures, so it hides what is behind it; a flat kind is ground, under everything.
+  upright: boolean
 }
 
 /// How a thing looks when it moves: its frames (one picture each, `FRAME_MS` apart — a flame's
@@ -46,8 +49,11 @@ struct CarriedLook {
   const id: integer,
   tile: integer,
   look: Frames,
-  dx: integer,
-  dy: integer
+  /// The grip: the pixel of its picture held in the hand, about which it turns as the holder
+  /// points it the way it moves (theme.json's `grip_x`, `grip_y`; the bottom middle when not
+  /// given).
+  grip_x: integer,
+  grip_y: integer
 }
 
 /// How long one frame of a moving thing shows, in milliseconds of the level's clock.
@@ -164,7 +170,8 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
       id: rules::terrain_id(k, name), tile: sprite(th, word(e, "tile")), variants: vs,
       upper: sprite(th, word(e, "upper")),
       under: if under == "" { 0 } else { rules::terrain_id(k, under) },
-      along: sprite(th, word(e, "along"))
+      along: sprite(th, word(e, "along")),
+      upright: e.field("upright").as_bool() ?? false
     }];
   }
   things = v.field("things");
@@ -193,7 +200,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     e = carried.field(name);
     th.carried += [CarriedLook {
       id: rules::thing_id(k, name), tile: sprite(th, word(e, "tile")), look: frames_of(th, e),
-      dx: num(e, "dx", 0), dy: num(e, "dy", 0)
+      grip_x: num(e, "grip_x", ts / 2 - 1), grip_y: num(e, "grip_y", ts - 3)
     }];
   }
   th
@@ -226,6 +233,12 @@ pub fn terrain_sprite(th: const Theme, kind: integer, x: integer, y: integer, up
 }
 
 /// What terrain kind `kind` is drawn over (a rail over the floor), 0 for nothing.
+pub fn upright(th: const Theme, kind: integer) -> boolean {
+  look = th.terrain[kind];
+  if !look { return false; }
+  look.upright
+}
+
 pub fn under(th: const Theme, kind: integer) -> integer {
   look = th.terrain[kind];
   if !look { return 0; }
@@ -292,13 +305,26 @@ pub fn thing_sound(th: const Theme, thing: integer) -> text {
   look.sound
 }
 
-/// Draw what the hero carries (thing `thing`) beside the hero drawn at (px, py): its frame at
-/// the level's clock `now`, its low picture when it burns `low`.
-pub fn put_carried(surface: integer, th: const Theme, thing: integer, px: integer, py: integer, shade: integer,
-                   now: integer = 0, low: boolean = false) {
+/// Draw sprite `s` turned `degrees` clockwise about its pixel `pivot`, its top-left at (px, py).
+pub fn put_turned(surface: integer, s: integer, px: integer, py: integer, degrees: integer,
+                  pivot: (integer, integer), shade: integer) {
+  if s < 0 { return; }
+  tiles::draw_turned(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, degrees, pivot, false, false, false, shade);
+}
+
+/// Draw `thing` held at the hand (hand_x, hand_y): its grip there, pointing `angle` degrees
+/// clockwise from up — the way its holder moves — pushed `reach` pixels the way it points (to
+/// the nearest of the four ways).  A flame shows its frame at `now`, and its low picture when
+/// `low`.  Nothing for a thing the theme does not carry.
+pub fn put_held(surface: integer, th: const Theme, thing: integer, hand_x: integer, hand_y: integer,
+                angle: integer, reach: integer, shade: integer, now: integer, low: boolean) {
   look = th.carried[thing];
   if !look { return; }
-  put(surface, pick(look.look, now, low), px + look.dx, py + look.dy, shade);
+  quarter = (((angle % 360) + 360 + 45) % 360) / 90;
+  ox = if quarter == 1 { reach } else if quarter == 3 { -reach } else { 0 };
+  oy = if quarter == 0 { -reach } else if quarter == 2 { reach } else { 0 };
+  put_turned(surface, pick(look.look, now, low), hand_x + ox - look.grip_x, hand_y + oy - look.grip_y, angle,
+             (look.grip_x, look.grip_y), shade);
 }
 
 /// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks
