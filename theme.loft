@@ -354,9 +354,9 @@ pub fn thing_sound(th: const Theme, thing: integer) -> text {
 
 /// Draw sprite `s` turned `degrees` clockwise about its pixel `pivot`, its top-left at (px, py).
 pub fn put_turned(surface: integer, s: integer, px: integer, py: integer, degrees: integer,
-                  pivot: (integer, integer), shade: integer, ghost: boolean = false) {
+                  pivot: (integer, integer), shade: integer) {
   if s < 0 { return; }
-  tiles::draw_turned(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, degrees, pivot, false, false, false, shade, ghost);
+  tiles::draw_turned(surface, s / 4096 ?? 0, s % 4096 ?? 0, px, py, degrees, pivot, false, false, false, shade);
 }
 
 /// Draw sprite `s` as ground at (px, py): its corners (top-left, top-right, bottom-left,
@@ -372,15 +372,14 @@ pub fn put_ground(surface: integer, s: integer, px: integer, py: integer, lift: 
 /// the nearest of the four ways).  A flame shows its frame at `now`, and its low picture when
 /// `low`.  Nothing for a thing the theme does not carry.
 pub fn put_held(surface: integer, th: const Theme, thing: integer, hand_x: integer, hand_y: integer,
-                angle: integer, reach: integer, shade: integer, now: integer, low: boolean,
-                ghost: boolean = false) {
+                angle: integer, reach: integer, shade: integer, now: integer, low: boolean) {
   look = th.carried[thing];
   if !look { return; }
   quarter = (((angle % 360) + 360 + 45) % 360) / 90;
   ox = if quarter == 1 { reach } else if quarter == 3 { -reach } else { 0 };
   oy = if quarter == 0 { -reach } else if quarter == 2 { reach } else { 0 };
   put_turned(surface, pick(look.look, now, low), hand_x + ox - look.grip_x, hand_y + oy - look.grip_y, angle,
-             (look.grip_x, look.grip_y), shade, ghost);
+             (look.grip_x, look.grip_y), shade);
 }
 
 /// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks

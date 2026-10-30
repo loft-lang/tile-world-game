@@ -15,8 +15,9 @@ fn main() {
   test_a_well_brings_the_hero_back();
   test_b_twice_goes_back();
   test_a_doomed_save_rolls_back_once();
-  test_a_figure_behind_a_ledge_is_a_ghost();
-  println("checks/game.loft: 4 passed");
+  test_a_wall_in_front_of_the_hero_is_cut_away();
+  test_only_walls_hide_what_the_hero_does_not_see();
+  println("checks/game.loft: 5 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -88,34 +89,88 @@ fn test_a_doomed_save_rolls_back_once() {
   assert(game::back(g) && g.note == "BACK? B AGAIN", "no further: {g.note}");
 }
 
-// A figure just behind a ledge shows through it as a ghost.  The hero on (2, 1), layer 0, under the
-// open sky; a ledge's floor set on (2, 2) of layer 1 is drawn a row up, over the hero.  The frame
-// drawn with the hero and again with its picture taken away differs — the hero is there — and
-// only on the ghost's half of the checkerboard (x + y even): seen through, not in front.
-fn test_a_figure_behind_a_ledge_is_a_ghost() {
-  m = game::new_game("..");
-  if !m { assert(false, "the game loads"); return; }
-  g = m;
+// --- What the picture leaves out (owner): a wall in front of the hero, and what the hero does not
+// see past the walls ---
+
+// A clean room for these: layer 0's x 0 .. 9, y 0 .. 4 floor in walls, nothing on layer 1, the
+// hero on (1, 1).
+fn room(g: game::Game) {
   game::start_level(g, 0);
-  rules::put_hero(g.world, 2, 1, 0);
-  tile_world::set_terrain(g.world.w, 2, 1, 1, tile_world::VOID);
-  tile_world::set_terrain(g.world.w, 2, 2, 1, rules::tr(g.world, "floor"));
-  w = game::COLS * g.look.tile_size;
-  h = game::ROWS * g.look.tile_size;
-  game::draw(g);
-  with = tiles::pixels(g.surface, w, h);
-  hero = g.look.hero;
-  g.look.hero = -1;
-  game::draw(g);
-  without = tiles::pixels(g.surface, w, h);
-  g.look.hero = hero;
-  shown = 0;
-  odd = 0;
-  for i in 0..len(with) {
-    if (with[i] ?? 0) != (without[i] ?? 0) {
-      shown += 1;
-      if ((i % w ?? 0) + (i / w ?? 0)) % 2 == 1 { odd += 1; }
-    }
+  g.world.enemies = [];
+  tile_world::fill(g.world.w, -1, -1, 10, 5, 0, rules::tr(g.world, "wall"));
+  tile_world::fill(g.world.w, 0, 0, 9, 4, 0, rules::tr(g.world, "floor"));
+  tile_world::fill(g.world.w, -1, -1, 10, 5, 1, tile_world::VOID);
+  for c in tile_world::stacks(g.world.w) {
+    while tile_world::top(g.world.w, c.0, c.1, c.2) != 0 { _ = tile_world::take(g.world.w, c.0, c.1, c.2); }
   }
-  assert(shown > 0 && odd == 0, "the hero as a ghost: {shown} pixels, {odd} off the checkerboard");
+  rules::put_hero(g.world, 1, 1, 0);
+}
+
+// The frame `g` draws, its pixels; and how many pixels differ between two frames.
+fn frame(g: game::Game) -> vector<i32> {
+  game::draw(g);
+  tiles::pixels(g.surface, game::COLS * g.look.tile_size, game::ROWS * g.look.tile_size)
+}
+
+fn changed(a: const vector<i32>, b: const vector<i32>) -> integer {
+  n = 0;
+  for i in 0..len(a) { if (a[i] ?? 0) != (b[i] ?? 0) { n += 1; } }
+  n
+}
+
+// The hero's pixels with a ledge's floor on (1, 2) of layer 1, drawn a row up over the hero, on
+// `under` below it — against the frame without the hero's picture.
+fn hero_behind(ledge: boolean, under: text) -> integer {
+  m = game::new_game("..");
+  if !m { return -1; }
+  g = m;
+  room(g);
+  tile_world::set_terrain(g.world.w, 1, 2, 0, rules::tr(g.world, under));
+  if ledge { tile_world::set_terrain(g.world.w, 1, 2, 1, rules::tr(g.world, "floor")); }
+  with = frame(g);
+  g.look.hero = -1;
+  changed(with, frame(g))
+}
+
+// A ledge on a wall in front of the hero is cut away: the hero is seen as whole as with no ledge
+// there.  Over no wall it is not: the hero is hidden by it.
+fn test_a_wall_in_front_of_the_hero_is_cut_away() {
+  open = hero_behind(false, "wall");
+  assert(open > 0 && hero_behind(true, "wall") == open, "a wall in front: cut away");
+  assert(hero_behind(true, "floor") < open, "no wall: not cut");
+}
+
+// A rat on (6, 1) and a column on x 4 between it and the hero: the rat's pixels (the frame with it
+// against the frame without).  A wall column hides it; a door or a tree there does not.  The same
+// for a chest there.
+fn rat_past(between: text) -> integer {
+  m = game::new_game("..");
+  if !m { return -1; }
+  g = m;
+  room(g);
+  tile_world::fill(g.world.w, 4, 0, 4, 4, 0, rules::tr(g.world, "wall"));
+  if between != "wall" { tile_world::set_terrain(g.world.w, 4, 1, 0, rules::tr(g.world, between)); }
+  _ = rules::add_enemy(g.world, "rat", 6, 1, 0);
+  with = frame(g);
+  g.world.enemies = [];
+  changed(with, frame(g))
+}
+
+fn chest_past(between: text) -> integer {
+  m = game::new_game("..");
+  if !m { return -1; }
+  g = m;
+  room(g);
+  tile_world::fill(g.world.w, 4, 0, 4, 4, 0, rules::tr(g.world, "wall"));
+  if between != "wall" { tile_world::set_terrain(g.world.w, 4, 1, 0, rules::tr(g.world, between)); }
+  tile_world::place(g.world.w, 6, 1, 0, rules::th(g.world, "chest"));
+  with = frame(g);
+  _ = tile_world::take(g.world.w, 6, 1, 0);
+  changed(with, frame(g))
+}
+
+fn test_only_walls_hide_what_the_hero_does_not_see() {
+  assert(rat_past("wall") == 0, "past a wall: not drawn ({rat_past("wall")})");
+  assert(rat_past("door") > 0 && rat_past("tree") > 0, "past a door, a tree: drawn");
+  assert(chest_past("wall") == 0 && chest_past("door") > 0, "a chest the same: {chest_past("wall")}, {chest_past("door")}");
 }

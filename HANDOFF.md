@@ -74,7 +74,8 @@ world clock that steps from one due time to the next (`tests/clock.loft`).  The 
 400 ms to recover from (owner ruling, `tests/blows.loft`).  A bested enemy leaves what it
 held in sight (owner).
 Built since: spiders fleeing to another layer through an opening, pulling a cart over a layer's
-edge, a figure behind a ledge drawn as a ghost (needs tiles 0.6.0: loft-libs-graphics#71).
+edge, a wall in front of the hero left out of the picture and nothing drawn past a wall from
+the hero (owner; the ghost tried first was dropped — tiles 0.6.0's ghost option is unused).
 
 1. ~~`fetch-libs.sh` refs to `main`~~ — done; 32 tests pass on both backends.
 2. ~~**Editor step 2**~~ — done (EDITOR.md § 8): `editor.loft` (tested in `tests/editor.loft`),

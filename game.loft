@@ -889,7 +889,7 @@ fn standing_light(gr: const Ground, x: integer, y: integer, cx: integer, cy: int
 
 // What stands on cell (x, y, z): its kind when it stands up (a wall, a tree), and its stack.
 fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: integer, z: integer,
-                 upper: boolean, dim: integer, shade: integer) {
+                 upper: boolean, dim: integer, shade: integer, things: boolean = true) {
   if theme::upright(g.look, tile_world::terrain(w.w, x, y, z)) {
     // Standing at its rise, lit gradually like the ground beside it.
     ts = g.look.tile_size;
@@ -899,7 +899,7 @@ fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y
                       (standing_light(gr, x, y, 0, 0, dim), standing_light(gr, x, y, 1, 0, dim),
                        standing_light(gr, x, y, 0, 1, dim), standing_light(gr, x, y, 1, 1, dim)));
   }
-  draw_stack(g, w, x, y, z, shade);
+  if things { draw_stack(g, w, x, y, z, shade); }
 }
 
 // The picture of cell (x, y, z)'s terrain kind: a rail cell the piece of track its joins name
@@ -1000,7 +1000,7 @@ fn depth_row(g: const Game, f: const Figure) -> integer {
 // Figure f: the body glides, hops and rocks about its feet; what it carries is at its hand,
 // pointing the way it faces — behind the body facing up (owner: everything carried is held the
 // way the figure moves).
-fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer, ghost: boolean = false) {
+fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   ts = g.look.tile_size;
   p = f.pose;
   bx = (f.x - g.cam_x) * ts + p.x;
@@ -1008,31 +1008,14 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer, ghost: bo
   hd = hand(f.face_x, f.face_y);
   behind = f.face_y < 0 && f.face_x == 0;
   if f.item != 0 && behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low, ghost);
+    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
   }
-  theme::put_turned(g.surface, f.sprite, bx, by, p.tilt, (ts / 2, ts - 1), shade, ghost);
+  theme::put_turned(g.surface, f.sprite, bx, by, p.tilt, (ts / 2, ts - 1), shade);
   if f.item != 0 && !behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low, ghost);
+    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
   }
 }
 
-/// The shade a figure seen through a ledge is drawn at: a ghost, darker than the ledge's top.
-const GHOST_SHADE = 2;
-
-// The figures on layer z hidden by layer z + 1 drawn after it — a figure just behind a ledge, the
-// ledge's top drawn a row up over it — drawn again as ghosts over it, so nobody is lost behind a
-// ledge (owner: figures may be slightly behind obstructions, never gone).
-fn ghosts(g: Game, w: const rules::Level, z: integer) {
-  g.lift = z * g.look.tile_size;
-  for f in figures(g, w, z) {
-    fx = f.x - g.cam_x;
-    fy = f.y - g.cam_y - z;
-    if fx < 0 || fx >= COLS || fy < 0 || fy >= view_rows(g) { continue; }
-    if tile_world::terrain(w.w, f.x, f.y + 1, z + 1) != tile_world::VOID {
-      draw_figure(g, f, w.now, GHOST_SHADE, true);
-    }
-  }
-}
 
 fn write(g: Game, s: text, x: integer, y: integer) {
   theme::write(g.surface, g.look, s, x, y);
@@ -1044,9 +1027,11 @@ fn view_rows(g: const Game) -> integer {
 }
 
 // Every cell of layer z of `w` the view holds, at its light (or in full light when not `lit`),
-// but never lighter than `dim`; `only_set` skips the void.
+// but never lighter than `dim`; `only_set` skips the void, `cut` is a cell left out (a wall in
+// front of the hero), and with `sight` the things and figures the hero does not see — past a
+// wall — are left out (owner).
 fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_set: boolean, lit: boolean,
-              dim: integer) {
+              dim: integer, cut: (integer, integer) = (-1000000, -1000000), sight: boolean = false) {
   rows = view_rows(g);
   cx = g.cam_x;
   // Layer z is drawn z tiles up, so the view shows its cells z rows further south: view row y
@@ -1064,7 +1049,8 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   // hides what is behind it.
   for y in 0..rows {
     for x in 0..COLS {
-      if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
+      if (!only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID)
+          && (cx + x != cut.0 || cy + y != cut.1) {
         draw_ground(g, w, gr, cx + x, cy + y, z, upper, dim);
       }
     }
@@ -1073,9 +1059,11 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   for y in -1..rows {
     if y >= 0 {
       for x in 0..COLS {
-        if !only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID {
+        if (!only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID)
+            && (cx + x != cut.0 || cy + y != cut.1) {
           shade = sh[y * COLS + x] ?? 0;
-          draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade });
+          seen = !sight || rules::in_view(w, cx + x, cy + y);
+          draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade }, seen);
         }
       }
       // A blast is drawn over the row it went off in.
@@ -1089,7 +1077,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
     }
     for f in figs {
       d = depth_row(g, f) - z;
-      if d == y || (y == -1 && d < -1) || (y == rows - 1 && d >= rows) {
+      if (d == y || (y == -1 && d < -1) || (y == rows - 1 && d >= rows)) && (!sight || rules::in_view(w, f.x, f.y)) {
         fx = f.x - cx;
         fy = f.y - cy;
         shade = sh[fy * COLS + fx] ?? 0;
@@ -1157,15 +1145,20 @@ pub fn draw(g: Game) {
   tiles::clear(g.surface, 0);
   w = g.world;
   z = w.hero_z;
+  // On the hero's layer only what it sees past the walls (owner).
   if z > 0 {
     draw_layer(g, w, z - 1, false, false, true, 0);
-    draw_layer(g, w, z, false, true, true, 0);
-    ghosts(g, w, z - 1);
+    draw_layer(g, w, z, false, true, true, 0, (-1000000, -1000000), true);
   } else {
-    draw_layer(g, w, z, false, false, true, 0);
+    draw_layer(g, w, z, false, false, true, 0, (-1000000, -1000000), true);
+    // The layer above: a wall in front of the hero — the ledge's top on a wall, drawn a row up
+    // over it — is left out (owner: only walls; doors, pillars, trees and smaller things may
+    // hide the hero in part, and a level keeps the hero in view).
     if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) {
-      draw_layer(g, w, z + 1, true, true, true, 0);
-      ghosts(g, w, z);
+      front = if tile_world::terrain(w.w, w.hero_x, w.hero_y + 1, z) == rules::tr(w, "wall") {
+        (w.hero_x, w.hero_y + 1)
+      } else { (-1000000, -1000000) };
+      draw_layer(g, w, z + 1, true, true, true, 0, front);
     }
   }
   draw_bow(g);

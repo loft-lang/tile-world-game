@@ -3599,6 +3599,59 @@ fn beside_hero(l: const Level, e: const Enemy) -> boolean {
     && tile_world::crossable(l.w, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y)
 }
 
+/// Does the hero see (x, y) on its own layer, as the picture shows it: a straight line from the
+/// hero's cell that no wall stops — a wall cell before it, or a wall edge it crosses (owner:
+/// only walls; a door, a tree, a thing never does, so nothing pops in and out of view as they
+/// move).  A diagonal step sees past a corner when either way round it is open: no wall cell and
+/// no wall edge — two walls touching at their corners hide what is past them.
+pub fn in_view(l: const Level, x1: integer, y1: integer) -> boolean {
+  wall = tr(l, "wall");
+  wall_edge = ed(l, "wall");
+  z = l.hero_z;
+  x0 = l.hero_x;
+  y0 = l.hero_y;
+  dx = if x1 > x0 { x1 - x0 } else { x0 - x1 };
+  dy = if y1 > y0 { y0 - y1 } else { y1 - y0 };
+  sx = if x0 < x1 { 1 } else { -1 };
+  sy = if y0 < y1 { 1 } else { -1 };
+  err = dx + dy;
+  x = x0;
+  y = y0;
+  while x != x1 || y != y1 {
+    if (x != x0 || y != y0) && tile_world::terrain(l.w, x, y, z) == wall { return false; }
+    e2 = 2 * err;
+    mx = e2 >= dy;
+    my = e2 <= dx;
+    if mx && my {
+      // Either way round the corner: its cell no wall, and neither edge on the way.
+      round_x = tile_world::terrain(l.w, x + sx, y, z) != wall
+                && !walled(l, x, y, z, sx, 0, wall_edge) && !walled(l, x + sx, y, z, 0, sy, wall_edge);
+      round_y = tile_world::terrain(l.w, x, y + sy, z) != wall
+                && !walled(l, x, y, z, 0, sy, wall_edge) && !walled(l, x, y + sy, z, sx, 0, wall_edge);
+      if !round_x && !round_y { return false; }
+    } else if mx {
+      if walled(l, x, y, z, sx, 0, wall_edge) { return false; }
+    } else if my {
+      if walled(l, x, y, z, 0, sy, wall_edge) { return false; }
+    }
+    if mx {
+      err += dy;
+      x += sx;
+    }
+    if my {
+      err += dx;
+      y += sy;
+    }
+  }
+  true
+}
+
+// Is the edge stepped across from (x, y, z) by (dx, dy) a wall?
+fn walled(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer, wall_edge: integer) -> boolean {
+  side = if dx > 0 { tile_world::EAST } else if dx < 0 { tile_world::WEST } else if dy > 0 { tile_world::SOUTH } else { tile_world::NORTH };
+  wall_edge != 0 && tile_world::edge(l.w, x, y, z, side) == wall_edge
+}
+
 /// Is the area round the hero clear: no enemy (a guard is none) within clear_area cells in sight
 /// of it?  A well gives water, and a guard steps aside, only then.
 pub fn clear_area(l: const Level) -> boolean {

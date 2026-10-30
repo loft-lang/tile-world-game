@@ -1,0 +1,58 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// What the hero sees, as the picture shows it (owner, DESIGN.md § What the player sees): a straight
+// line from the hero's cell that only walls stop — a wall cell before the end, or a wall edge it
+// crosses.  A door, a tree, a thing never does, so nothing pops in and out of view.
+use tile_world;
+use rules;
+
+// A room x 0 .. 8, y 0 .. 4, walled; the hero on (1, 2).
+fn room() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 9, 5, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 8, 4, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, 1, 2, 0);
+  w
+}
+
+fn main() {
+  w = room();
+  assert(rules::in_view(w, 7, 2), "an open room");
+}
+
+// Along the row: a wall cell on x 4 hides x 5 and beyond, not x 4 itself (the wall is seen); a
+// door, a tree, a rock there hide nothing.
+fn test_only_a_wall_cell_stops_the_view() {
+  w = room();
+  tile_world::set_terrain(w.w, 4, 2, 0, rules::tr(w, "wall"));
+  assert(rules::in_view(w, 4, 2) && !rules::in_view(w, 5, 2) && !rules::in_view(w, 7, 2), "a wall");
+  for k in ["door", "tree"] {
+    v = room();
+    tile_world::set_terrain(v.w, 4, 2, 0, rules::tr(v, k));
+    assert(rules::in_view(v, 7, 2), "a {k}: seen past");
+  }
+  u = room();
+  tile_world::place(u.w, 4, 2, 0, rules::th(u, "rock"));
+  assert(rules::in_view(u, 7, 2), "a rock: seen past");
+}
+
+// A wall edge stops it, a door edge does not: the edge between x 3 and x 4 on row 2.
+fn test_a_wall_edge_stops_the_view() {
+  w = room();
+  tile_world::set_edge(w.w, 4, 2, 0, tile_world::WEST, rules::ed(w, "wall"));
+  assert(!rules::in_view(w, 4, 2) && rules::in_view(w, 3, 2), "the wall edge");
+  v = room();
+  tile_world::set_edge(v.w, 4, 2, 0, tile_world::WEST, rules::ed(v, "door"));
+  assert(rules::in_view(v, 4, 2), "a door edge: seen past");
+}
+
+// Past a corner: from (1, 2) to (2, 1), a diagonal step — seen while either way round is open
+// (one wall, on (2, 2)), not when both are walls ((2, 2) and (1, 1)).
+fn test_past_a_corner() {
+  w = room();
+  tile_world::set_terrain(w.w, 2, 2, 0, rules::tr(w, "wall"));
+  assert(rules::in_view(w, 2, 1), "one way round open");
+  tile_world::set_terrain(w.w, 1, 1, 0, rules::tr(w, "wall"));
+  assert(!rules::in_view(w, 2, 1), "both walls");
+}
