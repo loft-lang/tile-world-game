@@ -121,8 +121,8 @@ This is what the game built on tile_world should be.
     train of two at 4 meeting one standing cart rolls on at 2.
   - **A rolling cart hurts the hero** it meets, pushing it aside — a cart on a slope doubles as a
     trap.  Proposed: it costs the cart's speed in health (1..4; a three-layer fall is 6); the hero
-    goes to the side the place prefers, then the other, and with no room either side it is thrown
-    on ahead along the track and the cart stops.
+    goes to the side the place prefers, then the other; with no room either side the cart takes
+    it on board as a passenger, hurt all the same — a costly way to get on a cart.
   - **Open:** what counts as "something after the end" (any thing or wall, proposed).
   - **Already built** that carts keep: they carry an item, are climbed when they cannot move, and
     light items on the rails ahead are pushed out of the way.
