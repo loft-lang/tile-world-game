@@ -62,11 +62,8 @@ waits for the hero.
 
 14. **Ruling — the blast and held things.**  Does a blast knock the item out of the hero's hands
     (light, flung like any item)?  It would make a burning torch fly into the dark.
-15. **Fairness — blast then fall.**  A blast pushes the hero; pushed off a ledge, the hero falls
-    too.  The costs add (blast 3 + a two-layer fall 3 = all 6 health) — a kill nobody saw coming
-    unless the ledge was in view.  Against "hurt, rarely killed" (DESIGN.md): the blast's push
-    could stop at a ledge (as stones stop), or the costs could be lowered so no one event kills
-    from full health.
+15. **Settled: a blast pushes the hero over a ledge** (owner): the fall's cost adds; the level
+    designer keeps it in mind (DESIGN.md § The principle).
 16. **Ruling — the blast and layers.**  Light spreads within a layer; does the blast?  A bomb on a
     ledge: does it hurt what stands below, push items up out of a pit?  Puzzle either way: a pit
     as a blast shelter, or a blast through a hole.

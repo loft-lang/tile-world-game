@@ -29,8 +29,9 @@ This is what the game built on tile_world should be.
   beside the green one) restores 3 health up to the start's 6 when walked over, found in the
   dungeon like chests.  A deep fall stays deadly — it is seen and avoided (owner) — but big
   heights do not come from the start: a dungeon's first drops are shallow, deeper ones further in.
-  Still to review against it: a blast on the hero's cell or a held bomb (4) and a cart at full
-  speed (4) kill when a push off a ledge adds a fall.
+  A blast pushes the hero over a ledge, and the fall's cost adds to the blast's (owner): a rule
+  that stays, and one the level designer keeps in mind — a bomb, or a cart at speed, beside a
+  ledge is a level's choice to make deadly or not.
 - **Real time** (owner, 2026-10-30).  The world runs on its clock whatever the hero does: carts
   roll, blasts go off, torches burn while the player thinks.  It stays deterministic — the same
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
