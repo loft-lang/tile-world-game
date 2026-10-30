@@ -108,7 +108,9 @@ waits for the hero.
 31. **Puzzle — the hunter's arrows.**  Its arrows set off bombs as the hero's do (owner): standing
     by a bomb in its line of fire, the hero is in danger of the hunter's own making — or, away
     from it, the hunter clears a nest by shooting.  Its aim needs to see the hero, so the dark hides
-    from it.  Rulings: does its arrow hurt other enemies (infighting), and throw a lever it hits?
+    from it.  Its arrows hurt other enemies, and wandering it hunts them (owner): unseen, the hero
+    can let the hunter thin out a nest — and a hurt enemy flees to its nest, so the hunter's prey
+    leads it home.  Ruling: does its arrow throw a lever it hits?
 24. **Puzzle — stealth against a cart.**  A cart rolling past a cyclops group draws its eye (noise
     or light) away from the hero sneaking by.
 
