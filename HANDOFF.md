@@ -79,13 +79,13 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    sockets only (the staff too), burning out after 10 minutes wherever a torch is, the low
    flame and the flicker, and `the torch room` (third in `order.json`).  Open: light in the
    enemies' moves (with the enemies).
-7. **The fading light** — built: a torch's light fades 4 shades over its ten minutes (the
+6. **The fading light** — built: a torch's light fades 4 shades over its ten minutes (the
    warning).  It needs **tile_world 0.6.0** (`shades(..., lights, start)`, loft-libs-world#40,
    auto-merge armed): until that merges, `./fetch-libs.sh` fetches 0.5.0 and the game does not
    compile — copy `~/workspace/loft-libs-world-dim/tile_world` into `libs/` meanwhile.  Owner
    2026-10-30: light is a bonus, never a wall (the semi-dark is always playable; no permanent
    flame needed); cyclopes later make darkness worth seeking (stealth).
-6. **One item a cell** (DESIGN.md § Moving things) — built: items are pushed out of the way,
+7. **One item a cell** (DESIGN.md § Moving things) — built: items are pushed out of the way,
    a string of two sends the far one aside, no room blocks, no drop onto an item.  83 tests on
    both backends.  Still open from the 2026-10-30 evaluation (owner to decide): a permanent
    flame (a lit tar barrel?) so light is never a dead end; a floor flame lighting a torch like
