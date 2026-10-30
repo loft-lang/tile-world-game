@@ -96,6 +96,9 @@ pub struct Theme {
   /// A blast's frames — the flash, the fireball, the smoke — spread over its flash.
   blast: vector<integer>,
   enemies: hash<EnemyLook[name]>,
+  /// An arrow in flight (drawn pointing up), and the mark on the bow's target.
+  pub arrow: integer,
+  pub aim: integer,
   pub hero: integer,
   /// The sprite of one point of the hero's health, -1 for none.
   pub heart: integer,
@@ -163,6 +166,8 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
+  th.arrow = sprite(th, word(v, "arrow"));
+  th.aim = sprite(th, word(v, "aim"));
   en = v.field("enemies");
   for name in en.keys() { th.enemies += [EnemyLook { name: name, tile: sprite(th, en.field(name).as_text()) }]; }
   bl = v.field("blast");

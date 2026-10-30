@@ -21,6 +21,8 @@
     }
   },
   "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122", "guard": "dungeon:87" },
+  "arrow": "world:67",
+  "aim": "battle:61",
   "blast": ["world:63", "world:64", "world:65"],
   "hero": "dungeon:97",
   "heart": "battle:195",
@@ -98,6 +100,7 @@
     "lever_turn": "world:53",
     "stick": "world:0",
     "torch": "world:1",
+    "bow": "world:66",
     "bomb": {
       "tile": "world:60",
       "fused": ["world:61", "world:62"]
@@ -145,7 +148,7 @@
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall"],
     "Dungeon": ["floor", "wall", "rail", "well"],
-    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "bomb", "signpost"],
+    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
     "Tracks": ["rail", "cart", "lever_straight", "lever_turn"]
   },
@@ -203,6 +206,11 @@
     },
     "sword": {
       "tile": "dungeon:104"
+    },
+    "bow": {
+      "tile": "world:66",
+      "grip_x": 7,
+      "grip_y": 6
     },
     "bomb": {
       "tile": "world:60"

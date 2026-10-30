@@ -126,6 +126,7 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
       input::ActionBinding { ab_name: "drop", ab_keys: [120] },
       input::ActionBinding { ab_name: "swing", ab_keys: [32] },
+      input::ActionBinding { ab_name: "aim", ab_keys: [116] },
       input::ActionBinding { ab_name: "back", ab_keys: [98] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
@@ -354,6 +355,21 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
 /// the air is seen and heard, and counts as a move; without a weapon nothing happens.
 pub fn swing(g: Game) {
   if g.won { return; }
+  // A bow shoots: at its locked target, else the way the hero faces.
+  if rules::armed_with_bow(g.world) {
+    hp = 0;
+    for e in g.world.enemies { hp += e.hp; }
+    n = len(g.world.enemies);
+    if rules::shoot(g.world) == rules::Step.Shot {
+      g.moves += 1;
+      motion::swing(g.motion, g.world.now);
+      sound(g, "sword", 0.4);
+      after = 0;
+      for e in g.world.enemies { after += e.hp; }
+      if after < hp || len(g.world.enemies) < n { sound(g, "hit_enemy", 0.8); }
+    }
+    return;
+  }
   // A bomb in hand is thrown: it rolls off the way the hero faces.
   if rules::throw(g.world) == rules::Step.Thrown {
     g.moves += 1;
@@ -622,7 +638,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     sound(g, "explosion", 1.0);
     changed = true;
   }
-  if rules::blasting(g.world) || len(g.world.enemies) > 0 { changed = true; }
+  if rules::blasting(g.world) || len(g.world.enemies) > 0 || g.world.aiming { changed = true; }
   if g.world.health < health {
     sound(g, "hit_hero", 1.0);
     changed = true;
@@ -663,6 +679,10 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   if moving || g.was_moving { changed = true; }
   g.was_moving = moving;
   if !g.won && g.keys.is_action_just_pressed("back") { return back(g); }
+  if !g.won && g.keys.is_action_just_pressed("aim") {
+    if rules::aim_next(g.world) { sound(g, "point", 0.3); }
+    return true;
+  }
   if !g.won && g.keys.is_action_just_pressed("swing") {
     swing(g);
     return true;
@@ -1032,6 +1052,26 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   }
 }
 
+// The bow, over the picture: the mark on its locked target, and each arrow in flight — from where
+// it was shot, a cell every arrow_ms, turned the way it flies.
+fn draw_bow(g: Game) {
+  w = g.world;
+  ts = g.look.tile_size;
+  a = rules::aimed(g.world);
+  if a.0 != 0 || a.1 != 0 {
+    z = w.hero_z;
+    theme::put(g.surface, g.look.aim, (w.aim_x - g.cam_x) * ts,
+               (w.aim_y - g.cam_y) * ts - z * ts - tile_world::rise(w.w, w.aim_x, w.aim_y, z) * 4, 0);
+  }
+  for s in w.shots {
+    e = w.now - s.at;
+    if s.done || e < 0 { continue; }
+    px = (s.x - g.cam_x) * ts + s.dx * e * ts / w.k.arrow_ms;
+    py = (s.y - g.cam_y) * ts - s.z * ts - 6 + s.dy * e * ts / w.k.arrow_ms;
+    theme::put_turned(g.surface, g.look.arrow, px, py, motion::facing(s.dx, s.dy), (7, 8), 0);
+  }
+}
+
 // Each enemy's motion, from how it changed since it was last drawn: a step glides, a blow
 // staggers it away from the hero, a bite (beside the hero, facing it, the hero hurt) lunges.
 fn follow_enemies(g: Game) {
@@ -1077,6 +1117,7 @@ pub fn draw(g: Game) {
     draw_layer(g, w, z, false, false, true, 0);
     if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) { draw_layer(g, w, z + 1, true, true, true, 0); }
   }
+  draw_bow(g);
   if g.won {
     write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
   } else if !rules::alive(w) {

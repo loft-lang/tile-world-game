@@ -148,6 +148,8 @@ struct ThingProps {
   rerails_to: text,
   /// What a blow with it costs an enemy (a weapon); 0: a blow with it costs 1, as with bare hands.
   damage: integer,
+  /// It shoots arrows (a bow).
+  shoots: boolean,
   glyph: text
 }
 
@@ -195,7 +197,10 @@ pub struct Kinds {
   /// with no enemy within clear_area cells in sight of the hero.
   pub hear_blast: integer,
   pub scare_ms: integer,
-  pub clear_area: integer
+  pub clear_area: integer,
+  /// How far an arrow flies, in cells, and how long it takes over one.
+  pub arrow_range: integer,
+  pub arrow_ms: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -242,7 +247,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     flash_ms: num(r, "flash_ms", 300),
     hear_blast: num(r, "hear_blast", 8),
     scare_ms: num(r, "scare_ms", 5000),
-    clear_area: num(r, "clear_area", 10)
+    clear_area: num(r, "clear_area", 10),
+    arrow_range: num(r, "arrow_range", 8),
+    arrow_ms: num(r, "arrow_ms", 30)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -290,7 +297,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
-      rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0),
+      rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0), shoots: flag(e, "shoots"),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -308,14 +315,14 @@ pub fn kinds() -> Kinds {
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
                                  blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300,
-                                 hear_blast: 8, scare_ms: 5000, clear_area: 10 }; }
+                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, arrow_range: 8, arrow_ms: 30 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
           blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300, hear_blast: 8,
-          scare_ms: 5000, clear_area: 10 }
+          scare_ms: 5000, clear_area: 10, arrow_range: 8, arrow_ms: 30 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -481,7 +488,27 @@ pub struct Level {
   /// The enemies, the next one's id, how many the hero has bested (killed).
   pub enemies: vector<Enemy>,
   pub next_enemy: integer,
-  pub killed: integer
+  pub killed: integer,
+  /// The bow's aim: whether it is locked on a target, and that target's cell; the arrows shot (the
+  /// game draws them flying).
+  pub aiming: boolean,
+  pub aim_x: integer,
+  pub aim_y: integer,
+  pub shots: vector<Shot>
+}
+
+/// An arrow: shot from (x, y, z) the way (dx, dy) `at`; it has flown `cells` cells, flies the next
+/// at `due`, and is `done` once it has struck or fallen.
+pub struct Shot {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub dx: integer,
+  pub dy: integer,
+  pub cells: integer,
+  pub at: integer,
+  pub due: integer,
+  pub done: boolean
 }
 
 /// An enemy: its id (it keeps it while it lives), kind, place and nest, its health, when it acts
@@ -576,7 +603,9 @@ pub enum Step {
   /// The hero struck an enemy (walking into it, or swinging at it).
   Attacked,
   /// The well gave no water: an enemy is near, in sight.
-  Watched
+  Watched,
+  /// The hero shot an arrow.
+  Shot
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -598,7 +627,8 @@ pub fn level(k: const Kinds) -> Level {
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
-          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0 }
+          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0,
+          aiming: false, aim_x: 0, aim_y: 0, shots: [] }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -769,6 +799,21 @@ fn holds_chopper(l: const Level) -> boolean {
   p = l.k.things[l.hero_item];
   if !p { return false; }
   p.chops
+}
+
+// Throw the lever on (x, y, z), if one stands there: every junction beside it is set the other way
+// (its twin picture), and the handle goes over.  Answers whether there was one.
+fn throw_lever(l: Level, x: integer, y: integer, z: integer) -> boolean {
+  lever = l.k.things[base(l, x, y, z)];
+  if !lever || lever.switches_to == "" { return false; }
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    p = l.pieces[painted(l, x + d.0, y + d.1, z)];
+    if p && p.twin != 0 {
+      tile_world::set_terrain(l.w, x + d.0, y + d.1, z, tile_world::terrain(l.w, x + d.0, y + d.1, z), p.twin);
+    }
+  }
+  replace_base(l, x, y, z, thing_id(l.k, lever.switches_to));
+  true
 }
 
 /// Does the hero hold a weapon (a thing that swings)?
@@ -1138,9 +1183,11 @@ fn flashing(l: const Level, b: const Blast) -> boolean {
   l.now >= b.at && l.now - b.at < l.k.flash_ms
 }
 
-/// Is anything flashing or rolling — a blast's light, a bomb on its way?  (The picture moves then.)
+/// Is anything flashing, rolling or flying — a blast's light, a bomb or an arrow on its way?  (The
+/// picture moves then.)
 pub fn blasting(l: const Level) -> boolean {
   if len(l.bombs) > 0 || len(l.fuses) > 0 { return true; }
+  for s in l.shots { if !s.done { return true; } }
   for b in l.blasts { if flashing(l, b) { return true; } }
   false
 }
@@ -1369,6 +1416,7 @@ pub fn tick(l: Level, ms: integer) {
   roll_due(l);
   start_bomb_rolls(l);
   bombs_due(l);
+  arrows_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -1811,17 +1859,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   thing = base(l, tx, ty, z);
   // A lever is thrown: every junction beside it is set the other way (its twin picture), and the
   // handle goes over; the hero stays where it is.
-  lever = l.k.things[thing];
-  if lever && lever.switches_to != "" {
-    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-      p = l.pieces[painted(l, tx + d.0, ty + d.1, z)];
-      if p && p.twin != 0 {
-        tile_world::set_terrain(l.w, tx + d.0, ty + d.1, z, tile_world::terrain(l.w, tx + d.0, ty + d.1, z), p.twin);
-      }
-    }
-    replace_base(l, tx, ty, z, thing_id(l.k, lever.switches_to));
-    return Step.Switched;
-  }
+  if throw_lever(l, tx, ty, z) { return Step.Switched; }
   // A thing that dips (a tar barrel) turns what the hero holds into what it dips to (a stick,
   // into a torch); the hero stays where it is.
   if dips(l, thing) && dipped_to(l, l.hero_item) != 0 {
@@ -3300,4 +3338,167 @@ fn reachable_foe(l: const Level, foe: integer, dx: integer, dy: integer) -> bool
   if !e || !hero_crosses(l, l.hero_x, l.hero_y, l.hero_z, dx, dy) { return false; }
   if enemy_props(l, e.kind).guard { return false; }
   walkable(l, tile_world::terrain(l.w, e.x, e.y, e.z)) || is_water(l, tile_world::terrain(l.w, e.x, e.y, e.z))
+}
+
+// --- The bow ---
+//
+// An arrow flies straight from the hero, up to arrow_range cells (proposed 8): over items, fences,
+// water and chasms; a wall, a closed edge or a big thing stops it.  It strikes the first enemy on
+// its way (1) — a spider up on the wall it reaches too; it throws a lever it hits (the hero's
+// arrows; owner) and sets off a bomb (owner).  The aim (owner): the targets are the first thing an
+// arrow would strike in each of the four ways, nearest first; `aim_next` locks on the next, and a
+// lock is lost when its target is no longer one.
+
+/// Does the hero hold a bow?
+pub fn armed_with_bow(l: const Level) -> boolean {
+  p = l.k.things[l.hero_item];
+  if !p { return false; }
+  p.shoots
+}
+
+// What an arrow coming into (x, y, z) strikes there: 0 nothing (it flies on), 1 an enemy, 2 a
+// lever, 3 a bomb, 4 a wall or a big thing (it falls).
+fn arrow_meets(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  if enemy_at(l, x, y, z) >= 0 { return 1; }
+  if opaque_kind(l, tile_world::terrain(l.w, x, y, z)) { return 4; }
+  t = base(l, x, y, z);
+  lever = l.k.things[t];
+  if lever && lever.switches_to != "" { return 2; }
+  if is_bomb(l, tile_world::top(l.w, x, y, z)) { return 3; }
+  if t != 0 && !item(l, t) { return 4; }
+  0
+}
+
+// Where an arrow shot from the hero the way (dx, dy) would strike, as things stand: (x, y, cells,
+// what) — `what` as arrow_meets says, 0 when it falls at the end of its range or at a closed edge.
+fn arrow_flight(l: const Level, dx: integer, dy: integer) -> (integer, integer, integer, integer) {
+  x = l.hero_x;
+  y = l.hero_y;
+  z = l.hero_z;
+  for i in 0..l.k.arrow_range {
+    if !tile_world::see_through(l.w, x, y, z, dx, dy) { return (x, y, i, 0); }
+    x += dx;
+    y += dy;
+    m = arrow_meets(l, x, y, z);
+    if m == 4 { return (x, y, i + 1, 0); }
+    if m != 0 { return (x, y, i + 1, m); }
+  }
+  (x, y, l.k.arrow_range, 0)
+}
+
+/// The targets of the bow: in each of the four ways, the first enemy, lever or bomb an arrow would
+/// strike, as (x, y, dx, dy), nearest first (north, east, south, west among equals).
+pub fn targets(l: const Level) -> vector<(integer, integer, integer, integer)> {
+  found: vector<(integer, integer, integer, integer, integer)> = [];
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    f = arrow_flight(l, d.0, d.1);
+    if f.3 != 0 { found += [(f.0, f.1, d.0, d.1, f.2)]; }
+  }
+  out: vector<(integer, integer, integer, integer)> = [];
+  for n in 1..l.k.arrow_range + 1 {
+    for c in found { if c.4 == n { out += [(c.0, c.1, c.2, c.3)]; } }
+  }
+  out
+}
+
+/// Lock the aim on the next target: the nearest when none is locked (or the locked one is no
+/// longer a target), else the one after it, round again.  Answers whether there is one.
+pub fn aim_next(l: Level) -> boolean {
+  ts = targets(l);
+  n = len(ts);
+  if n == 0 {
+    l.aiming = false;
+    return false;
+  }
+  at = -1;
+  if l.aiming {
+    for i in 0..n {
+      t = ts[i] ?? (0, 0, 0, 0);
+      if t.0 == l.aim_x && t.1 == l.aim_y { at = i; }
+    }
+  }
+  t = ts[(at + 1) % n ?? 0] ?? (0, 0, 0, 0);
+  l.aiming = true;
+  l.aim_x = t.0;
+  l.aim_y = t.1;
+  true
+}
+
+/// The aim, while it holds: its target's way from the hero, or (0, 0) — no lock, or its target is
+/// no longer one (the lock is lost then).
+pub fn aimed(l: Level) -> (integer, integer) {
+  if !l.aiming { return (0, 0); }
+  for t in targets(l) {
+    if t.0 == l.aim_x && t.1 == l.aim_y { return (t.2, t.3); }
+  }
+  l.aiming = false;
+  (0, 0)
+}
+
+/// The hero shoots its bow: at the locked target, else the way it faces (and faces that way).  The
+/// arrow flies a cell every arrow_ms (`arrows_due`), striking what it meets then.  Blocked without
+/// a bow.
+pub fn shoot(l: Level) -> Step {
+  if !alive(l) || !armed_with_bow(l) { return Step.Blocked; }
+  a = aimed(l);
+  if a.0 != 0 || a.1 != 0 {
+    l.face_x = a.0;
+    l.face_y = a.1;
+  }
+  l.shots += [Shot { x: l.hero_x, y: l.hero_y, z: l.hero_z, dx: l.face_x, dy: l.face_y, cells: 0, at: l.now,
+                     due: l.now + l.k.arrow_ms, done: false }];
+  if len(l.shots) > 8 { _ = l.shots.remove(0); }
+  Step.Shot
+}
+
+// Every arrow whose next cell is due, the earliest first: it flies on, or strikes what is there.
+fn arrows_due(l: Level) {
+  guard = 0;
+  while guard < 1000 {
+    guard += 1;
+    first = -1;
+    at = 0;
+    for i in 0..len(l.shots) {
+      s = l.shots[i];
+      if !s.done && s.due <= l.now && (first < 0 || s.due < at) {
+        first = i;
+        at = s.due;
+      }
+    }
+    if first < 0 { return; }
+    arrow_step(l, first);
+  }
+}
+
+// Arrow i flies one cell on — or falls: at a closed edge, past its range.
+fn arrow_step(l: Level, i: integer) {
+  s = l.shots[i] ?? Shot { x: 0, y: 0, z: 0, dx: 0, dy: 0, cells: 0, at: 0, due: 0, done: true };
+  x = s.x + s.dx * s.cells;
+  y = s.y + s.dy * s.cells;
+  if s.cells >= l.k.arrow_range || !tile_world::see_through(l.w, x, y, s.z, s.dx, s.dy) {
+    l.shots[i].done = true;
+    return;
+  }
+  x += s.dx;
+  y += s.dy;
+  l.shots[i].cells = s.cells + 1;
+  l.shots[i].due = s.due + l.k.arrow_ms;
+  m = arrow_meets(l, x, y, s.z);
+  if m == 0 { return; }
+  l.shots[i].done = true;
+  if m == 1 {
+    foe = enemy_at(l, x, y, s.z);
+    if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0,
+        nest_y: 0, nest_z: 0, hp: 0, due: 0, heal_due: 0, steps: 0, face_x: 0, face_y: 1, scared_until: 0,
+        scare_x: 0, scare_y: 0 }).kind).guard {
+      strike_enemy(l, foe, 1);
+    }
+  } else if m == 2 {
+    _ = throw_lever(l, x, y, s.z);
+  } else if m == 3 {
+    r = bomb_rolling_at(l, x, y, s.z);
+    if r >= 0 { _ = l.bombs.remove(r); }
+    _ = tile_world::take(l.w, x, y, s.z);
+    explode(l, x, y, s.z, false, s.due);
+  }
 }

@@ -30,7 +30,7 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 0–1 | fire and light | tiles 0–12 below |
 | 2 | travel | 24: the horse |
 | 3–4 | tracks | 36–51: junctions; 52, 53: the lever |
-| 5 | bombs | 60–62: the bomb, lying and lit; 63–65: the blast |
+| 5 | bombs, the bow | 60–62: the bomb, lying and lit; 63–65: the blast; 66: the bow; 67: an arrow |
 | 6– | later additions (monsters, …) | |
 
 ### The tiles
@@ -55,6 +55,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 60 | bomb | an iron ball, its fuse at the top right: lying, not lit (and in the hand) |
 | 61, 62 | bomb, lit, frames A and B | the fuse spitting sparks — yellow (A), redder and turned (B) — while it is thrown and rolling, or set off by a blast; 100 ms a frame |
 | 63, 64, 65 | blast: flash, fireball, smoke | the three frames of a blast, spread over its 300 ms flash on the cell it went off in; the flash also lights the room (a light that fades three shades) |
+| 66 | bow | drawn shooting up, as everything carried is drawn pointing up: lying across, its curve up, the string below, the grip in the middle (held by its grip, 7, 6) |
+| 67 | arrow | flying up: an iron head, a wooden shaft, red and white fletching; turned the way it flies |
 
 ## The style, measured from `tiny-dungeon.png`
 

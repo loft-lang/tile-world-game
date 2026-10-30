@@ -208,6 +208,15 @@ This is what the game built on tile_world should be.
     with the hero; pressing the target key again switches directly to the next.  The lock is lost
     when the target goes out of the hero's view.  The targeting has to be good enough for this to
     work — levers and bombs among enemies.
+  - **Built** (`tests/bow.loft`; the numbers proposed).  Space shoots (at the locked target, else
+    the way the hero faces, turning it there); `T` locks on the next target.  An arrow flies
+    straight, a cell every 30 ms (`arrow_ms`) up to 8 cells (`arrow_range`), striking what it meets
+    when it gets there — an enemy can still step out of its way: over items, fences, water and
+    chasms; stopped by a wall, a closed edge or a big thing.  It strikes an enemy for 1, a spider
+    up on the wall it reaches too (out of a sword's reach), throws a lever and sets off a bomb.  The
+    targets are the first such thing in each of the four ways, nearest first (north, east, south,
+    west among equals); a lock is lost when its target is no longer one.  The game marks the
+    target (Kenney's battle reticle) and draws the arrow flying.
 - **Bomb.**
   - It is thrown like a bowling ball: it rolls in a straight line and ignites on impact.
   - **A bomb rolls; other things do not** (owner).  On a slope it starts rolling downhill by

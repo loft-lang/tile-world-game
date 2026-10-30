@@ -14,7 +14,7 @@
     "flicker_odds": 4,
     "roll_ms": 600,
     "max_speed": 4,
-    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300, "hear_blast": 8, "scare_ms": 5000, "clear_area": 10
+    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300, "hear_blast": 8, "scare_ms": 5000, "clear_area": 10, "arrow_range": 8, "arrow_ms": 30
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },
@@ -46,6 +46,7 @@
     "chest":  { "id": 8, "height": 2, "stand": true, "opens_to": "open_chest", "points": 1, "rest": true, "glyph": "C" },
     "axe":    { "id": 9, "height": 0, "walk_on": "take", "chops": true, "glyph": "x", "swings": true, "damage": 2 },
     "sword":  { "id": 10, "height": 0, "walk_on": "take", "glyph": "s", "swings": true, "damage": 2 },
+    "bow":    { "id": 22, "height": 0, "walk_on": "take", "shoots": true, "glyph": "D" },
     "bomb":   { "id": 21, "height": 0, "walk_on": "take", "bomb": true, "glyph": "B" },
     "open_chest": { "id": 11, "height": 2, "stand": true, "rest": true, "glyph": "U" },
     "signpost": { "id": 12, "height": 1, "tells": "chests", "glyph": "!" },

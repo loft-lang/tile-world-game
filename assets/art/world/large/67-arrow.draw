@@ -1,0 +1,11 @@
+# ARROW — flying, pointing up: an iron head, a wooden shaft, red and white fletching.
+size 256x256
+Background transparent
+name shaft
+Poly (0.47,0.26) (0.53,0.26) (0.53,0.80) (0.47,0.80) rgb=189,108,74
+name head
+Poly (0.50,0.08) (0.59,0.26) (0.53,0.29) (0.47,0.29) (0.41,0.26) rgb=139,155,180
+Poly (0.50,0.08) (0.50,0.27) (0.44,0.25) rgb=192,203,220
+name fletching
+Poly (0.47,0.66) (0.38,0.74) (0.38,0.90) (0.47,0.84) rgb=232,69,55
+Poly (0.53,0.66) (0.62,0.74) (0.62,0.90) (0.53,0.84) rgb=255,255,255

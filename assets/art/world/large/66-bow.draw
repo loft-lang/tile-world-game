@@ -1,0 +1,12 @@
+# BOW — drawn shooting up, as everything carried is drawn pointing up (it is turned the way the
+# hero faces): lying across, its curve up, the string straight below, a leather grip in the middle.
+# Drawn at 16x the tile; the reduction adds the 2 px outline.
+size 256x256
+Background transparent
+name limbs
+Poly (0.20,0.58) (0.28,0.49)~ (0.40,0.40)~ (0.50,0.38)~ (0.60,0.40)~ (0.72,0.49)~ (0.80,0.58) (0.78,0.63) (0.70,0.55)~ (0.60,0.47)~ (0.50,0.45)~ (0.40,0.47)~ (0.30,0.55)~ (0.22,0.63) rgb=189,108,74
+Poly (0.25,0.55) (0.35,0.45)~ (0.45,0.40)~ (0.50,0.40) (0.50,0.42) (0.44,0.43)~ (0.34,0.48)~ (0.27,0.57) rgb=234,165,108
+name grip
+Poly (0.44,0.34) (0.56,0.34) (0.56,0.47) (0.44,0.47) rgb=118,59,54
+name string
+Poly (0.21,0.575) (0.21,0.615) (0.79,0.615) (0.79,0.575) rgb=192,203,220

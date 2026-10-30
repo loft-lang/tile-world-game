@@ -5,7 +5,9 @@
 //   loft --lib libs tools/anim.loft OUT_DIR [bomb|rat]   writes OUT_DIR/frame_000.png ... (40 ms
 //                                                    apart, 3x); `bomb`: a bomb thrown at a pillar
 //                                                    beside a rock, a chair and a stick; `rat`: a rat
-//                                                    comes at the hero, is struck and flees home
+//                                                    comes at the hero, is struck and flees home;
+//                                                    `bow`: aim, shoot a bat over water and a spider
+//                                                    on a wall
 use tile_world;
 use rules;
 use game;
@@ -16,7 +18,10 @@ fn main() {
   dir = ".";
   bomb = false;
   rat = false;
-  for a in arguments() { if a == "bomb" { bomb = true; } else if a == "rat" { rat = true; } else { dir = a; } }
+  bow = false;
+  for a in arguments() {
+    if a == "bomb" { bomb = true; } else if a == "rat" { rat = true; } else if a == "bow" { bow = true; } else { dir = a; }
+  }
   m = game::new_game("..");
   if !m { println("the game does not load"); exit(1); }
   g = m;
@@ -60,6 +65,20 @@ fn main() {
     _ = rules::add_enemy(w, "rat", 5, 2, 0);
     script = [(36, "s")];
   }
+  if bow {
+    tile_world::fill(w.w, 0, 0, 7, 5, 0, rules::tr(w, "floor"));
+    _ = tile_world::take(w.w, 3, 3, 0);
+    _ = tile_world::take(w.w, 3, 3, 0);
+    tile_world::fill(w.w, 4, 0, 5, 5, 0, rules::tr(w, "water"));
+    tile_world::set_terrain(w.w, 1, 5, 0, rules::tr(w, "wall"));
+    rules::put_hero(w, 1, 2, 0);
+    w.hero_item = rules::th(w, "bow");
+    _ = rules::add_enemy(w, "bat", 5, 2, 0);
+    _ = rules::add_enemy(w, "spider", 1, 5, 0);
+    w.enemies[0].due = 100000;
+    w.enemies[1].due = 100000;
+    script = [(3, "t"), (6, "s"), (24, "t"), (28, "s"), (40, "s")];
+  }
   n = 0;
   for f in 0..72 {
     for a in script {
@@ -69,6 +88,7 @@ fn main() {
         else if a.1 == "u" { game::move(g, 0, -1, false); }
         else if a.1 == "d" { game::move(g, 0, 1, false); }
         else if a.1 == "s" { game::swing(g); }
+        else if a.1 == "t" { _ = rules::aim_next(g.world); }
       }
     }
     game::draw(g);

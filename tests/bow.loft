@@ -1,0 +1,143 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The bow (DESIGN.md § What the hero holds): an arrow flies straight up to 8 cells, a cell every
+// 30 ms (it strikes what it meets when it gets there), over items,
+// fences, water and chasms, stopped by a wall or a big thing; it strikes the first enemy (1), a
+// spider up on the wall it reaches too, throws a lever, sets off a bomb.  The targets are the first
+// such thing in each of the four ways, nearest first; aim_next locks on the next; a lock is lost when
+// its target is no longer one.
+use tile_world;
+use rules;
+
+// A room x 0 .. n - 1, y 0 .. rows - 1, walled; the hero on (x, y) holding the bow.
+fn room(n: integer, rows: integer, x: integer, y: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, x, y, 0);
+  w.hero_item = rules::th(w, "bow");
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+// Shoot, and wait well past the arrow's whole way (8 cells: 240 ms; a ninth would come at 270) —
+// still before any rat's or spider's first move.
+fn shot(w: rules::Level) {
+  _ = rules::shoot(w);
+  rules::tick(w, 400);
+}
+
+fn hp(w: const rules::Level, i: integer) -> integer {
+  e = w.enemies[i];
+  if !e { return -1; }
+  e.hp
+}
+
+fn main() {
+  w = room(4, 1, 0, 0);
+  assert(rules::armed_with_bow(w), "a bow in hand");
+}
+
+// The targets, nearest first: a bomb 2 north, a rat 3 east, a bat 3 west (east before west among
+// equals).  aim_next goes bomb, rat, bat and round again.
+fn test_the_targets_nearest_first_and_the_aim_cycles() {
+  w = room(10, 7, 4, 3);
+  put(w, 4, 1, "bomb");
+  _ = rules::add_enemy(w, "rat", 7, 3, 0);
+  _ = rules::add_enemy(w, "bat", 1, 3, 0);
+  t = "";
+  for c in rules::targets(w) { t += "({c.0},{c.1}) "; }
+  assert(t == "(4,1) (7,3) (1,3) ", "targets: {t}");
+  order = "";
+  presses = 0;
+  while presses < 4 {
+    _ = rules::aim_next(w);
+    order += "({w.aim_x},{w.aim_y}) ";
+    presses += 1;
+  }
+  assert(order == "(4,1) (7,3) (1,3) (4,1) ", "the aim: {order}");
+}
+
+// Shot at the locked rat, the hero turns to it and the arrow strikes it, 3 cells away.
+fn test_a_locked_shot_strikes_its_target() {
+  w = room(10, 7, 4, 3);
+  _ = rules::add_enemy(w, "rat", 7, 3, 0);
+  _ = rules::aim_next(w);
+  assert(rules::shoot(w) == rules::Step.Shot && hp(w, 0) == 3, "not yet: it flies");
+  rules::tick(w, 89);
+  assert(hp(w, 0) == 3, "89 ms: two cells on");
+  rules::tick(w, 1);
+  assert(hp(w, 0) == 2, "90 ms: struck, 3 cells away: {hp(w, 0)}");
+  s = w.shots[0];
+  assert(w.face_x == 1 && w.face_y == 0 && s.cells == 3, "facing east, 3 cells");
+}
+
+// Unlocked, it shoots the way the hero faces: over a stick and across water to the rat beyond; a
+// wall in the way stops it (2 cells, the rat untouched); a rat 9 away is out of range (it falls at 8).
+fn test_an_arrow_flies_over_items_and_water_not_walls() {
+  w = room(12, 1, 0, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  put(w, 1, 0, "stick");
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "water"));
+  _ = rules::add_enemy(w, "rat", 4, 0, 0);
+  shot(w);
+  assert(hp(w, 0) == 2, "over the stick and the water: {hp(w, 0)}");
+  v = room(12, 1, 0, 0);
+  v.face_x = 1;
+  v.face_y = 0;
+  tile_world::set_terrain(v.w, 2, 0, 0, rules::tr(v, "wall"));
+  _ = rules::add_enemy(v, "rat", 4, 0, 0);
+  shot(v);
+  assert(hp(v, 0) == 3 && (v.shots[0]).cells == 2, "stopped by the wall");
+  u = room(12, 1, 0, 0);
+  u.face_x = 1;
+  u.face_y = 0;
+  _ = rules::add_enemy(u, "rat", 9, 0, 0);
+  shot(u);
+  assert(hp(u, 0) == 3 && (u.shots[0]).cells == 8, "out of range");
+}
+
+// A spider up on the wall the arrow reaches is struck — the sword cannot reach it there.
+fn test_an_arrow_strikes_a_spider_on_a_wall() {
+  w = room(10, 1, 0, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "wall"));
+  _ = rules::add_enemy(w, "spider", 3, 0, 0);
+  shot(w);
+  assert(hp(w, 0) == 1, "struck on the wall: {hp(w, 0)}");
+}
+
+// An arrow throws a lever it hits; one sets off a bomb (out of the blast's reach of the hero).
+fn test_an_arrow_throws_a_lever_and_sets_off_a_bomb() {
+  w = room(10, 1, 0, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  put(w, 5, 0, "lever_straight");
+  shot(w);
+  assert(tile_world::top(w.w, 5, 0, 0) == rules::th(w, "lever_turn"), "the lever thrown");
+  v = room(10, 1, 0, 0);
+  v.face_x = 1;
+  v.face_y = 0;
+  put(v, 6, 0, "bomb");
+  shot(v);
+  b = v.blasts[0];
+  assert(v.blasted == 1 && b.x == 6 && v.health == 6, "the bomb set off, out of the hero's reach");
+}
+
+// A lock is lost when its target is no longer one: the bat (health 1) shot, the aim is off.
+fn test_a_lock_is_lost_with_its_target() {
+  w = room(10, 1, 0, 0);
+  _ = rules::add_enemy(w, "bat", 3, 0, 0);
+  _ = rules::aim_next(w);
+  assert(w.aiming, "locked");
+  _ = rules::shoot(w);
+  rules::tick(w, 100);
+  a = rules::aimed(w);
+  assert(len(w.enemies) == 0 && !w.aiming && a.0 == 0 && a.1 == 0, "the bat gone, the lock lost");
+}
