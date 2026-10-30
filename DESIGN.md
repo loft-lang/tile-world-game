@@ -339,7 +339,7 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 - **The hunter** (owner, planned).  An evil hunter shoots arrows as the hero does, and follows the
   ordinary enemies' rules (fleeing hurt, healing at its nest, scared by blasts).  It throws no
   bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit,
-  and they hurt other enemies too (owner).  While wandering it hunts other enemies, but it prefers
+  and they hurt other enemies too, but throw no levers (owner).  While wandering it hunts other enemies, but it prefers
   the hero: seen, the hero is its target.
 - **Cyclopes (planned).**  Hard to fight and living in groups, like the other monsters, so the
   way past them is stealth: sneaking by in the dark.  They are the reason to move in the dark,

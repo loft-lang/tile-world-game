@@ -110,7 +110,7 @@ waits for the hero.
     from it, the hunter clears a nest by shooting.  Its aim needs to see the hero, so the dark hides
     from it.  Its arrows hurt other enemies, and wandering it hunts them (owner): unseen, the hero
     can let the hunter thin out a nest — and a hurt enemy flees to its nest, so the hunter's prey
-    leads it home.  Ruling: does its arrow throw a lever it hits?
+    leads it home.  Its arrows throw no levers (owner).
 24. **Puzzle — stealth against a cart.**  A cart rolling past a cyclops group draws its eye (noise
     or light) away from the hero sneaking by.
 
