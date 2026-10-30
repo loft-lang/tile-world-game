@@ -1,0 +1,173 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// One item a cell (DESIGN.md § Moving things): nothing is ever put on an item.  A light item is
+// pushed out of the way of what comes in — one cell on when there is room; a string of two sends
+// the far one to the side (right of the way, then left), if there is room — and with no room the
+// push or the pull does not happen.  The room is x 0 .. 6, y 0 .. 2 under a ceiling, walled all
+// round; pushes run east along y 1, so "right" is south (y 2) and "left" north (y 0).
+use tile_world;
+use rules;
+
+fn room() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 7, 3, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 6, 2, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, -1, -1, 7, 3, 1, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 1, 0);
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+// The things on (x, y, 0), bottom first, by name.
+fn at(w: const rules::Level, x: integer, y: integer) -> text {
+  t = "";
+  for s in tile_world::things(w.w, x, y, 0) { t += "{rules::thing_name(w.k, s)},"; }
+  t
+}
+
+fn main() {
+  w = room();
+  assert(at(w, 0, 1) == "", "an empty room");
+}
+
+// A rock pushed onto a potion: the potion goes one cell on.
+fn test_an_item_slides_out_of_the_way() {
+  w = room();
+  put(w, 2, 1, "rock");
+  put(w, 3, 1, "potion");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 3, 1) == "rock," && at(w, 4, 1) == "potion,", "{at(w, 3, 1)} {at(w, 4, 1)}");
+}
+
+// No room for the potion (a wall behind it): the rock does not move either.
+fn test_no_room_no_push() {
+  w = room();
+  tile_world::set_terrain(w.w, 6, 1, 0, rules::tr(w, "wall"));
+  put(w, 4, 1, "rock");
+  put(w, 5, 1, "potion");
+  rules::put_hero(w, 3, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "blocked");
+  assert(at(w, 4, 1) == "rock," && at(w, 5, 1) == "potion," && w.hero_x == 3, "nothing moved");
+}
+
+// A string of two: the far item goes to the right of the way, the near one into its cell.
+fn test_a_string_of_two_sends_the_far_one_aside() {
+  w = room();
+  put(w, 2, 1, "rock");
+  put(w, 3, 1, "potion");
+  put(w, 4, 1, "axe");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 3, 1) == "rock," && at(w, 4, 1) == "potion," && at(w, 4, 2) == "axe,",
+         "{at(w, 3, 1)} {at(w, 4, 1)} {at(w, 4, 2)}");
+}
+
+// The right side taken (a chair): the far item goes left.  Both taken: nothing moves.
+fn test_aside_left_and_no_room_at_all() {
+  w = room();
+  put(w, 2, 1, "rock");
+  put(w, 3, 1, "potion");
+  put(w, 4, 1, "axe");
+  put(w, 4, 2, "chair");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 4, 0) == "axe," && at(w, 4, 1) == "potion," && at(w, 4, 2) == "chair,", "left");
+  v = room();
+  put(v, 2, 1, "rock");
+  put(v, 3, 1, "potion");
+  put(v, 4, 1, "axe");
+  put(v, 4, 2, "chair");
+  tile_world::set_terrain(v.w, 4, 0, 0, rules::tr(v, "wall"));
+  _ = rules::walk(v, 1, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Blocked, "no room either side");
+  assert(at(v, 2, 1) == "rock," && at(v, 3, 1) == "potion," && at(v, 4, 1) == "axe," && v.hero_x == 1,
+         "nothing moved");
+}
+
+// Only two are looked at: a third item past the string stays where it is.
+fn test_a_third_item_stays() {
+  w = room();
+  put(w, 2, 1, "rock");
+  put(w, 3, 1, "potion");
+  put(w, 4, 1, "axe");
+  put(w, 5, 1, "stick");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 4, 1) == "potion," && at(w, 4, 2) == "axe," && at(w, 5, 1) == "stick,", "the stick stays");
+}
+
+// A burning torch pushed along keeps its time: low from 9:00, a stick at 10:00 where it went —
+// straight on, and aside.
+fn test_a_pushed_flame_keeps_its_time() {
+  w = room();
+  put(w, 2, 1, "rock");
+  put(w, 3, 1, "burning_torch");
+  rules::tick(w, 0);
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(at(w, 4, 1) == "burning_torch,", "{at(w, 4, 1)}");
+  rules::tick(w, 540000);
+  assert(rules::low(w, 4, 1, 0), "low at 9:00 where it went");
+  rules::tick(w, 60000);
+  assert(at(w, 4, 1) == "stick," && len(w.flames) == 0, "a stick at 10:00: {at(w, 4, 1)}");
+  v = room();
+  put(v, 2, 1, "rock");
+  put(v, 3, 1, "potion");
+  put(v, 4, 1, "burning_torch");
+  rules::tick(v, 0);
+  _ = rules::walk(v, 1, 0);
+  _ = rules::walk(v, 1, 0);
+  rules::tick(v, 600000);
+  assert(at(v, 4, 2) == "stick," && at(v, 4, 1) == "potion,", "aside, burnt out there: {at(v, 4, 2)}");
+}
+
+// A chair pulled onto the axe the hero just put down: the axe goes on, under the hero.
+fn test_a_pull_clears_the_cell_the_hero_leaves() {
+  w = room();
+  put(w, 0, 1, "chair");
+  rules::put_hero(w, 1, 1, 0);
+  w.hero_item = rules::th(w, "axe");
+  assert(rules::drop(w) == rules::Step.Placed, "the axe down");
+  assert(rules::pull(w, 1, 0) == rules::Step.Pulled, "pulled");
+  assert(at(w, 1, 1) == "chair," && at(w, 2, 1) == "axe," && w.hero_x == 2 && w.hero_item == 0,
+         "{at(w, 1, 1)} {at(w, 2, 1)}");
+}
+
+// Nothing is put down on an item: two burning torches never share a cell, and each burns out.
+fn test_no_drop_on_an_item() {
+  w = room();
+  put(w, 2, 1, "burning_torch");
+  w.hero_item = rules::th(w, "burning_torch");
+  rules::tick(w, 0);
+  rules::play(w, "d d");
+  assert(rules::drop(w) == rules::Step.Blocked, "the cell holds an item");
+  rules::tick(w, 600000);
+  assert(w.hero_item == rules::th(w, "stick") && at(w, 2, 1) == "stick,", "both out: {at(w, 2, 1)}");
+}
+
+// A train pushed onto an item on the rails sends it on; pulled, the item where the hero stood
+// goes on with the hero.
+fn test_trains_clear_the_way() {
+  w = room();
+  tile_world::fill(w.w, 0, 1, 6, 1, 0, rules::tr(w, "rail"));
+  put(w, 2, 1, "cart");
+  put(w, 3, 1, "cart");
+  put(w, 4, 1, "potion");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
+  assert(at(w, 3, 1) == "cart," && at(w, 4, 1) == "cart," && at(w, 5, 1) == "potion,", "{at(w, 5, 1)}");
+  v = room();
+  tile_world::fill(v.w, 0, 1, 6, 1, 0, rules::tr(v, "rail"));
+  put(v, 0, 1, "cart");
+  put(v, 1, 1, "cart");
+  rules::put_hero(v, 2, 1, 0);
+  v.hero_item = rules::th(v, "axe");
+  _ = rules::drop(v);
+  assert(rules::pull(v, 1, 0) == rules::Step.Pulled, "pulled");
+  assert(at(v, 1, 1) == "cart," && at(v, 2, 1) == "cart," && at(v, 3, 1) == "axe,", "{at(v, 3, 1)}");
+}

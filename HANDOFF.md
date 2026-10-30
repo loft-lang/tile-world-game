@@ -77,8 +77,15 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 5. **Torches and light** (DESIGN.md § Torches and light, ART.md) — built: the game's own sheet
    (`tile-world.png`, `tools/sheet.loft`), the stick, the tar barrel, lighting both ways,
    sockets only (the staff too), burning out after 10 minutes wherever a torch is, the low
-   flame and the flicker, and `the torch room` (third in `order.json`).  74 tests on both
-   backends.  Open: light in the enemies' moves (with the enemies).
+   flame and the flicker, and `the torch room` (third in `order.json`).  Open: light in the
+   enemies' moves (with the enemies).
+6. **One item a cell** (DESIGN.md § Moving things) — built: items are pushed out of the way,
+   a string of two sends the far one aside, no room blocks, no drop onto an item.  83 tests on
+   both backends.  Still open from the 2026-10-30 evaluation (owner to decide): a permanent
+   flame (a lit tar barrel?) so light is never a dead end; a floor flame lighting a torch like
+   a socket's does; items on a table out of reach; sockets only on walls (editor); torches
+   burning in real time while the player thinks; whether darkness hides enemies (the well's
+   clear area, a hidden chest); the axe felling a tree leaving a stick.
 
 ## Elsewhere (all landed or handed over)
 

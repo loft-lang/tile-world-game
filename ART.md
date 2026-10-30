@@ -115,7 +115,8 @@ at 4×:
 
 The third part is the game itself: `the torch room` with the light on, at its start, carrying
 the lit torch, and with it hung in the far socket —
-`TW_SHOT=room.png TW_LEVEL=2 TW_KEYS="108" [TW_MOVES="s d d d d d w w a a a w d d d"] loft --lib libs main.loft`.
+`TW_SHOT=room.png TW_LEVEL=2 [TW_MOVES="s d d d d d w w a a a w d d d"] loft --lib libs main.loft`
+(play is always drawn in its light; L switches it only in the editor).
 
 ## Animation
 

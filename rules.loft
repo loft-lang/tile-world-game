@@ -730,6 +730,67 @@ fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base
   lifts(l, thing) && surface_kind(l, tile_world::top(l.w, x, y, z))
 }
 
+// --- Items in the way ---
+//
+// A floor cell holds at most one item (a walk_on thing), and nothing is ever put on one: a light
+// item is pushed out of the way of what comes in.  It slides one cell on when there is room; when
+// another item lies there — a string of two — that one goes to the side (right of the way first,
+// then left), if there is room, and the first slides into its cell.  With no room the push or the
+// pull does not happen.
+
+// Can the item on (x, y, z) slide one cell (dx, dy): onto floor at its own height that holds
+// nothing (with `leaving`, what lies there is about to go aside), not kept off things, across an
+// edge things cross?
+fn slides(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+          leaving: boolean) -> boolean {
+  nx = x + dx;
+  ny = y + dy;
+  k = tile_world::terrain(l.w, nx, ny, z);
+  if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
+  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return false; }
+  height(l, nx, ny, z) == height(l, x, y, z)
+}
+
+// The side the item on (x, y, z) goes to, out of the way (dx, dy): its right, then its left;
+// (0, 0) when neither has room.
+fn aside(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> (integer, integer) {
+  if slides(l, x, y, z, -dy, dx, false) { return (-dy, dx); }
+  if slides(l, x, y, z, dy, -dx, false) { return (dy, -dx); }
+  (0, 0)
+}
+
+// Can something come onto (x, y, z) moving (dx, dy), as far as an item lying there goes?
+fn way_clear(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  t = tile_world::top(l.w, x, y, z);
+  if t == 0 || !item(l, t) { return true; }
+  if slides(l, x, y, z, dx, dy, false) { return true; }
+  if !item(l, tile_world::top(l.w, x + dx, y + dy, z)) || !slides(l, x, y, z, dx, dy, true) { return false; }
+  a = aside(l, x + dx, y + dy, z, dx, dy);
+  a.0 != 0 || a.1 != 0
+}
+
+// Move the top thing of (x, y, z) one cell (dx, dy); a flame takes its time along.
+fn shift(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  t = tile_world::take(l.w, x, y, z);
+  tile_world::place(l.w, x + dx, y + dy, z, t);
+  i = flame_at(l, x, y, z);
+  if i >= 0 {
+    l.flames[i].x = x + dx;
+    l.flames[i].y = y + dy;
+  }
+}
+
+// Push the item on (x, y, z) out of the way (dx, dy), as way_clear said it can be.
+fn clear_way(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  t = tile_world::top(l.w, x, y, z);
+  if t == 0 || !item(l, t) { return; }
+  if !slides(l, x, y, z, dx, dy, false) {
+    a = aside(l, x + dx, y + dy, z, dx, dy);
+    shift(l, x + dx, y + dy, z, a.0, a.1);
+  }
+  shift(l, x, y, z, dx, dy);
+}
+
 // Move the hero to (x, y, z), standing on the stack there.  A walk_on thing on that floor acts:
 // "boost" is used up, "take" is picked up (and what the hero held is put down in its place).
 fn arrive(l: Level, x: integer, y: integer, z: integer) {
@@ -760,9 +821,10 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
 
 /// Put down what the hero holds, on the floor where it stands: the hero then stands on it, and
 /// picks it up again only by walking off and back on.  Step.Placed, or Blocked when it holds
-/// nothing or does not stand on the floor.
+/// nothing, does not stand on the floor, or stands on something already (an item: one a cell).
 pub fn drop(l: Level) -> Step {
   if l.hero_item == 0 || l.hero_h != 0 { return Step.Blocked; }
+  if tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z) != 0 { return Step.Blocked; }
   tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.hero_item);
   set_down(l, l.hero_item, l.hero_x, l.hero_y, l.hero_z, l.hero_until);
   l.hero_item = 0;
@@ -986,9 +1048,10 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) {
     n = train(l, tx, ty, z, dx, dy);
     if n > push_strength(l) || !fits(l, thing, tx + n * dx, ty + n * dy, z, 0)
-        || !crosses(l, tx, ty, z, dx, dy, n) {
+        || !crosses(l, tx, ty, z, dx, dy, n) || !way_clear(l, tx + n * dx, ty + n * dy, z, dx, dy) {
       return Step.Blocked;
     }
+    clear_way(l, tx + n * dx, ty + n * dy, z, dx, dy);
     k = n - 1;
     while k >= 0 {
       t = tile_world::take(l.w, tx + k * dx, ty + k * dy, z);
@@ -1000,7 +1063,8 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   }
   // Any other movable thing at the hero's own level is pushed, when it can go one cell on.
   if movable(l, thing) && !hands_busy(l) && base == l.hero_h && fits(l, thing, tx + dx, ty + dy, z, base)
-      && tile_world::crossable(l.w, tx, ty, z, dx, dy) {
+      && tile_world::crossable(l.w, tx, ty, z, dx, dy) && way_clear(l, tx + dx, ty + dy, z, dx, dy) {
+    clear_way(l, tx + dx, ty + dy, z, dx, dy);
     t = tile_world::take(l.w, tx, ty, z);
     tile_world::place(l.w, tx + dx, ty + dy, z, t);
     arrive(l, tx, ty, z);
@@ -1042,11 +1106,14 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
   if trainlike(l, thing) {
     // The whole train behind follows, one cell each, when the hero can pull it.
     n = train(l, bx, by, z, -dx, -dy);
-    can = left == 0 && rail(l, tile_world::terrain(l.w, fx, fy, z)) && tile_world::top(l.w, fx, fy, z) == 0
+    under = tile_world::top(l.w, fx, fy, z);
+    can = left == 0 && rail(l, tile_world::terrain(l.w, fx, fy, z)) && (under == 0 || item(l, under))
           && crosses(l, bx - (n - 1) * dx, by - (n - 1) * dy, z, dx, dy, n);
     strong = n <= pull_strength(l);
     arrive(l, tx, ty, z);
-    if !can || !strong { return Step.Walked; }
+    // An item where the hero stood goes out of the way, once the hero has moved on.
+    if !can || !strong || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
+    clear_way(l, fx, fy, z, dx, dy);
     for k in 1..=n {
       t = tile_world::take(l.w, fx - k * dx, fy - k * dy, z);
       tile_world::place(l.w, fx - (k - 1) * dx, fy - (k - 1) * dy, z, t);
@@ -1065,7 +1132,8 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
          && tile_world::crossable(l.w, bx, by, z, dx, dy);
   }
   arrive(l, tx, ty, z);
-  if !ok { return Step.Walked; }
+  if !ok || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
+  clear_way(l, fx, fy, z, dx, dy);
   t = tile_world::take(l.w, bx, by, z);
   tile_world::place(l.w, fx, fy, z, t);
   Step.Pulled

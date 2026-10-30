@@ -58,6 +58,16 @@ This is what the game built on tile_world should be.
 ## Moving things
 
 - **Push and pull.** Walking pushes; `pull` drags what is behind the hero (slice 1).
+- **One item a cell.** A floor cell holds at most one item (what the hero walks over and takes:
+  a potion, the staff, the axe, a torch), and nothing is ever put on top of one, so every item
+  stays in sight and in reach.  Built (`tests/items.loft`).
+  - Items are light: a thing pushed or pulled onto one pushes it one cell on, any time, when
+    there is room (floor at its height, nothing on it, no edge in the way).
+  - A string of two: the far item goes to the side, right of the way first, then left, if
+    there is room, and the near one takes its cell.  Only two are moved; a third stays.
+  - With no room for the item, the push or the pull does not happen.
+  - The hero puts nothing down where an item lies; it stands on one only after a swap.
+  - A burning torch pushed along keeps its time.
 - **Carts.**
   - Carts run on rails, and a line of carts is a train.
   - The base strength pushes 3 carts and pulls 2.
