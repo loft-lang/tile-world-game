@@ -214,7 +214,10 @@ This is what the game built on tile_world should be.
     torches it reaches instead of lighting them — proposed: every burning torch in reach, in a
     socket, on the floor or in the hero's hand, becomes an unlit torch (still tarred, relit like
     any), and it lights none.  It pushes, hurts and chains like any blast.
-  - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner).  Proposed: a
+  - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner) — the one the
+    hero holds as well: it goes off in the hero's hands, distance 0, the full damage.  A hazard the
+    player must learn (owner); proposed: an early level teaches it where it costs health, not a
+    life.  Proposed: a
     tar barrel within distance 1 bursts into a fire that burns like a flame (it lights torches)
     for its burn time, further out it is only pushed; a bomb riding a cart goes off when the cart
     is stopped by something — a way to send a blast down a track.

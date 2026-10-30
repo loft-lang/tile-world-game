@@ -69,9 +69,6 @@ waits for the hero.
 
 ## Bombs and everything else
 
-13. **Ruling — a bomb in the hero's hands.**  Chains reach 2.  A bomb the hero holds, within 2 of
-    a blast: does it go off in the hero's hands?  Rule-consistent, and brutal.  A held bomb might
-    be safe (only a lying bomb chains) — or that is the danger to teach.
 14. **Ruling — the blast and held things.**  Does a blast knock the item out of the hero's hands
     (light, flung like any item)?  It would make a burning torch fly into the dark.
 15. **Fairness — blast then fall.**  A blast pushes the hero; pushed off a ledge, the hero falls
