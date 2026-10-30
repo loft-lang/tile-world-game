@@ -27,9 +27,10 @@ This is what the game built on tile_world should be.
   up situations that easily kill: the hero gets hit, and then has to search for potions.  Damage
   is a cost to recover from, not an ending.  Proposed: a red health potion (Kenney's dungeon:115,
   beside the green one) restores 3 health up to the start's 6 when walked over, found in the
-  dungeon like chests.  To review against it: a three-layer fall costs all 6 today; a blast on
-  the hero's cell or a held bomb (4) and a cart at full speed (4) kill when a push off a ledge
-  adds a fall.
+  dungeon like chests.  A deep fall stays deadly — it is seen and avoided (owner) — but big
+  heights do not come from the start: a dungeon's first drops are shallow, deeper ones further in.
+  Still to review against it: a blast on the hero's cell or a held bomb (4) and a cart at full
+  speed (4) kill when a push off a ledge adds a fall.
 - **Real time** (owner, 2026-10-30).  The world runs on its clock whatever the hero does: carts
   roll, blasts go off, torches burn while the player thinks.  It stays deterministic — the same
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
@@ -56,7 +57,8 @@ This is what the game built on tile_world should be.
   fallen: 1 layer costs 1, 2 cost 3, 3 cost 6 (kinds.json `fall_damage`; deeper falls cost the
   last).  The hero starts with 6 (`health`), so a fall of three layers takes it all.  A shorter
   drop — onto a chair below a ledge — costs nothing.  With no health left the hero moves no
-  more; until wells and safe points exist, R restarts the level.  Built (slice 2). A bomb that drops a level
+  more; until wells and safe points exist, R restarts the level.  The three-layer fall stays
+  deadly on purpose; levels keep big heights out of their beginnings (§ The principle).  Built (slice 2). A bomb that drops a level
   explodes on landing.
 - **Ceilings.** A cell has a ceiling when the layer above it is not void.
   - The ceiling is never drawn.
