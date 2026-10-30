@@ -18,6 +18,11 @@ This is what the game built on tile_world should be.
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.
 - **Growth is never necessary.** Correct puzzle solving and fighting strategy must always let the
   base character beat every dungeon. It may get increasingly harder without upgrades.
+- **Nothing is tutorialized** (owner, 2026-10-30).  A dungeon is presented in its natural state;
+  no level teaches a rule, no hint explains one.  The player learns the world as in Spelunky: by
+  watching it and by dying in it.  So every rule must hold everywhere, the same way every time —
+  consistency is the teacher — and what is about to happen must be readable from the world itself
+  (a sound, a sight), never from a message.
 - **Real time** (owner, 2026-10-30).  The world runs on its clock whatever the hero does: carts
   roll, blasts go off, torches burn while the player thinks.  It stays deterministic — the same
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
@@ -222,8 +227,7 @@ This is what the game built on tile_world should be.
     any), and it lights none.  It pushes, hurts and chains like any blast.
   - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner) — the one the
     hero holds as well: it goes off in the hero's hands, distance 0, the full damage.  A hazard the
-    player must learn (owner); proposed: an early level teaches it where it costs health, not a
-    life.  Proposed: a
+    player learns by meeting it (owner) — no level teaches it.  Proposed: a
     tar barrel within distance 1 bursts into a fire that burns like a flame (it lights torches)
     for its burn time, further out it is only pushed; a bomb riding a cart goes off when the cart
     is stopped by something — a way to send a blast down a track.

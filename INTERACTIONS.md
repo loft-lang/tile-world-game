@@ -53,8 +53,8 @@ waits for the hero.
     ledge they fall to the layer below.  Sweeping sticks down to where the tar is.
 11. **Fairness — linking at a junction.**  Two carts arriving on different branches link into one
     train across the junction; pushing that train then follows the junction's setting for the
-    lead cart only.  Sensible, but a player may expect the train to split.  A level should show it
-    before relying on it.
+    lead cart only.  Sensible, but a player may expect the train to split.  No level explains it
+    (nothing is tutorialized): it must behave so every time, so the player learns it by seeing it.
 12. **Puzzle — a derailed cart as a step.**  Derailing places a height-1 fixed thing: a step up
     to a table or a ledge, made where the track ends.  A bomb can make one anywhere beside a track.
 
