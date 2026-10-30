@@ -194,8 +194,12 @@ This is what the game built on tile_world should be.
 - **Bow.**
   - Shoots enemies higher up on walls (bats, spiders), with no ammunition limit.
   - An arrow sets off a bomb it hits, as it hurts an enemy (owner): a bomb set off from afar.
-  - **Aim.** The aim locks onto an enemy in the general direction the hero faces. The lock is
-    lost when that enemy goes out of the hero's view.
+  - The hero's arrow throws a lever it hits (owner) — a junction set from across a chasm; the
+    hunter's arrows do not.
+  - **Aim** (owner).  The target is the closest enemy or thing to hit (a lever, a bomb) in line
+    with the hero; pressing the target key again switches directly to the next.  The lock is lost
+    when the target goes out of the hero's view.  The targeting has to be good enough for this to
+    work — levers and bombs among enemies.
 - **Bomb.**
   - It is thrown like a bowling ball: it rolls in a straight line and ignites on impact.
   - **The blast** (designed, not built — the owner's rules, 2026-10-30, and proposals marked so).
