@@ -44,7 +44,9 @@ This is what the game built on tile_world should be.
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
   must be readable before it arrives (proposed): a rolling cart is heard before it is seen, a
   chain of bombs ripples (each one 150 ms after the blast that set it off) rather than all at
-  once.  A doomed save is allowed — it is fun (owner) — but never bricks a game: see the wells.
+  once.  The outcome never depends on how the time is cut into ticks: the world steps
+  from one due time to the next, so what one thing sets off within a tick (an enemy's arrow, a
+  thrown bomb) runs in it at its own time (`tests/clock.loft`).  A doomed save is allowed — it is fun (owner) — but never bricks a game: see the wells.
 - **A test enforces it.** Every shipped level carries a solution test played by the base character
   (`tests/first_climb.loft` is the model).
 
@@ -446,7 +448,14 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     strikes it instead.
   - They search for what set a bomb off (above).
   - Open: what a bested cyclops leaves (its axe, its bombs?).
-- **The hunter** (owner, planned).  An evil hunter shoots arrows as the hero does, and follows the
+- **The hunter: built** (`tests/hunter.loft`; Kenney's dungeon:112 with the bow; proposed: health
+  3, sees as a cyclops does — a lit hero within 8, in the dark within 2 — and shoots every
+  1500 ms).  It shoots what it sees in its row or column with the arrow's way clear (nothing an
+  arrow stops at before it, within the arrow's range): the hero first; else it hunts the nearest
+  other enemy it sees, shooting it in line or going after it at its chasing pace.  Its arrows
+  fly as the hero's (30 ms a cell, real time): a point off the hero they meet, a point off an
+  enemy, a bomb set off; a lever stops one unthrown.  Hurt it flees, a blast scares it.
+- **The hunter** (owner).  An evil hunter shoots arrows as the hero does, and follows the
   ordinary enemies' rules (fleeing hurt, healing at its nest, scared by blasts).  It throws no
   bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit,
   and they hurt other enemies too, but throw no levers (owner).  While wandering it hunts other enemies, but it prefers

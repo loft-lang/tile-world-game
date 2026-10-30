@@ -1,0 +1,168 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The hunter (DESIGN.md § Enemies): health 3, a bow; it sees as a cyclops does (a lit hero within
+// 8, one in the dark within 2) and shoots every 1500 ms what it sees in line with the arrow's way
+// clear — the hero first; else it hunts the nearest other enemy it sees.  Its arrows are arrows
+// (30 ms a cell): they hurt the hero (1) and other enemies, set off a bomb they meet, and throw no
+// lever.  Otherwise an ordinary enemy: hurt it flees, scared by blasts.  It first acts at 600.
+use tile_world;
+use rules;
+
+fn hall(n: integer, rows: integer, ceiling: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  if ceiling { tile_world::fill(w.w, -1, -1, n, rows, 1, rules::tr(w, "floor")); }
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  w.k.flicker_odds = 0;
+  w
+}
+
+fn torch(w: rules::Level) {
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.k.burn_ms;
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn hp(w: const rules::Level, i: integer) -> integer {
+  e = w.enemies[i];
+  if !e { return -1; }
+  e.hp
+}
+
+fn main() {
+  w = hall(4, 1, true);
+  _ = rules::add_enemy(w, "hunter", 2, 0, 0);
+  e = w.enemies[0];
+  assert(e.item == rules::th(w, "bow"), "a hunter, with its bow");
+}
+
+// The lit hero 6 west: at 600 it shoots, the arrow a cell every 30 ms — on the hero at 780, a
+// point; again at 2100, on the hero at 2280.
+fn test_a_hunter_shoots_the_lit_hero() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "hunter", 6, 0, 0);
+  until(w, 779);
+  assert(len(w.shots) == 1 && w.health == 6, "779: in flight");
+  until(w, 780);
+  assert(w.health == 5, "780: hit: {w.health}");
+  until(w, 2279);
+  assert(w.health == 5, "2279: the second in flight");
+  until(w, 2280);
+  assert(w.health == 4, "2280: hit again: {w.health}");
+}
+
+// The dark hides the hero from its aim: unlit on x 0, the hunter nesting on x 8 roaming 4 (never
+// within 2), in 20 s it never shoots.
+fn test_the_dark_hides_the_hero_from_a_hunter() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::add_enemy(w, "hunter", 8, 0, 0);
+  until(w, 20000);
+  assert(len(w.shots) == 0 && w.health == 6, "no shot: {len(w.shots)}");
+}
+
+// It hunts other enemies: in daylight, the hero away on layer 2, a rat on x 3 (asleep: it does not
+// act) 5 west of the hunter on x 8 — at 600 it shoots, the rat hit at 750.  With the hero in sight
+// (x 11, 3 east) it shoots the hero instead: hit at 690, the rat untouched.
+fn test_a_hunter_hunts_other_enemies_but_prefers_the_hero() {
+  w = hall(12, 1, false);
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "hunter", 8, 0, 0);
+  _ = rules::add_enemy(w, "rat", 3, 0, 0);
+  w.enemies[1].due = 100000;
+  until(w, 749);
+  assert(hp(w, 1) == 3, "749: in flight");
+  until(w, 750);
+  assert(hp(w, 1) == 2, "750: the rat hit: {hp(w, 1)}");
+  v = hall(12, 1, false);
+  rules::put_hero(v, 11, 0, 0);
+  _ = rules::add_enemy(v, "hunter", 8, 0, 0);
+  _ = rules::add_enemy(v, "rat", 3, 0, 0);
+  v.enemies[1].due = 100000;
+  until(v, 690);
+  assert(v.health == 5 && hp(v, 1) == 3, "the hero first: {v.health}, rat {hp(v, 1)}");
+  // A prey out of line it goes after, at its chasing pace: a rat on (3, 2), the hunter on (8, 0),
+  // 7 away and in neither row nor column — a step nearer at 600, and at 1000 another (or, in line by
+  // then, a shot).  Wandering, it would have taken one step by 1000.
+  u = hall(12, 3, false);
+  rules::put_hero(u, 0, 0, 2);
+  _ = rules::add_enemy(u, "hunter", 8, 0, 0);
+  _ = rules::add_enemy(u, "rat", 3, 2, 0);
+  u.enemies[1].due = 100000;
+  until(u, 600);
+  h = u.enemies[0];
+  assert((if h.x > 3 { h.x - 3 } else { 3 - h.x }) + (2 - h.y) == 6 && len(u.shots) == 0, "600: after it: ({h.x}, {h.y})");
+  until(u, 1000);
+  g = u.enemies[0];
+  assert((if g.x > 3 { g.x - 3 } else { 3 - g.x }) + (2 - g.y) == 5 || len(u.shots) == 1, "1000: nearer still: ({g.x}, {g.y})");
+}
+
+// What it cannot see or hit it leaves be.  In the dark a sleeping rat on x 1 — never within 2 of
+// the hunter roaming x 4 .. 11 — is never shot, in 10 s.  A rock on x 5 between it and the lit hero
+// on x 2: it sees the hero over the rock but does not shoot (the arrow would stop there).  With arrows
+// that fly only 4 cells, the lit hero 6 away is not shot.
+fn test_a_hunter_shoots_only_what_it_sees_and_can_hit() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "hunter", 8, 0, 0);
+  _ = rules::add_enemy(w, "rat", 1, 0, 0);
+  w.enemies[1].due = 100000;
+  until(w, 10000);
+  assert(len(w.shots) == 0 && hp(w, 1) == 3, "the dark hides the rat");
+  v = hall(12, 1, true);
+  rules::put_hero(v, 2, 0, 0);
+  torch(v);
+  tile_world::place(v.w, 5, 0, 0, rules::th(v, "rock"));
+  _ = rules::add_enemy(v, "hunter", 8, 0, 0);
+  until(v, 600);
+  assert(len(v.shots) == 0, "the rock in the way: no shot");
+  u = hall(12, 1, true);
+  u.k.arrow_range = 4;
+  rules::put_hero(u, 0, 0, 0);
+  torch(u);
+  _ = rules::add_enemy(u, "hunter", 6, 0, 0);
+  until(u, 600);
+  assert(len(u.shots) == 0, "out of the arrows' range: no shot");
+}
+
+// Its arrows throw no levers, and set off bombs: shot at the lit hero on (2, 0) at 600, the hero
+// steps aside to (2, 1); the arrow flies on, and at 840 meets a lever on x 0 — stopped, the lever
+// unthrown — or a bomb there — the blast, 3 from the hero: a point.
+fn test_a_hunters_arrow_passes_levers_and_sets_off_bombs() {
+  for what in ["lever_straight", "bomb"] {
+    w = hall(12, 2, true);
+    rules::put_hero(w, 2, 0, 0);
+    torch(w);
+    tile_world::place(w.w, 0, 0, 0, rules::th(w, what));
+    _ = rules::add_enemy(w, "hunter", 8, 0, 0);
+    until(w, 600);
+    assert(len(w.shots) == 1 && rules::walk(w, 0, 1) == rules::Step.Walked, "{what}: shot, and the hero steps aside");
+    until(w, 900);
+    s = w.shots[0];
+    if what == "bomb" {
+      assert(w.blasted == 1 && w.health == 5, "the bomb set off: health {w.health}");
+    } else {
+      assert(s.done && tile_world::top(w.w, 0, 0, 0) == rules::th(w, "lever_straight") && w.health == 6, "the lever unthrown");
+    }
+  }
+}
+
+// Hurt, it flees as an ordinary enemy: struck to 2 beside the hero, at 600 it steps away (x 2),
+// shooting nothing.
+fn test_a_hurt_hunter_flees() {
+  w = hall(12, 1, true);
+  rules::put_hero(w, 0, 0, 0);
+  torch(w);
+  _ = rules::add_enemy(w, "hunter", 1, 0, 0);
+  rules::strike_enemy(w, 0, 1);
+  until(w, 600);
+  e = w.enemies[0];
+  assert(e.x == 2 && len(w.shots) == 0 && w.health == 6, "fled to x {e.x}");
+}

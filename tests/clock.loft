@@ -1,0 +1,49 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The world's clock (DESIGN.md § Real time): the outcome depends on the times of the inputs, never
+// on how the time between them is cut into ticks.  What one thing sets off inside a tick — an
+// enemy's arrow, a thrown bomb — runs in that tick, at its own time.
+use tile_world;
+use rules;
+
+fn hall(n: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, 0, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, -1, -1, n, 1, 1, rules::tr(w, "floor"));
+  w.k.flicker_odds = 0;
+  w
+}
+
+// The lit hero, a hunter 3 east (it shoots at 600, the arrow on the hero at 690) and a cyclops with
+// bombs 8 west (it throws at 800, the bomb going off beside the hero at 2000: 3).
+fn scene() -> rules::Level {
+  w = hall(20);
+  rules::put_hero(w, 8, 0, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.k.burn_ms;
+  _ = rules::add_enemy(w, "hunter", 11, 0, 0);
+  _ = rules::add_enemy(w, "cyclops", 0, 0, 0);
+  rules::arm_enemy(w, 1, "bomb");
+  w
+}
+
+fn main() {
+  w = scene();
+  assert(len(w.enemies) == 2, "a hunter and a cyclops");
+}
+
+// The same scene in one tick of 690 and in 69 ticks of 10: the arrow lands at 690 either way; then
+// to 2000 in one tick and in ticks of 7: the bomb too.
+fn test_the_cut_of_the_ticks_does_not_matter() {
+  a = scene();
+  rules::tick(a, 690);
+  b = scene();
+  for k in 0..69 { rules::tick(b, 10); }
+  assert(a.health == 5 && b.health == 5, "the arrow at 690: {a.health} / {b.health}");
+  rules::tick(a, 1310);
+  while b.now + 7 <= 2000 { rules::tick(b, 7); }
+  rules::tick(b, 2000 - b.now);
+  assert(a.blasted == 1 && b.blasted == 1 && a.health == b.health, "the bomb at 2000: {a.health} / {b.health}");
+}

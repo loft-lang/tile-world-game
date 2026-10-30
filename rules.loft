@@ -114,7 +114,10 @@ struct EnemyProps {
   /// hero) it grabs the hero and pulls it towards its nest instead of striking (a cyclops).
   holds: text,
   bombs: integer,
-  pulls: boolean
+  pulls: boolean,
+  /// It shoots arrows (a hunter), every bite_ms: at the hero it sees in line, else at another
+  /// enemy it sees, which it hunts.
+  shoots: boolean
 }
 
 struct EdgeProps {
@@ -311,7 +314,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       climbs: flag(e, "climbs"), shuns_light: flag(e, "shuns_light"), likes_light: flag(e, "likes_light"),
       guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
       calls: num(e, "calls", 0), brave: flag(e, "brave"), holds: word(e, "holds", ""),
-      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls")
+      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots")
     }];
   }
   th = v.field("things");
@@ -551,7 +554,9 @@ pub struct Shot {
   pub cells: integer,
   pub at: integer,
   pub due: integer,
-  pub done: boolean
+  pub done: boolean,
+  /// Who shot it: 0 the hero, else the id of the enemy (a hunter).
+  pub by: integer
 }
 
 /// An enemy: its id (it keeps it while it lives), kind, place and nest, its health, when it acts
@@ -1483,7 +1488,25 @@ pub fn drop(l: Level) -> Step {
 /// started with; a flame whose time is up burns out.
 pub fn tick(l: Level, ms: integer) {
   if !l.kindled { kindle(l); }
-  if ms > 0 { l.now += ms; }
+  end = l.now + (if ms > 0 { ms } else { 0 });
+  // The world steps from one due time to the next, so what one thing sets off within the tick —
+  // an enemy's arrow, a thrown bomb, a cart started — runs in it too, at its own time: the outcome
+  // does not depend on how the time is cut into ticks.
+  step_world(l);
+  guard = 0;
+  while guard < 100000 {
+    guard += 1;
+    t = next_due(l);
+    if t < 0 || t > end { break; }
+    l.now = t;
+    step_world(l);
+  }
+  l.now = end;
+  step_world(l);
+}
+
+// Everything due by now: rolling carts, bombs and fuses, arrows, enemies, flames burning out.
+fn step_world(l: Level) {
   start_rolls(l);
   roll_due(l);
   start_bomb_rolls(l);
@@ -1491,6 +1514,19 @@ pub fn tick(l: Level, ms: integer) {
   arrows_due(l);
   enemies_due(l);
   burn_out(l);
+}
+
+// The earliest time after now that anything is due: -1 when nothing is.
+fn next_due(l: const Level) -> integer {
+  t = -1;
+  for r in l.rolls { if r.due > l.now && (t < 0 || r.due < t) { t = r.due; } }
+  for b in l.bombs { if b.due > l.now && (t < 0 || b.due < t) { t = b.due; } }
+  for f in l.fuses { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
+  for s in l.shots { if !s.done && s.due > l.now && (t < 0 || s.due < t) { t = s.due; } }
+  for e in l.enemies { if e.due > l.now && (t < 0 || e.due < t) { t = e.due; } }
+  for f in l.flames { if f.until > l.now && (t < 0 || f.until < t) { t = f.until; } }
+  if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
+  t
 }
 
 /// Is a boost still on?
@@ -3095,11 +3131,11 @@ fn enemy_props(l: const Level, kind: text) -> EnemyProps {
   if p { return p ?? EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
                      flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
                      dark_sight: 5, searches: false, calls: 0, brave: false, holds: "", bombs: 0,
-                     pulls: false }; }
+                     pulls: false, shoots: false }; }
   EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000,
                      flies: false, climbs: false, shuns_light: false, likes_light: false, guard: false,
                      dark_sight: 5, searches: false, calls: 0, brave: false, holds: "", bombs: 0,
-                     pulls: false }
+                     pulls: false, shoots: false }
 }
 
 /// Put an enemy of `kind` on (x, y, z), its nest there; it first acts a wander's step from now.
@@ -3347,6 +3383,43 @@ fn pull_hero(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
   l.enemies[i].due = e.due + p.move_ms;
 }
 
+// Does enemy e see (x, y) on its layer, as its kind sees: within `sight` in line of sight, lit
+// (shade 2 or less) or within `dark_sight`.
+fn sees_cell(l: const Level, e: const Enemy, p: const EnemyProps, x: integer, y: integer) -> boolean {
+  n = steps_apart(e.x, e.y, x, y);
+  if n > p.sight || !tile_world::line_of_sight(l.w, e.x, e.y, x, y, e.z) { return false; }
+  p.dark_sight >= p.sight || n <= p.dark_sight || lit_cell(shades_round(l, x, y, e.z, 0), x, y)
+}
+
+// The way (dx, dy) enemy e's arrow would fly to strike (x, y) — the hero or an enemy there — in its
+// row or column, within an arrow's range, meeting nothing before it; (0, 0) when it would not.
+fn arrow_line(l: const Level, e: const Enemy, x: integer, y: integer) -> (integer, integer) {
+  if (e.x != x && e.y != y) || (e.x == x && e.y == y) { return (0, 0); }
+  n = steps_apart(e.x, e.y, x, y);
+  if n > l.k.arrow_range { return (0, 0); }
+  dx = if x > e.x { 1 } else if x < e.x { -1 } else { 0 };
+  dy = if y > e.y { 1 } else if y < e.y { -1 } else { 0 };
+  cx = e.x;
+  cy = e.y;
+  for k in 0..n {
+    if !tile_world::see_through(l.w, cx, cy, e.z, dx, dy) { return (0, 0); }
+    cx += dx;
+    cy += dy;
+    if k < n - 1 && arrow_meets(l, cx, cy, e.z, e.id) != 0 { return (0, 0); }
+  }
+  (dx, dy)
+}
+
+// Enemy i looses an arrow (dx, dy); it shoots again a bite's time later.
+fn loose(l: Level, i: integer, e: const Enemy, p: const EnemyProps, dx: integer, dy: integer) {
+  l.shots += [Shot { x: e.x, y: e.y, z: e.z, dx: dx, dy: dy, cells: 0, at: e.due, due: e.due + l.k.arrow_ms,
+                     done: false, by: e.id }];
+  if len(l.shots) > 8 { _ = l.shots.remove(0); }
+  l.enemies[i].face_x = dx;
+  l.enemies[i].face_y = dy;
+  l.enemies[i].due = e.due + p.bite_ms;
+}
+
 // Does enemy e see the hero, as its kind sees: within `sight` only when the hero stands in light,
 // within `dark_sight` in the dark too.
 fn sees(l: const Level, e: const Enemy, p: const EnemyProps) -> boolean {
@@ -3549,6 +3622,14 @@ fn enemy_act(l: Level, i: integer) {
       bite(l, i, p);
       return;
     }
+    // A hunter with the hero in line and the arrow's way clear shoots.
+    if p.shoots {
+      a = arrow_line(l, e, l.hero_x, l.hero_y);
+      if a.0 != 0 || a.1 != 0 {
+        loose(l, i, e, p, a.0, a.1);
+        return;
+      }
+    }
     // Holding bombs, with the hero in line and the way clear, it throws one.
     if e.item != 0 && is_bomb(l, e.item) {
       b = bomb_line(l, e, p.sight);
@@ -3562,6 +3643,34 @@ fn enemy_act(l: Level, i: integer) {
     if w.2 > 1 {
       enemy_step(l, i, w.0, w.1, p.chase_ms);
       return;
+    }
+  }
+  // A hunter not seeing the hero hunts the nearest other enemy it sees (not a guard, not one of
+  // its kind): in line it shoots, else it goes after it — a hurt one, fleeing home, leads it there.
+  if p.shoots {
+    prey = -1;
+    best = 0;
+    for j in 0..len(l.enemies) {
+      cand = l.enemies[j] ?? no_enemy();
+      if j == i || cand.z != e.z || cand.kind == e.kind || enemy_props(l, cand.kind).guard { continue; }
+      n = steps_apart(e.x, e.y, cand.x, cand.y);
+      if sees_cell(l, e, p, cand.x, cand.y) && (prey < 0 || n < best) {
+        prey = j;
+        best = n;
+      }
+    }
+    if prey >= 0 {
+      pe = l.enemies[prey] ?? no_enemy();
+      a = arrow_line(l, e, pe.x, pe.y);
+      if a.0 != 0 || a.1 != 0 {
+        loose(l, i, e, p, a.0, a.1);
+        return;
+      }
+      w = enemy_way(l, p, e.x, e.y, e.z, pe.x, pe.y, false, no_shades());
+      if w.2 > 1 {
+        enemy_step(l, i, w.0, w.1, p.chase_ms);
+        return;
+      }
     }
   }
   // Searching (a cyclops): to the place, by the shortest way; there it stands looking until its
@@ -3682,7 +3791,8 @@ pub fn armed_with_bow(l: const Level) -> boolean {
 
 // What an arrow coming into (x, y, z) strikes there: 0 nothing (it flies on), 1 an enemy, 2 a
 // lever, 3 a bomb, 4 a wall or a big thing (it falls).
-fn arrow_meets(l: const Level, x: integer, y: integer, z: integer) -> integer {
+fn arrow_meets(l: const Level, x: integer, y: integer, z: integer, by: integer) -> integer {
+  if by != 0 && l.hero_x == x && l.hero_y == y && l.hero_z == z && alive(l) { return 5; }
   if enemy_at(l, x, y, z) >= 0 { return 1; }
   if opaque_kind(l, tile_world::terrain(l.w, x, y, z)) { return 4; }
   t = base(l, x, y, z);
@@ -3703,7 +3813,7 @@ fn arrow_flight(l: const Level, dx: integer, dy: integer) -> (integer, integer, 
     if !tile_world::see_through(l.w, x, y, z, dx, dy) { return (x, y, i, 0); }
     x += dx;
     y += dy;
-    m = arrow_meets(l, x, y, z);
+    m = arrow_meets(l, x, y, z, 0);
     if m == 4 { return (x, y, i + 1, 0); }
     if m != 0 { return (x, y, i + 1, m); }
   }
@@ -3770,7 +3880,7 @@ pub fn shoot(l: Level) -> Step {
     l.face_y = a.1;
   }
   l.shots += [Shot { x: l.hero_x, y: l.hero_y, z: l.hero_z, dx: l.face_x, dy: l.face_y, cells: 0, at: l.now,
-                     due: l.now + l.k.arrow_ms, done: false }];
+                     due: l.now + l.k.arrow_ms, done: false, by: 0 }];
   if len(l.shots) > 8 { _ = l.shots.remove(0); }
   Step.Shot
 }
@@ -3796,7 +3906,7 @@ fn arrows_due(l: Level) {
 
 // Arrow i flies one cell on — or falls: at a closed edge, past its range.
 fn arrow_step(l: Level, i: integer) {
-  s = l.shots[i] ?? Shot { x: 0, y: 0, z: 0, dx: 0, dy: 0, cells: 0, at: 0, due: 0, done: true };
+  s = l.shots[i] ?? Shot { x: 0, y: 0, z: 0, dx: 0, dy: 0, cells: 0, at: 0, due: 0, done: true, by: 0 };
   x = s.x + s.dx * s.cells;
   y = s.y + s.dy * s.cells;
   if s.cells >= l.k.arrow_range || !tile_world::see_through(l.w, x, y, s.z, s.dx, s.dy) {
@@ -3807,9 +3917,15 @@ fn arrow_step(l: Level, i: integer) {
   y += s.dy;
   l.shots[i].cells = s.cells + 1;
   l.shots[i].due = s.due + l.k.arrow_ms;
-  m = arrow_meets(l, x, y, s.z);
+  m = arrow_meets(l, x, y, s.z, s.by);
   if m == 0 { return; }
   l.shots[i].done = true;
+  // A hunter's arrow: the hero hit loses a point; a lever it meets stops it, unthrown (owner).
+  if m == 5 {
+    harm(l, 1);
+    return;
+  }
+  if m == 2 && s.by != 0 { return; }
   if m == 1 {
     foe = enemy_at(l, x, y, s.z);
     if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).guard {
