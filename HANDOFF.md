@@ -71,8 +71,8 @@ the_old_mine, the_cyclops_hall).  Built since the list below: bombs, rats/bats/s
 the bow and aiming, potions and money, the editor's slopes and junctions, cyclopes (sight by
 light, shout, calls, search, blasts draw them; axe / bombs / unarmed pull), the hunter, and a
 world clock that steps from one due time to the next (`tests/clock.loft`).  The hero's blows take
-400 ms to recover from (owner ruling, `tests/blows.loft`).  Open for the owner: what a bested
-cyclops drops.
+400 ms to recover from (owner ruling, `tests/blows.loft`).  A bested enemy leaves what it
+held in sight (owner).
 Not built: spiders fleeing to other levels, pulling a cart over a layer's edge, a figure hidden
 behind a ledge on a lower layer.
 

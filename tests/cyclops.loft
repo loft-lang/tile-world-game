@@ -289,3 +289,67 @@ fn test_a_cyclops_does_not_throw_near_or_blocked() {
   until(v, 800);
   assert(v.hurled == 0 && at(v, 0) == "x7 y0 hp5", "a stick in the way: it comes: {at(v, 0)}");
 }
+
+// --- What a bested enemy leaves: what it held in sight (owner) ---
+
+fn top_is(w: const rules::Level, x: integer, y: integer, name: text) -> boolean {
+  tile_world::top(w.w, x, y, 0) == (if name == "" { 0 } else { rules::th(w, name) })
+}
+
+// Bested on (1, 0): a cyclops leaves its axe, a bomber one bomb (lying, not lit), an unarmed one
+// nothing, a hunter its bow, a rat nothing.
+fn test_a_bested_enemy_leaves_what_it_held() {
+  for c in [("cyclops", "", "axe"), ("cyclops", "bomb", "bomb"), ("cyclops", "none", ""), ("hunter", "", "bow"), ("rat", "", "")] {
+    w = hall(6, 1, true);
+    rules::put_hero(w, 0, 0, 2);
+    _ = rules::add_enemy(w, c.0, 1, 0, 0);
+    if c.1 != "" { rules::arm_enemy(w, 0, c.1); }
+    rules::strike_enemy(w, 0, 10);
+    assert(len(w.enemies) == 0 && top_is(w, 1, 0, c.2), "{c.0} {c.1}: leaves '{c.2}'");
+    until(w, 2000);
+    assert(w.blasted == 0 && top_is(w, 1, 0, c.2), "{c.0}: it lies there");
+  }
+}
+
+// Bested standing on a stick, its axe goes beside it: the side its place prefers across the way it
+// faces (south), then the other.
+fn test_what_it_held_goes_aside_from_an_item() {
+  w = hall(6, 3, true);
+  rules::put_hero(w, 0, 0, 2);
+  tile_world::place(w.w, 2, 1, 0, rules::th(w, "stick"));
+  _ = rules::add_enemy(w, "cyclops", 2, 1, 0);
+  rules::strike_enemy(w, 0, 10);
+  side = if rules::prefers_right(2, 1, 0) { 1 } else { 3 };
+  assert(top_is(w, 2, 1, "stick") && top_is(w, side, 1, "axe"), "the axe aside, on x {side}");
+}
+
+// A blast that bests a bomber sets off the bomb it drops: the bomber (hurt to 2) on x 3, a bomb on
+// x 2 going off at 100 — 3 to it, bested; its bomb falls 1 from the blast and goes off a ripple
+// later, at 250.
+fn test_a_blast_besting_a_bomber_sets_its_bomb_off() {
+  w = hall(10, 1, true);
+  rules::put_hero(w, 0, 0, 2);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "bomb"));
+  w.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
+  _ = rules::add_enemy(w, "cyclops", 3, 0, 0);
+  rules::arm_enemy(w, 0, "bomb");
+  rules::strike_enemy(w, 0, 3);
+  until(w, 249);
+  assert(w.blasted == 1 && len(w.enemies) == 0 && top_is(w, 3, 0, "bomb"), "249: bested, its bomb lying, lit");
+  until(w, 250);
+  assert(w.blasted == 2, "250: its bomb goes off: {w.blasted}");
+}
+
+// Among others, the bested one's own: an unarmed cyclops (x 1) bested beside a hunter (x 3) leaves
+// nothing — not the hunter's bow; the hunter bested then leaves its bow on x 3.
+fn test_each_leaves_its_own() {
+  w = hall(6, 1, true);
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "cyclops", 1, 0, 0);
+  rules::arm_enemy(w, 0, "none");
+  _ = rules::add_enemy(w, "hunter", 3, 0, 0);
+  rules::strike_enemy(w, 0, 10);
+  assert(top_is(w, 1, 0, "") && len(w.enemies) == 1, "the cyclops leaves nothing");
+  rules::strike_enemy(w, 0, 10);
+  assert(top_is(w, 3, 0, "bow") && top_is(w, 1, 0, ""), "the hunter its bow, where it stood");
+}

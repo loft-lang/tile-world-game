@@ -453,7 +453,11 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     takes the step, and the cyclops staggers, acting again a blow's time later.  Walking into it
     strikes it instead.
   - They search for what set a bomb off (above).
-  - Open: what a bested cyclops leaves (its axe, its bombs?).
+  - **A bested enemy leaves what it held in sight** (owner: enemies are not bested for loot, but
+    what is seen is there; built, `tests/cyclops.loft`): a cyclops its axe, a bomber the one bomb
+    in its hand (lying, unlit), a hunter its bow; the others nothing.  It falls where the enemy
+    stood, or beside it when an item lies there (as a tree's stick), lost with no room.  A blast
+    that bests a bomber sets off the bomb it drops — damage sets bombs off.
 - **The hunter: built** (`tests/hunter.loft`; Kenney's dungeon:112 with the bow; proposed: health
   3, sees as a cyclops does — a lit hero within 8, in the dark within 2 — and shoots every
   1500 ms).  It shoots what it sees in its row or column with the arrow's way clear (nothing an

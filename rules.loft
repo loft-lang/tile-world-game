@@ -951,6 +951,20 @@ fn land_blow(l: Level, dx: integer, dy: integer) -> Step {
   Step.Swung
 }
 
+// A thing left on (x, y, z) by one facing (dx, dy) that is gone: there, or — an item lying there
+// already — beside it, the side the place prefers, then the other (as a tree's stick); no room,
+// it is lost.
+fn leave(l: Level, t: integer, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
+  if tile_world::top(l.w, x, y, z) == 0 {
+    tile_world::place(l.w, x, y, z, t);
+    return;
+  }
+  s = aside(l, x, y, z, dx, dy);
+  if s.0 == 0 && s.1 == 0 { return; }
+  r = landing(l, x, y, z, s.0, s.1, false);
+  if r.0 == LANDS { tile_world::place(l.w, r.1, r.2, r.3, t); }
+}
+
 // A remembered blow whose time has come lands.
 fn queued_blow(l: Level) {
   if !l.queued || l.now < l.blow_until { return; }
@@ -3792,12 +3806,23 @@ fn enemy_act(l: Level, i: integer) {
   enemy_step(l, i, pick.0, pick.1, p.move_ms);
 }
 
-/// Enemy i takes a blow costing `damage`: hurt, it turns to go home; at no health it is bested.
+/// Enemy i takes a blow costing `damage`: hurt, it turns to go home; at no health it is bested,
+/// and what it held in sight falls where it stood (owner: no hidden loot, but what is seen is
+/// there) — one bomb of a bomber's, the one in its hand.
 pub fn strike_enemy(l: Level, i: integer, damage: integer) {
   hp = (l.enemies[i].hp ?? 0) - damage;
   if hp <= 0 {
+    // (`l.enemies[i]` reads the list: what it held is read before it is removed.)
+    e = l.enemies[i] ?? no_enemy();
+    held = e.item;
+    x = e.x;
+    y = e.y;
+    z = e.z;
+    fx = e.face_x;
+    fy = e.face_y;
     _ = l.enemies.remove(i);
     l.killed += 1;
+    if held != 0 { leave(l, held, x, y, z, fx, fy); }
     return;
   }
   l.enemies[i].hp = hp;
