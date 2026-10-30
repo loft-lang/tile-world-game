@@ -210,8 +210,10 @@ This is what the game built on tile_world should be.
   - **The blast lights a torch on a wall** (owner): an unlit torch in a socket within its reach
     stays in the socket and burns, with its whole time; a burning one burns on (proposed); a
     stick has no tar and is not lit.
-  - **Water douses a bomb** (owner): a bomb blown into water never goes off — lost in it, as any
-    item falling into water is — so water breaks a chain.
+  - **A bomb in water throws water around** (owner): it still goes off, but its blast douses the
+    torches it reaches instead of lighting them — proposed: every burning torch in reach, in a
+    socket, on the floor or in the hero's hand, becomes an unlit torch (still tarred, relit like
+    any), and it lights none.  It pushes, hurts and chains like any blast.
   - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner).  Proposed: a
     tar barrel within distance 1 bursts into a fire that burns like a flame (it lights torches)
     for its burn time, further out it is only pushed; a bomb riding a cart goes off when the cart

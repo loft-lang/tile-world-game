@@ -91,8 +91,9 @@ waits for the hero.
 
 27. **Puzzle — lighting a room from afar.**  A blast lights the unlit torches in the sockets it
     reaches (owner): a bomb thrown into a dark room lights it — or an arrow sets off a bomb that
-    does.  Water douses a bomb (owner): a flooded cell between bombs breaks a chain, and a bomb
-    thrown short into water is a dud.
+    does.  A bomb in water throws water around (owner): its blast douses the torches it reaches —
+    the same bomb lights a room or puts it out depending on where it lands, and a dark room is
+    made darker on purpose (to sneak past cyclopes).
 
 ## Light, fire and enemies
 
