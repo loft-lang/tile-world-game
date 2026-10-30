@@ -123,6 +123,21 @@ fn layer(b: text, t: text) -> text {
   out
 }
 
+/// `t` laid over `b` as track pieces are: t's rails and sleepers win; its dark ground (`o`) only
+/// where nothing is beneath.  A junction is a straight and a bend laid so — the route on top is
+/// the one it is set to.
+fn over(b: text, t: text) -> text {
+  out = "";
+  for y in 0..TILE {
+    for x in 0..TILE {
+      a = letter_at(b, x, y);
+      c = letter_at(t, x, y);
+      if c == "." || (c == "o" && a != ".") { out += a; } else { out += c; }
+    }
+  }
+  out
+}
+
 /// `g` with every row from `row` down made transparent.
 fn cut(g: text, row: integer) -> text {
   out = g[0..row * TILE];
@@ -161,6 +176,17 @@ fn tiles(pal: const vector<Colour>) -> vector<text> {
     if bad || len(l) == 0 || l.starts_with("#") { continue; }
     parts = l.split(' ');
     i = number(parts[0]);
+    if parts[2] == "over" {
+      b = read_tile("{ART}/{parts[3]}.txt", pal);
+      t = read_tile("{ART}/{parts[4]}.txt", pal);
+      if len(b) == 0 || len(t) == 0 { bad = true; continue; }
+      if len(out[i] ?? "") > 0 {
+        println("composed.txt: index {i} is used twice");
+        bad = true;
+      }
+      out[i] = over(b, t);
+      continue;
+    }
     held = parts[2];
     g = back;
     if held.starts_with("layers/") {

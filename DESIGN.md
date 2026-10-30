@@ -98,7 +98,12 @@ This is what the game built on tile_world should be.
   confirmed marked so.  Built, step 1 (`tests/tracks.loft`): tracks from the rails' joins (each
   rail cell joins the rail beside it; painted pieces, which keep parallel tracks apart, come with
   the junctions), carts along them round bends, pushed and pulled, trains along the track, and
-  derailing past an open end.  Steps 2 (junctions) and 3 (slopes) are not built.
+  derailing past an open end.  Built, step 2 (`tests/tracks.loft`): painted pieces (a cell's
+  picture, theme.json `tracks` and `junctions`, keeping parallel tracks apart), junctions (in by
+  the toe: the setting; in by a branch: to the toe), the lever (walked into, it sets the junctions
+  beside it the other way: their twin picture, its handle over), and the lean's choice (taken
+  from a riding hero once carts roll).  Step 3 (slopes, rolling, riding, leaning by the arrows)
+  is not built; nor is a palette entry for painting a junction in the editor.
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
     side do not fuse.

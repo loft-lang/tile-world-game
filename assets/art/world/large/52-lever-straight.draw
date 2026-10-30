@@ -1,0 +1,17 @@
+# LEVER — beside a junction; walked into, it flips the switch.  Its handle leans left when the
+# junction is set straight, right when it is set to turn.
+# Drawn at 16x the tile (16 px here = 1 px there); the reduction adds the 2 px outline.
+size 256x256
+Background transparent
+name handle
+Line (0.50,0.70)@22 - (0.30,0.26)@18 stroke=189,108,74
+Line (0.49,0.68)@5 - (0.30,0.28)@5 stroke=234,165,108
+name knob
+Circle (0.27,0.22) r=0.075 rgb=232,69,55
+Circle (0.245,0.20) r=0.025 rgb=255,112,109
+name base
+Poly (0.28,0.66) (0.72,0.66) (0.76,0.90) (0.24,0.90) rgb=139,155,180
+Poly (0.28,0.66) (0.72,0.66) (0.72,0.71) (0.28,0.71) rgb=192,203,220
+Poly (0.62,0.71) (0.72,0.71) (0.76,0.90) (0.64,0.90) rgb=82,96,124
+name pivot
+Circle (0.50,0.70) r=0.04 rgb=38,43,68

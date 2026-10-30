@@ -90,6 +90,7 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   v = json_parse(raw);
   if v.kind() != "JObject" { return null; }
   l = rules::level(k);
+  for t in mats.track { rules::add_piece(l, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
   legend: hash<LegendChar[ch]> = [];
   lg = v.field("legend");
   for c in lg.keys() {

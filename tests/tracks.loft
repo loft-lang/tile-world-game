@@ -7,6 +7,7 @@
 // walled round; an L of rails along y 0 from x 0 to 3, bending at (3, 0) south to (3, 3).
 use tile_world;
 use rules;
+use materials;
 
 fn yard() -> rules::Level {
   w = rules::level(rules::kinds());
@@ -113,4 +114,115 @@ fn test_a_cart_derails_past_an_open_end() {
   rules::put_hero(u, 2, 0, 0);
   assert(rules::walk(u, 1, 0) == rules::Step.Pushed && at(u, 4, 0) == "derailed_cart," && at(u, 5, 0) == "potion,",
          "a potion after the end is shoved on");
+}
+
+// --- Junctions (step 2) ---
+//
+// The scene: a north-south track along x 3, y 0 .. 4, with a junction at (3, 2) — a straight north
+// and a bend east sharing their toe, south — and the bend's rails at (4, 2), (5, 2); a lever at
+// (2, 2).  The pieces come from theme.json, as a level loads them.
+
+fn pieces(w: rules::Level) -> materials::Materials {
+  m = materials::load(file("../theme.json").content() ?? "", w.k);
+  for t in m.track { rules::add_piece(w, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
+  m
+}
+
+// The picture of the junction with toe `toe`, straight on `st`, bend to `tu`, set to turn or not.
+fn junction(m: const materials::Materials, toe: integer, st: integer, tu: integer, turn: boolean) -> integer {
+  for t in m.track {
+    if t.toe == toe && t.straight == st && t.turn == tu && t.set_turn == turn { return t.tile; }
+  }
+  0
+}
+
+fn points() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -2, -2, 7, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, -1, -1, 6, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 3, 0, 3, 4, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 4, 2, 5, 2, 0, rules::tr(w, "rail"));
+  m = pieces(w);
+  tile_world::set_terrain(w.w, 3, 2, 0, rules::tr(w, "rail"), junction(m, 4, 1, 2, false));
+  put_at(w, 2, 2, "lever_straight");
+  w
+}
+
+fn put_at(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+fn here(w: const rules::Level, x: integer, y: integer) -> text {
+  t = "";
+  for s in tile_world::things(w.w, x, y, 0) { t += "{rules::thing_name(w.k, s)},"; }
+  t
+}
+
+fn test_a_junction_joins_three_sides() {
+  w = points();
+  assert(rules::joins(w, 3, 2, 0) == 7, "north, east and south: {rules::joins(w, 3, 2, 0)}");
+  assert(rules::joins(w, 3, 1, 0) == 5 && rules::joins(w, 4, 2, 0) == 10, "its neighbours join it");
+}
+
+// In by the toe, a cart goes the way the junction is set; the lever sets it the other way.
+fn test_the_switch_decides_from_the_toe() {
+  w = points();
+  put_at(w, 3, 3, "cart");
+  rules::put_hero(w, 3, 4, 0);
+  _ = rules::walk(w, 0, -1);
+  assert(here(w, 3, 2) == "cart,", "onto the junction");
+  assert(rules::walk(w, 0, -1) == rules::Step.Pushed && here(w, 3, 1) == "cart,", "set straight: on north");
+  v = points();
+  put_at(v, 3, 3, "cart");
+  rules::put_hero(v, 1, 2, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Switched && v.hero_x == 1, "the lever thrown");
+  assert(here(v, 2, 2) == "lever_turn," && tile_world::tile(v.w, 3, 2, 0) == junction(pieces(v), 4, 1, 2, true),
+         "the handle over, the junction's picture set to turn");
+  rules::put_hero(v, 3, 4, 0);
+  _ = rules::walk(v, 0, -1);
+  assert(rules::walk(v, 0, -1) == rules::Step.Pushed && here(v, 4, 2) == "cart," && here(v, 3, 1) == "",
+         "set to turn: east");
+  rules::put_hero(v, 1, 2, 0);
+  _ = rules::walk(v, 1, 0);
+  assert(here(v, 2, 2) == "lever_straight," && tile_world::tile(v.w, 3, 2, 0) == junction(pieces(v), 4, 1, 2, false),
+         "thrown twice: back");
+}
+
+// In by a branch, a cart goes on to the toe, however the junction is set.
+fn test_from_a_branch_to_the_toe() {
+  w = points();
+  put_at(w, 4, 2, "cart");
+  rules::put_hero(w, 5, 2, 0);
+  _ = rules::walk(w, -1, 0);
+  assert(here(w, 3, 2) == "cart,", "onto the junction from the bend");
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && here(w, 3, 3) == "cart,", "out by the toe, south");
+}
+
+// Leaning: a riding hero leaning towards a branch takes it, whatever the setting; leaning where
+// there is none, or coming in by a branch, changes nothing.
+fn test_a_lean_picks_the_branch() {
+  w = points();
+  north = rules::junction_way(w, 3, 2, 0, 0, -1);
+  east = rules::junction_way(w, 3, 2, 0, 0, -1, (1, 0));
+  west = rules::junction_way(w, 3, 2, 0, 0, -1, (-1, 0));
+  assert(north.0 == 0 && north.1 == -1, "set straight: north");
+  assert(east.0 == 1 && east.1 == 0, "leaning east: the bend");
+  assert(west.0 == 0 && west.1 == -1, "leaning west, no branch there: the setting");
+  in_branch = rules::junction_way(w, 3, 2, 0, -1, 0, (0, -1));
+  assert(in_branch.0 == 0 && in_branch.1 == 1, "in by the bend: to the toe, the lean ignored");
+}
+
+// Painted straights keep two parallel tracks apart; plain rail side by side joins up.
+fn test_painted_track_keeps_parallels_apart() {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 4, 1, 0, rules::tr(w, "rail"));
+  assert(rules::joins(w, 2, 0, 0) == 14, "plain: east, west and south — the tracks fuse");
+  m = pieces(w);
+  ew = 0;
+  for t in m.track { if t.joins == 10 && t.toe == 0 { ew = t.tile; } }
+  for x in 0..5 {
+    tile_world::set_terrain(w.w, x, 0, 0, rules::tr(w, "rail"), ew);
+    tile_world::set_terrain(w.w, x, 1, 0, rules::tr(w, "rail"), ew);
+  }
+  assert(rules::joins(w, 2, 0, 0) == 10 && rules::joins(w, 2, 1, 0) == 10, "painted: east and west only");
 }

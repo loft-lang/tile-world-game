@@ -4,3 +4,5 @@ The layers composed.txt puts the socket tiles together from, drawn at 16 px:
   fittings are.
 - kenney-staff: dungeon:129 from Kenney's Tiny Dungeon (CC0), letter for letter, for the staff in
   a socket.
+- kenney-rail-ew, -ns, -es, -sw, -ne, -nw: Kenney's rail ring (Tiny Dungeon 70, 81, 69, 71, 93,
+  95; CC0), letter for letter: the straight and bend pieces the junctions are laid from.

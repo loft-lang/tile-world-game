@@ -29,7 +29,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 |---|---|---|
 | 0–1 | fire and light | tiles 0–12 below |
 | 2 | travel | 24: the horse |
-| 3– | later additions (monsters, …) | |
+| 3–4 | tracks | 36–51: junctions; 52, 53: the lever |
+| 5– | later additions (monsters, …) | |
 
 ### The tiles
 
@@ -48,6 +49,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 11 | socket with a stick | a torch that burnt out in the socket |
 | 12 | socket with the staff | Kenney's staff (dungeon:129) as it is |
 | 24 | horse | side view, facing right, saddled |
+| 36–51 | junctions | eight junctions — a straight (north-south or east-west) and a bend sharing a side, its toe — each set straight (even index) and set to turn (odd): Kenney's rail ring pieces laid over each other, the route set on top |
+| 52, 53 | lever | beside a junction: handle left (set straight), right (set to turn) |
 
 ## The style, measured from `tiny-dungeon.png`
 
@@ -99,6 +102,10 @@ Kenney's tiles are drawn larger first and reduced to their size, so that is how 
    The ring is Kenney's own size (dungeon:7's spout ring, 6 px with a 2 px hole), too small to
    survive a reduction, so its layers are drawn at 16 px.  The bracket and the torch are
    therefore the same pixels in every socket tile.
+
+   The junctions (36–51) are composed the same way from Kenney's rail ring pieces
+   (`layers/kenney-rail-*`), with `over`: the top piece's rails and sleepers win, its dark ground
+   only where nothing is beneath — so the route a junction is set to is the one drawn on top.
 5. **Built.**  `loft --lib libs tools/sheet.loft` writes `tile-world.png`.  With `check` it
    instead exits 1 when the committed sheet differs from the sources (`check`, not `--check`:
    a `--` flag after the script is loft's own).

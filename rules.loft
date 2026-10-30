@@ -21,7 +21,9 @@
 //            down onto a surface), walk_on ("boost" or "take": walked over rather than into),
 //            mount (can be fixed to mount terrain), light (gives light, carried or set down),
 //            chops (held, it fells what can be chopped: an axe), opens_to (walking into it
-//            turns it into that thing and scores its `points`: a chest opens), tells ("chests":
+//            turns it into that thing and scores its `points`: a chest opens), switches_to (a lever:
+//            walked into, it sets the junctions beside it the other way and becomes that thing,
+//            its handle over), tells ("chests":
 //            walking into it says how many things are still to open: a signpost), rest (a light
 //            item falling onto it comes to rest on top: a chest, a table, a stone — big things;
 //            the hero takes it standing there, and a stone pushed along carries it), holds (a
@@ -107,6 +109,7 @@ struct ThingProps {
   flame: boolean,
   burns_to: text,
   derails_to: text,
+  switches_to: text,
   glyph: text
 }
 
@@ -202,7 +205,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
       rest: flag(e, "rest"), holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
-      derails_to: word(e, "derails_to", ""),
+      derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -309,6 +312,21 @@ pub struct Flame {
   pub until: integer
 }
 
+/// A painted piece of track: the picture (a tile number) and the sides it joins (north 1, east 2,
+/// south 4, west 8).  A junction is a straight and a bend sharing one side, its toe: a cart in by
+/// the toe goes the way it is set — on to the straight's other side, or round to the bend's —
+/// and one in by either of those goes on to the toe.  Its twin is the same junction set the other
+/// way; a lever flips one into the other.
+pub struct Piece {
+  pub const tile: integer,
+  pub joins: integer,
+  pub toe: integer,
+  pub straight: integer,
+  pub turn: integer,
+  pub set_turn: boolean,
+  pub twin: integer
+}
+
 /// A cell being felled, and the blows it has taken.
 pub struct Blows {
   pub x: integer,
@@ -340,7 +358,9 @@ pub struct Level {
   /// Has the clock met the flames the level started with (`tick` kindles them once)?
   pub kindled: boolean,
   /// The trees (and anything else taking more than one blow) part felled.
-  pub blows: vector<Blows>
+  pub blows: vector<Blows>,
+  /// The painted track pieces, by their picture (`add_piece`; theme.json's tracks and junctions).
+  pub pieces: hash<Piece[tile]>
 }
 
 /// What a step did.
@@ -363,6 +383,8 @@ pub enum Step {
   Saved,
   /// The hero felled a tree or a fence with what it holds.
   Chopped,
+  /// The hero threw a lever: the junctions beside it are set the other way.
+  Switched,
   /// The hero dipped what it holds (a stick, in a tar barrel).
   Dipped,
   /// A flame lit a torch: the one the hero holds, or the one in a socket.
@@ -386,7 +408,7 @@ pub fn level(k: const Kinds) -> Level {
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light && !t.flame, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
-          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [] }
+          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [] }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -1144,13 +1166,40 @@ pub fn is_rail(l: const Level, kind: integer) -> boolean {
   rail(l, kind)
 }
 
-/// The sides rail cell (x, y, z) joins: north 1, east 2, south 4, west 8; 0 for no rail.
+/// Teach the level a painted piece of track (see `Piece`): picture `tile` joins sides `joins`; for
+/// a junction, its toe, the straight's and the bend's other side, which it is set to, and its twin
+/// (0, 0, 0, false, 0 for a plain straight or bend).
+pub fn add_piece(l: Level, tile: integer, joins: integer, toe: integer, straight: integer, turn: integer,
+                 set_turn: boolean, twin: integer) {
+  if tile == 0 || l.pieces[tile] { return; }
+  l.pieces += [Piece { tile: tile, joins: joins, toe: toe, straight: straight, turn: turn, set_turn: set_turn,
+                       twin: twin }];
+}
+
+// The piece painted on (x, y, z), its picture's; 0 for none (the rail's own look).
+fn painted(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  t = tile_world::tile(l.w, x, y, z);
+  if t == 0 || !l.pieces[t] { return 0; }
+  t
+}
+
+/// The sides rail cell (x, y, z) joins: north 1, east 2, south 4, west 8; 0 for no rail.  A painted
+/// piece joins what its picture shows; a plain rail cell each rail beside it that joins it back.
 pub fn joins(l: const Level, x: integer, y: integer, z: integer) -> integer {
   if !rail(l, tile_world::terrain(l.w, x, y, z)) { return 0; }
+  t = painted(l, x, y, z);
+  if t != 0 {
+    p = l.pieces[t];
+    return if p { p.joins } else { 0 };
+  }
   m = 0;
   for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-    if rail(l, tile_world::terrain(l.w, x + d.0, y + d.1, z)) && tile_world::crossable(l.w, x, y, z, d.0, d.1) {
-      m += side_bit(d.0, d.1);
+    nx = x + d.0;
+    ny = y + d.1;
+    if rail(l, tile_world::terrain(l.w, nx, ny, z)) && tile_world::crossable(l.w, x, y, z, d.0, d.1) {
+      n = painted(l, nx, ny, z);
+      np = l.pieces[n];
+      if n == 0 || (np && (np.joins & side_bit(-d.0, -d.1)) != 0) { m += side_bit(d.0, d.1); }
     }
   }
   m
@@ -1162,7 +1211,36 @@ pub fn joins(l: const Level, x: integer, y: integer, z: integer) -> integer {
 // `pushed`: the cart the hero pushes, which sits in the cell already — it also goes when the cell
 // joins only the side it is pushed to (an end, pushed back onto the track).
 fn way_on(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
-          pushed: boolean) -> (integer, integer, integer) {
+          pushed: boolean, lean: (integer, integer) = (0, 0)) -> (integer, integer, integer) {
+  w = way_through(l, x, y, z, dx, dy, pushed, lean);
+  if w.2 != ALONG { return w; }
+  // The way out leads on only into rail that joins back; past rail that does not, it stops.
+  nx = x + w.0;
+  ny = y + w.1;
+  if (joins(l, nx, ny, z) & side_bit(-w.0, -w.1)) != 0 { return w; }
+  if rail(l, tile_world::terrain(l.w, nx, ny, z)) { return (0, 0, STUCK); }
+  (w.0, w.1, DERAILS)
+}
+
+/// The way a cart moving (dx, dy) leaves junction (x, y, z) by — in by its toe, the way it is set
+/// unless the hero riding it leans (`lean`) towards the other branch; in by a branch, to the toe —
+/// and (0, 0) for a cell that is no junction or a way in it has none.
+pub fn junction_way(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+                    lean: (integer, integer) = (0, 0)) -> (integer, integer) {
+  p = l.pieces[painted(l, x, y, z)];
+  if !p || p.toe == 0 { return (0, 0); }
+  entry = side_bit(-dx, -dy);
+  if entry == p.straight || entry == p.turn { return bit_way(p.toe); }
+  if entry != p.toe { return (0, 0); }
+  leaned = side_bit(lean.0, lean.1);
+  if leaned == p.straight || leaned == p.turn { return bit_way(leaned); }
+  bit_way(if p.set_turn { p.turn } else { p.straight })
+}
+
+fn way_through(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+               pushed: boolean, lean: (integer, integer)) -> (integer, integer, integer) {
+  jw = junction_way(l, x, y, z, dx, dy, lean);
+  if jw.0 != 0 || jw.1 != 0 { return (jw.0, jw.1, ALONG); }
   m = joins(l, x, y, z);
   entry = side_bit(-dx, -dy);
   ahead = side_bit(dx, dy);
@@ -1408,6 +1486,19 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   if !walkable(l, kind) { return Step.Blocked; }
   // What stands there: an item resting on a big thing is met through the big thing.
   thing = base(l, tx, ty, z);
+  // A lever is thrown: every junction beside it is set the other way (its twin picture), and the
+  // handle goes over; the hero stays where it is.
+  lever = l.k.things[thing];
+  if lever && lever.switches_to != "" {
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      p = l.pieces[painted(l, tx + d.0, ty + d.1, z)];
+      if p && p.twin != 0 {
+        tile_world::set_terrain(l.w, tx + d.0, ty + d.1, z, tile_world::terrain(l.w, tx + d.0, ty + d.1, z), p.twin);
+      }
+    }
+    replace_base(l, tx, ty, z, thing_id(l.k, lever.switches_to));
+    return Step.Switched;
+  }
   // A thing that dips (a tar barrel) turns what the hero holds into what it dips to (a stick,
   // into a torch); the hero stays where it is.
   if dips(l, thing) && dipped_to(l, l.hero_item) != 0 {

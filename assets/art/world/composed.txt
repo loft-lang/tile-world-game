@@ -10,3 +10,23 @@
 10 socket-torch-low 4
 11 socket-stick 0
 12 socket-staff layers/kenney-staff
+
+# Junctions (rows 3-4): a straight and a bend laid over each other (`over`: the top piece's rails
+# and sleepers win) — the route on top is the one the switch is set to.  Each pair is one
+# junction: its straight set, then its turn set.  The side the two pieces share is its toe.
+36 junction-ns-es-straight over layers/kenney-rail-es layers/kenney-rail-ns
+37 junction-ns-es-turn over layers/kenney-rail-ns layers/kenney-rail-es
+38 junction-ns-sw-straight over layers/kenney-rail-sw layers/kenney-rail-ns
+39 junction-ns-sw-turn over layers/kenney-rail-ns layers/kenney-rail-sw
+40 junction-ns-ne-straight over layers/kenney-rail-ne layers/kenney-rail-ns
+41 junction-ns-ne-turn over layers/kenney-rail-ns layers/kenney-rail-ne
+42 junction-ns-nw-straight over layers/kenney-rail-nw layers/kenney-rail-ns
+43 junction-ns-nw-turn over layers/kenney-rail-ns layers/kenney-rail-nw
+44 junction-ew-ne-straight over layers/kenney-rail-ne layers/kenney-rail-ew
+45 junction-ew-ne-turn over layers/kenney-rail-ew layers/kenney-rail-ne
+46 junction-ew-es-straight over layers/kenney-rail-es layers/kenney-rail-ew
+47 junction-ew-es-turn over layers/kenney-rail-ew layers/kenney-rail-es
+48 junction-ew-nw-straight over layers/kenney-rail-nw layers/kenney-rail-ew
+49 junction-ew-nw-turn over layers/kenney-rail-ew layers/kenney-rail-nw
+50 junction-ew-sw-straight over layers/kenney-rail-sw layers/kenney-rail-ew
+51 junction-ew-sw-turn over layers/kenney-rail-ew layers/kenney-rail-sw

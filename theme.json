@@ -92,6 +92,8 @@
     "open_chest": "dungeon:91",
     "signpost": "town:83",
     "derailed_cart": "town:57",
+    "lever_straight": "world:52",
+    "lever_turn": "world:53",
     "stick": "world:0",
     "torch": "world:1",
     "burning_torch": {
@@ -121,6 +123,16 @@
     "ne": "dungeon:93",
     "nw": "dungeon:95"
   },
+  "junctions": [
+    { "straight": "ns", "turn": "es", "set_straight": "world:36", "set_turn": "world:37" },
+    { "straight": "ns", "turn": "sw", "set_straight": "world:38", "set_turn": "world:39" },
+    { "straight": "ns", "turn": "ne", "set_straight": "world:40", "set_turn": "world:41" },
+    { "straight": "ns", "turn": "nw", "set_straight": "world:42", "set_turn": "world:43" },
+    { "straight": "ew", "turn": "ne", "set_straight": "world:44", "set_turn": "world:45" },
+    { "straight": "ew", "turn": "es", "set_straight": "world:46", "set_turn": "world:47" },
+    { "straight": "ew", "turn": "nw", "set_straight": "world:48", "set_turn": "world:49" },
+    { "straight": "ew", "turn": "sw", "set_straight": "world:50", "set_turn": "world:51" }
+  ],
   "categories": {
     "Outdoor": ["grass", "path", "tree", "fence"],
     "Water": ["lake", "water"],
@@ -128,7 +140,8 @@
     "House": ["door", "open_door", "wall"],
     "Dungeon": ["floor", "wall", "rail", "well"],
     "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "signpost"],
-    "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"]
+    "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
+    "Tracks": ["rail", "cart", "lever_straight", "lever_turn"]
   },
   "materials": {
     "grass": {
