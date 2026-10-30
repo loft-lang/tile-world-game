@@ -3247,17 +3247,72 @@ fn enemy_can(l: const Level, p: const EnemyProps, x: integer, y: integer, z: int
   if !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
   nx = x + dx;
   ny = y + dy;
-  k = tile_world::terrain(l.w, nx, ny, z);
-  tp = l.k.terrain[k];
-  goes = (walkable(l, k) && !blocks_things(l, k)) || (p.flies && is_water(l, k)) || (p.climbs && tp && tp.rough);
-  if !goes { return false; }
-  t = tile_world::top(l.w, nx, ny, z);
-  if t != 0 && !item(l, t) { return false; }
-  if p.likes_light && t != 0 && is_flame(l, t) { return false; }
-  if l.hero_x == nx && l.hero_y == ny && l.hero_z == z { return false; }
-  if enemy_at(l, nx, ny, z) >= 0 { return false; }
+  if !enemy_stands(l, p, nx, ny, z) { return false; }
   d = tile_world::rise(l.w, nx, ny, z) - tile_world::rise(l.w, x, y, z);
   d >= -1 && d <= 1
+}
+
+// Can an enemy of kind p be on (x, y, z): ground it walks (water too if it flies, a rough wall if
+// it climbs), with nothing on it but an item (a bat never a flame), no hero and no other enemy?
+fn enemy_stands(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer) -> boolean {
+  k = tile_world::terrain(l.w, x, y, z);
+  goes = (walkable(l, k) && !blocks_things(l, k)) || (p.flies && is_water(l, k)) || (p.climbs && rough(l, k));
+  if !goes { return false; }
+  t = tile_world::top(l.w, x, y, z);
+  if t != 0 && !item(l, t) { return false; }
+  if p.likes_light && t != 0 && is_flame(l, t) { return false; }
+  if l.hero_x == x && l.hero_y == y && l.hero_z == z { return false; }
+  enemy_at(l, x, y, z) < 0
+}
+
+fn rough(l: const Level, k: integer) -> boolean {
+  tp = l.k.terrain[k];
+  if tp { return tp.rough; }
+  false
+}
+
+// The layer a climbing enemy (a spider) can climb to from where it stands, through an opening:
+// up (+1), from the rough wall it is on onto what is over it, or down (-1), onto the rough wall
+// under it — either way along the wall's face where the space in front of it is open: a cell
+// beside the wall, on its layer, that is not a wall and has nothing covering it (the world's
+// open sky: no layer set over it).  Never up through a ceiling.  0 for neither.
+fn layer_way(l: const Level, p: const EnemyProps, e: const Enemy) -> integer {
+  if !p.climbs { return 0; }
+  if rough(l, tile_world::terrain(l.w, e.x, e.y, e.z)) && enemy_stands(l, p, e.x, e.y, e.z + 1)
+      && opening_beside(l, e.x, e.y, e.z) {
+    return 1;
+  }
+  if rough(l, tile_world::terrain(l.w, e.x, e.y, e.z - 1)) && enemy_stands(l, p, e.x, e.y, e.z - 1)
+      && opening_beside(l, e.x, e.y, e.z - 1) {
+    return -1;
+  }
+  0
+}
+
+// Is there open space in front of the wall on (x, y, z): a cell beside it, across an edge, that is
+// no wall (opaque) and lies under the open sky?
+fn opening_beside(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    k = tile_world::terrain(l.w, x + d.0, y + d.1, z);
+    if tile_world::crossable(l.w, x, y, z, d.0, d.1) && !opaque_kind(l, k)
+        && tile_world::open_sky(l.w, x + d.0, y + d.1, z) {
+      return true;
+    }
+  }
+  false
+}
+
+// Enemy i flees the hero's layer by climbing (dz): it settles where it arrives — its nest now.
+fn flee_layer(l: Level, i: integer, e: const Enemy, p: const EnemyProps, dz: integer) {
+  // (`e` reads the list: its layer is taken before it is written.)
+  z = e.z + dz;
+  l.enemies[i].z = z;
+  l.enemies[i].nest_x = e.x;
+  l.enemies[i].nest_y = e.y;
+  l.enemies[i].nest_z = z;
+  l.enemies[i].steps = e.steps + 1;
+  l.enemies[i].heal_due = 0;
+  l.enemies[i].due = e.due + p.chase_ms;
 }
 
 /// The light round an enemy: the shades of the cells within `r` of (x, y) on layer z.
@@ -3602,6 +3657,15 @@ fn enemy_act(l: Level, i: integer) {
   if l.held_by == e.id {
     pull_hero(l, i, e, p);
     return;
+  }
+  // Hurt or scared with the hero on its layer, a climber flees to another layer when it can
+  // (DESIGN.md § Spiders: through openings, never through a ceiling).
+  if (e.hp < p.hp || e.due < e.scared_until) && !p.brave && l.hero_z == e.z {
+    dz = layer_way(l, p, e);
+    if dz != 0 {
+      flee_layer(l, i, e, p, dz);
+      return;
+    }
   }
   // Scared by a blast: it flees the place, as far as it can step.
   if e.due < e.scared_until {

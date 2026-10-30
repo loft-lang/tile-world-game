@@ -363,3 +363,71 @@ fn test_a_rat_caught_in_light_gets_out_of_it() {
   until(v, 3000);
   assert(v.health < 6, "in daylight it bites: {v.health}");
 }
+
+// --- Spiders between layers (DESIGN.md § Spiders) ---
+
+// A cliff: a rough wall along y 0 on layer 0 with the plateau's floor on it (layer 1), the floor
+// in front of it (y 1) under the open sky — or, `roofed`, under a ceiling (layer 1 set over it).
+fn cliff(roofed: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 6, 2, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 1, 5, 1, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 0, 5, 0, 1, rules::tr(w, "floor"));
+  if roofed { tile_world::fill(w.w, 0, 1, 5, 1, 1, rules::tr(w, "wall")); }
+  w
+}
+
+fn spot(w: const rules::Level) -> text {
+  if len(w.enemies) == 0 { return "none"; }
+  e = w.enemies[0];
+  "({e.x},{e.y},{e.z}) hp{e.hp} nest ({e.nest_x},{e.nest_y},{e.nest_z})"
+}
+
+// Hurt on the wall face, the hero on its layer, a spider flees up through the opening in front of
+// it onto the plateau (at its first act, 500) and settles there: its nest now, a point back at
+// 4850 (it settles at 850, 4 s a point).  Under a ceiling there is no opening: it stays on layer 0
+// and goes home to the floor.
+fn test_a_hurt_spider_climbs_out_through_an_opening() {
+  w = cliff(false);
+  rules::put_hero(w, 4, 1, 0);
+  _ = rules::add_enemy(w, "spider", 2, 1, 0);
+  w.enemies[0].y = 0;
+  rules::strike_enemy(w, 0, 1);
+  rules::tick(w, 500);
+  assert(spot(w) == "(2,0,1) hp1 nest (2,0,1)", "500: up on the plateau: {spot(w)}");
+  rules::tick(w, 4349);
+  assert(spot(w) == "(2,0,1) hp1 nest (2,0,1)", "4849: settled");
+  rules::tick(w, 1);
+  assert(spot(w) == "(2,0,1) hp2 nest (2,0,1)", "4850: a point back: {spot(w)}");
+  v = cliff(true);
+  rules::put_hero(v, 4, 1, 0);
+  _ = rules::add_enemy(v, "spider", 2, 1, 0);
+  v.enemies[0].y = 0;
+  rules::strike_enemy(v, 0, 1);
+  rules::tick(v, 500);
+  assert(spot(v) == "(2,1,0) hp1 nest (2,1,0)", "roofed: no way up, home it goes: {spot(v)}");
+}
+
+// Down too: hurt on the plateau with the hero up there, it lowers itself onto the wall's face over
+// the open floor (500), where a sword cannot reach it.
+fn test_a_hurt_spider_climbs_down_the_cliff() {
+  w = cliff(false);
+  rules::put_hero(w, 0, 0, 1);
+  _ = rules::add_enemy(w, "spider", 3, 0, 1);
+  rules::strike_enemy(w, 0, 1);
+  rules::tick(w, 500);
+  assert(spot(w) == "(3,0,0) hp1 nest (3,0,0)", "500: down the face: {spot(w)}");
+}
+
+// Scared by a blast it flees the same way: a bomb on (5, 1) going off at 100 (the spider on the
+// wall at (2, 0), 4 away, untouched; the hero on (0, 1)) — at 500 it is up on the plateau.
+fn test_a_scared_spider_climbs_away() {
+  w = cliff(false);
+  rules::put_hero(w, 0, 1, 0);
+  tile_world::place(w.w, 5, 1, 0, rules::th(w, "bomb"));
+  w.fuses += [rules::Fuse { x: 5, y: 1, z: 0, held: false, at: 100 }];
+  _ = rules::add_enemy(w, "spider", 2, 1, 0);
+  w.enemies[0].y = 0;
+  rules::tick(w, 500);
+  assert(w.blasted == 1 && spot(w) == "(2,0,1) hp2 nest (2,0,1)", "500: fled up: {spot(w)}");
+}

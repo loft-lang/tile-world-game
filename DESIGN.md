@@ -382,7 +382,7 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 - **Spiders.**
   - They climb rough walls, and they flee to another level through openings (not through a
     ceiling).
-  - Their nest is never on a wall.
+  - Their nest is never on a wall in a level as made; one that fled settles where it arrived.
 - **Enemies act on the world clock**, so every behaviour is testable at exact times.
 - **Built: rats** (step 1, `tests/enemies.loft`; the numbers proposed, in kinds.json `enemies`).
   - Health 3; a step every 600 ms wandering, every 350 ms chasing or fleeing (the hero steps every
@@ -410,7 +410,12 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   - **Bats** (health 1, quick): they fly over water; wandering, they take the brightest step,
     never back where they just came from and never onto a flame — so they drift towards light.
   - **Spiders** (health 2): they climb rough walls (walls are rough); on a wall a sword cannot reach
-    them (the bow will).  Not built: fleeing to another level through openings.
+    them (the bow will).  **Built: fleeing to another layer** (`tests/enemies.loft`, proposed as
+    built): hurt or scared, with the hero on its layer, a spider climbs the wall's face up onto
+    what is over the wall, or down from a floor onto the rough wall under it — only through an
+    opening: a cell in front of the face that is no wall and lies under the open sky (the world's
+    definition: no layer set over it).  It settles where it arrives, its nest now (on a wall face
+    too, out of the sword's reach), and heals there.
   - **A blast scares** every ordinary enemy within 8 cells on its layer: it flees the place for
     5 s, as far as it can step, then walks home.  Any enemy outside its roam walks home.
   - **Wells**: water only when no enemy is within 10 cells in sight of the hero (Step.Watched,
