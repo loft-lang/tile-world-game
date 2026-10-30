@@ -65,7 +65,8 @@ fn test_the_hero_strikes_a_rat() {
   _ = rules::add_enemy(w, "rat", 2, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Attacked && rat(w) == "x2 y0 hp2" && w.hero_x == 1, "bare hands: {rat(w)}");
   w.hero_item = rules::th(w, "sword");
-  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && rat(w) == "none" && w.killed == 1, "the sword: gone");
+  rules::tick(w, w.k.blow_ms);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && rat(w) == "none" && w.killed == 1, "the sword, a blow later: gone");
   v = room(6, 1);
   rules::put_hero(v, 1, 0, 0);
   _ = rules::add_enemy(v, "rat", 2, 0, 0);

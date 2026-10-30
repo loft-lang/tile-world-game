@@ -637,6 +637,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   blasted = g.world.blasted;
   spotted = g.world.spotted;
   hurled = g.world.hurled;
+  struck = g.world.struck;
   held_by = g.world.held_by;
   health = g.world.health + g.world.spirit;
   hx = g.world.hero_x;
@@ -651,6 +652,12 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   if g.world.spotted != spotted { sound(g, "spotted", 1.0); }
   // A cyclops's bomb is heard rolling; its hands grabbing the hero are heard too.
   if g.world.hurled != hurled { sound(g, "bomb_roll", 0.6); }
+  // A blow remembered while the hero recovered lands now: it swings.
+  if g.world.struck != struck {
+    motion::swing(g.motion, g.world.now);
+    sound(g, "sword", 0.6);
+    changed = true;
+  }
   if g.world.held_by != 0 && held_by == 0 { sound(g, "grab", 1.0); }
   // A blast is heard, however far; while bombs roll and blasts flash the picture moves.
   if g.world.blasted != blasted {

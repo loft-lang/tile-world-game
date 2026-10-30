@@ -189,6 +189,11 @@ This is what the game built on tile_world should be.
 
 ## What the hero holds
 
+- **A blow takes its time** (owner; built, `tests/blows.loft`; 400 ms proposed).  Every blow —
+  a swing, a walk into an enemy, an axe into a tree — is followed by a recovery.  A blow pressed
+  within it is not struck then; one more blow lands when it is over, however often it was
+  pressed — unless the hero does anything else first (a step, a pull, putting down, throwing,
+  shooting).  So a fight is paced by the hero's blows, not by how fast keys are pressed.
 - **One item, no inventory.** The hero holds at most one item, and it is always on screen.
   - Walking over an item swaps it with the one held.
   - `drop` (X) puts the held item down.
@@ -425,9 +430,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     hero and a torch gives it away — the reason to move in the dark.
   - **Seeing the hero anew, a cyclops shouts** (heard: the voice pack's "fight") and **calls** the
     others of its kind within 6 cells to the place, seen or not; it comes at the hero (a cell
-    every 450 ms) and strikes for 2 (every 1200 ms).  Health 10: at 5 the hero, striking once a
-    press, bested one in five presses for a single blow (seen building `the cyclops hall`).  Open
-    (owner): whether the hero's blows should have a pace of their own, for every enemy.
+    every 450 ms) and strikes for 2 (every 1200 ms).  Health 5: five of the hero's blows, two
+    seconds of them (§ What the hero holds: a blow takes its time).
   - **Losing it, it searches** the place it last saw it, for 6 s after; there it stands looking,
     then walks home.  Called ones search the same way; one finding the place taken stands beside it.
   - **A blast draws them** (owner): within 8 cells they go to search its place instead of fleeing.

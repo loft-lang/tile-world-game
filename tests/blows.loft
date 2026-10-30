@@ -1,0 +1,109 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The hero's blows (owner, DESIGN.md § What the hero holds): a blow takes blow_ms (400) to recover
+// from.  A blow pressed within that time is not struck then; the last one pressed lands when the
+// time is over — unless the hero does something else first.  Every enemy here sleeps (it never
+// acts), so only the hero's blows count.
+use tile_world;
+use rules;
+
+// A room x 0 .. n - 1, one row; the hero on x 1, a sleeping rat (health 3) on x 2.
+fn ring(n: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, 0, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  w.enemies[0].due = 1000000;
+  w
+}
+
+fn hp(w: const rules::Level) -> integer {
+  e = w.enemies[0];
+  if !e { return 0; }
+  e.hp
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn main() {
+  w = ring(6);
+  assert(hp(w) == 3, "a rat");
+}
+
+// A blow at 0 lands; pressed again at 100 and 200 it does not, then; at 400 one more lands — one,
+// however often it was pressed.  At 900, recovered, a press lands at once.
+fn test_a_blow_takes_its_time() {
+  w = ring(6);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && hp(w) == 2, "0: a blow");
+  until(w, 100);
+  assert(rules::walk(w, 1, 0) == rules::Step.Readying && hp(w) == 2, "100: not yet");
+  until(w, 200);
+  assert(rules::walk(w, 1, 0) == rules::Step.Readying && hp(w) == 2, "200: not yet");
+  until(w, 399);
+  assert(hp(w) == 2, "399: recovering");
+  until(w, 400);
+  assert(hp(w) == 1 && w.struck == 2, "400: the remembered blow lands, once: {hp(w)}");
+  until(w, 900);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && hp(w) == 0 && w.killed == 1, "900: at once");
+}
+
+// Another action before the time is over lets the remembered blow go: pressed at 100, the hero
+// steps away at 200 — at 400 nothing lands.  Putting down what it holds does the same.
+fn test_another_action_lets_the_blow_go() {
+  w = ring(6);
+  _ = rules::walk(w, 1, 0);
+  until(w, 100);
+  _ = rules::walk(w, 1, 0);
+  until(w, 200);
+  assert(rules::walk(w, -1, 0) == rules::Step.Walked && w.hero_x == 0, "200: a step away");
+  until(w, 1000);
+  assert(hp(w) == 2 && w.struck == 1, "no second blow: {hp(w)}");
+  v = ring(6);
+  v.hero_item = rules::th(v, "stick");
+  _ = rules::walk(v, 1, 0);
+  until(v, 100);
+  _ = rules::walk(v, 1, 0);
+  assert(rules::drop(v) != rules::Step.Blocked, "100: the stick put down");
+  until(v, 1000);
+  assert(hp(v) == 2 && v.struck == 1, "the drop let it go: {hp(v)}");
+}
+
+// A swing is a blow too: the sword swung at 0 (2: the rat to 1), swung again at 50 — it lands at
+// 400 (the rat bested).  Played as moves: `d d d` at once is two blows by 400; `d d s` one (the
+// press south, even into the wall, is another action).
+fn test_a_swing_waits_too_and_moves_play_the_same() {
+  w = ring(6);
+  w.hero_item = rules::th(w, "sword");
+  w.face_x = 1;
+  w.face_y = 0;
+  assert(rules::swing(w) == rules::Step.Attacked && hp(w) == 1, "0: the sword");
+  until(w, 50);
+  assert(rules::swing(w) == rules::Step.Readying, "50: not yet");
+  until(w, 400);
+  assert(hp(w) == 0 && w.killed == 1, "400: bested");
+  v = ring(6);
+  rules::play(v, "d d d ~400");
+  assert(hp(v) == 1 && v.struck == 2, "d d d: two blows: {hp(v)}");
+  u = ring(6);
+  rules::play(u, "d d s ~400");
+  assert(hp(u) == 2 && u.struck == 1, "d d s: one: {hp(u)}");
+}
+
+// The remembered blow lands at its time, inside a long tick: struck at 0, pressed again at 100,
+// then one tick to 700 with nothing else happening — it landed at 400, so the hero has recovered
+// by 800 and a press then lands at once.  (Landing at the tick's end, 700, it would not be ready
+// before 1100.)
+fn test_the_remembered_blow_lands_on_time() {
+  w = ring(6);
+  _ = rules::walk(w, 1, 0);
+  until(w, 100);
+  _ = rules::walk(w, 1, 0);
+  until(w, 700);
+  assert(hp(w) == 1, "700: landed");
+  until(w, 800);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && hp(w) == 0, "800: ready again");
+}

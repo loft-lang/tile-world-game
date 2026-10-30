@@ -23,6 +23,18 @@ fn show(w: const rules::Level, n: integer) -> text {
   rules::view(w, -1, -1, n, 1, w.hero_z)
 }
 
+// A blow takes blow_ms to recover from (DESIGN.md § What the hero holds): each move here waits it
+// out first, so every blow lands.
+fn hit(w: rules::Level, dx: integer, dy: integer) -> rules::Step {
+  rules::tick(w, w.k.blow_ms);
+  rules::walk(w, dx, dy)
+}
+
+fn swung(w: rules::Level) -> rules::Step {
+  rules::tick(w, w.k.blow_ms);
+  rules::swing(w)
+}
+
 fn main() {
   w = rules::level(rules::kinds());
   assert(tile_world::terrain(w.w, 5, 5, 0) == tile_world::VOID, "an empty world is void");
@@ -484,15 +496,15 @@ fn test_an_axe_fells_trees_and_fences() {
   tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
   tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "fence"));
   rules::put_hero(w, 0, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(hit(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
   for k in 0..3 {
-    assert(rules::walk(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "tree"),
+    assert(hit(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "tree"),
            "blow {k + 1}: still standing");
   }
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "1,0,0 h0", "the tree felled: {at(w)}");
+  assert(hit(w, 1, 0) == rules::Step.Chopped && at(w) == "1,0,0 h0", "the tree felled: {at(w)}");
   assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "floor"), "to floor");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "where it stood: {at(w)}");
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && at(w) == "2,0,0 h0", "the fence, not climbed: {at(w)}");
+  assert(hit(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "where it stood: {at(w)}");
+  assert(hit(w, 1, 0) == rules::Step.Chopped && at(w) == "2,0,0 h0", "the fence, not climbed: {at(w)}");
   assert(tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"), "the fence to floor");
 }
 
@@ -518,15 +530,15 @@ fn test_a_tree_drops_sticks_and_falls_at_the_fourth_blow() {
   w = grove();
   s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
   o = 2 - s;
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, s) == "stick", "blow 1: a stick at y {s}");
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, o) == "stick", "blow 2: the other side");
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped, "blow 3: no room, still a blow");
+  assert(hit(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, s) == "stick", "blow 1: a stick at y {s}");
+  assert(hit(w, 1, 0) == rules::Step.Chopped && top_name(w, 2, o) == "stick", "blow 2: the other side");
+  assert(hit(w, 1, 0) == rules::Step.Chopped, "blow 3: no room, still a blow");
   assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "tree"), "standing after three");
-  assert(rules::walk(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"),
+  assert(hit(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"),
          "felled at the fourth");
   assert(len(tile_world::things(w.w, 2, s, 0)) == 1 && len(tile_world::things(w.w, 2, o, 0)) == 1
          && len(tile_world::things(w.w, 2, 1, 0)) == 0, "two sticks, one a cell");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 2, "where it stood");
+  assert(hit(w, 1, 0) == rules::Step.Walked && w.hero_x == 2, "where it stood");
 }
 
 // A tree on a ledge: the drops beside it on layer 0 are void, layer -1 is floor below.  Its sticks
@@ -549,29 +561,29 @@ fn test_a_ledge_tree_drops_its_sticks_below() {
   w = ledge_tree();
   s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
   o = 2 - s;
-  _ = rules::walk(w, 1, 0);
+  _ = hit(w, 1, 0);
   assert(below(w, 2, s, -1) == "stick", "blow 1: fallen to layer -1 at y {s}");
   // Blow 2 falls the same side, onto the first stick: it lands beside it, east or west as that
   // place below prefers for a fall going (0, dy).
   dy = if s == 2 { 1 } else { -1 };
   bx = if rules::prefers_right(2, s, -1) { 2 - dy } else { 2 + dy };
-  _ = rules::walk(w, 1, 0);
+  _ = hit(w, 1, 0);
   assert(below(w, bx, s, -1) == "stick", "blow 2: beside the first, at x {bx}");
   // Blow 3 falls there too and takes the other cell beside; blow 4 finds no room (both sides
   // taken, a wall straight on) and is gone.
-  _ = rules::walk(w, 1, 0);
+  _ = hit(w, 1, 0);
   assert(below(w, 4 - bx, s, -1) == "stick", "blow 3: the other side of the pile, x {4 - bx}");
-  _ = rules::walk(w, 1, 0);
+  _ = hit(w, 1, 0);
   assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "felled at the fourth");
   assert(len(tile_world::stacks(w.w)) == 3, "three sticks; the fourth fell to nowhere: {len(tile_world::stacks(w.w))}");
   v = ledge_tree();
   tile_world::set_terrain(v.w, 2, s, -1, tile_world::VOID);
   tile_world::fill(v.w, 0, 0, 5, 2, -2, rules::tr(v, "floor"));
-  _ = rules::walk(v, 1, 0);
+  _ = hit(v, 1, 0);
   assert(below(v, 2, s, -2) == "stick", "two layers down");
   u = ledge_tree();
   tile_world::place(u.w, 2, s, -1, rules::th(u, "rock"));
-  _ = rules::walk(u, 1, 0);
+  _ = hit(u, 1, 0);
   st = tile_world::things(u.w, 2, s, -1);
   assert(len(st) == 2 && below(u, 2, s, -1) == "stick", "a stone below: the stick rests on it");
   assert(o == 2 - s, "the other side unused: {below(u, 2, o, -1)}");
@@ -625,7 +637,7 @@ fn test_a_tree_without_room_drops_nothing() {
   tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
   rules::put_hero(w, 1, 0, 0);
   w.hero_item = rules::th(w, "axe");
-  for _k in 0..4 { _ = rules::walk(w, 1, 0); }
+  for _k in 0..4 { _ = hit(w, 1, 0); }
   assert(tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "floor") && len(tile_world::stacks(w.w)) == 0,
          "felled, nothing dropped");
 }
@@ -634,16 +646,16 @@ fn test_a_tree_without_room_drops_nothing() {
 fn test_each_tree_counts_its_blows() {
   w = grove();
   tile_world::set_terrain(w.w, 0, 1, 0, rules::tr(w, "tree"));
-  rules::play(w, "a a");
+  rules::play(w, "a ~400 a ~400");
   saved = w;
-  rules::play(w, "d d d d");
+  rules::play(w, "d ~400 d ~400 d ~400 d ~400");
   assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "the east tree, four blows: felled");
   assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "tree"), "the west tree, two: standing");
-  rules::play(w, "a a");
+  rules::play(w, "a ~400 a ~400");
   assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "floor"), "two more: felled");
-  rules::play(saved, "a");
+  rules::play(saved, "a ~400");
   assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "tree"), "saved: three blows, standing");
-  rules::play(saved, "a");
+  rules::play(saved, "a ~400");
   assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "floor"), "saved: the fourth fells it");
 }
 
@@ -726,15 +738,15 @@ fn test_a_swing_strikes_what_the_hero_faces() {
   tile_world::place(w.w, 1, 0, 0, rules::th(w, "axe"));
   tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "tree"));
   rules::put_hero(w, 0, 0, 0);
-  assert(rules::swing(w) == rules::Step.Blocked, "empty hands: no swing");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
-  assert(rules::swing(w) == rules::Step.Swung && at(w) == "1,0,0 h0", "the air: a swing, no step: {at(w)}");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "beside the tree");
+  assert(swung(w) == rules::Step.Blocked, "empty hands: no swing");
+  assert(hit(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(swung(w) == rules::Step.Swung && at(w) == "1,0,0 h0", "the air: a swing, no step: {at(w)}");
+  assert(hit(w, 1, 0) == rules::Step.Walked, "beside the tree");
   for k in 0..3 {
-    assert(rules::swing(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "tree"),
+    assert(swung(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "tree"),
            "blow {k + 1}: standing");
   }
-  assert(rules::swing(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"),
+  assert(swung(w) == rules::Step.Chopped && tile_world::terrain(w.w, 3, 0, 0) == rules::tr(w, "floor"),
          "the fourth blow fells it");
   assert(at(w) == "2,0,0 h0", "the hero never moved: {at(w)}");
   v = row(4);
@@ -743,8 +755,8 @@ fn test_a_swing_strikes_what_the_hero_faces() {
   v.hero_item = rules::th(v, "sword");
   v.face_x = 1;
   v.face_y = 0;
-  assert(rules::swing(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
+  assert(swung(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
          "a sword does not chop");
   v.hero_item = rules::th(v, "torch");
-  assert(rules::swing(v) == rules::Step.Blocked, "a torch is no weapon");
+  assert(swung(v) == rules::Step.Blocked, "a torch is no weapon");
 }

@@ -226,6 +226,9 @@ pub struct Kinds {
   pub search_ms: integer,
   /// Presses away from a cyclops that holds the hero to break free.
   pub struggle_presses: integer,
+  /// A blow of the hero's takes this long to recover from (owner): presses within it are ignored,
+  /// but the last one is remembered and struck at its end, unless another action comes first.
+  pub blow_ms: integer,
   /// How far an arrow flies, in cells, and how long it takes over one.
   pub arrow_range: integer,
   pub arrow_ms: integer
@@ -278,6 +281,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     clear_area: num(r, "clear_area", 10),
     search_ms: num(r, "search_ms", 6000),
     struggle_presses: num(r, "struggle_presses", 3),
+    blow_ms: num(r, "blow_ms", 400),
     arrow_range: num(r, "arrow_range", 8),
     arrow_ms: num(r, "arrow_ms", 30)
   };
@@ -349,14 +353,14 @@ pub fn kinds() -> Kinds {
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
                                  blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300,
-                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, arrow_range: 8, arrow_ms: 30 }; }
+                                 hear_blast: 8, scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, blow_ms: 400, arrow_range: 8, arrow_ms: 30 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
           blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300, hear_blast: 8,
-          scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, arrow_range: 8, arrow_ms: 30 }
+          scare_ms: 5000, clear_area: 10, search_ms: 6000, struggle_presses: 3, blow_ms: 400, arrow_range: 8, arrow_ms: 30 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -535,6 +539,14 @@ pub struct Level {
   /// it so far (breaking free at struggle_presses).
   pub held_by: integer,
   pub struggles: integer,
+  /// The hero's blows: recovering until blow_until; a blow pressed meanwhile waits (queued, the way
+  /// (queued_x, queued_y), a swing or a walk into something); blows struck so far.
+  pub blow_until: integer,
+  pub queued: boolean,
+  pub queued_x: integer,
+  pub queued_y: integer,
+  pub queued_swing: boolean,
+  pub struck: integer,
   /// The bow's aim: whether it is locked on a target, and that target's cell; the arrows shot (the
   /// game draws them flying).
   pub aiming: boolean,
@@ -671,7 +683,10 @@ pub enum Step {
   /// The hero shot an arrow.
   Shot,
   /// The hero, held by a cyclops, pulled away from it, not yet free.
-  Struggled
+  Struggled,
+  /// A blow pressed while the hero recovers from the last: it lands when that is over, unless
+  /// the hero does something else first.
+  Readying
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -693,7 +708,8 @@ pub fn level(k: const Kinds) -> Level {
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
-          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0, spotted: 0, hurled: 0, held_by: 0, struggles: 0,
+          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0, spotted: 0, hurled: 0, held_by: 0, struggles: 0, blow_until: 0, queued: false, queued_x: 0,
+          queued_y: 0, queued_swing: false, struck: 0,
           aiming: false, aim_x: 0, aim_y: 0, shots: [], money: 0, spirit: 0 }
 }
 
@@ -893,9 +909,31 @@ pub fn armed(l: const Level) -> boolean {
 /// there as walking into it does (Chopped); anything else is a swing through the air (Swung).
 /// Without a weapon, or with no health, nothing happens (Blocked).  The hero does not move.
 pub fn swing(l: Level) -> Step {
+  l.queued = false;
   if !alive(l) || !armed(l) { return Step.Blocked; }
-  dx = l.face_x;
-  dy = l.face_y;
+  hero_blow(l, l.face_x, l.face_y, true)
+}
+
+// A blow of the hero's the way (dx, dy) — a swing, or a walk into an enemy or a tree: struck now,
+// or, while it recovers from the last, remembered to land when that is over (Readying).
+fn hero_blow(l: Level, dx: integer, dy: integer, swinging: boolean) -> Step {
+  if l.now < l.blow_until {
+    l.queued = true;
+    l.queued_x = dx;
+    l.queued_y = dy;
+    l.queued_swing = swinging;
+    return Step.Readying;
+  }
+  land_blow(l, dx, dy)
+}
+
+// The blow lands: on an enemy there (Attacked), else — the axe held — a tree or fence there
+// (Chopped), else on nothing (Swung).  The hero recovers for blow_ms.
+fn land_blow(l: Level, dx: integer, dy: integer) -> Step {
+  l.face_x = dx;
+  l.face_y = dy;
+  l.blow_until = l.now + l.k.blow_ms;
+  l.struck += 1;
   z = l.hero_z;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
@@ -911,6 +949,13 @@ pub fn swing(l: Level) -> Step {
     return Step.Chopped;
   }
   Step.Swung
+}
+
+// A remembered blow whose time has come lands.
+fn queued_blow(l: Level) {
+  if !l.queued || l.now < l.blow_until { return; }
+  l.queued = false;
+  if alive(l) { _ = land_blow(l, l.queued_x, l.queued_y); }
 }
 
 /// Are the hero's hands too busy to push, pull or lift?  They are while it holds an item.
@@ -1473,6 +1518,7 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
 /// by walking off and back on.  Step.Placed, or Blocked when it holds nothing or stands on
 /// anything else (an item already: one a cell; a chair).
 pub fn drop(l: Level) -> Step {
+  l.queued = false;
   if l.hero_item == 0 { return Step.Blocked; }
   under = tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z);
   if under != 0 && !rests(l, under) { return Step.Blocked; }
@@ -1512,6 +1558,7 @@ fn step_world(l: Level) {
   start_bomb_rolls(l);
   bombs_due(l);
   arrows_due(l);
+  queued_blow(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -1526,6 +1573,7 @@ fn next_due(l: const Level) -> integer {
   for e in l.enemies { if e.due > l.now && (t < 0 || e.due < t) { t = e.due; } }
   for f in l.flames { if f.until > l.now && (t < 0 || f.until < t) { t = f.until; } }
   if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
+  if l.queued && l.blow_until > l.now && (t < 0 || l.blow_until < t) { t = l.blow_until; }
   t
 }
 
@@ -1896,6 +1944,7 @@ pub fn alive(l: const Level) -> boolean {
 /// Move the hero one cell (dx, dy one of the four directions): walk, push, climb onto a thing,
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
+  l.queued = false;
   if !alive(l) { return Step.Blocked; }
   l.face_x = dx;
   l.face_y = dy;
@@ -1924,8 +1973,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
   if foe >= 0 {
     if !reachable_foe(l, foe, dx, dy) { return Step.Blocked; }
-    strike_enemy(l, foe, blow(l));
-    return Step.Attacked;
+    return hero_blow(l, dx, dy, false);
   }
   c = climb(l, dx, dy);
   if c != null { return c ?? Step.Blocked; }
@@ -1970,10 +2018,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // Holding an axe, a tree or a fence takes a blow, and falls at its last; the hero stays where
   // it is.
   felled = chopped_to(l, kind);
-  if felled != 0 && holds_chopper(l) {
-    strike(l, kind, felled, tx, ty, z, dx, dy);
-    return Step.Chopped;
-  }
+  if felled != 0 && holds_chopper(l) { return hero_blow(l, dx, dy, false); }
   // A well saves the situation (the game keeps it); the hero stays where it is.
   here = l.k.terrain[kind];
   if here && here.saves { return if clear_area(l) { Step.Saved } else { Step.Watched }; }
@@ -2056,6 +2101,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
 /// nothing did, Blocked when the hero cannot take the step (a plain one, onto a cell no higher
 /// than the hero stands).
 pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
+  l.queued = false;
   if !alive(l) { return Step.Blocked; }
   // Pulling, the hero faces the thing it pulls, behind it.
   l.face_x = -dx;
@@ -2589,6 +2635,7 @@ fn fused(l: const Level, x: integer, y: integer, z: integer, held: boolean) -> b
 /// lands.  Blocked when the hero holds no bomb, or the cell there takes nothing (a wall, a thing,
 /// a step up of more than one) — a bomb is not thrown into a wall at the hero's feet (proposed).
 pub fn throw(l: Level) -> Step {
+  l.queued = false;
   if !alive(l) || !is_bomb(l, l.hero_item) { return Step.Blocked; }
   x = l.hero_x;
   y = l.hero_y;
@@ -3873,6 +3920,7 @@ pub fn aimed(l: Level) -> (integer, integer) {
 /// arrow flies a cell every arrow_ms (`arrows_due`), striking what it meets then.  Blocked without
 /// a bow.
 pub fn shoot(l: Level) -> Step {
+  l.queued = false;
   if !alive(l) || !armed_with_bow(l) { return Step.Blocked; }
   a = aimed(l);
   if a.0 != 0 || a.1 != 0 {
