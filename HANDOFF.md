@@ -11,10 +11,13 @@ machine (`~/workspace`).
 | Game libraries | `./fetch-libs.sh` → `libs/` (git-ignored) | every library from `main` |
 | loft branch | `~/workspace/loft2`, branch `tuxedo-pln204-int32` @ `72602f4b6` | = `main` (ec098768e) + one commit, the loft#2222 fix; force-pushed, no PR yet.  Use its RELEASE build (`target/release/loft`) for the game: an older loft stalls in `parse` on `input` → `graphics` → `mesh3d` |
 
-## Library PRs — all merged
+## Library PRs
 
 | PR | What |
 |---|---|
+| loft-libs-graphics#66 (merged) | tiles 0.4.0: `draw_ground` — a tile bent to its four corner lifts and lit by four corner shades, dithered |
+| loft-libs-graphics#68 (open, auto-merge) | tiles 0.5.0: `draw_turned` — a tile turned about a pixel, every pixel kept (the figures' lean and swing).  Until it merges, `fetch-libs.sh` takes `tiles` from its branch `tiles-turned`; set the ref back to `main` then |
+| loft-libs-world#40 (merged) | tile_world 0.6.0: `shades` takes a start shade per light |
 | loft-libs-graphics#61 | imaging 0.5.0 (lodepng, a `[c]` shim) |
 | loft-libs-graphics#62, #63 | tiles 0.1.0, tiles 0.2.0 (8 shades) |
 | loft-libs-world#37, #38 | tile_world 0.4.0 (edges, ground, rise), 0.4.1 (`ground_layers`) |
@@ -48,7 +51,14 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   `kinds.json`, never a kind's name.  The look is `theme.json` through `theme.loft`.  Levels are
   `levels/*.json` through `levels.loft`, played in `levels/order.json`'s order.
 - **Runs** on a desktop window (`screen`, X11) with Kenney credits first, sound through `audio`,
-  keys through `screen`/`input`.  24 tests: `loft --lib libs --tests tests`.  Pictures:
+  keys through `screen`/`input`.  128 tests, on the interpreter and `--native`:
+  `loft --lib libs --tests tests` (the runner takes one target: a file or the directory).
+- **Figures** (`motion.loft`, DESIGN.md § Figures): the hero is a cut-out that hobbles, holds
+  what it carries the way it moves, swings (Space) and staggers; drawn in depth order over the
+  ground.  Verified: `tests/motion.loft` (every number by hand) and the facing and swing tests in
+  `tests/moves.loft` on both backends; eight mutations (hop, trailing, sweep, knock, chaining,
+  rock, facing, swinging without a weapon) each fail their test.  `tools/anim.loft OUT_DIR`
+  films a scene through the game's own drawing.  Pictures:
   `TW_SHOT=f.png [TW_LEVEL=1] [TW_MOVES="..."] [TW_CREDITS=1] loft --native --lib libs main.loft`.
 - **Design docs:** `DESIGN.md` (the game: principle, rules agreed, slices) and `EDITOR.md` (the
   in-game editor: model, file format, places, keys, checks, platforms, order of work).
