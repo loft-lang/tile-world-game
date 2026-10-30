@@ -168,6 +168,7 @@ This is what the game built on tile_world should be.
     (`tests/moves.loft`, `tests/items.loft`).
 - **Bow.**
   - Shoots enemies higher up on walls (bats, spiders), with no ammunition limit.
+  - An arrow sets off a bomb it hits, as it hurts an enemy (owner): a bomb set off from afar.
   - **Aim.** The aim locks onto an enemy in the general direction the hero faces. The lock is
     lost when that enemy goes out of the hero's view.
 - **Bomb.**
@@ -189,7 +190,9 @@ This is what the game built on tile_world should be.
       to "away".  Across the track the rails hold them: they do not move.  Rolling, a cart is a
       cart like any other: it slows on the flat, links with what it meets, hurts the hero.
     - **Beside the bomb a cart is blown off its track** (owner): at distance 1 it slides away like
-      a big thing, whatever way its track runs, and comes to rest derailed (a fixed big thing).
+      a big thing, whatever way its track runs.  The first rail it reaches catches it: it stays a
+      cart on that track — so a well-placed bomb moves a cart onto the track beside its own (the
+      owner's puzzle).  Landing on plain floor, it comes to rest derailed (a fixed big thing).
       With no room to leave the rails, it stays on its track (proposed).
     - **Damage, more the nearer** (owner): the hero and enemies lose 4 - d health (proposed: 4 on
       the bomb's own cell); the hero is also pushed, like a light thing.
@@ -204,10 +207,10 @@ This is what the game built on tile_world should be.
       stone or cart moves, so it lands ahead of it.
     - **Items lying on a track** are flung like any item; the track does not hold them.  A cart
       the blast sets rolling shoves the items ahead of it on the rails out of the way, as a push.
-  - **Chains** (proposed).  A bomb the blast reaches goes off too.  A tar barrel within distance
-    1 bursts into a fire that burns like a flame (it lights torches) for its burn time; further
-    out it is only pushed.  A bomb riding a cart goes off when the cart is stopped by something —
-    a way to send a blast down a track.
+  - **Chains.**  A bomb within distance 0, 1 or 2 of a blast goes off too (owner).  Proposed: a
+    tar barrel within distance 1 bursts into a fire that burns like a flame (it lights torches)
+    for its burn time, further out it is only pushed; a bomb riding a cart goes off when the cart
+    is stopped by something — a way to send a blast down a track.
 
 ## Torches and light
 
