@@ -1000,7 +1000,7 @@ fn depth_row(g: const Game, f: const Figure) -> integer {
 // Figure f: the body glides, hops and rocks about its feet; what it carries is at its hand,
 // pointing the way it faces — behind the body facing up (owner: everything carried is held the
 // way the figure moves).
-fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
+fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer, ghost: boolean = false) {
   ts = g.look.tile_size;
   p = f.pose;
   bx = (f.x - g.cam_x) * ts + p.x;
@@ -1008,11 +1008,29 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   hd = hand(f.face_x, f.face_y);
   behind = f.face_y < 0 && f.face_x == 0;
   if f.item != 0 && behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
+    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low, ghost);
   }
-  theme::put_turned(g.surface, f.sprite, bx, by, p.tilt, (ts / 2, ts - 1), shade);
+  theme::put_turned(g.surface, f.sprite, bx, by, p.tilt, (ts / 2, ts - 1), shade, ghost);
   if f.item != 0 && !behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
+    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low, ghost);
+  }
+}
+
+/// The shade a figure seen through a ledge is drawn at: a ghost, darker than the ledge's top.
+const GHOST_SHADE = 2;
+
+// The figures on layer z hidden by layer z + 1 drawn after it — a figure just behind a ledge, the
+// ledge's top drawn a row up over it — drawn again as ghosts over it, so nobody is lost behind a
+// ledge (owner: figures may be slightly behind obstructions, never gone).
+fn ghosts(g: Game, w: const rules::Level, z: integer) {
+  g.lift = z * g.look.tile_size;
+  for f in figures(g, w, z) {
+    fx = f.x - g.cam_x;
+    fy = f.y - g.cam_y - z;
+    if fx < 0 || fx >= COLS || fy < 0 || fy >= view_rows(g) { continue; }
+    if tile_world::terrain(w.w, f.x, f.y + 1, z + 1) != tile_world::VOID {
+      draw_figure(g, f, w.now, GHOST_SHADE, true);
+    }
   }
 }
 
@@ -1142,9 +1160,13 @@ pub fn draw(g: Game) {
   if z > 0 {
     draw_layer(g, w, z - 1, false, false, true, 0);
     draw_layer(g, w, z, false, true, true, 0);
+    ghosts(g, w, z - 1);
   } else {
     draw_layer(g, w, z, false, false, true, 0);
-    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) { draw_layer(g, w, z + 1, true, true, true, 0); }
+    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) {
+      draw_layer(g, w, z + 1, true, true, true, 0);
+      ghosts(g, w, z);
+    }
   }
   draw_bow(g);
   if g.won {

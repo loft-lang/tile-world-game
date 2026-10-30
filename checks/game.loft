@@ -15,7 +15,8 @@ fn main() {
   test_a_well_brings_the_hero_back();
   test_b_twice_goes_back();
   test_a_doomed_save_rolls_back_once();
-  println("checks/game.loft: 3 passed");
+  test_a_figure_behind_a_ledge_is_a_ghost();
+  println("checks/game.loft: 4 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -85,4 +86,36 @@ fn test_a_doomed_save_rolls_back_once() {
   game::move(g, 1, 0, false);
   assert(game::back(g) && game::back(g) && where(g) == "1,1,0 health 6", "B twice: the earlier well is the save now");
   assert(game::back(g) && g.note == "BACK? B AGAIN", "no further: {g.note}");
+}
+
+// A figure just behind a ledge shows through it as a ghost.  The hero on (2, 1), layer 0, under the
+// open sky; a ledge's floor set on (2, 2) of layer 1 is drawn a row up, over the hero.  The frame
+// drawn with the hero and again with its picture taken away differs — the hero is there — and
+// only on the ghost's half of the checkerboard (x + y even): seen through, not in front.
+fn test_a_figure_behind_a_ledge_is_a_ghost() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  game::start_level(g, 0);
+  rules::put_hero(g.world, 2, 1, 0);
+  tile_world::set_terrain(g.world.w, 2, 1, 1, tile_world::VOID);
+  tile_world::set_terrain(g.world.w, 2, 2, 1, rules::tr(g.world, "floor"));
+  w = game::COLS * g.look.tile_size;
+  h = game::ROWS * g.look.tile_size;
+  game::draw(g);
+  with = tiles::pixels(g.surface, w, h);
+  hero = g.look.hero;
+  g.look.hero = -1;
+  game::draw(g);
+  without = tiles::pixels(g.surface, w, h);
+  g.look.hero = hero;
+  shown = 0;
+  odd = 0;
+  for i in 0..len(with) {
+    if (with[i] ?? 0) != (without[i] ?? 0) {
+      shown += 1;
+      if ((i % w ?? 0) + (i / w ?? 0)) % 2 == 1 { odd += 1; }
+    }
+  }
+  assert(shown > 0 && odd == 0, "the hero as a ghost: {shown} pixels, {odd} off the checkerboard");
 }

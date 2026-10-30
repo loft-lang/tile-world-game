@@ -568,7 +568,10 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
   corners look across a layer's edge (a cell of the layer above is 4 steps up, of the one below 4
   down), so a slope's top meets the floor above without a step, and a ledge's edge has its bank
   down to the floor below.  The view follows the hero's row less its layer (a layer is a row up).
-  Open: a figure on a lower layer just behind a ledge is hidden by the ledge drawn after it.
+  A figure on a lower layer just behind a ledge — the ledge's top drawn a row up, over it — is
+  drawn again over the ledge as a ghost (tiles 0.6.0: every other pixel, a checkerboard fixed to
+  the screen, a little darker), so it is seen through what stands in front of it and nobody is
+  lost behind a ledge (`checks/game.loft`).
 
 ## Slices
 
