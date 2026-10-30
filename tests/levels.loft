@@ -159,3 +159,16 @@ fn test_materials_survive_a_round_trip() {
   }
   assert(levels::save_with(back, mats) == text, "and saves to the same text");
 }
+
+// A level's enemies load at their nests and save back the same: the first climb with a rat on
+// (3, 1, 0) and one on (6, 2, 0) written in; it loads two rats there, and saves to the same text.
+fn test_enemies_load_and_save() {
+  raw = read("first_climb");
+  with = raw.replace("  \"start\":", "  \"enemies\": [ [\"rat\", 3, 1, 0], [\"rat\", 6, 2, 0] ],\n  \"start\":");
+  m = levels::load(with, rules::kinds());
+  if !m { assert(false, "it loads"); return; }
+  lf = m ?? level("first_climb");
+  e = lf.level.enemies;
+  assert(len(e) == 2 && (e[0]).kind == "rat" && (e[0]).x == 3 && (e[1]).y == 2, "two rats at their nests");
+  assert(levels::save(lf) == with, "saves to the same text");
+}

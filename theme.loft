@@ -71,6 +71,12 @@ struct TrackLook {
   tile: integer
 }
 
+/// An enemy kind's picture.
+struct EnemyLook {
+  const name: text,
+  tile: integer
+}
+
 struct Glyph {
   const ch: text,
   tile: integer
@@ -89,6 +95,7 @@ pub struct Theme {
   chars: hash<Glyph[ch]>,
   /// A blast's frames — the flash, the fireball, the smoke — spread over its flash.
   blast: vector<integer>,
+  enemies: hash<EnemyLook[name]>,
   pub hero: integer,
   /// The sprite of one point of the hero's health, -1 for none.
   pub heart: integer,
@@ -145,7 +152,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
   if v.kind() != "JObject" { return null; }
   ts = num(v, "tile_size", 16);
   th = Theme {
-    tile_size: ts, sheets: [], slots: [], terrain: [], things: [], carried: [], tracks: [], chars: [], blast: [],
+    tile_size: ts, sheets: [], slots: [], terrain: [], things: [], carried: [], tracks: [], chars: [], blast: [], enemies: [],
     hero: -1, heart: -1, font: 0, digits: 0, letters: 0
   };
   sheets = v.field("sheets");
@@ -156,6 +163,8 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
+  en = v.field("enemies");
+  for name in en.keys() { th.enemies += [EnemyLook { name: name, tile: sprite(th, en.field(name).as_text()) }]; }
   bl = v.field("blast");
   for i in 0..bl.len() { th.blast += [sprite(th, bl.item(i).as_text())]; }
   th.heart = sprite(th, word(v, "heart"));
@@ -304,6 +313,13 @@ pub fn fused_sprite(th: const Theme, thing: integer, now: integer) -> integer {
   look = th.things[thing];
   if !look || len(look.fused) == 0 { return -1; }
   look.fused[(now / SPARK_MS) % len(look.fused) ?? 0] ?? -1
+}
+
+/// The picture of an enemy of `kind`, -1 when the theme has none.
+pub fn enemy_sprite(th: const Theme, kind: text) -> integer {
+  look = th.enemies[kind];
+  if !look { return -1; }
+  look.tile
 }
 
 /// A blast's picture `elapsed` ms into its flash of `length` ms; -1 after it, or with none.

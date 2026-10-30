@@ -77,6 +77,21 @@ struct TerrainProps {
   glyph: text
 }
 
+/// An enemy kind (kinds.json `enemies`): its health, what a bite costs the hero, how often it
+/// steps wandering and chasing or fleeing, how often it bites, how far it sees, how far from its
+/// nest it roams, how often it heals a point there.
+struct EnemyProps {
+  const name: text,
+  hp: integer,
+  bite: integer,
+  move_ms: integer,
+  chase_ms: integer,
+  bite_ms: integer,
+  sight: integer,
+  roam: integer,
+  heal_ms: integer
+}
+
 struct EdgeProps {
   const id: integer,
   name: text,
@@ -122,6 +137,8 @@ struct ThingProps {
   doused_to: text,
   /// A derailed cart a blast beside it pushes onto a rail becomes this (a cart again).
   rerails_to: text,
+  /// What a blow with it costs an enemy (a weapon); 0: a blow with it costs 1, as with bare hands.
+  damage: integer,
   glyph: text
 }
 
@@ -130,6 +147,7 @@ pub struct Kinds {
   terrain: hash<TerrainProps[id]>,
   things: hash<ThingProps[id]>,
   edges: hash<EdgeProps[id]>,
+  enemies: hash<EnemyProps[name]>,
   pub push_strength: integer,
   pub pull_strength: integer,
   pub boost: integer,
@@ -186,7 +204,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
   if v.kind() != "JObject" { return null; }
   r = v.field("rules");
   k = Kinds {
-    terrain: [], things: [], edges: [],
+    terrain: [], things: [], edges: [], enemies: [],
     push_strength: num(r, "push_strength", 3),
     pull_strength: num(r, "pull_strength", 2),
     boost: num(r, "boost", 2),
@@ -231,6 +249,15 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       climb: flag(e, "climb"), glyph: word(e, "glyph", "|")
     }];
   }
+  en = v.field("enemies");
+  for name in en.keys() {
+    e = en.field(name);
+    k.enemies += [EnemyProps {
+      name: name, hp: num(e, "hp", 3), bite: num(e, "bite", 1), move_ms: num(e, "move_ms", 600),
+      chase_ms: num(e, "chase_ms", 350), bite_ms: num(e, "bite_ms", 900), sight: num(e, "sight", 5),
+      roam: num(e, "roam", 3), heal_ms: num(e, "heal_ms", 4000)
+    }];
+  }
   th = v.field("things");
   for name in th.keys() {
     e = th.field(name);
@@ -244,7 +271,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
-      rerails_to: word(e, "rerails_to", ""),
+      rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -257,14 +284,14 @@ pub fn kinds() -> Kinds {
     raw = file(path).content() ?? "";
     if raw != "" {
       k = kinds_from_json(raw);
-      if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
+      if k { return k ?? Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2,
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
                                  flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
                                  blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300 }; }
     }
   }
-  Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
+  Kinds { terrain: [], things: [], edges: [], enemies: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
           flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
           blast_radius: 3, ripple_ms: 150, throw_speed: 4, bomb_fall: 2, flash_ms: 300 }
@@ -429,7 +456,30 @@ pub struct Level {
   pub bombs: vector<BombRoll>,
   pub fuses: vector<Fuse>,
   pub blasts: vector<Blast>,
-  pub blasted: integer
+  pub blasted: integer,
+  /// The enemies, the next one's id, how many the hero has bested (killed).
+  pub enemies: vector<Enemy>,
+  pub next_enemy: integer,
+  pub killed: integer
+}
+
+/// An enemy: its id (it keeps it while it lives), kind, place and nest, its health, when it acts
+/// next and when it heals next, the steps it has taken (its wander's seed) and the way it faces.
+pub struct Enemy {
+  pub id: integer,
+  pub kind: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub nest_x: integer,
+  pub nest_y: integer,
+  pub nest_z: integer,
+  pub hp: integer,
+  pub due: integer,
+  pub heal_due: integer,
+  pub steps: integer,
+  pub face_x: integer,
+  pub face_y: integer
 }
 
 /// A bomb rolling: on (x, y, z), moving (dx, dy) at `speed` (1 .. max_speed: a cell every
@@ -497,7 +547,9 @@ pub enum Step {
   /// The hero swung its weapon at the cell it faces, and hit nothing there.
   Swung,
   /// The hero threw the bomb it held.
-  Thrown
+  Thrown,
+  /// The hero struck an enemy (walking into it, or swinging at it).
+  Attacked
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -519,7 +571,7 @@ pub fn level(k: const Kinds) -> Level {
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
           rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
-          bombs: [], fuses: [], blasts: [], blasted: 0 }
+          bombs: [], fuses: [], blasts: [], blasted: 0, enemies: [], next_enemy: 1, killed: 0 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -709,6 +761,11 @@ pub fn swing(l: Level) -> Step {
   z = l.hero_z;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
+  foe = enemy_at(l, tx, ty, z);
+  if foe >= 0 && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
+    strike_enemy(l, foe, blow(l));
+    return Step.Attacked;
+  }
   kind = tile_world::terrain(l.w, tx, ty, z);
   felled = chopped_to(l, kind);
   if felled != 0 && holds_chopper(l) && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
@@ -1285,6 +1342,7 @@ pub fn tick(l: Level, ms: integer) {
   roll_due(l);
   start_bomb_rolls(l);
   bombs_due(l);
+  enemies_due(l);
   burn_out(l);
 }
 
@@ -1656,6 +1714,12 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     l.lean_x = dx;
     l.lean_y = dy;
     return Step.Leaned;
+  }
+  // Walking into an enemy strikes it; the hero stays where it is.
+  foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
+  if foe >= 0 && hero_crosses(l, l.hero_x, l.hero_y, l.hero_z, dx, dy) {
+    strike_enemy(l, foe, blow(l));
+    return Step.Attacked;
   }
   c = climb(l, dx, dy);
   if c != null { return c ?? Step.Blocked; }
@@ -2468,7 +2532,7 @@ fn bomb_step(l: Level, ri: integer) {
   }
   here = height(l, x, y, z);
   there = height(l, nx, ny, z);
-  hero_there = l.hero_x == nx && l.hero_y == ny && l.hero_z == z;
+  hero_there = (l.hero_x == nx && l.hero_y == ny && l.hero_z == z) || enemy_at(l, nx, ny, z) >= 0;
   if hero_there || !walkable(l, k) || blocks_things(l, k) || tile_world::top(l.w, nx, ny, z) != 0 || there > here + 1 {
     // It hits something: fused, it goes off; else it stops there.
     if fused { impact(l, x, y, z, due); }
@@ -2575,6 +2639,8 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
     cy = c.1;
     d = c.2;
     if l.hero_x == cx && l.hero_y == cy && l.hero_z == z { hero_d = d; }
+    foe = enemy_at(l, cx, cy, z);
+    if foe >= 0 { strike_enemy(l, foe, 4 - d); }
     t = tile_world::top(l.w, cx, cy, z);
     // Bombs within two go off a ripple later — lying, or rolling.
     if d <= 2 && is_bomb(l, t) && !fused(l, cx, cy, z, false) {
@@ -2822,4 +2888,239 @@ fn push_cart(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
   sp = if speed > l.k.max_speed { l.k.max_speed } else { speed };
   l.rolls += [Roll { cells: train_behind(l, x, y, z, ax, ay), dx: ax, dy: ay, speed: sp,
                      due: at + l.k.roll_ms / sp, flat: 0 }];
+}
+
+// --- Enemies ---
+//
+// They act on the world clock (DESIGN.md § Enemies).  A healthy enemy that sees the hero comes at
+// it and bites when beside it; one that does not wanders near its nest.  A hurt one does not fight
+// to the death: it goes home by a way that avoids the hero, steps away when it has no such way,
+// and only cornered — no way home, no step away — fights on.  At its nest it heals.  The hero
+// strikes it by walking into it or swinging at it: a weapon's damage, else 1; a blast strikes it
+// 4 - d.  At no health it is bested, gone.
+
+fn enemy_props(l: const Level, kind: text) -> EnemyProps {
+  p = l.k.enemies[kind];
+  if p { return p ?? EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000 }; }
+  EnemyProps { name: kind, hp: 1, bite: 1, move_ms: 600, chase_ms: 350, bite_ms: 900, sight: 5, roam: 3, heal_ms: 4000 }
+}
+
+/// Put an enemy of `kind` on (x, y, z), its nest there; it first acts a wander's step from now.
+/// Answers its id.
+pub fn add_enemy(l: Level, kind: text, x: integer, y: integer, z: integer) -> integer {
+  p = enemy_props(l, kind);
+  id = l.next_enemy;
+  l.next_enemy += 1;
+  l.enemies += [Enemy { id: id, kind: kind, x: x, y: y, z: z, nest_x: x, nest_y: y, nest_z: z, hp: p.hp,
+                        due: l.now + p.move_ms, heal_due: 0, steps: 0, face_x: 0, face_y: 1 }];
+  id
+}
+
+/// The enemy on (x, y, z), -1 for none.
+pub fn enemy_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i];
+    if e.x == x && e.y == y && e.z == z { return i; }
+  }
+  -1
+}
+
+fn steps_apart(x0: integer, y0: integer, x1: integer, y1: integer) -> integer {
+  (if x0 > x1 { x0 - x1 } else { x1 - x0 }) + (if y0 > y1 { y0 - y1 } else { y1 - y0 })
+}
+
+// Can an enemy step from (x, y, z) by (dx, dy): across an edge things cross, onto ground it walks
+// (at most a step up or down), with nothing on it but an item, no hero and no other enemy.
+fn enemy_can(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
+  nx = x + dx;
+  ny = y + dy;
+  k = tile_world::terrain(l.w, nx, ny, z);
+  if !walkable(l, k) || blocks_things(l, k) { return false; }
+  t = tile_world::top(l.w, nx, ny, z);
+  if t != 0 && !item(l, t) { return false; }
+  if l.hero_x == nx && l.hero_y == ny && l.hero_z == z { return false; }
+  if enemy_at(l, nx, ny, z) >= 0 { return false; }
+  d = tile_world::rise(l.w, nx, ny, z) - tile_world::rise(l.w, x, y, z);
+  d >= -1 && d <= 1
+}
+
+// The first step of the shortest way an enemy on (x, y, z) can walk to (gx, gy), and the way's
+// length: neighbours tried north, east, south, west, so the way is always the same one.  The goal
+// itself need not be enterable (the hero's cell).  With `avoid`, no cell of the way is beside the
+// hero.  (0, 0, -1) when there is none within 32 steps.
+fn enemy_way(l: const Level, x: integer, y: integer, z: integer, gx: integer, gy: integer,
+             avoid: boolean) -> (integer, integer, integer) {
+  if x == gx && y == gy { return (0, 0, 0); }
+  cells: vector<(integer, integer, integer)> = [(x, y, -1)];
+  i = 0;
+  while i < len(cells) && i < 2000 {
+    c = cells[i] ?? (x, y, -1);
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      seen = false;
+      for o in cells { if o.0 == nx && o.1 == ny { seen = true; } }
+      if seen { continue; }
+      goal = nx == gx && ny == gy;
+      if goal {
+        if !tile_world::crossable(l.w, c.0, c.1, z, d.0, d.1) { continue; }
+      } else {
+        if !enemy_can(l, c.0, c.1, z, d.0, d.1) { continue; }
+        if avoid && steps_apart(nx, ny, l.hero_x, l.hero_y) <= 1 && l.hero_z == z { continue; }
+      }
+      cells += [(nx, ny, i)];
+      if goal {
+        // Back to the first step, counting the way.
+        j = len(cells) - 1;
+        n = 0;
+        while (cells[j] ?? (x, y, -1)).2 > 0 {
+          j = (cells[j] ?? (x, y, 0)).2;
+          n += 1;
+        }
+        f = cells[j] ?? (x, y, -1);
+        return (f.0 - x, f.1 - y, n + 1);
+      }
+    }
+    i += 1;
+    if steps_apart(c.0, c.1, x, y) > 32 { break; }
+  }
+  (0, 0, -1)
+}
+
+// Does enemy e see the hero: on its layer, within its sight, nothing opaque between?
+fn sees_hero(l: const Level, e: const Enemy, sight: integer) -> boolean {
+  e.z == l.hero_z && alive(l) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= sight
+    && tile_world::line_of_sight(l.w, e.x, e.y, l.hero_x, l.hero_y, e.z)
+}
+
+// Is the hero beside enemy e, across an edge things cross?
+fn beside_hero(l: const Level, e: const Enemy) -> boolean {
+  e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1
+    && tile_world::crossable(l.w, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y)
+}
+
+// Every enemy whose time has come, the earliest first.
+fn enemies_due(l: Level) {
+  guard = 0;
+  while guard < 1000 {
+    guard += 1;
+    first = -1;
+    at = 0;
+    for i in 0..len(l.enemies) {
+      d = l.enemies[i].due ?? 0;
+      if d <= l.now && (first < 0 || d < at) {
+        first = i;
+        at = d;
+      }
+    }
+    if first < 0 { return; }
+    enemy_act(l, first);
+  }
+}
+
+// Enemy i steps (dx, dy) and acts again `wait` later.
+fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
+  l.enemies[i].x = (l.enemies[i].x ?? 0) + dx;
+  l.enemies[i].y = (l.enemies[i].y ?? 0) + dy;
+  l.enemies[i].face_x = dx;
+  l.enemies[i].face_y = dy;
+  l.enemies[i].steps = (l.enemies[i].steps ?? 0) + 1;
+  l.enemies[i].due = (l.enemies[i].due ?? l.now) + wait;
+}
+
+// Enemy i bites the hero beside it.
+fn bite(l: Level, i: integer, p: const EnemyProps) {
+  l.health -= p.bite;
+  if l.health < 0 { l.health = 0; }
+  l.enemies[i].face_x = l.hero_x - (l.enemies[i].x ?? 0);
+  l.enemies[i].face_y = l.hero_y - (l.enemies[i].y ?? 0);
+  l.enemies[i].due = (l.enemies[i].due ?? l.now) + p.bite_ms;
+}
+
+// Enemy i acts: once, at its due time.
+fn enemy_act(l: Level, i: integer) {
+  e = l.enemies[i] ?? Enemy { id: 0, kind: "", x: 0, y: 0, z: 0, nest_x: 0, nest_y: 0, nest_z: 0, hp: 0, due: 0,
+                              heal_due: 0, steps: 0, face_x: 0, face_y: 1 };
+  p = enemy_props(l, e.kind);
+  if e.hp < p.hp {
+    // Hurt.  Beside the hero with a step away from it, it takes it; at its nest it heals.
+    home = e.x == e.nest_x && e.y == e.nest_y && e.z == e.nest_z;
+    if home && !beside_hero(l, e) {
+      if e.heal_due == 0 {
+        l.enemies[i].heal_due = e.due + p.heal_ms;
+        l.enemies[i].due = e.due + p.heal_ms;
+        return;
+      }
+      hp = e.hp + 1;
+      l.enemies[i].hp = hp;
+      l.enemies[i].heal_due = if hp < p.hp { e.heal_due + p.heal_ms } else { 0 };
+      l.enemies[i].due = if hp < p.hp { e.due + p.heal_ms } else { e.due + p.move_ms };
+      return;
+    }
+    if !home {
+      w = enemy_way(l, e.x, e.y, e.z, e.nest_x, e.nest_y, true);
+      if w.2 > 0 {
+        enemy_step(l, i, w.0, w.1, p.chase_ms);
+        return;
+      }
+    }
+    // No way home that avoids the hero: a step away from it, if there is one.
+    here = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if enemy_can(l, e.x, e.y, e.z, d.0, d.1) && steps_apart(e.x + d.0, e.y + d.1, l.hero_x, l.hero_y) > here {
+        enemy_step(l, i, d.0, d.1, p.chase_ms);
+        return;
+      }
+    }
+    // Cornered: it fights.
+    if beside_hero(l, e) { bite(l, i, p); } else { l.enemies[i].due = e.due + p.chase_ms; }
+    return;
+  }
+  if sees_hero(l, e, p.sight) {
+    if beside_hero(l, e) {
+      bite(l, i, p);
+      return;
+    }
+    w = enemy_way(l, e.x, e.y, e.z, l.hero_x, l.hero_y, false);
+    if w.2 > 1 {
+      enemy_step(l, i, w.0, w.1, p.chase_ms);
+      return;
+    }
+  }
+  // Wandering: a step to a neighbour within its roam of the nest, chosen by its id and the steps
+  // it has taken (the same every time), or none.
+  options: vector<(integer, integer)> = [];
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    if enemy_can(l, e.x, e.y, e.z, d.0, d.1) && e.z == e.nest_z
+        && steps_apart(e.x + d.0, e.y + d.1, e.nest_x, e.nest_y) <= p.roam {
+      options += [d];
+    }
+  }
+  n = len(options);
+  if n == 0 {
+    l.enemies[i].due = e.due + p.move_ms;
+    return;
+  }
+  pick = options[mix(e.id * 7919 + e.steps * 104729) % n ?? 0] ?? (0, 0);
+  enemy_step(l, i, pick.0, pick.1, p.move_ms);
+}
+
+/// Enemy i takes a blow costing `damage`: hurt, it turns to go home; at no health it is bested.
+pub fn strike_enemy(l: Level, i: integer, damage: integer) {
+  hp = (l.enemies[i].hp ?? 0) - damage;
+  if hp <= 0 {
+    _ = l.enemies.remove(i);
+    l.killed += 1;
+    return;
+  }
+  l.enemies[i].hp = hp;
+  l.enemies[i].heal_due = 0;
+}
+
+// What a blow by the hero costs an enemy: its weapon's damage, else 1.
+fn blow(l: const Level) -> integer {
+  p = l.k.things[l.hero_item];
+  if p && p.damage > 0 { return p.damage; }
+  1
 }

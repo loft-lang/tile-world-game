@@ -364,6 +364,24 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     ceiling).
   - Their nest is never on a wall.
 - **Enemies act on the world clock**, so every behaviour is testable at exact times.
+- **Built: rats** (step 1, `tests/enemies.loft`; the numbers proposed, in kinds.json `enemies`).
+  - Health 3; a step every 600 ms wandering, every 350 ms chasing or fleeing (the hero steps every
+    140 ms, so it can always get away); a bite costs the hero 1, at most every 900 ms; it sees 5
+    cells (line of sight, its own layer); it roams within 3 of its nest; it heals a point every
+    4 s there.
+  - A healthy rat that sees the hero comes at it by the shortest way and bites when beside it;
+    one that does not wanders, its steps chosen by its id and how far it has walked (the same
+    every time).
+  - Hurt, it goes home by a way that passes nowhere beside the hero, even when home lies towards
+    the hero; with no such way, it steps away from the hero; with no step away either — cornered —
+    it fights.
+  - The hero strikes it by walking into it or swinging at it: a sword or an axe costs it 2, bare
+    hands or anything else 1.  A blast strikes it 4 - d.  At no health it is gone.  Rats block
+    rolling bombs as any obstacle does.
+  - Level files list them (`enemies`, each at its nest); the game draws them as figures (§ Figures):
+    a step hobbles, a blow staggers it, a bite lunges at the hero.
+  - Not built yet: light (rats shun it, bats are drawn to it), bats and spiders, blasts scaring,
+    the well's clear area, guards.
 - **Explosions scare them** (owner): an ordinary enemy that hears a blast flees, even from its
   nest, and returns to its nest after a while.  Open: how far a blast is heard, how long they stay
   away.  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).

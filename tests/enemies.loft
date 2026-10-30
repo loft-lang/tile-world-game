@@ -1,0 +1,170 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Enemies (DESIGN.md § Enemies), rats: health 3; a step every 600 ms wandering, every 350 ms
+// chasing or fleeing; a bite costs the hero 1, at most every 900 ms; it sees 5 cells, roams 3
+// from its nest, heals a point every 4 s there.  A healthy rat that sees the hero comes at it and
+// bites; a hurt one goes home by a way that avoids the hero, steps away when it has none, and fights
+// only cornered.  The hero strikes by walking into it or swinging at it: a sword costs it 2, bare
+// hands 1; a blast 4 - d.  Every time below is worked by hand.
+use tile_world;
+use rules;
+
+// A room x 0 .. n - 1, y 0 .. rows - 1, walled; floor on layer 2 at (0, 0), out of everyone's way.
+fn room(n: integer, rows: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  w
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn rat(w: const rules::Level) -> text {
+  if len(w.enemies) == 0 { return "none"; }
+  e = w.enemies[0];
+  "x{e.x} y{e.y} hp{e.hp}"
+}
+
+fn main() {
+  w = room(4, 1);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  assert(rat(w) == "x2 y0 hp3", "a rat: {rat(w)}");
+}
+
+// The rat on x 6 first acts at 600: it sees the hero on x 1 (5 away) and comes, a cell every
+// 350 ms: x 5 at 600, x 4 at 950, x 3 at 1300, x 2 at 1650 — beside the hero.  It bites at 2000
+// and again at 2900.
+fn test_a_rat_comes_at_the_hero_and_bites() {
+  w = room(8, 1);
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 6, 0, 0);
+  until(w, 599);
+  assert(rat(w) == "x6 y0 hp3", "599: {rat(w)}");
+  until(w, 600);
+  assert(rat(w) == "x5 y0 hp3", "600: {rat(w)}");
+  until(w, 1649);
+  assert(rat(w) == "x3 y0 hp3", "1649: {rat(w)}");
+  until(w, 1650);
+  assert(rat(w) == "x2 y0 hp3", "1650: {rat(w)}");
+  until(w, 1999);
+  assert(w.health == 6, "1999: not yet bitten");
+  until(w, 2000);
+  assert(w.health == 5, "2000: bitten: {w.health}");
+  until(w, 2900);
+  assert(w.health == 4, "2900: bitten again: {w.health}");
+}
+
+// Walking into a rat strikes it: bare-handed 1, with a sword 2 — and at no health it is gone.
+fn test_the_hero_strikes_a_rat() {
+  w = room(6, 1);
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && rat(w) == "x2 y0 hp2" && w.hero_x == 1, "bare hands: {rat(w)}");
+  w.hero_item = rules::th(w, "sword");
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && rat(w) == "none" && w.killed == 1, "the sword: gone");
+  v = room(6, 1);
+  rules::put_hero(v, 1, 0, 0);
+  _ = rules::add_enemy(v, "rat", 2, 0, 0);
+  v.hero_item = rules::th(v, "sword");
+  v.face_x = 1;
+  v.face_y = 0;
+  assert(rules::swing(v) == rules::Step.Attacked && rat(v) == "x2 y0 hp1", "a swing: {rat(v)}");
+}
+
+// Hurt, a rat goes home and heals there.  Its nest on x 6, it stands on x 2 with 1 health, the hero
+// on x 0; at 100 it heads home: x 3, x 4 at 450, x 5 at 800, x 6 at 1150.  It waits 4 s a point:
+// 2 at 5500, 3 at 9500.
+fn test_a_hurt_rat_goes_home_and_heals() {
+  w = room(10, 1);
+  rules::put_hero(w, 0, 0, 0);
+  _ = rules::add_enemy(w, "rat", 6, 0, 0);
+  w.enemies[0].x = 2;
+  w.enemies[0].hp = 1;
+  w.enemies[0].due = 100;
+  until(w, 100);
+  assert(rat(w) == "x3 y0 hp1", "100: {rat(w)}");
+  until(w, 1150);
+  assert(rat(w) == "x6 y0 hp1", "1150: home: {rat(w)}");
+  until(w, 5499);
+  assert(rat(w) == "x6 y0 hp1", "5499: {rat(w)}");
+  until(w, 5500);
+  assert(rat(w) == "x6 y0 hp2", "5500: {rat(w)}");
+  until(w, 9500);
+  assert(rat(w) == "x6 y0 hp3", "9500: whole: {rat(w)}");
+  // Home first, even towards the hero: the nest on (2, 2), the rat on (4, 2), the hero on (0, 0) —
+  // the way home (west) passes nowhere beside the hero, so it takes it, though east is away.
+  v = room(6, 3);
+  rules::put_hero(v, 0, 0, 0);
+  _ = rules::add_enemy(v, "rat", 2, 2, 0);
+  v.enemies[0].x = 4;
+  v.enemies[0].hp = 1;
+  v.enemies[0].due = 100;
+  until(v, 100);
+  assert(rat(v) == "x3 y2 hp1", "towards home: {rat(v)}");
+}
+
+// Cornered — no way home that avoids the hero, no step away — a hurt rat fights: in a dead end on
+// x 0, its nest on x 3, the hero on x 1, it bites at 100 and 1000.  Then the hero's sword ends it.
+fn test_a_cornered_rat_fights() {
+  w = room(4, 1);
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 3, 0, 0);
+  w.enemies[0].x = 0;
+  w.enemies[0].hp = 1;
+  w.enemies[0].due = 100;
+  until(w, 100);
+  assert(w.health == 5 && rat(w) == "x0 y0 hp1", "100: it bites: {w.health}");
+  until(w, 1000);
+  assert(w.health == 4, "1000: again: {w.health}");
+  w.hero_item = rules::th(w, "sword");
+  assert(rules::walk(w, -1, 0) == rules::Step.Attacked && rat(w) == "none" && w.killed == 1, "ended");
+}
+
+// A hurt rat with no way home that avoids the hero, but a step away from it, takes the step: three
+// rows, the rat on (2, 1), its nest on (4, 1), the hero on (3, 1) between — every way round passes
+// beside the hero — so it steps north, away, to (2, 0).
+fn test_a_hurt_rat_steps_away() {
+  w = room(6, 3);
+  rules::put_hero(w, 3, 1, 0);
+  _ = rules::add_enemy(w, "rat", 4, 1, 0);
+  w.enemies[0].x = 2;
+  w.enemies[0].hp = 1;
+  w.enemies[0].due = 100;
+  until(w, 100);
+  assert(rat(w) == "x2 y0 hp1" && w.health == 6, "stepped away: {rat(w)}");
+}
+
+// Not seeing the hero, a rat wanders, never more than 3 from its nest: a minute of it in an open
+// room, the hero out of sight on another layer.
+fn test_a_rat_wanders_near_its_nest() {
+  w = room(12, 12);
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "rat", 5, 5, 0);
+  places = "";
+  far = 0;
+  for t in 1..601 {
+    until(w, t * 100);
+    e = w.enemies[0];
+    d = (if e.x > 5 { e.x - 5 } else { 5 - e.x }) + (if e.y > 5 { e.y - 5 } else { 5 - e.y });
+    if d > far { far = d; }
+    if !places.contains("({e.x},{e.y})") { places += "({e.x},{e.y})"; }
+  }
+  assert(far <= 3, "it strayed {far} from its nest");
+  assert(far >= 2, "it hardly moved: {places}");
+}
+
+// A blast strikes rats 4 - d: one beside it (3) is gone; one two away keeps 1 health, hurt.
+fn test_a_blast_strikes_rats() {
+  w = room(8, 1);
+  rules::put_hero(w, 0, 0, 2);
+  tile_world::place(w.w, 0, 0, 0, rules::th(w, "bomb"));
+  _ = rules::add_enemy(w, "rat", 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  w.fuses += [rules::Fuse { x: 0, y: 0, z: 0, held: false, at: 100 }];
+  until(w, 100);
+  assert(w.killed == 1 && len(w.enemies) == 1 && (w.enemies[0]).hp == 1, "one gone, one hurt");
+}

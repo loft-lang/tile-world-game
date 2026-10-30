@@ -20,6 +20,7 @@
       "-": 127
     }
   },
+  "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122" },
   "blast": ["world:63", "world:64", "world:65"],
   "hero": "dungeon:97",
   "heart": "battle:195",

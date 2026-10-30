@@ -2,9 +2,10 @@
 // — the hobble, the weapon leading in four directions, a bump into a wall, a swing, and the hero
 // passing behind a chest raised on a table.
 //
-//   loft --lib libs tools/anim.loft OUT_DIR [bomb]   writes OUT_DIR/frame_000.png ... (40 ms apart,
-//                                                    3x); `bomb`: a bomb thrown at a pillar beside a
-//                                                    rock, a chair and a stick
+//   loft --lib libs tools/anim.loft OUT_DIR [bomb|rat]   writes OUT_DIR/frame_000.png ... (40 ms
+//                                                    apart, 3x); `bomb`: a bomb thrown at a pillar
+//                                                    beside a rock, a chair and a stick; `rat`: a rat
+//                                                    comes at the hero, is struck and flees home
 use tile_world;
 use rules;
 use game;
@@ -14,7 +15,8 @@ const FRAME = 40;
 fn main() {
   dir = ".";
   bomb = false;
-  for a in arguments() { if a == "bomb" { bomb = true; } else { dir = a; } }
+  rat = false;
+  for a in arguments() { if a == "bomb" { bomb = true; } else if a == "rat" { rat = true; } else { dir = a; } }
   m = game::new_game("..");
   if !m { println("the game does not load"); exit(1); }
   g = m;
@@ -47,6 +49,16 @@ fn main() {
     rules::put_hero(w, 0, 2, 0);
     w.hero_item = rules::th(w, "bomb");
     script = [(3, "s")];
+  }
+  if rat {
+    tile_world::fill(w.w, 0, 0, 7, 5, 0, rules::tr(w, "floor"));
+    _ = tile_world::take(w.w, 3, 3, 0);
+    _ = tile_world::take(w.w, 3, 3, 0);
+    rules::put_hero(w, 1, 2, 0);
+    w.face_x = 1;
+    w.face_y = 0;
+    _ = rules::add_enemy(w, "rat", 5, 2, 0);
+    script = [(36, "s")];
   }
   n = 0;
   for f in 0..72 {

@@ -85,7 +85,18 @@ pub struct Game {
   /// How the hero moves on screen (motion.loft), and whether it was moving at the last frame —
   /// one more picture shows it standing still.
   pub motion: motion::Motion,
-  was_moving: boolean
+  was_moving: boolean,
+  /// How each enemy moves on screen, by its id, and where and how healthy it was last drawn.
+  movers: vector<Mover>
+}
+
+/// An enemy as last drawn: its id, its motion, its cell and its health.
+struct Mover {
+  id: integer,
+  motion: motion::Motion,
+  x: integer,
+  y: integer,
+  hp: integer
 }
 
 struct Sound {
@@ -171,7 +182,7 @@ pub fn new_game(dir: text) -> Game? {
     editing: false, ed: ed, lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
-    just_back: false, motion: motion::still(), was_moving: false
+    just_back: false, motion: motion::still(), was_moving: false, movers: []
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -243,6 +254,7 @@ pub fn restart(g: Game) {
   g.just_back = false;
   g.world = g.file.level;
   g.motion = motion::still();
+  g.movers = [];
   rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
   g.area = camera::bounds(g.world.w);
   g.cam_x = g.area.0;
@@ -346,10 +358,10 @@ pub fn swing(g: Game) {
     return;
   }
   step = rules::swing(g.world);
-  if step == rules::Step.Chopped || step == rules::Step.Swung {
+  if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     g.moves += 1;
     motion::swing(g.motion, g.world.now);
-    sound(g, if step == rules::Step.Chopped { "chop" } else { "sword" }, 0.6);
+    sound(g, if step == rules::Step.Chopped { "chop" } else if step == rules::Step.Attacked { "hit_enemy" } else { "sword" }, 0.6);
   }
 }
 
@@ -362,8 +374,9 @@ fn animate(g: Game, step: rules::Step, ox: integer, oy: integer, oz: integer, oh
   now = w.now;
   if step == rules::Step.Blocked {
     motion::stagger(g.motion, now, -dx, -dy, 0, 0, w.face_x, w.face_y);
-  } else if step == rules::Step.Chopped || step == rules::Step.Swung {
+  } else if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     motion::swing(g.motion, now);
+    if step == rules::Step.Attacked { sound(g, "hit_enemy", 0.8); }
   } else if w.hero_z == oz && (w.hero_x != ox || w.hero_y != oy) {
     motion::walk(g.motion, now, w.hero_x - ox, w.hero_y - oy, (w.hero_h - oh) * 4, w.face_x, w.face_y);
   } else if w.hero_z != oz {
@@ -375,6 +388,7 @@ fn animate(g: Game, step: rules::Step, ox: integer, oy: integer, oz: integer, oh
 fn return_to_save(g: Game) {
   g.world = g.saved;
   g.motion = motion::still();
+  g.movers = [];
   g.asking_back = false;
   g.just_back = true;
   g.note = "BACK AT WELL";
@@ -389,6 +403,7 @@ fn return_to_previous(g: Game) {
   g.has_previous = false;
   g.world = g.saved;
   g.motion = motion::still();
+  g.movers = [];
   g.asking_back = false;
   g.just_back = true;
   g.note = "BACK AT EARLIER WELL";
@@ -600,10 +615,18 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     sound(g, "explosion", 1.0);
     changed = true;
   }
-  if rules::blasting(g.world) { changed = true; }
+  if rules::blasting(g.world) || len(g.world.enemies) > 0 { changed = true; }
   if g.world.health < health {
     sound(g, "hit_hero", 1.0);
     changed = true;
+    // A bite: the enemies beside the hero, facing it, lunge.
+    for e in g.world.enemies {
+      if e.z == g.world.hero_z && e.x + e.face_x == g.world.hero_x && e.y + e.face_y == g.world.hero_y {
+        for i in 0..len(g.movers) {
+          if (g.movers[i].id ?? 0) == e.id { motion::swing(g.movers[i].motion, g.world.now); }
+        }
+      }
+    }
     // Hit: the hero staggers — shoved aside, it glides there staggering the way it was shoved.
     mx = g.world.hero_x - hx;
     my = g.world.hero_y - hy;
@@ -868,9 +891,17 @@ struct Figure {
   pose: motion::Pose
 }
 
-// The figures on layer z: the hero (enemies join it here).
+// The figures on layer z: the hero and the enemies.
 fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
   out: vector<Figure> = [];
+  for e in w.enemies {
+    if e.z != z { continue; }
+    m = motion::still();
+    for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
+    out += [Figure { x: e.x, y: e.y, h: tile_world::rise(w.w, e.x, e.y, z), sprite: theme::enemy_sprite(g.look, e.kind),
+                     item: 0, low: false, face_x: e.face_x, face_y: e.face_y,
+                     pose: motion::pose(m, e.face_x, e.face_y, w.now) }];
+  }
   if w.hero_z == z {
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
@@ -971,6 +1002,32 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   }
 }
 
+// Each enemy's motion, from how it changed since it was last drawn: a step glides, a blow
+// staggers it away from the hero, a bite (beside the hero, facing it, the hero hurt) lunges.
+fn follow_enemies(g: Game) {
+  w = g.world;
+  now = w.now;
+  kept: vector<Mover> = [];
+  for e in w.enemies {
+    mv = Mover { id: e.id, motion: motion::still(), x: e.x, y: e.y, hp: e.hp };
+    for o in g.movers {
+      if o.id == e.id {
+        mv.motion = o.motion;
+        if o.x != e.x || o.y != e.y {
+          motion::walk(mv.motion, now, e.x - o.x, e.y - o.y, 0, e.face_x, e.face_y);
+        }
+        if e.hp < o.hp {
+          kx = if e.x > w.hero_x { 1 } else if e.x < w.hero_x { -1 } else { 0 };
+          ky = if kx != 0 { 0 } else if e.y > w.hero_y { 1 } else { -1 };
+          motion::stagger(mv.motion, now, kx, ky, 0, 0, e.face_x, e.face_y);
+        }
+      }
+    }
+    kept += [mv];
+  }
+  g.movers = kept;
+}
+
 /// Draw the frame on `g.surface`, each cell at its light.  What the hero sees depends on where
 /// it stands: on a layer above another, the one below and its own over it; under the open sky,
 /// its own and the layer above (a ledge, drawn lighter); under a ceiling, only its own.
@@ -979,6 +1036,7 @@ pub fn draw(g: Game) {
     draw_editor(g);
     return;
   }
+  follow_enemies(g);
   tiles::clear(g.surface, 0);
   w = g.world;
   z = w.hero_z;

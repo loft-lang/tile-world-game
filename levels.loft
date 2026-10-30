@@ -14,6 +14,7 @@
 //     "tiles": [ [3, 4, 0, 12] ],
 //     "edges": [ [2, 1, 0, "N", "wall"], [3, 1, 0, "W", "door"] ],
 //     "rises": [ [5, 5, 0, 2] ],
+//     "enemies": [ ["rat", 7, 3, 0] ],
 //     "start": [1, 1, 0],
 //     "goal": { "type": "layer", "z": 1 }
 //   }
@@ -163,6 +164,12 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   for i in 0..rises.len() {
     r = rises.item(i);
     tile_world::set_rise(l.w, num(r.item(0), 0), num(r.item(1), 0), num(r.item(2), 0), num(r.item(3), 0));
+  }
+  // Enemies, each at its nest (a level without any writes no `enemies`).
+  ens = v.field("enemies");
+  for i in 0..ens.len() {
+    e = ens.item(i);
+    _ = rules::add_enemy(l, e.item(0).as_text(), num(e.item(1), 0), num(e.item(2), 0), num(e.item(3), 0));
   }
   st = v.field("start");
   sx = num(st.item(0), 0);
@@ -375,7 +382,18 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     out += "[{r.0}, {r.1}, {r.2}, {r.3}]";
     first = false;
   }
-  out += " ],\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
+  out += " ],";
+  if len(l.enemies) > 0 {
+    out += "\n  \"enemies\": [";
+    first = true;
+    for e in l.enemies {
+      out += if first { " " } else { ", " };
+      out += "[{quoted(e.kind)}, {e.nest_x}, {e.nest_y}, {e.nest_z}]";
+      first = false;
+    }
+    out += " ],";
+  }
+  out += "\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
   g = lf.goal;
   if g.kind == "layer" {
     out += "{{ \"type\": \"layer\", \"z\": {g.z} }}";
