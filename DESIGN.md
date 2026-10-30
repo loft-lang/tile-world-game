@@ -94,6 +94,22 @@ This is what the game built on tile_world should be.
     hero steps onto its first cart (height 1), so a stuck train is a walkway, not a wall.
   - A green potion gives +2 to both for 60 s of the world clock. It is used by walking over it
     (slice 1).
+- **Rolling carts (proposed, not built).**  Rails can lie on a slope; a cart on one rolls down by
+  itself, on the world clock, so every run is the same at the same times.
+  - **Rails on slopes.**  A rail cell keeps its rise (0..3); a cart moves between rail cells whose
+    rise differs by at most one step, and from a slope's top (3) onto the rail of the layer
+    above, as the hero does.
+  - **Speed.**  A train has a speed, 0 to 4.  Each step down adds one, up to 4; each step up takes
+    two; on the flat it loses one every 2 cells, so at 4 it coasts 8 cells before it stops.  At
+    speed n it moves a cell every 600 / n ms (kinds.json numbers, to tune).  A cart standing at
+    the top of a downward step starts rolling on its own; one stopped on an upward step rolls
+    back.
+  - **A train rolls as one**, at the speed its front cart sets.
+  - **Riding.**  The hero standing on a cart rolls with it, and can step off sideways at any time.
+  - **Pushing uphill** costs double: a step up counts each cart twice against the strength.
+  - **In the way.**  Light items on the rails ahead are pushed out of the way as by any push
+    (aside, falling, destroyed).  What a rolling train does when it meets a stone, a standing
+    train, the rails' end or the hero is open (the questions to the owner).
 - **Stones (rocks), anvils and tar barrels.** Pushed only, never pulled, and never by a cart or
   another stone. On the rails they block trains (slice 1).  A stone and a tar barrel are big
   things (height 2, stood on); an anvil is not (height 1, items roll off it).
