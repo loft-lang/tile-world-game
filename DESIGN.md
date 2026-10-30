@@ -31,7 +31,8 @@ This is what the game built on tile_world should be.
   heights do not come from the start: a dungeon's first drops are shallow, deeper ones further in.
   Special potions, and later stat growth, give the hero temporary hitpoints (owner): health above
   the start's 6, to survive more hazardous situations — never needed (growth is never necessary).
-  Open: whether they are lost first when hit, and whether they fade with time.
+  They are lost first when the hero is hit, and do not fade with time (owner).  Later, sleep and a
+  day-night cycle clear them, and lingering ailments with them (owner, planned).
   A blast pushes the hero over a ledge, and the fall's cost adds to the blast's (owner): a rule
   that stays, and one the level designer keeps in mind — a bomb, or a cart at speed, beside a
   ledge is a level's choice to make deadly or not.
