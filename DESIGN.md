@@ -393,6 +393,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     rolling bombs as any obstacle does.
   - Level files list them (`enemies`, each at its nest); the game draws them as figures (§ Figures):
     a step hobbles, a blow staggers it, a bite lunges at the hero.
+- **Caught in light, a rat gets out of it**: in a torch's light with a dark cell within 4 steps,
+  it walks to the dark (proposed; a rat lit by daylight, with no dark near, carries on).
 - **Built: step 2** (`tests/enemies.loft`; numbers and the marked choices proposed).
   - **Rats keep to the dark.**  A rat standing in the dark takes a dark way (no cell at shade 2 or
     less) when one is at most twice as long; it does not come into light to chase the hero, so a

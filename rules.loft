@@ -2042,15 +2042,26 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
 // --- Playing ---
 
 /// Play a line of moves: `w` `a` `s` `d` walk north, west, south and east; `pw` `pa` `ps` `pd`
-/// pull; `x` puts down what the hero holds.  Moves are separated by spaces; anything else is
-/// skipped.  Answers how many moves were
-/// not Blocked.
+/// pull; `x` puts down what the hero holds; `f` uses it (shoots a bow, throws a bomb, swings a
+/// weapon); `~N` lets N ms of the world clock pass.  Moves are separated by spaces; anything else
+/// is skipped.  Answers how many moves were not Blocked.
 pub fn play(l: Level, moves: text) -> integer {
   done = 0;
   for m in moves.split(' ') {
     t = m.trim();
     if t == "x" {
       if drop(l) != Step.Blocked { done += 1; }
+      continue;
+    }
+    // `~N`: N ms of the world clock pass (rolling, burning, enemies acting).
+    if t.starts_with("~") {
+      tick(l, t[1..] as integer ?? 0);
+      continue;
+    }
+    // `f`: use what the hero holds — shoot a bow, throw a bomb, swing a weapon.
+    if t == "f" {
+      st = if armed_with_bow(l) { shoot(l) } else if is_bomb(l, l.hero_item) { throw(l) } else { swing(l) };
+      if st != Step.Blocked { done += 1; }
       continue;
     }
     pulling = t.starts_with("p");
@@ -3144,6 +3155,36 @@ fn chosen_way(l: const Level, p: const EnemyProps, e: const Enemy, gx: integer, 
   if has_to { w } else { (0, 0, -1) }
 }
 
+// For an enemy standing in light: the first step of the shortest way to a dark cell (shade 3 or
+// more) within 4 steps, and its length; (0, 0, -1) when it stands in the dark already, or no dark
+// is that near (daylight).
+fn way_to_dark(l: const Level, p: const EnemyProps, e: const Enemy) -> (integer, integer, integer) {
+  s = shades_round(l, e.x, e.y, e.z, 6);
+  if !lit_cell(s, e.x, e.y) { return (0, 0, -1); }
+  cells: vector<(integer, integer, integer, integer)> = [(e.x, e.y, -1, 0)];
+  i = 0;
+  while i < len(cells) {
+    c = cells[i] ?? (e.x, e.y, -1, 0);
+    if c.3 >= 4 { i += 1; continue; }
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      seen = false;
+      for o in cells { if o.0 == nx && o.1 == ny { seen = true; } }
+      if seen || !enemy_can(l, p, c.0, c.1, e.z, d.0, d.1) { continue; }
+      cells += [(nx, ny, i, c.3 + 1)];
+      if !lit_cell(s, nx, ny) {
+        j = len(cells) - 1;
+        while (cells[j] ?? (e.x, e.y, -1, 0)).2 > 0 { j = (cells[j] ?? (e.x, e.y, 0, 0)).2; }
+        f = cells[j] ?? (e.x, e.y, -1, 0);
+        return (f.0 - e.x, f.1 - e.y, c.3 + 1);
+      }
+    }
+    i += 1;
+  }
+  (0, 0, -1)
+}
+
 // Does enemy e see the hero: on its layer, within its sight, nothing opaque between?
 fn sees_hero(l: const Level, e: const Enemy, sight: integer) -> boolean {
   e.z == l.hero_z && alive(l) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= sight
@@ -3242,6 +3283,15 @@ fn enemy_act(l: Level, i: integer) {
     }
     l.enemies[i].due = e.due + p.chase_ms;
     return;
+  }
+  // Caught in light with dark near (a torch came close): a light-shunning enemy gets out of it,
+  // back into the dark.  In daylight, with no dark near, it carries on.
+  if p.shuns_light && e.hp == p.hp {
+    out = way_to_dark(l, p, e);
+    if out.2 > 0 {
+      enemy_step(l, i, out.0, out.1, p.chase_ms);
+      return;
+    }
   }
   if e.hp < p.hp {
     // Hurt.  Beside the hero with a step away from it, it takes it; at its nest it heals.

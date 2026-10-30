@@ -172,3 +172,22 @@ fn test_enemies_load_and_save() {
   assert(len(e) == 2 && (e[0]).kind == "rat" && (e[0]).x == 3 && (e[1]).y == 2, "two rats at their nests");
   assert(levels::save(lf) == with, "saves to the same text");
 }
+
+// The old mine: the hero takes the burning torch from the plateau's socket, goes down the ramp
+// into the dark hall at a walking pace — the world running: the rats see the hero but keep out of
+// the torch's light, while the bat, drawn to it, flies out over the water and meets the hero on the
+// rails at (10, 3): it bites once, and the next step into it is a blow that ends it — and opens
+// the chest.
+fn test_the_old_mine_plays_to_its_goal() {
+  lf = level("the_old_mine");
+  l = lf.level;
+  rules::tick(l, 0);
+  assert(!levels::solved(lf, l), "not at the start");
+  rules::play(l, "w w");
+  assert(l.hero_item == rules::th(l, "burning_torch"), "the torch from the socket: {rules::thing_name(l.k, l.hero_item)} at {l.hero_x},{l.hero_y},{l.hero_z}\n{rules::view(l, -1, -1, 16, 8, 1)}");
+  rules::play(l, "~150 s ~150 d ~150 d ~150 s ~150 d ~150 d ~150 d ~150 d");
+  assert(l.hero_z == 0 && l.hero_x == 8 && l.hero_y == 3, "down the ramp: {l.hero_x},{l.hero_y},{l.hero_z}\n{rules::view(l, -1, -1, 16, 8, 0)}");
+  rules::play(l, "~150 d ~150 d ~150 d ~150 d ~150 d ~150 w ~150 d ~150 d ~150 w");
+  assert(len(l.enemies) == 2 && l.killed == 1, "the bat ended, the rats kept off");
+  assert(levels::solved(lf, l) && l.health == 5, "the chest, bitten once (the bat): {l.hero_x},{l.hero_y} health {l.health}\n{rules::view(l, -1, -1, 16, 8, 0)}");
+}

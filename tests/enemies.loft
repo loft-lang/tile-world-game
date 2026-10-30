@@ -342,3 +342,23 @@ fn test_a_bat_drifts_towards_light() {
   unlit = bat_mean_x(false);
   assert(lit > unlit + 1, "lit mean x {lit}, unlit {unlit}");
 }
+
+// Caught in a torch's light with dark near, a rat gets out of it: the hero with a torch on x 2, the
+// rat on x 4 (shade 2, lit), its nest on x 4.  At its first act (600) it steps east into the dark,
+// to x 5 (shade 3), and never bites.  In daylight (no ceiling) the same rat comes at the hero.
+fn test_a_rat_caught_in_light_gets_out_of_it() {
+  w = dark(10, 1);
+  torchbearer(w, 2, 0);
+  _ = rules::add_enemy(w, "rat", 4, 0, 0);
+  until(w, 600);
+  assert(rat(w) == "x5 y0 hp3", "600: out of the light: {rat(w)}");
+  until(w, 10000);
+  assert(w.health == 6, "never bitten: {w.health}");
+  v = room(10, 1);
+  rules::put_hero(v, 2, 0, 0);
+  v.hero_item = rules::th(v, "burning_torch");
+  v.hero_until = v.k.burn_ms;
+  _ = rules::add_enemy(v, "rat", 4, 0, 0);
+  until(v, 3000);
+  assert(v.health < 6, "in daylight it bites: {v.health}");
+}

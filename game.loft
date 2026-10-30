@@ -459,10 +459,11 @@ fn aim(g: Game) {
   rows = ROWS - 1;
   if g.file.camera == "rooms" {
     g.cam_x = camera::rooms(w.hero_x, COLS, g.area.0);
-    g.cam_y = camera::rooms(w.hero_y - w.hero_z, rows, g.area.1);
+    g.cam_y = camera::rooms(w.hero_y - w.hero_z, rows, g.area.1 - w.hero_z);
   } else {
     g.cam_x = camera::follow(g.cam_x, w.hero_x, COLS, g.area.0, g.area.2);
-    g.cam_y = camera::follow(g.cam_y, w.hero_y - w.hero_z, rows, g.area.1, g.area.3);
+    // A raised layer is drawn a row up per layer: the view may go that much higher.
+    g.cam_y = camera::follow(g.cam_y, w.hero_y - w.hero_z, rows, g.area.1 - w.hero_z, g.area.3);
   }
 }
 
@@ -840,7 +841,8 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
     theme::put_ground(g.surface, own, px, py, lift, dark);
     if base < 0 { base = own; }
   }
-  // The bank: from this cell's bottom edge down to the top edge of the ground south of it.
+  // The bank: from this cell's bottom edge down to the top edge of the ground south of it — or,
+  // with no ground there (a wall, the void), down to its own base.
   south = (y + 1 - gr.y0) * gr.w + (x - gr.x0);
   if base >= 0 && (gr.has[south] ?? false) {
     sl = corner(gr, x, y + 1, 0, 0, dim);
@@ -849,6 +851,8 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
       theme::put_ground(g.surface, base, px, py + ts, (bl.0, br.0, ts + sl.0, ts + sr.0),
                         (bl.1 + 32, br.1 + 32, sl.1 + 32, sr.1 + 32));
     }
+  } else if base >= 0 && (bl.0 > 0 || br.0 > 0) {
+    theme::put_ground(g.surface, base, px, py + ts, (bl.0, br.0, ts, ts), (bl.1 + 32, br.1 + 32, bl.1 + 32, br.1 + 32));
   }
 }
 
