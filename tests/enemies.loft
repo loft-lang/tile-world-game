@@ -168,3 +168,177 @@ fn test_a_blast_strikes_rats() {
   until(w, 100);
   assert(w.killed == 1 && len(w.enemies) == 1 && (w.enemies[0]).hp == 1, "one gone, one hurt");
 }
+
+// --- Step 2: light, bats, spiders, scares, the well, guards ---
+
+// A dark room: as room(), with a ceiling (the layer above set), so no daylight; flames don't
+// flicker.
+fn dark(n: integer, rows: integer) -> rules::Level {
+  w = room(n, rows);
+  tile_world::fill(w.w, -1, -1, n, rows, 1, rules::tr(w, "floor"));
+  w.k.flicker_odds = 0;
+  w
+}
+
+// The hero on (x, y) holding a burning torch with its whole time.
+fn torchbearer(w: rules::Level, x: integer, y: integer) {
+  rules::put_hero(w, x, y, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.k.burn_ms;
+}
+
+// A rat keeps out of a torch's light: the hero on x 1 holds one, lighting x 1 .. 3 (shade 0 .. 2);
+// the rat on x 6 sees the hero but has no dark way to it, so it never comes nearer than x 4 and
+// never bites, in 20 s.  Without the torch it comes and bites.
+fn test_a_rat_keeps_out_of_a_torchs_light() {
+  w = dark(10, 1);
+  torchbearer(w, 1, 0);
+  _ = rules::add_enemy(w, "rat", 6, 0, 0);
+  nearest = 9;
+  for t in 1..201 {
+    until(w, t * 100);
+    if (w.enemies[0]).x < nearest { nearest = (w.enemies[0]).x; }
+  }
+  assert(nearest >= 4 && w.health == 6, "it came to x {nearest}; health {w.health}");
+  v = dark(10, 1);
+  rules::put_hero(v, 1, 0, 0);
+  _ = rules::add_enemy(v, "rat", 6, 0, 0);
+  until(v, 20000);
+  assert(v.health < 6, "unlit, it bites: {v.health}");
+}
+
+// Hurt, a rat crosses light when it has to: three rows, the hero with a torch on (3, 2), the rat on
+// (1, 0) with its nest on (8, 0).  Every way home passes (3, 0), 2 from the torch (lit), so there
+// is no dark way: it goes anyway — east, to (2, 0).
+fn test_a_hurt_rat_crosses_light_to_get_home() {
+  w = dark(10, 3);
+  torchbearer(w, 3, 2);
+  _ = rules::add_enemy(w, "rat", 8, 0, 0);
+  w.enemies[0].x = 1;
+  w.enemies[0].hp = 1;
+  w.enemies[0].due = 100;
+  until(w, 100);
+  assert(rat(w) == "x2 y0 hp1", "towards home through the light: {rat(w)}");
+}
+
+// A bat drifts to the brightest step, flies over water, never onto a flame: water down x 3, a
+// burning torch lying on (5, 1), the bat's nest on (2, 1).  At 300 it takes the brightest step,
+// east onto the water (3, 1); at 600 east again to (4, 1); the torch's own cell it never enters.
+fn test_a_bat_drifts_to_light_over_water() {
+  w = dark(8, 3);
+  tile_world::fill(w.w, 3, 0, 3, 2, 0, rules::tr(w, "water"));
+  tile_world::place(w.w, 5, 1, 0, rules::th(w, "burning_torch"));
+  rules::put_hero(w, 0, 0, 2);
+  rules::tick(w, 0);
+  _ = rules::add_enemy(w, "bat", 2, 1, 0);
+  until(w, 300);
+  assert(rat(w) == "x3 y1 hp1", "300: over the water: {rat(w)}");
+  until(w, 600);
+  assert(rat(w) == "x4 y1 hp1", "600: {rat(w)}");
+  on_flame = false;
+  for t in 7..200 {
+    until(w, t * 100);
+    if (w.enemies[0]).x == 5 && (w.enemies[0]).y == 1 { on_flame = true; }
+  }
+  assert(!on_flame, "never onto the flame");
+}
+
+// A spider climbs walls, out of the sword's reach: hurt on x 0 of a row cut by a wall on x 2, its
+// nest on x 4, it goes home over the wall — x 1 at 100, onto the wall at 450, x 3 at 800.  On the
+// wall beside the hero, the hero's walk into it is blocked, the spider untouched.
+fn test_a_spider_climbs_over_a_wall() {
+  w = room(6, 1);
+  tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "wall"));
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "spider", 4, 0, 0);
+  w.enemies[0].x = 0;
+  w.enemies[0].hp = 1;
+  w.enemies[0].due = 100;
+  until(w, 100);
+  assert(rat(w) == "x1 y0 hp1", "100: {rat(w)}");
+  until(w, 450);
+  assert(rat(w) == "x2 y0 hp1", "450: up on the wall: {rat(w)}");
+  until(w, 800);
+  assert(rat(w) == "x3 y0 hp1", "800: over it: {rat(w)}");
+  v = room(6, 1);
+  tile_world::set_terrain(v.w, 2, 0, 0, rules::tr(v, "wall"));
+  rules::put_hero(v, 1, 0, 0);
+  _ = rules::add_enemy(v, "spider", 2, 0, 0);
+  v.hero_item = rules::th(v, "sword");
+  assert(rules::walk(v, 1, 0) == rules::Step.Blocked && rat(v) == "x2 y0 hp2", "out of reach: {rat(v)}");
+}
+
+// A blast scares a rat that hears it: its nest on x 5 of a row x 0 .. 11, a bomb on x 0 going off
+// at 100 (5 away: heard, out of reach).  It flees east a cell every 350 ms from its first act at
+// 600 — x 11 at 2350 — and waits there; scared until 5100, at 5150 it walks home at its wander's
+// pace: x 10 at 5150, x 9 at 5750, x 8 at 6350 — back within its roam.
+fn test_a_blast_scares_a_rat_away_and_it_comes_back() {
+  w = room(12, 1);
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "rat", 5, 0, 0);
+  tile_world::place(w.w, 0, 0, 0, rules::th(w, "bomb"));
+  w.fuses += [rules::Fuse { x: 0, y: 0, z: 0, held: false, at: 100 }];
+  until(w, 2350);
+  assert(rat(w) == "x11 y0 hp3", "2350: fled to the end: {rat(w)}");
+  until(w, 5149);
+  assert(rat(w) == "x11 y0 hp3", "5149: still away: {rat(w)}");
+  until(w, 5150);
+  assert(rat(w) == "x10 y0 hp3", "5150: heading home: {rat(w)}");
+  until(w, 6350);
+  assert(rat(w) == "x8 y0 hp3", "6350: within its roam: {rat(w)}");
+}
+
+// A well gives no water while an enemy is near in sight: the hero on x 1 beside the well on x 0, a
+// rat on x 6 — Watched; behind a wall on x 4, out of sight — Saved.
+fn test_a_well_saves_only_when_the_area_is_clear() {
+  w = room(10, 1);
+  tile_world::set_terrain(w.w, 0, 0, 0, rules::tr(w, "well"));
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 6, 0, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Watched, "a rat in sight: no water");
+  tile_world::set_terrain(w.w, 4, 0, 0, rules::tr(w, "wall"));
+  assert(rules::walk(w, -1, 0) == rules::Step.Saved, "out of sight: saved");
+}
+
+// A guard blocks and steps aside only when the area is clear: on (3, 1) of three rows, the hero on
+// (2, 1) walks into it — blocked.  A rat in sight on (5, 0): at 1000 the guard still stands.  The
+// rat gone, at its next turn it steps to the side its place prefers, and the way is open.
+fn test_a_guard_steps_aside_when_the_area_is_clear() {
+  w = room(7, 3);
+  rules::put_hero(w, 2, 1, 0);
+  _ = rules::add_enemy(w, "guard", 3, 1, 0);
+  _ = rules::add_enemy(w, "rat", 5, 0, 0);
+  w.enemies[1].due = 100000;
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && w.hero_x == 2, "blocked");
+  until(w, 1000);
+  assert((w.enemies[0]).x == 3 && (w.enemies[0]).y == 1, "a rat in sight: it stands");
+  _ = w.enemies.remove(1);
+  until(w, 1500);
+  side = if rules::prefers_right(3, 1, 0) { 2 } else { 0 };
+  g = w.enemies[0];
+  assert(g.x == 3 && g.y == side, "stepped aside to (3, {side}): ({g.x}, {g.y})");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 3, "the way is open");
+}
+
+// A bat drifts towards light: the same bat (nest (4, 1), roaming 5) in a dark 14 x 3 room, with a
+// burning torch lying on (9, 1) and without one.  Over 30 s, sampled every 100 ms, the lit bat's
+// mean x is more than a cell nearer the torch than the unlit one's.
+fn bat_mean_x(lit: boolean) -> integer {
+  w = dark(14, 3);
+  if lit { tile_world::place(w.w, 9, 1, 0, rules::th(w, "burning_torch")); }
+  rules::put_hero(w, 0, 0, 2);
+  rules::tick(w, 0);
+  _ = rules::add_enemy(w, "bat", 4, 1, 0);
+  sum = 0;
+  for t in 1..301 {
+    until(w, t * 100);
+    sum += (w.enemies[0]).x;
+  }
+  sum / 300 ?? 0
+}
+
+fn test_a_bat_drifts_towards_light() {
+  lit = bat_mean_x(true);
+  unlit = bat_mean_x(false);
+  assert(lit > unlit + 1, "lit mean x {lit}, unlit {unlit}");
+}

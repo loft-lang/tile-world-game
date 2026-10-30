@@ -380,8 +380,22 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     rolling bombs as any obstacle does.
   - Level files list them (`enemies`, each at its nest); the game draws them as figures (§ Figures):
     a step hobbles, a blow staggers it, a bite lunges at the hero.
-  - Not built yet: light (rats shun it, bats are drawn to it), bats and spiders, blasts scaring,
-    the well's clear area, guards.
+- **Built: step 2** (`tests/enemies.loft`; numbers and the marked choices proposed).
+  - **Rats keep to the dark.**  A rat standing in the dark takes a dark way (no cell at shade 2 or
+    less) when one is at most twice as long; it does not come into light to chase the hero, so a
+    torch keeps rats off.  Going home hurt it crosses light when it has to.  A rat already in light
+    (daylight, a torch beside it) has nothing to shun.
+  - **Bats** (health 1, quick): they fly over water; wandering, they take the brightest step,
+    never back where they just came from and never onto a flame — so they drift towards light.
+  - **Spiders** (health 2): they climb rough walls (walls are rough); on a wall a sword cannot reach
+    them (the bow will).  Not built: fleeing to another level through openings.
+  - **A blast scares** every ordinary enemy within 8 cells on its layer: it flees the place for
+    5 s, as far as it can step, then walks home.  Any enemy outside its roam walks home.
+  - **Wells**: water only when no enemy is within 10 cells in sight of the hero (Step.Watched,
+    heard as a bump).  Darkness does not hide an enemy yet — the owner's ruling, to try in play.
+  - **Guards** stand, block (walking into one is blocked, a blow does nothing, a blast spares it),
+    and step aside — the side the place prefers — when the hero is beside them and the area is
+    clear; they do not count against a well.
 - **Explosions scare them** (owner): an ordinary enemy that hears a blast flees, even from its
   nest, and returns to its nest after a while.  Open: how far a blast is heard, how long they stay
   away.  A fleeing enemy still in sight counts for a well's clear area (§ Guards, doors and wells).

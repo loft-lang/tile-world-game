@@ -273,7 +273,7 @@ pub fn restart(g: Game) {
 // The sound a move makes, from what stood where the hero went before it moved.
 fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
   w = g.world;
-  if step == rules::Step.Blocked {
+  if step == rules::Step.Blocked || step == rules::Step.Watched {
     sound(g, "bump", 0.5);
   } else if step == rules::Step.Took {
     sound(g, "pickup");

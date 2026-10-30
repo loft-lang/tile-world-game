@@ -14,11 +14,11 @@
     "flicker_odds": 4,
     "roll_ms": 600,
     "max_speed": 4,
-    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300
+    "coast": 2, "bomb_coast": 4, "blast_radius": 3, "ripple_ms": 150, "throw_speed": 4, "bomb_fall": 2, "flash_ms": 300, "hear_blast": 8, "scare_ms": 5000, "clear_area": 10
   },
   "terrain": {
     "floor": { "id": 1, "walk": true, "glyph": "." },
-    "wall":  { "id": 2, "opaque": true, "mount": true, "glyph": "#" },
+    "wall":  { "id": 2, "opaque": true, "mount": true, "rough": true, "glyph": "#" },
     "water": { "id": 3, "glyph": "~", "water": true },
     "rail":  { "id": 4, "walk": true, "rail": true, "glyph": "=" },
     "tree":  { "id": 5, "chopped_to": "floor", "hits": 4, "drops": "stick", "glyph": "^" },
@@ -59,6 +59,9 @@
     "lever_turn": { "id": 20, "height": 1, "switches_to": "lever_straight", "glyph": "r" }
   },
   "enemies": {
-    "rat": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 350, "bite_ms": 900, "sight": 5, "roam": 3, "heal_ms": 4000 }
+    "rat": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 350, "bite_ms": 900, "sight": 5, "roam": 3, "heal_ms": 4000, "shuns_light": true },
+    "bat": { "hp": 1, "bite": 1, "move_ms": 300, "chase_ms": 250, "bite_ms": 900, "sight": 4, "roam": 5, "heal_ms": 4000, "flies": true, "likes_light": true },
+    "spider": { "hp": 2, "bite": 1, "move_ms": 500, "chase_ms": 350, "bite_ms": 1000, "sight": 5, "roam": 3, "heal_ms": 4000, "climbs": true },
+    "guard": { "hp": 1, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "guard": true }
   }
 }
