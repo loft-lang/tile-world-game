@@ -119,8 +119,11 @@ This is what the game built on tile_world should be.
   - **Carts that meet link together** and roll on as one train, sharing a combined slower
     speed: the momentum shared over the carts, each counting once (rounded down, proposed) — a
     train of two at 4 meeting one standing cart rolls on at 2.
-  - **Open:** a rolling train meeting the hero (stop before it, or knock it aside for health);
-    what counts as "something after the end" (any thing or wall, proposed).
+  - **A rolling cart hurts the hero** it meets, pushing it aside — a cart on a slope doubles as a
+    trap.  Proposed: it costs the cart's speed in health (1..4; a three-layer fall is 6); the hero
+    goes to the side the place prefers, then the other, and with no room either side it is thrown
+    on ahead along the track and the cart stops.
+  - **Open:** what counts as "something after the end" (any thing or wall, proposed).
   - **Already built** that carts keep: they carry an item, are climbed when they cannot move, and
     light items on the rails ahead are pushed out of the way.
 - **Stones (rocks), anvils and tar barrels.** Pushed only, never pulled, and never by a cart or
