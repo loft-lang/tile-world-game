@@ -1,0 +1,40 @@
+// A scene to look at how slopes draw: rails up a slope running east-west (y 2, rising west) and
+// north-south (x 9, rising north), a cart on each, the hero riding the east-west one.
+//
+//   loft --lib libs tools/look.loft OUT.png      writes the frame, 4x
+use tile_world;
+use rules;
+use game;
+
+fn main() {
+  out = if len(arguments()) > 0 { arguments()[len(arguments()) - 1] } else { "look.png" };
+  m = game::new_game("..");
+  if !m { println("the game does not load"); exit(1); }
+  g = m;
+  game::start_level(g, 0);
+  w = g.world;
+  floor = rules::tr(w, "floor");
+  rail = rules::tr(w, "rail");
+  for c in tile_world::stacks(w.w) {
+    while tile_world::top(w.w, c.0, c.1, c.2) != 0 { _ = tile_world::take(w.w, c.0, c.1, c.2); }
+  }
+  for z in 0..3 { tile_world::fill(w.w, -2, -2, 16, 12, z, tile_world::VOID); }
+  tile_world::fill(w.w, -1, -1, 13, 9, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 12, 8, 0, floor);
+  tile_world::fill(w.w, 1, 2, 7, 2, 0, rail);
+  tile_world::set_rise(w.w, 1, 2, 0, 3);
+  tile_world::set_rise(w.w, 2, 2, 0, 2);
+  tile_world::set_rise(w.w, 3, 2, 0, 1);
+  tile_world::fill(w.w, 9, 1, 9, 7, 0, rail);
+  tile_world::set_rise(w.w, 9, 1, 0, 3);
+  tile_world::set_rise(w.w, 9, 2, 0, 2);
+  tile_world::set_rise(w.w, 9, 3, 0, 1);
+  tile_world::place(w.w, 2, 2, 0, rules::th(w, "cart"));
+  tile_world::place(w.w, 9, 2, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 2, 2, 0);
+  g.cam_x = 0;
+  g.cam_y = 0;
+  game::draw(g);
+  if !game::snapshot(g, out, 4) { println("could not write {out}"); exit(1); }
+  println("{out}: hero h {w.hero_h}");
+}
