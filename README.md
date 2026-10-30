@@ -60,6 +60,7 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |
 | `ART.md` | the game's own sheet: its layout, its style, how a tile is drawn |
+| `INTERACTIONS.md` | where the rules meet: what needs a ruling, what could be unfair, and the puzzles it opens |
 | `assets/art/world/` | the own sheet's sources: a tile as 16 lines of letters, its larger drawing in `large/` |
 | `tools/` | `sheet.loft` builds `tile-world.png` from those sources (`check`: does the committed sheet match them?), `reduce.loft` turns a larger drawing into a tile, `present.loft` draws the sheet beside Kenney's |
 | `fetch-libs.sh` | fetches the libraries into `libs/` from their repositories, until they are all published |
