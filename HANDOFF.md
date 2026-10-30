@@ -81,8 +81,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    enemies' moves (with the enemies).
 6. **The fading light** — built: a torch's light fades 4 shades over its ten minutes (the
    warning).  It needs **tile_world 0.6.0** (`shades(..., lights, start)`, loft-libs-world#40,
-   auto-merge armed): until that merges, `./fetch-libs.sh` fetches 0.5.0 and the game does not
-   compile — copy `~/workspace/loft-libs-world-dim/tile_world` into `libs/` meanwhile.  Owner
+   merged): `./fetch-libs.sh` fetches it.  Owner
    2026-10-30: light is a bonus, never a wall (the semi-dark is always playable; no permanent
    flame needed); cyclopes later make darkness worth seeking (stealth).
 7. **One item a cell** (DESIGN.md § Moving things) — built: items are pushed out of the way,
