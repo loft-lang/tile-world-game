@@ -88,7 +88,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1"]
 }
 
 fn bindings() -> input::Bindings {
@@ -248,6 +248,10 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "pickup");
   } else if step == rules::Step.Chopped {
     sound(g, "chop");
+  } else if step == rules::Step.Dipped {
+    sound(g, "potion");
+  } else if step == rules::Step.Lit {
+    sound(g, "point");
   } else if step == rules::Step.Opened {
     sound(g, if thing == 0 { "door_open" } else { "chest_open" });
   } else if step == rules::Step.Fell {
@@ -497,7 +501,17 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   }
   if g.editing { return update_editor(g, now); }
   changed = false;
+  frame = g.world.now / theme::FRAME_MS;
+  held = g.world.hero_item;
+  flames = len(g.world.flames);
   rules::tick(g.world, ms);
+  // A flame flickers (its next frame), burns low or burns out: the picture moves.
+  if rules::burning(g.world) && g.world.now / theme::FRAME_MS != frame { changed = true; }
+  if len(g.world.flames) != flames { changed = true; }
+  if held != g.world.hero_item {
+    sound(g, "weak");
+    changed = true;
+  }
   boosted = rules::boosted(g.world);
   if g.was_boosted && !boosted { sound(g, "weak"); changed = true; }
   if g.was_boosted != boosted { changed = true; }
@@ -549,16 +563,31 @@ fn draw_cell(g: Game, w: const rules::Level, x: integer, y: integer, z: integer,
     own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
     theme::put(g.surface, if own >= 0 { own } else { theme::terrain_sprite(g.look, k, x, y, upper) }, px, py, shade);
   }
-  // The stack, bottom first, each thing lifted by the height under it (4 pixels a step).
+  // The stack, bottom first, each thing lifted by the height under it (4 pixels a step).  A
+  // thing that holds another (a socket and its torch) is one picture when the theme has it; a
+  // flame shows its frame at the level's clock, and its low picture in its last minute.
   base = 0;
-  for t in tile_world::things(w.w, x, y, z) {
-    theme::put(g.surface, theme::thing_sprite(g.look, t), px, py - base * 4, shade);
+  st = tile_world::things(w.w, x, y, z);
+  low = rules::low(w, x, y, z);
+  i = 0;
+  while i < len(st) {
+    t = st[i] ?? 0;
+    both = theme::holding_sprite(g.look, t, st[i + 1] ?? 0, w.now, low);
+    if both >= 0 {
+      theme::put(g.surface, both, px, py - base * 4, shade);
+      base += rules::thing_height(w, t) + rules::thing_height(w, st[i + 1] ?? 0);
+      i += 2;
+      continue;
+    }
+    theme::put(g.surface, theme::thing_sprite_at(g.look, t, w.now, low), px, py - base * 4, shade);
     base += rules::thing_height(w, t);
+    i += 1;
   }
   if w.hero_x == x && w.hero_y == y && w.hero_z == z {
     theme::put(g.surface, g.look.hero, px, py - w.hero_h * 4, shade);
     if w.hero_item != 0 {
-      theme::put_carried(g.surface, g.look, w.hero_item, px, py - w.hero_h * 4, shade);
+      theme::put_carried(g.surface, g.look, w.hero_item, px, py - w.hero_h * 4, shade, w.now,
+                         rules::hero_low(w));
     }
   }
 }

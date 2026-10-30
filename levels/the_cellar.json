@@ -18,7 +18,7 @@
     ] }
   ],
   "things": [
-    { "at": [0, 1, 0], "stack": ["staff"] },
+    { "at": [0, 1, 0], "stack": ["socket", "staff"] },
     { "at": [5, 2, 0], "stack": ["rock"] }
   ],
   "tiles": [ ],

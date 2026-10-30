@@ -21,18 +21,37 @@ struct TerrainLook {
   along: integer
 }
 
+/// How a thing looks when it moves: its frames (one picture each, `FRAME_MS` apart — a flame's
+/// flicker) and, for a flame in its last part, its low picture (-1 for none).
+struct Frames {
+  frames: vector<integer>,
+  low: integer
+}
+
+/// What a thing that holds another (a socket) looks like holding `thing`: one picture for both.
+struct HeldLook {
+  thing: integer,
+  look: Frames
+}
+
 struct ThingLook {
   const id: integer,
   tile: integer,
+  look: Frames,
+  holding: vector<HeldLook>,
   sound: text
 }
 
 struct CarriedLook {
   const id: integer,
   tile: integer,
+  look: Frames,
   dx: integer,
   dy: integer
 }
+
+/// How long one frame of a moving thing shows, in milliseconds of the level's clock.
+pub const FRAME_MS = 250;
 
 struct Glyph {
   const ch: text,
@@ -65,6 +84,26 @@ fn num(v: const JsonValue, name: text, default: integer) -> integer {
 fn word(v: const JsonValue, name: text) -> text {
   f = v.field(name);
   if f.kind() == "JString" { f.as_text() } else { "" }
+}
+
+// The look a theme.json entry gives: a "sheet:tile" text, or an object with a "tile", or with
+// "frames" (and a "low") — `tile` is the first frame when there are no frames.
+fn frames_of(th: const Theme, e: const JsonValue) -> Frames {
+  if e.kind() == "JString" { return Frames { frames: [sprite(th, e.as_text())], low: -1 }; }
+  fs: vector<integer> = [];
+  f = e.field("frames");
+  for i in 0..f.len() { fs += [sprite(th, f.item(i).as_text())]; }
+  if len(fs) == 0 { fs += [sprite(th, word(e, "tile"))]; }
+  low = word(e, "low");
+  Frames { frames: fs, low: if low == "" { -1 } else { sprite(th, low) } }
+}
+
+// The picture of a look at the level's clock `now`, its low one when it burns low.
+fn pick(f: const Frames, now: integer, low: boolean) -> integer {
+  if low && f.low >= 0 { return f.low; }
+  n = len(f.frames);
+  if n == 0 { return -1; }
+  f.frames[(now / FRAME_MS) % n ?? 0] ?? -1
 }
 
 // "sheet:tile" as a sprite, -1 when the sheet is unknown or the text is not one.
@@ -125,13 +164,19 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     e = things.field(name);
     tile = if e.kind() == "JString" { sprite(th, e.as_text()) } else { sprite(th, word(e, "tile")) };
     sound = if e.kind() == "JString" { "" } else { word(e, "sound") };
-    th.things += [ThingLook { id: rules::thing_id(k, name), tile: tile, sound: sound }];
+    held: vector<HeldLook> = [];
+    hs = e.field("holding");
+    for held_name in hs.keys() {
+      held += [HeldLook { thing: rules::thing_id(k, held_name), look: frames_of(th, hs.field(held_name)) }];
+    }
+    th.things += [ThingLook { id: rules::thing_id(k, name), tile: tile, look: frames_of(th, e),
+                              holding: held, sound: sound }];
   }
   carried = v.field("carried");
   for name in carried.keys() {
     e = carried.field(name);
     th.carried += [CarriedLook {
-      id: rules::thing_id(k, name), tile: sprite(th, word(e, "tile")),
+      id: rules::thing_id(k, name), tile: sprite(th, word(e, "tile")), look: frames_of(th, e),
       dx: num(e, "dx", 0), dy: num(e, "dy", 0)
     }];
   }
@@ -192,6 +237,25 @@ pub fn thing_sprite(th: const Theme, thing: integer) -> integer {
   look.tile
 }
 
+/// The picture of thing `thing` at the level's clock `now` (its frame), its low one when it
+/// burns `low`; -1 when the theme has none.
+pub fn thing_sprite_at(th: const Theme, thing: integer, now: integer, low: boolean) -> integer {
+  look = th.things[thing];
+  if !look { return -1; }
+  pick(look.look, now, low)
+}
+
+/// The one picture of thing `holder` holding thing `held` (a socket with a torch in it) at
+/// `now`, its low one when what it holds burns `low`; -1 when the theme draws them apart.
+pub fn holding_sprite(th: const Theme, holder: integer, held: integer, now: integer, low: boolean) -> integer {
+  look = th.things[holder];
+  if !look || held == 0 { return -1; }
+  for h in look.holding ?? [] {
+    if h.thing == held { return pick(h.look, now, low); }
+  }
+  -1
+}
+
 /// The sound event moving thing `thing` makes, "" when the theme names none.
 pub fn thing_sound(th: const Theme, thing: integer) -> text {
   look = th.things[thing];
@@ -199,11 +263,13 @@ pub fn thing_sound(th: const Theme, thing: integer) -> text {
   look.sound
 }
 
-/// Draw what the hero carries (thing `thing`) beside the hero drawn at (px, py).
-pub fn put_carried(surface: integer, th: const Theme, thing: integer, px: integer, py: integer, shade: integer) {
+/// Draw what the hero carries (thing `thing`) beside the hero drawn at (px, py): its frame at
+/// the level's clock `now`, its low picture when it burns `low`.
+pub fn put_carried(surface: integer, th: const Theme, thing: integer, px: integer, py: integer, shade: integer,
+                   now: integer = 0, low: boolean = false) {
   look = th.carried[thing];
   if !look { return; }
-  put(surface, look.tile, px + look.dx, py + look.dy, shade);
+  put(surface, pick(look.look, now, low), px + look.dx, py + look.dy, shade);
 }
 
 /// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks

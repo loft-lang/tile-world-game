@@ -58,6 +58,25 @@ fn test_the_cellar_plays_to_its_goal() {
   assert(levels::solved(lf, l), "in the yard at {l.hero_x},{l.hero_y}");
 }
 
+// The torch room: the stick, dipped in the tar, lit at the socket by the start, hung in the
+// empty socket past the middle, and the chest opened at the far end.
+fn test_the_torch_room_plays_to_its_goal() {
+  lf = level("the_torch_room");
+  l = lf.level;
+  rules::tick(l, 0);
+  rules::play(l, "s d d d");
+  assert(l.hero_item == rules::th(l, "stick"), "the stick");
+  _ = rules::walk(l, 1, 0);
+  assert(rules::walk(l, 1, 0) == rules::Step.Dipped && l.hero_item == rules::th(l, "torch"), "dipped");
+  rules::play(l, "w w a a a");
+  assert(rules::walk(l, 0, -1) == rules::Step.Lit, "lit at the socket by the start");
+  rules::play(l, "d d d d d d d");
+  assert(rules::walk(l, 0, -1) == rules::Step.Placed && l.hero_item == 0, "hung at x 9");
+  assert(len(rules::carried_lights(l)) == 0 && rules::burning(l), "the room burns, the hands are free");
+  rules::play(l, "d d d d s d");
+  assert(levels::solved(lf, l), "the chest opened: at {l.hero_x},{l.hero_y}");
+}
+
 // Chunks at -1 (x -32 .. -1) and 1, layers -1 and 2, a three-thing stack, a tile number on one
 // cell, a name with a quote, and a cell goal.
 fn test_a_world_survives_a_round_trip() {

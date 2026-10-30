@@ -5,7 +5,8 @@
     "town": "assets/sheets/tiny-town.png",
     "farm": "assets/sheets/tiny-farm.png",
     "battle": "assets/sheets/tiny-battle.png",
-    "ski": "assets/sheets/tiny-ski.png"
+    "ski": "assets/sheets/tiny-ski.png",
+    "world": "assets/sheets/tile-world.png"
   },
   "font": {
     "sheet": "ski",
@@ -89,7 +90,27 @@
     "axe": "dungeon:118",
     "sword": "dungeon:104",
     "open_chest": "dungeon:91",
-    "signpost": "town:83"
+    "signpost": "town:83",
+    "stick": "world:0",
+    "torch": "world:1",
+    "burning_torch": {
+      "tile": "world:2",
+      "frames": ["world:2", "world:3"],
+      "low": "world:4"
+    },
+    "tar_barrel": "world:5",
+    "socket": {
+      "tile": "world:6",
+      "holding": {
+        "torch": "world:7",
+        "burning_torch": {
+          "frames": ["world:8", "world:9"],
+          "low": "world:10"
+        },
+        "stick": "world:11",
+        "staff": "world:12"
+      }
+    }
   },
   "categories": {
     "Outdoor": ["grass", "path", "tree", "fence"],
@@ -97,7 +118,8 @@
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall"],
     "Dungeon": ["floor", "wall", "rail", "well"],
-    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "signpost"]
+    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "staff", "chest", "axe", "sword", "signpost"],
+    "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"]
   },
   "materials": {
     "grass": {
@@ -157,6 +179,23 @@
     },
     "sword": {
       "tile": "dungeon:104",
+      "dx": 7,
+      "dy": -2
+    },
+    "stick": {
+      "tile": "world:0",
+      "dx": 7,
+      "dy": -2
+    },
+    "torch": {
+      "tile": "world:1",
+      "dx": 7,
+      "dy": -2
+    },
+    "burning_torch": {
+      "tile": "world:2",
+      "frames": ["world:2", "world:3"],
+      "low": "world:4",
       "dx": 7,
       "dy": -2
     }

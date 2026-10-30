@@ -1,0 +1,198 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Torches and light (DESIGN.md § Torches and light): tar turns a stick into a torch, a flame
+// lights a torch, a torch hangs only in a socket, and it burns ten minutes of the level's clock
+// wherever it is, then is a stick again.  The scene is light.loft's corridor: x 0 .. 6 at y 0
+// under a ceiling, walls all round (x -1 and x 7), light rows read from x -1 to x 7.
+use tile_world;
+use rules;
+
+fn corridor() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 7, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 6, 0, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, -1, -1, 7, 1, 1, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 0);
+  w
+}
+
+fn row(w: const rules::Level) -> text {
+  t = "";
+  for s in tile_world::shades(w.w, -1, 0, 7, 0, 0, rules::carried_lights(w)) { t += "{s},"; }
+  t
+}
+
+// The things on (x, 0, 0), bottom first, by name.
+fn stack(w: const rules::Level, x: integer) -> text {
+  t = "";
+  for s in tile_world::things(w.w, x, 0, 0) { t += "{rules::thing_name(w.k, s)},"; }
+  t
+}
+
+// A socket on the wall at (x, 0), holding `what` ("" for nothing).
+fn socket(w: rules::Level, x: integer, what: text) {
+  tile_world::place(w.w, x, 0, 0, rules::th(w, "socket"));
+  if what != "" { tile_world::place(w.w, x, 0, 0, rules::th(w, what)); }
+}
+
+fn main() {
+  w = corridor();
+  assert(row(w) == "7,7,7,7,7,7,7,7,7,", "dark: {row(w)}");
+}
+
+// Walking into the tar barrel with a stick dips it: a torch, the hero staying put.  The barrel
+// never moves, and with anything else (a torch, empty hands) it is just in the way.
+fn test_tar_turns_a_stick_into_a_torch() {
+  w = corridor();
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "stick"));
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "tar_barrel"));
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "stick"), "the stick");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Dipped, "dipped");
+  assert(w.hero_item == rules::th(w, "torch") && w.hero_x == 2, "a torch, the hero at x 2: {w.hero_x}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "a torch is not dipped again");
+  assert(rules::drop(w) == rules::Step.Placed, "put down");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "empty hands: the barrel is in the way");
+  assert(stack(w, 3) == "tar_barrel,", "the barrel never moved: {stack(w, 3)}");
+}
+
+// A torch hangs only in a socket: a bare wall takes nothing; the socket takes it, and gives it
+// back to an empty hand.
+fn test_a_torch_hangs_only_in_a_socket() {
+  w = corridor();
+  socket(w, -1, "");
+  w.hero_item = rules::th(w, "torch");
+  assert(rules::walk(w, 0, -1) == rules::Step.Blocked, "a bare wall");
+  assert(rules::walk(w, -1, 0) == rules::Step.Placed, "hung in the socket");
+  assert(w.hero_item == 0 && stack(w, -1) == "socket,torch,", "{stack(w, -1)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Took, "taken back");
+  assert(w.hero_item == rules::th(w, "torch") && stack(w, -1) == "socket,", "{stack(w, -1)}");
+}
+
+// A flame lights a torch both ways: the burning torch in the west socket lights the one the
+// hero holds; that one lights the torch in the east socket.  Each keeps burning, the hero
+// stays put.  Light: the west wall (0), the hero at x 6 (0) and the east wall (0).
+fn test_a_flame_lights_a_torch_both_ways() {
+  w = corridor();
+  socket(w, -1, "burning_torch");
+  socket(w, 7, "torch");
+  w.hero_item = rules::th(w, "torch");
+  assert(rules::walk(w, -1, 0) == rules::Step.Lit, "lit from the west socket");
+  assert(w.hero_item == rules::th(w, "burning_torch") && w.hero_x == 0, "burning, in place");
+  assert(w.hero_until == 600000, "ten minutes from now: {w.hero_until}");
+  assert(stack(w, -1) == "socket,burning_torch,", "the west one burns on: {stack(w, -1)}");
+  for _i in 0..6 { _ = rules::walk(w, 1, 0); }
+  assert(rules::walk(w, 1, 0) == rules::Step.Lit, "lights the east socket's torch");
+  assert(stack(w, 7) == "socket,burning_torch," && w.hero_item == rules::th(w, "burning_torch"),
+         "{stack(w, 7)}");
+  assert(row(w) == "0,1,2,3,3,2,1,0,0,", "{row(w)}");
+}
+
+// Lighting needs a flame on one side and a torch on the other: a torch to a torch, a stick to a
+// flame and the staff (a light, not a flame) to a torch all leave things as they were.
+fn test_lighting_needs_a_flame_and_a_torch() {
+  w = corridor();
+  socket(w, -1, "torch");
+  socket(w, 7, "burning_torch");
+  w.hero_item = rules::th(w, "torch");
+  assert(rules::walk(w, -1, 0) == rules::Step.Blocked, "torch to torch");
+  w.hero_item = rules::th(w, "staff");
+  assert(rules::walk(w, -1, 0) == rules::Step.Blocked, "the staff lights nothing");
+  rules::put_hero(w, 6, 0, 0);
+  w.hero_item = rules::th(w, "stick");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "a stick is not lit");
+  assert(stack(w, -1) == "socket,torch," && stack(w, 7) == "socket,burning_torch,", "unchanged");
+}
+
+// A torch lit at 0 burns until 10:00 whoever has it: held 4 minutes, on the floor 3, picked up
+// and hung in the east socket — low from 9:00, a stick in the socket at 10:00.  The burning
+// torch it was lit from, there when the clock started, burns out at 10:00 too.
+fn test_a_torch_burns_ten_minutes_wherever_it_is() {
+  w = corridor();
+  socket(w, -1, "burning_torch");
+  socket(w, 7, "");
+  w.hero_item = rules::th(w, "torch");
+  rules::tick(w, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Lit, "lit at 0");
+  rules::tick(w, 240000);
+  rules::play(w, "d d d x");
+  assert(stack(w, 3) == "burning_torch," && w.hero_item == 0, "on the floor at x 3: {stack(w, 3)}");
+  rules::tick(w, 180000);
+  rules::play(w, "d a");
+  assert(w.hero_item == rules::th(w, "burning_torch") && w.hero_until == 600000,
+         "picked up, its time kept: {w.hero_until}");
+  rules::play(w, "d d d");
+  assert(rules::walk(w, 1, 0) == rules::Step.Placed && stack(w, 7) == "socket,burning_torch,", "hung");
+  rules::tick(w, 119999);
+  assert(!rules::low(w, 7, 0, 0), "8:59.999 — not low yet");
+  rules::tick(w, 1);
+  assert(rules::low(w, 7, 0, 0), "9:00 — low");
+  rules::tick(w, 59999);
+  assert(stack(w, 7) == "socket,burning_torch,", "9:59.999 — still burning");
+  rules::tick(w, 1);
+  assert(stack(w, 7) == "socket,stick," && stack(w, -1) == "socket,stick,",
+         "10:00 — sticks: {stack(w, 7)} {stack(w, -1)}");
+  assert(row(w) == "7,7,7,7,7,7,7,7,7," && !rules::burning(w), "dark again: {row(w)}");
+}
+
+// The torch the hero holds burns out in the hand: a stick, and the light goes with it.
+fn test_a_held_torch_burns_out_in_the_hand() {
+  w = corridor();
+  w.hero_item = rules::th(w, "burning_torch");
+  rules::tick(w, 0);
+  assert(row(w) == "1,0,1,2,3,4,5,6,7,", "the hero is the light: {row(w)}");
+  rules::tick(w, 539999);
+  assert(!rules::hero_low(w), "not low at 8:59.999");
+  rules::tick(w, 1);
+  assert(rules::hero_low(w) && w.hero_item == rules::th(w, "burning_torch"), "low at 9:00");
+  rules::tick(w, 60000);
+  assert(w.hero_item == rules::th(w, "stick") && w.hero_until == 0, "a stick at 10:00");
+  assert(row(w) == "7,7,7,7,7,7,7,7,7,", "dark: {row(w)}");
+}
+
+// A flame under something else burns out where it lies: the stack keeps its order.
+fn test_a_flame_burns_out_under_what_stands_on_it() {
+  w = corridor();
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "burning_torch"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "rock"));
+  rules::tick(w, 600000);
+  assert(stack(w, 2) == "stick,rock,", "{stack(w, 2)}");
+}
+
+// The situation a well saves is a copy: its flames keep their own time.
+fn test_a_saved_situation_keeps_its_flames() {
+  w = corridor();
+  w.hero_item = rules::th(w, "burning_torch");
+  rules::tick(w, 100000);
+  saved = w;
+  rules::tick(w, 500000);
+  assert(w.hero_item == rules::th(w, "stick"), "burnt out in play");
+  assert(saved.hero_item == rules::th(saved, "burning_torch") && saved.hero_until == 600000,
+         "still burning in the saved one, until {saved.hero_until}");
+  rules::tick(saved, 499999);
+  assert(saved.hero_item == rules::th(saved, "burning_torch"), "with its own 499.999 s left");
+  rules::tick(saved, 1);
+  assert(saved.hero_item == rules::th(saved, "stick"), "then out");
+}
+
+// The staff hangs in a socket like a torch, and never burns out.
+fn test_the_staff_hangs_and_never_burns_out() {
+  w = corridor();
+  socket(w, -1, "");
+  w.hero_item = rules::th(w, "staff");
+  assert(rules::walk(w, -1, 0) == rules::Step.Placed, "hung");
+  rules::tick(w, 6000000);
+  assert(stack(w, -1) == "socket,staff,", "an hour on: {stack(w, -1)}");
+  assert(row(w) == "0,1,2,3,4,5,6,7,7,", "{row(w)}");
+}
+
+// A burning torch on the floor is an item: walked over, it swaps with the torch the hero holds.
+fn test_a_burning_torch_on_the_floor_swaps() {
+  w = corridor();
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "burning_torch"));
+  w.hero_item = rules::th(w, "torch");
+  rules::play(w, "d d");
+  assert(w.hero_item == rules::th(w, "burning_torch") && stack(w, 2) == "torch,", "{stack(w, 2)}");
+  assert(w.hero_until == 600000, "its whole ten minutes: {w.hero_until}");
+}

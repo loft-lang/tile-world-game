@@ -74,6 +74,12 @@ published.  It is not a required check.  Publishing waits for the owner's go.
    Step 5 brushes built (fill, rectangle, eyedropper, copy/paste) on tile_world 0.5.0 (loft-libs-world#39, merged); stamp files open.
    Step 6 checks built (K: path to a cell goal, chests cut off / hidden).  Next: step 7 platforms (typed text in `input` → names, Ctrl+O by name, stamp files, signs).
 
+5. **Torches and light** (DESIGN.md § Torches and light, ART.md) — built: the game's own sheet
+   (`tile-world.png`, `tools/sheet.loft`), the stick, the tar barrel, lighting both ways,
+   sockets only (the staff too), burning out after 10 minutes wherever a torch is, the low
+   flame and the flicker, and `the torch room` (third in `order.json`).  74 tests on both
+   backends.  Open: light in the enemies' moves (with the enemies).
+
 ## Elsewhere (all landed or handed over)
 
 - @PLN204 32-bit regime: on loft `main`; the library 32-bit versions (text2d, input, audio_bus

@@ -16,7 +16,7 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 ## The sheet
 
 - **File.**  `assets/sheets/tile-world.png`, CC0 like Kenney's (`tile-world-License.txt`
-  beside it).  It is named `world` in `theme.json` once the game draws from it.
+  beside it).  It is named `world` in `theme.json`, listed last.
 - **Grid.**  16 × 16 tiles with no spacing, 12 columns (192 px), the same as
   `tiny-dungeon.png`.  The sheet grows DOWN by whole rows.
 - **Indices never move.**  `materials.loft` numbers a tile `1 + slot * 256 + tile`, and levels
@@ -113,11 +113,13 @@ at 4×:
    and the sword, the barrel by the chest, the sockets on the wall's bricks beside the banner,
    and the horse by the rat.
 
-A third part waits for the rules: `the_cellar` dark, lit only by socket torches, as a `TW_SHOT`
-picture.
+The third part is the game itself: `the torch room` with the light on, at its start, carrying
+the lit torch, and with it hung in the far socket —
+`TW_SHOT=room.png TW_LEVEL=2 TW_KEYS="108" [TW_MOVES="s d d d d d w w a a a w d d d"] loft --lib libs main.loft`.
 
 ## Animation
 
-The game draws one picture per thing today.  The burning tiles come in two frames (A, B)
-alternating every 250 ms of the level clock, which needs `theme.json` to accept
-`"frames": ["world:2", "world:3"]` for a thing.  Until it does, frame A alone is drawn.
+The burning tiles come in two frames (A, B) alternating every 250 ms of the level's clock
+(`theme::FRAME_MS`): a thing's look in `theme.json` takes `"frames": ["world:2", "world:3"]`,
+and a `"low"` picture for a flame's last minute.  A thing that holds another (the socket) has a
+`"holding"` look per thing it can hold, drawn as one picture.

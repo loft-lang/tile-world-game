@@ -20,7 +20,12 @@
 //            mount (can be fixed to mount terrain), light (gives light, carried or set down),
 //            chops (held, it fells what can be chopped: an axe), opens_to (walking into it
 //            turns it into that thing and scores its `points`: a chest opens), tells ("chests":
-//            walking into it says how many things are still to open: a signpost).
+//            walking into it says how many things are still to open: a signpost), holds (a
+//            mountable thing hangs in it: a wall socket — mounting needs one), dips (walking into
+//            it turns what the hero holds into that thing's `dipped_to`: a tar barrel, a stick
+//            into a torch), lit_to (lit from a flame it becomes that: a torch), flame (it burns:
+//            it lights what has a `lit_to`, and after `burn_ms` of the level's clock it becomes
+//            its `burns_to`, wherever it is — held, on the floor or in a socket).
 //
 // The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
@@ -82,6 +87,12 @@ struct ThingProps {
   opens_to: text,
   points: integer,
   tells: text,
+  holds: boolean,
+  dips: boolean,
+  dipped_to: text,
+  lit_to: text,
+  flame: boolean,
+  burns_to: text,
   glyph: text
 }
 
@@ -97,7 +108,10 @@ pub struct Kinds {
   pub layer_height: integer,
   /// The hero's health at the start, and what a fall of 1, 2, 3, ... layers costs.
   pub health: integer,
-  pub fall_damage: vector<integer>
+  pub fall_damage: vector<integer>,
+  /// How long a flame burns, in the level's clock, and the last part of it it burns low.
+  pub burn_ms: integer,
+  pub low_ms: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -127,7 +141,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     boost_ms: num(r, "boost_ms", 60000),
     layer_height: num(r, "layer_height", 4),
     health: num(r, "health", 6),
-    fall_damage: []
+    fall_damage: [],
+    burn_ms: num(r, "burn_ms", 600000),
+    low_ms: num(r, "low_ms", 60000)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -159,6 +175,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
       mount: flag(e, "mount"), light: flag(e, "light"), chops: flag(e, "chops"),
       opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
+      holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
+      lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -172,11 +190,12 @@ pub fn kinds() -> Kinds {
     if raw != "" {
       k = kinds_from_json(raw);
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
-                                 boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [] }; }
+                                 boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
+                                 burn_ms: 600000, low_ms: 60000 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
-          layer_height: 4, health: 6, fall_damage: [] }
+          layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -253,6 +272,15 @@ pub fn terrain_name(k: const Kinds, kind: integer) -> text {
   p.name
 }
 
+/// A flame set down in the world — on the floor or in a socket — and when it burns out, in the
+/// level's clock.  One a cell: a flame is an item, and a cell holds one item.
+pub struct Flame {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub until: integer
+}
+
 /// A level being played: the world, its kinds and the hero on it.
 pub struct Level {
   pub w: tile_world::World,
@@ -269,7 +297,12 @@ pub struct Level {
   /// The points scored: a chest opened is one.
   pub points: integer,
   /// The hero's health: a fall costs some; at 0 the hero moves no more.
-  pub health: integer
+  pub health: integer,
+  /// The flames set down in the world, and when the one the hero holds burns out.
+  pub flames: vector<Flame>,
+  pub hero_until: integer,
+  /// Has the clock met the flames the level started with (`tick` kindles them once)?
+  pub kindled: boolean
 }
 
 /// What a step did.
@@ -291,7 +324,11 @@ pub enum Step {
   /// The hero drank from a well: the game saves the whole situation here.
   Saved,
   /// The hero felled a tree or a fence with what it holds.
-  Chopped
+  Chopped,
+  /// The hero dipped what it holds (a stick, in a tar barrel).
+  Dipped,
+  /// A flame lit a torch: the one the hero holds, or the one in a socket.
+  Lit
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -309,7 +346,7 @@ pub fn level(k: const Kinds) -> Level {
     tile_world::thing_kind(w, t.id, t.height, blocks, false, t.light, t.glyph);
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
-          points: 0, health: k.health }
+          points: 0, health: k.health, flames: [], hero_until: 0, kindled: false }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -513,6 +550,149 @@ fn gives_light(l: const Level, thing: integer) -> boolean {
   p.light
 }
 
+fn holds(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.holds
+}
+
+fn dips(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.dips
+}
+
+/// Does `thing` burn (a burning torch)?
+pub fn is_flame(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.flame
+}
+
+// What `thing` becomes dipped (a stick: a torch), lit (a torch: a burning one) or burnt out (a
+// burning torch: a stick); 0 when it does not.
+fn dipped_to(l: const Level, thing: integer) -> integer {
+  p = l.k.things[thing];
+  if !p || p.dipped_to == "" { return 0; }
+  thing_id(l.k, p.dipped_to)
+}
+
+fn lit_to(l: const Level, thing: integer) -> integer {
+  p = l.k.things[thing];
+  if !p || p.lit_to == "" { return 0; }
+  thing_id(l.k, p.lit_to)
+}
+
+fn burns_to(l: const Level, thing: integer) -> integer {
+  p = l.k.things[thing];
+  if !p || p.burns_to == "" { return 0; }
+  thing_id(l.k, p.burns_to)
+}
+
+// --- Flames ---
+
+// The entry of the flame set down on (x, y, z), -1 for none.
+fn flame_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(l.flames) {
+    f = l.flames[i];
+    if f.x == x && f.y == y && f.z == z { return i; }
+  }
+  -1
+}
+
+// The flame on (x, y, z) burns until `until`.
+fn set_flame(l: Level, x: integer, y: integer, z: integer, until: integer) {
+  i = flame_at(l, x, y, z);
+  if i >= 0 {
+    l.flames[i].until = until;
+  } else {
+    l.flames += [Flame { x: x, y: y, z: z, until: until }];
+  }
+}
+
+// The hero took `thing` from (x, y, z): a flame keeps the time it had left there (a flame the
+// clock never met — just placed by the editor — has all of it).
+fn took(l: Level, thing: integer, x: integer, y: integer, z: integer) {
+  l.hero_until = 0;
+  if !is_flame(l, thing) { return; }
+  i = flame_at(l, x, y, z);
+  if i < 0 {
+    l.hero_until = l.now + l.k.burn_ms;
+    return;
+  }
+  l.hero_until = l.flames[i].until;
+  _ = l.flames.remove(i);
+}
+
+// The hero set `thing` down on (x, y, z), a flame that burns until `until`.
+fn set_down(l: Level, thing: integer, x: integer, y: integer, z: integer, until: integer) {
+  if is_flame(l, thing) { set_flame(l, x, y, z, until); }
+}
+
+// Every flame the level started with (from its file, or the editor) starts burning now.
+fn kindle(l: Level) {
+  l.kindled = true;
+  for c in tile_world::stacks(l.w) {
+    for t in tile_world::things(l.w, c.0, c.1, c.2) {
+      if is_flame(l, t) && flame_at(l, c.0, c.1, c.2) < 0 {
+        l.flames += [Flame { x: c.0, y: c.1, z: c.2, until: l.now + l.k.burn_ms }];
+      }
+    }
+  }
+  if is_flame(l, l.hero_item) && l.hero_until == 0 { l.hero_until = l.now + l.k.burn_ms; }
+}
+
+// The flame on (x, y, z) burnt out: it becomes what it burns to, where it stands in the stack.
+fn burnt(l: Level, x: integer, y: integer, z: integer) {
+  above: vector<integer> = [];
+  t = tile_world::take(l.w, x, y, z);
+  while t != 0 && !is_flame(l, t) {
+    above += [t];
+    t = tile_world::take(l.w, x, y, z);
+  }
+  if t != 0 { tile_world::place(l.w, x, y, z, burns_to(l, t)); }
+  i = len(above) - 1;
+  while i >= 0 {
+    tile_world::place(l.w, x, y, z, above[i] ?? 0);
+    i -= 1;
+  }
+}
+
+// Every flame whose time is up burns out, the one the hero holds too.
+fn burn_out(l: Level) {
+  i = 0;
+  while i < len(l.flames) {
+    f = l.flames[i];
+    if f.until > l.now {
+      i += 1;
+      continue;
+    }
+    burnt(l, f.x, f.y, f.z);
+    _ = l.flames.remove(i);
+  }
+  if is_flame(l, l.hero_item) && l.hero_until <= l.now {
+    l.hero_item = burns_to(l, l.hero_item);
+    l.hero_until = 0;
+  }
+}
+
+/// Is the flame on (x, y, z) in its last `low_ms` (drawn low)?
+pub fn low(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  i = flame_at(l, x, y, z);
+  if i < 0 { return false; }
+  l.flames[i].until - l.now <= l.k.low_ms
+}
+
+/// Is the flame the hero holds in its last `low_ms`?
+pub fn hero_low(l: const Level) -> boolean {
+  is_flame(l, l.hero_item) && l.hero_until - l.now <= l.k.low_ms
+}
+
+/// Does anything burn — a flame set down, or the one the hero holds?  (The picture moves then.)
+pub fn burning(l: const Level) -> boolean {
+  len(l.flames) > 0 || is_flame(l, l.hero_item)
+}
+
 // --- The hero ---
 
 /// Put the hero on (x, y, z), standing on the stack there.
@@ -564,9 +744,15 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
     _ = tile_world::take(l.w, x, y, z);
     l.boost_until = l.now + l.k.boost_ms;
   } else if effect == "take" {
+    held = l.hero_item;
+    held_until = l.hero_until;
     _ = tile_world::take(l.w, x, y, z);
-    if l.hero_item != 0 { tile_world::place(l.w, x, y, z, l.hero_item); }
     l.hero_item = t;
+    took(l, t, x, y, z);
+    if held != 0 {
+      tile_world::place(l.w, x, y, z, held);
+      set_down(l, held, x, y, z, held_until);
+    }
   }
 }
 
@@ -578,13 +764,18 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
 pub fn drop(l: Level) -> Step {
   if l.hero_item == 0 || l.hero_h != 0 { return Step.Blocked; }
   tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.hero_item);
+  set_down(l, l.hero_item, l.hero_x, l.hero_y, l.hero_z, l.hero_until);
   l.hero_item = 0;
+  l.hero_until = 0;
   Step.Placed
 }
 
-/// Advance the level's clock by `ms` milliseconds.
+/// Advance the level's clock by `ms` milliseconds.  The first tick kindles the flames the level
+/// started with; a flame whose time is up burns out.
 pub fn tick(l: Level, ms: integer) {
+  if !l.kindled { kindle(l); }
   if ms > 0 { l.now += ms; }
+  burn_out(l);
 }
 
 /// Is a boost still on?
@@ -706,17 +897,34 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
   z = l.hero_z;
-  // Mount terrain (a wall): take the mounted thing with an empty hand, or fix a mountable thing
-  // the hero holds to a bare one.
+  // Mount terrain (a wall), the hero staying where it is: what hangs there is taken with an
+  // empty hand; a flame hanging there lights the torch the hero holds, and the flame the hero
+  // holds lights the torch hanging there; a mountable thing the hero holds hangs in an empty
+  // socket — only in a socket (a thing on a bare wall, from an older level, is still taken).
   if mount_terrain(l, tile_world::terrain(l.w, tx, ty, z)) {
     on = tile_world::top(l.w, tx, ty, z);
-    if on != 0 && mounts(l, on) && l.hero_item == 0 {
+    hung = if holds(l, on) { 0 } else { on };
+    if hung != 0 && mounts(l, hung) && l.hero_item == 0 {
       l.hero_item = tile_world::take(l.w, tx, ty, z);
+      took(l, l.hero_item, tx, ty, z);
       return Step.Took;
     }
-    if on == 0 && l.hero_item != 0 && mounts(l, l.hero_item) {
+    if hung != 0 && is_flame(l, hung) && lit_to(l, l.hero_item) != 0 {
+      l.hero_item = lit_to(l, l.hero_item);
+      l.hero_until = l.now + l.k.burn_ms;
+      return Step.Lit;
+    }
+    if hung != 0 && is_flame(l, l.hero_item) && lit_to(l, hung) != 0 {
+      _ = tile_world::take(l.w, tx, ty, z);
+      tile_world::place(l.w, tx, ty, z, lit_to(l, hung));
+      set_flame(l, tx, ty, z, l.now + l.k.burn_ms);
+      return Step.Lit;
+    }
+    if hung == 0 && holds(l, on) && l.hero_item != 0 && mounts(l, l.hero_item) {
       tile_world::place(l.w, tx, ty, z, l.hero_item);
+      set_down(l, l.hero_item, tx, ty, z, l.hero_until);
       l.hero_item = 0;
+      l.hero_until = 0;
       return Step.Placed;
     }
   }
@@ -741,6 +949,12 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   }
   if !walkable(l, kind) { return Step.Blocked; }
   thing = tile_world::top(l.w, tx, ty, z);
+  // A thing that dips (a tar barrel) turns what the hero holds into what it dips to (a stick,
+  // into a torch); the hero stays where it is.
+  if dips(l, thing) && dipped_to(l, l.hero_item) != 0 {
+    l.hero_item = dipped_to(l, l.hero_item);
+    return Step.Dipped;
+  }
   // A closed thing (a chest) opens and scores its points; the hero stays where it is.
   opened = thing_opens_to(l, thing);
   if opened != 0 {

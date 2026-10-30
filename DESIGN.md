@@ -99,8 +99,9 @@ This is what the game built on tile_world should be.
 
 ## Torches and light
 
-The player lights the dungeon.  Every rule here is open (not built); the tiles are drawn, in
-the game's own sheet ([ART.md](ART.md)).
+The player lights the dungeon.  Built (`tests/torches.loft`, and `the torch room`, the third
+level, played to its goal in `tests/levels.loft`) except the enemies' part, which waits for the
+enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 - **Dark by default.**  A dungeon cell is lit only by what gives light: open sky, a lit
   terrain, or a burning torch.  Light falls off one shade a step from it, darkest 7 steps away,
@@ -118,6 +119,7 @@ the game's own sheet ([ART.md](ART.md)).
   - Holding a burning torch and walking into a socket with a torch lights the socket's torch.
   - In both, the hero stays put and keeps what it holds.
   - A level gets its first flame from the editor: a burning torch in a socket or on the floor.
+    It starts burning when the level does, with its whole time.
 - **Wall sockets.**  A socket is a thing on a wall cell, placed in the editor.  It never moves
   and it is never taken.
   - A torch or the staff is fixed to a wall only in a socket.  This replaces "any wall
@@ -126,7 +128,8 @@ the game's own sheet ([ART.md](ART.md)).
     socket while holding a torch (burning or not), a stick or the staff fixes it there.
 - **Burning out.**  A torch burns for 10 minutes of the level's clock (kinds.json `burn_ms`,
   600 000) from the moment it is lit, wherever it is.
-  - In its last minute the flame is low (the tile says so; the light does not change).
+  - In its last minute the flame is low (kinds.json `low_ms`; the tile says so, the light does
+    not change).  A burning flame flickers between two pictures.
   - At the end it is a stick again, in the hand, on the floor or in the socket, and can be
     dipped in tar again.
   - Each torch keeps its own time.  The time is part of the situation a well saves.
@@ -200,5 +203,5 @@ the game's own sheet ([ART.md](ART.md)).
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
 | 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost, wells and safe points built |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
-| — | torches and light: stick, tar, sockets, burning out; the game's own sheet (ART.md); light in the enemies' moves | the tiles drawn (ART.md); the rules designed, not built; its slice is open |
+| — | torches and light: stick, tar, sockets, burning out; the game's own sheet (ART.md); light in the enemies' moves | built: the tiles, the rules and `the torch room`; light in the enemies' moves waits for the enemies |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |
