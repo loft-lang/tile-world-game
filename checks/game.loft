@@ -14,7 +14,8 @@ fn main() {
   assert(game::new_game("..") != null, "the game loads from its directory");
   test_a_well_brings_the_hero_back();
   test_b_twice_goes_back();
-  println("checks/game.loft: 2 passed");
+  test_a_doomed_save_rolls_back_once();
+  println("checks/game.loft: 3 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -58,4 +59,30 @@ fn test_b_twice_goes_back() {
   assert(game::back(g) && where(g) == "1,1,0 health 6", "the second B goes: {where(g)}");
   game::restart(g);
   assert(!g.has_save && !game::back(g), "no well drunk from, no way back");
+}
+
+// A doomed save need not brick the game: saved at a second well, a fall takes the last health and
+// sends the hero back there; B twice then goes one well further back, which becomes the save — B
+// twice again goes there, no further.  A move after a return cancels the further way back.
+fn test_a_doomed_save_rolls_back_once() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  at_the_well(g);
+  tile_world::set_terrain(g.world.w, 3, 2, 0, rules::tr(g.world, "well"));
+  game::move(g, 1, 0, false);
+  game::move(g, 1, 0, false);
+  game::move(g, 0, 1, false);
+  assert(g.note == "SAVED" && g.has_previous && where(g) == "3,1,0 health 6", "the second save: {where(g)}");
+  rules::put_hero(g.world, 8, 1, 1);
+  g.world.health = 1;
+  game::move(g, -1, 0, false);
+  assert(where(g) == "3,1,0 health 6" && g.note == "BACK AT WELL", "back at the second well: {where(g)}");
+  assert(game::back(g) && g.note == "EARLIER? B AGAIN", "asks for the earlier one: {g.note}");
+  assert(game::back(g) && where(g) == "1,1,0 health 6" && g.note == "BACK AT EARLIER WELL",
+         "one well further back: {where(g)}");
+  assert(!g.has_previous, "and none before it");
+  game::move(g, 1, 0, false);
+  assert(game::back(g) && game::back(g) && where(g) == "1,1,0 health 6", "B twice: the earlier well is the save now");
+  assert(game::back(g) && g.note == "BACK? B AGAIN", "no further: {g.note}");
 }

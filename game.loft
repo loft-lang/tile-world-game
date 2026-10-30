@@ -75,7 +75,12 @@ pub struct Game {
   /// asked once to go back to it (a second B confirms).
   pub saved: rules::Level,
   pub has_save: boolean,
-  asking_back: boolean
+  asking_back: boolean,
+  /// The save before it — a doomed save need not brick a game: just sent back, B twice goes one
+  /// well further back, and no further (DESIGN.md § Guards, doors and wells).
+  pub previous: rules::Level,
+  pub has_previous: boolean,
+  just_back: boolean
 }
 
 struct Sound {
@@ -159,7 +164,8 @@ pub fn new_game(dir: text) -> Game? {
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
     editing: false, ed: ed, lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
-    dir: dir, saved: empty, has_save: false, asking_back: false
+    dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
+    just_back: false
   };
   for e in sound_events() {
     parts = e.split(':');
@@ -227,6 +233,8 @@ pub fn restart(g: Game) {
   g.note = "";
   g.has_save = false;
   g.asking_back = false;
+  g.has_previous = false;
+  g.just_back = false;
   g.world = g.file.level;
   rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
   g.area = camera::bounds(g.world.w);
@@ -277,6 +285,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   if g.won { return; }
   g.note = "";
   g.asking_back = false;
+  g.just_back = false;
   w = g.world;
   z = w.hero_z;
   // What the move will act on: the thing ahead for a push, the thing behind for a pull.
@@ -288,6 +297,10 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
   if step == rules::Step.Saved {
+    if g.has_save {
+      g.previous = g.saved;
+      g.has_previous = true;
+    }
     g.saved = g.world;
     g.has_save = true;
     g.note = "SAVED";
@@ -311,7 +324,21 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
 fn return_to_save(g: Game) {
   g.world = g.saved;
   g.asking_back = false;
+  g.just_back = true;
   g.note = "BACK AT WELL";
+  sound(g, "restore");
+  aim(g);
+}
+
+// Just sent back to a save that may be doomed: one well further back, which becomes the save —
+// there is none before it.
+fn return_to_previous(g: Game) {
+  g.saved = g.previous;
+  g.has_previous = false;
+  g.world = g.saved;
+  g.asking_back = false;
+  g.just_back = true;
+  g.note = "BACK AT EARLIER WELL";
   sound(g, "restore");
   aim(g);
 }
@@ -322,10 +349,10 @@ pub fn back(g: Game) -> boolean {
   if !g.has_save { return false; }
   if !g.asking_back {
     g.asking_back = true;
-    g.note = "BACK? B AGAIN";
+    g.note = if g.just_back && g.has_previous { "EARLIER? B AGAIN" } else { "BACK? B AGAIN" };
     return true;
   }
-  return_to_save(g);
+  if g.just_back && g.has_previous { return_to_previous(g); } else { return_to_save(g); }
   true
 }
 

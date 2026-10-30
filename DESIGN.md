@@ -23,7 +23,7 @@ This is what the game built on tile_world should be.
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger
   must be readable before it arrives (proposed): a rolling cart is heard before it is seen, a
   chain of bombs ripples (each one 150 ms after the blast that set it off) rather than all at
-  once, and a well gives no water while anything rolls towards the hero (no doomed save).
+  once.  A doomed save is allowed — it is fun (owner) — but never bricks a game: see the wells.
 - **A test enforces it.** Every shipped level carries a solution test played by the base character
   (`tests/first_climb.loft` is the model).
 
@@ -326,6 +326,10 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     health, B twice.  The clear-area condition waits for the enemies: until then the area is
     always clear.
   - This is what makes the unsolvable states a wrong push or a bomb can create acceptable.
+  - **A doomed save is allowed** (owner): a well saves whatever is about to happen — a cart
+    rolling at the hero, a last flame's final seconds.  It never bricks the game: just sent back
+    to a save, B twice goes one well further back, which becomes the save, and no further.  Built
+    (`checks/game.loft`).
 
 ## What the player sees
 

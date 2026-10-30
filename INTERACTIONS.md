@@ -23,11 +23,8 @@ waits for the hero.
 
 1. **Settled: the game is real time** (owner; DESIGN.md § The principle).  Its fairness asks are
    items 2 and 3.
-2. **Fairness — a doomed save.**  A well saves the whole situation, motion included.  Saved
-   while a cart rolls at the hero, or with the last flame in its final seconds, every return
-   replays the doom.  R restarts the level, so it is never a hard lock, but a save should not be
-   a trap.  Options: a well gives water only when nothing rolls (the clear-area rule, widened),
-   or the saved situation is taken at the last moment nothing moved.
+2. **Settled: a doomed save is allowed** (owner) and rolled back once (DESIGN.md § Guards, doors
+   and wells; built).
 3. **Ruling — a blast's moment** (proposed with real time: a ripple, 150 ms a link).  A bomb "ignites on impact" — no fuse — so a chain is
    instantaneous.  Either all of a chain resolves in one instant (then the order, farthest first,
    decides who lands where), or each bomb goes off a tick after the one that set it off (a
