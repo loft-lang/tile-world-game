@@ -97,6 +97,49 @@ This is what the game built on tile_world should be.
     - It breaks chairs and other fragile things.
     - It damages enemies.
 
+## Torches and light
+
+The player lights the dungeon.  Every rule here is open; the tiles are designed in
+[ART.md](ART.md).
+
+- **Dark by default.**  A dungeon cell is lit only by what gives light: open sky, a lit
+  terrain, or a burning torch.  Light falls off one shade a step from it, darkest 7 steps away,
+  and it never passes an opaque cell or edge.  This is `tile_world::shades` as it stands today.
+- **Stick, torch, burning torch.**  These are three states of one held item, and all follow the
+  held-item rules.  Walking over one swaps it with the one held, X drops it, and holding one
+  means full hands.
+  - A **stick** gives no light.
+  - A **torch** is a stick dipped in tar.  It gives no light until it is lit.
+  - A **burning torch** gives light wherever it is: held, on the floor, or in a socket.
+- **The tar barrel.**  Walking into one while holding a stick turns the stick into a torch.  The
+  barrel never moves (like a chest), stands 2 steps high and never runs dry.
+- **Lighting.**  A torch is lit from a flame, never by itself.
+  - Holding a torch and walking into a burning torch in a socket lights the one held.
+  - Holding a burning torch and walking into a socket with a torch lights the socket's torch.
+  - In both, the hero stays put and keeps what it holds.
+  - A level gets its first flame from the editor: a burning torch in a socket or on the floor.
+- **Wall sockets.**  A socket is a thing on a wall cell, placed in the editor.  It never moves
+  and it is never taken.
+  - A torch is fixed to a wall only in a socket.  This replaces "any wall mounts" for torches,
+    so the level decides where light can be hung.
+  - Walking into a socket with the empty hand takes its torch.  Walking into an empty socket
+    while holding a torch, burning or not, fixes it there.
+- **Burning out.**  A torch burns for 10 minutes of the level's clock (kinds.json `burn_ms`,
+  600 000) from the moment it is lit, wherever it is.
+  - In its last minute the flame is low (the tile says so; the light does not change).
+  - At the end it is a stick again, in the hand, on the floor or in the socket, and can be
+    dipped in tar again.
+  - Each torch keeps its own time.  The time is part of the situation a well saves.
+- **Light and the enemies** (they wait for the enemies to be built; the numbers are open).  Both
+  rules use the shade of the cell an enemy may step to, so they are exact on the world clock and
+  testable:
+  - **Rats shun light, mostly.**  A rat avoids lit cells (shade ≤ 2) when a dark way exists that
+    is at most twice as long.  It crosses light when it has to: no dark way home, or cornered.
+  - **Bats drift towards light, slightly.**  Among the steps a wandering bat would take anyway,
+    it takes the brightest.  It is never drawn straight to a flame and never stays at one.
+- **The staff** (today the cellar's light, which never burns out) stays as a light of its own.
+  Whether `the_cellar` swaps it for a torch is open.
+
 ## Goals: chests and points
 
 - **A point per chest.**  Opening a chest gives its money and one point (the point is built;
@@ -157,4 +200,5 @@ This is what the game built on tile_world should be.
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
 | 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost, wells and safe points built |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
+| — | torches and light: stick, tar, sockets, burning out; the game's own sheet (ART.md); light in the enemies' moves | designed, not built; its slice is open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |
