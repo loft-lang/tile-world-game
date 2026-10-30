@@ -23,6 +23,13 @@ This is what the game built on tile_world should be.
   watching it and by dying in it.  So every rule must hold everywhere, the same way every time —
   consistency is the teacher — and what is about to happen must be readable from the world itself
   (a sound, a sight), never from a message.
+- **Hurt, rarely killed** (owner, 2026-10-30).  Because nothing is taught, the dungeon does not set
+  up situations that easily kill: the hero gets hit, and then has to search for potions.  Damage
+  is a cost to recover from, not an ending.  Proposed: a red health potion (Kenney's dungeon:115,
+  beside the green one) restores 3 health up to the start's 6 when walked over, found in the
+  dungeon like chests.  To review against it: a three-layer fall costs all 6 today; a blast on
+  the hero's cell or a held bomb (4) and a cart at full speed (4) kill when a push off a ledge
+  adds a fall.
 - **Real time** (owner, 2026-10-30).  The world runs on its clock whatever the hero does: carts
   roll, blasts go off, torches burn while the player thinks.  It stays deterministic — the same
   inputs at the same times, the same outcome — so a level's solution is still a test.  Danger

@@ -64,8 +64,9 @@ waits for the hero.
     (light, flung like any item)?  It would make a burning torch fly into the dark.
 15. **Fairness — blast then fall.**  A blast pushes the hero; pushed off a ledge, the hero falls
     too.  The costs add (blast 3 + a two-layer fall 3 = all 6 health) — a kill nobody saw coming
-    unless the ledge was in view.  Options: the blast's push stops at a ledge (as stones stop),
-    or it is meant, and levels show their ledges.
+    unless the ledge was in view.  Against "hurt, rarely killed" (DESIGN.md): the blast's push
+    could stop at a ledge (as stones stop), or the costs could be lowered so no one event kills
+    from full health.
 16. **Ruling — the blast and layers.**  Light spreads within a layer; does the blast?  A bomb on a
     ledge: does it hurt what stands below, push items up out of a pit?  Puzzle either way: a pit
     as a blast shelter, or a blast through a hole.
