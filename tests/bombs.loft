@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
 // Bombs (DESIGN.md § Bomb): a bomb rolls — thrown at speed 4 (a cell every 600 / 4 ms), slowing
-// one every 4 cells on the flat, faster down a slope, slower up — and goes off on impact; one that
-// slows to a stop lies there, not lit.  A blast reaches 3 cells the way light spreads; d steps from
+// one every 4 cells on the flat, faster down a slope, slower up.  The thrower fuses it: thrown, it
+// goes off on impact, and one that slows to a stop lies there, not lit; one nobody fused (rolling
+// down a slope by itself) only stops where it hits — but damage sets any bomb off: a blast, or a
+// fall of two layers.  A blast reaches 3 cells the way light spreads; d steps from
 // it the hero loses 4 - d health and is pushed 5 - d cells away; within 2, chairs break and bombs go
 // off 150 ms later (the hero's own in its hands too); torches in sockets catch fire, and a blast in
 // water puts them out.  Every time and distance below is worked by hand.
@@ -129,12 +131,10 @@ fn test_a_chain_ripples() {
   assert(w.blasted == 3 && bomb_at(w, 9, 0), "x 9 lies on");
 }
 
-// A bomb on a slope rolls down by itself and goes off against the hero — whose own bomb goes off
-// in its hands.  The row x 0 .. 6, x 6 a step up: the bomb there rolls west at 600 (speed 2 after
-// the step), x 4 at 900, x 3 at 1200; at 1500 the hero on x 2 stops it — it goes off on x 3: the
-// hero, 1 away, loses 3 and is pushed 4 west, to x 0, and the bomb in its hands goes off at 1650:
-// 4 more, the last of its health.
-fn test_a_bomb_rolls_downhill_and_sets_off_the_one_in_hand() {
+// A bomb nobody fused rolls down a slope by itself and stops where it hits — here against the
+// hero: the row x 0 .. 6, x 6 a step up: it rolls west at 600 (speed 2 after the step), x 4 at
+// 900, x 3 at 1200; at 1500 the hero on x 2 stops it.  Nothing goes off.
+fn test_a_bomb_rolling_by_itself_stops_where_it_hits() {
   w = room(7, 1);
   tile_world::set_rise(w.w, 6, 0, 0, 1);
   tile_world::place(w.w, 6, 0, 0, rules::th(w, "bomb"));
@@ -143,18 +143,57 @@ fn test_a_bomb_rolls_downhill_and_sets_off_the_one_in_hand() {
   assert(len(w.bombs) == 1, "it starts to roll");
   until(w, 600);
   assert(bomb_at(w, 5, 0), "600: down the step, on x 5");
-  until(w, 1499);
-  assert(bomb_at(w, 3, 0) && w.blasted == 0, "1499: on x 3");
-  until(w, 1500);
-  assert(w.blasted == 1 && w.health == 3 && w.hero_x == 0 && w.hero_item == rules::th(w, "bomb"),
-         "1500: hit, pushed to x {w.hero_x}, health {w.health}");
-  until(w, 1650);
-  assert(w.blasted == 2 && w.hero_item == 0 && w.health == 0 && (w.blasts[1]).x == 0, "1650: the one in hand");
+  until(w, 5000);
+  assert(bomb_at(w, 3, 0) && w.blasted == 0 && len(w.bombs) == 0 && w.health == 6, "stopped on x 3, not lit");
 }
 
-// Put down on a slope, a bomb rolls off: the hero on x 1 (x 1 and x 2 a step up) drops it; it
-// rolls west, the only way down, to x 0 at 600 and hits the wall at 900 — 1 away, the hero loses 3
-// and is pushed 4 east, over x 2 and down to x 5.
+// Damage sets any bomb off — the one in the hero's hands too.  A bomb lying on x 0 is set off at
+// 300; the hero on x 1, 1 away, loses 3 and is pushed 4 east, to x 5, and the bomb it holds goes
+// off at 450 where it stands: 4 more, the last of its health.
+fn test_a_blast_sets_off_the_bomb_in_hand() {
+  w = room(7, 1);
+  tile_world::place(w.w, 0, 0, 0, rules::th(w, "bomb"));
+  armed(w, 1, 1);
+  w.fuses += [rules::Fuse { x: 0, y: 0, z: 0, held: false, at: 300 }];
+  until(w, 300);
+  assert(w.blasted == 1 && w.health == 3 && w.hero_x == 5 && w.hero_item == rules::th(w, "bomb"),
+         "300: hit, pushed to x {w.hero_x}, health {w.health}");
+  until(w, 450);
+  assert(w.blasted == 2 && w.hero_item == 0 && w.health == 0 && (w.blasts[1]).x == 5, "450: the one in hand");
+}
+
+// A fall of two layers sets a bomb off; one layer it survives.  On layer 2 a bomb on x 0 (a step
+// up) rolls east to x 1 at 600 and off the ledge at 900: with nothing below until layer 0 it
+// falls two layers and goes off on (2, 0, 0); with floor on layer 1 it lands there and lies.
+fn ledge(floor_on_1: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 5, 1, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 4, 0, 0, rules::tr(w, "floor"));
+  if floor_on_1 { tile_world::set_terrain(w.w, 2, 0, 1, rules::tr(w, "floor")); }
+  tile_world::fill(w.w, -1, -1, 1, 1, 2, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 1, 0, 2, rules::tr(w, "floor"));
+  tile_world::set_rise(w.w, 0, 0, 2, 1);
+  tile_world::place(w.w, 0, 0, 2, rules::th(w, "bomb"));
+  rules::put_hero(w, 0, 0, 2);
+  rules::tick(w, 0);
+  w
+}
+
+fn test_a_long_fall_sets_a_bomb_off() {
+  w = ledge(false);
+  until(w, 899);
+  assert(tile_world::top(w.w, 1, 0, 2) == rules::th(w, "bomb"), "899: on the ledge's edge");
+  until(w, 900);
+  b = w.blasts[0];
+  assert(w.blasted == 1 && b.x == 2 && b.z == 0 && b.at == 900, "two layers down: it went off on (2, 0, 0)");
+  v = ledge(true);
+  until(v, 5000);
+  assert(v.blasted == 0 && tile_world::top(v.w, 2, 0, 1) == rules::th(v, "bomb"), "one layer down: it lies there");
+}
+
+// Put down on a slope, a bomb rolls off — not fused, so it only stops where it hits: the hero on
+// x 1 (x 1 and x 2 a step up) drops it; it rolls west, the only way down, to x 0 at 600 and stops
+// against the wall there.
 fn test_a_bomb_put_down_on_a_slope_rolls_off() {
   w = room(6, 1);
   tile_world::set_rise(w.w, 1, 0, 0, 1);
@@ -162,10 +201,10 @@ fn test_a_bomb_put_down_on_a_slope_rolls_off() {
   armed(w, 1, -1);
   assert(rules::drop(w) == rules::Step.Placed, "put down on a slope");
   rules::tick(w, 0);
-  until(w, 899);
-  assert(bomb_at(w, 0, 0) && w.blasted == 0, "899: on x 0");
-  until(w, 900);
-  assert(w.blasted == 1 && w.health == 3 && w.hero_x == 5, "900: hit the wall; hero at x {w.hero_x}, {w.health}");
+  until(w, 599);
+  assert(bomb_at(w, 1, 0), "599: rolling off");
+  until(w, 5000);
+  assert(bomb_at(w, 0, 0) && w.blasted == 0 && w.health == 6, "stopped against the wall, not lit");
 }
 
 // Within two cells a chair breaks; three away it stands.  A room two rows high: the bomb, thrown

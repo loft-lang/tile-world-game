@@ -213,13 +213,18 @@ This is what the game built on tile_world should be.
   - **A bomb rolls; other things do not** (owner).  On a slope it starts rolling downhill by
     itself; it speeds up downhill and slows uphill as a cart does, and on the flat it slows one
     speed every 4 cells (`bomb_coast`).  Thrown (Space, the way the hero faces) it starts at speed
-    4, a cell every 150 ms: up to 16 cells on the flat.  **Impact** — hitting something while it
-    moves: a wall, a thing, the hero, the ground after a fall — sets it off; rolling into water
-    sets it off there.  A bomb that slows to a stop by itself lies there, not lit, to be picked up
-    again (proposed: the design said "ignites on impact" and nothing of stopping).  So a bomb at
-    the top of a slope is a rolling mine, and one put down on a slope rolls off.  A throw into a
-    wall or a thing at the hero's feet is refused, as a walk into it is (proposed).
-  - **Built** (step 1, `tests/bombs.loft`): rolling, impact, the reach (radius 3, `blast_reach`),
+    4, a cell every 150 ms: up to 16 cells on the flat.
+  - **The thrower fuses it** (owner).  A thrown bomb goes off on **impact** — hitting something
+    while it moves: a wall, a thing, the hero, the ground after a fall — and rolling into water
+    sets it off there.  A thrown bomb that slows to a stop by itself lies there, not lit, to be
+    picked up again (owner).  A throw into a wall or a thing at the hero's feet is refused, as a
+    walk into it is (owner).
+  - **A bomb nobody fused** — rolling down a slope by itself, or put down on one — only stops
+    where it hits, and sinks in water; so one put down on a slope rolls off harmlessly.  **But
+    damage sets any bomb off** (owner): a blast reaching it, and a fall of `bomb_fall` layers or
+    more (proposed 2: a one-layer drop it survives) — so a bomb rolling off a high ledge goes off
+    below.  An arrow will too (the bow).
+  - **Built** (step 1, `tests/bombs.loft`): rolling, fusing, impact, falls, the reach (radius 3, `blast_reach`),
     the hero's damage and push, chairs breaking, the ripple of chains (the hero's own bomb
     included), torches lit in their sockets and put out by a blast in water.  Not built: items
     flying, big things sliding, carts pushed or blown off their tracks (step 2); the bomb's and
