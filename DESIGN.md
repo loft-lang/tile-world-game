@@ -180,13 +180,17 @@ This is what the game built on tile_world should be.
     - **Push, faster the nearer** (owner): a thing at distance d is pushed away from the bomb
       with speed 4 - d (3 beside it, 1 at the edge).  "Away" is the axis the bomb lies further
       along; on an even diagonal, the side that place prefers (as for items pushed aside).
-    - **Big things slide** that many cells, or until something stops them; a stone, a barrel,
-      an anvil, a chair.  A chest never moves.  Proposed: a big thing stopped by another big
-      thing stops there, without passing the push on.
-    - **Carts are pushed along their tracks** (owner): the push becomes the train's rolling speed
-      in the direction of the track nearest to "away" — a blast across the track does not move
-      it, and it never leaves the rails but past an open end (it derails).  Rolling, it is a cart
-      like any other: it slows on the flat, links with what it meets, hurts the hero.
+    - **Big things resist** (owner): they move less than small things — proposed, one cell less
+      than the push speed (2 beside the bomb, 1 two away, none at the edge), sliding until
+      something stops them; a stone, a barrel, an anvil, a chair.  A chest never moves.
+      Proposed: a big thing stopped by another big thing stops there, passing nothing on.
+    - **Carts are pushed along their tracks** (owner), and along the track they do not resist:
+      the full push speed becomes the train's rolling speed in the direction of the track nearest
+      to "away".  Across the track the rails hold them: they do not move.  Rolling, a cart is a
+      cart like any other: it slows on the flat, links with what it meets, hurts the hero.
+    - **Beside the bomb a cart is blown off its track** (owner): at distance 1 it slides away like
+      a big thing, whatever way its track runs, and comes to rest derailed (a fixed big thing).
+      With no room to leave the rails, it stays on its track (proposed).
     - **Damage, more the nearer** (owner): the hero and enemies lose 4 - d health (proposed: 4 on
       the bomb's own cell); the hero is also pushed, like a light thing.
     - **Fragile things break**: a chair within distance 2 (proposed).
