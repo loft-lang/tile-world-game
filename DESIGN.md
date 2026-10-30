@@ -116,9 +116,11 @@ This is what the game built on tile_world should be.
     to stop again.  Proposed numbers: speed 0..4; a step down +1, a step up -2, on the flat -1 every
     2 cells (8 cells' coast from 4); at speed n a cell every 600 / n ms; pushing uphill counts each
     cart twice.  A train rolls as one, at its front cart's speed.
-  - **Open:** a rolling train meeting a standing cart (stop dead, or pass its speed on); a rolling
-    train meeting the hero (stop before it, or knock it aside for health); what counts as
-    "something after the end" (any thing or wall, proposed).
+  - **Carts that meet link together** and roll on as one train, sharing a combined slower
+    speed: the momentum shared over the carts, each counting once (rounded down, proposed) — a
+    train of two at 4 meeting one standing cart rolls on at 2.
+  - **Open:** a rolling train meeting the hero (stop before it, or knock it aside for health);
+    what counts as "something after the end" (any thing or wall, proposed).
   - **Already built** that carts keep: they carry an item, are climbed when they cannot move, and
     light items on the rails ahead are pushed out of the way.
 - **Stones (rocks), anvils and tar barrels.** Pushed only, never pulled, and never by a cart or
