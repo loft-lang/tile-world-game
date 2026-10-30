@@ -425,7 +425,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     hero and a torch gives it away — the reason to move in the dark.
   - **Seeing the hero anew, a cyclops shouts** (heard: the voice pack's "fight") and **calls** the
     others of its kind within 6 cells to the place, seen or not; it comes at the hero (a cell
-    every 450 ms) and strikes for 2 (every 1200 ms).  Health 5.
+    every 450 ms) and strikes for 2 (every 1200 ms).  Health 10: at 5 the hero, striking once a
+    press, bested one in five presses for a single blow (seen building `the cyclops hall`).  Open
+    (owner): whether the hero's blows should have a pace of their own, for every enemy.
   - **Losing it, it searches** the place it last saw it, for 6 s after; there it stands looking,
     then walks home.  Called ones search the same way; one finding the place taken stands beside it.
   - **A blast draws them** (owner): within 8 cells they go to search its place instead of fleeing.

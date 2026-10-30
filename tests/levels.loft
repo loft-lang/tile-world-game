@@ -209,3 +209,24 @@ fn test_what_a_cyclops_holds_loads_and_saves() {
   assert(out.contains("[\"cyclops\", 3, 1, 0], [\"cyclops\", 4, 1, 0, \"bomb\"], [\"cyclops\", 5, 1, 0, \"none\"]"),
          "saved back: {out}");
 }
+
+// The cyclops hall: two cyclopes nest beside the chest, under a roof.  Walking straight there the
+// hero is seen and struck.  The way: the bow from the west room, an arrow along the bottom row into
+// the bomb in the far corner — the blast draws them both to it (they search it for 6 s) — and, in
+// the dark, up the east room's west side to the chest, unseen.
+fn test_the_cyclops_hall_plays_to_its_goal() {
+  lf = level("the_cyclops_hall");
+  l = lf.level;
+  rules::tick(l, 0);
+  rules::play(l, "~150 d ~150 d ~150 d ~150 d ~150 d ~150 d ~150 d ~150 w ~150 w ~150 w ~150 w ~150 w ~150 d ~150 d ~150 d ~150 d ~150 d ~150 d ~3000");
+  assert(l.spotted > 0 && l.health < 6, "straight in: seen and struck ({l.spotted}, health {l.health})");
+  lf = level("the_cyclops_hall");
+  l = lf.level;
+  rules::tick(l, 0);
+  rules::play(l, "w w w d s s s s d d d d");
+  assert(l.hero_item == rules::th(l, "bow") && l.hero_x == 7 && l.hero_y == 7, "the bow, at the bottom row's door");
+  rules::play(l, "f ~4000");
+  assert(l.blasted == 1 && l.spotted == 0, "the bomb set off, the hero unseen");
+  rules::play(l, "w ~100 d ~100 d ~100 w ~100 w ~100 w ~100 w ~100 w ~100 d ~100 d ~100 d ~100 d ~100 d");
+  assert(levels::solved(lf, l) && l.spotted == 0 && l.health == 6, "the chest, unseen: ({l.hero_x}, {l.hero_y})");
+}
