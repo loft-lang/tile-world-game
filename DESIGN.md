@@ -210,7 +210,21 @@ This is what the game built on tile_world should be.
     work — levers and bombs among enemies.
 - **Bomb.**
   - It is thrown like a bowling ball: it rolls in a straight line and ignites on impact.
-  - **The blast** (designed, not built — the owner's rules, 2026-10-30, and proposals marked so).
+  - **A bomb rolls; other things do not** (owner).  On a slope it starts rolling downhill by
+    itself; it speeds up downhill and slows uphill as a cart does, and on the flat it slows one
+    speed every 4 cells (`bomb_coast`).  Thrown (Space, the way the hero faces) it starts at speed
+    4, a cell every 150 ms: up to 16 cells on the flat.  **Impact** — hitting something while it
+    moves: a wall, a thing, the hero, the ground after a fall — sets it off; rolling into water
+    sets it off there.  A bomb that slows to a stop by itself lies there, not lit, to be picked up
+    again (proposed: the design said "ignites on impact" and nothing of stopping).  So a bomb at
+    the top of a slope is a rolling mine, and one put down on a slope rolls off.  A throw into a
+    wall or a thing at the hero's feet is refused, as a walk into it is (proposed).
+  - **Built** (step 1, `tests/bombs.loft`): rolling, impact, the reach (radius 3, `blast_reach`),
+    the hero's damage and push, chairs breaking, the ripple of chains (the hero's own bomb
+    included), torches lit in their sockets and put out by a blast in water.  Not built: items
+    flying, big things sliding, carts pushed or blown off their tracks (step 2); the bomb's and
+    the blast's pictures (step 3: our own sheet, drawn as the torches were).
+  - **The blast** (the owner's rules, 2026-10-30, and proposals marked so).
     It reaches every cell within its radius (proposed 3) by the shortest way the blast can take:
     it spreads like light, so walls and closed doors stop it and a wall cell takes it but passes
     none on.  Distance d counts those steps, 0 on the bomb's own cell.  Everything it reaches is

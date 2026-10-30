@@ -1,0 +1,208 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Bombs (DESIGN.md § Bomb): a bomb rolls — thrown at speed 4 (a cell every 600 / 4 ms), slowing
+// one every 4 cells on the flat, faster down a slope, slower up — and goes off on impact; one that
+// slows to a stop lies there, not lit.  A blast reaches 3 cells the way light spreads; d steps from
+// it the hero loses 4 - d health and is pushed 5 - d cells away; within 2, chairs break and bombs go
+// off 150 ms later (the hero's own in its hands too); torches in sockets catch fire, and a blast in
+// water puts them out.  Every time and distance below is worked by hand.
+use tile_world;
+use rules;
+
+// A room x 0 .. n - 1, y 0 .. rows - 1, walled round.
+fn room(n: integer, rows: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  w.k.flicker_odds = 0;
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  w
+}
+
+// The hero at (x, 0) facing (fx, 0), holding a bomb.
+fn armed(w: rules::Level, x: integer, fx: integer) {
+  rules::put_hero(w, x, 0, 0);
+  w.hero_item = rules::th(w, "bomb");
+  w.face_x = fx;
+  w.face_y = 0;
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn bomb_at(w: const rules::Level, x: integer, y: integer) -> boolean {
+  tile_world::top(w.w, x, y, 0) == rules::th(w, "bomb")
+}
+
+fn main() {
+  w = room(4, 1);
+  armed(w, 0, 1);
+  assert(w.hero_item == rules::th(w, "bomb"), "a bomb in hand");
+}
+
+// Thrown east from x 0 down a row walled at x 10: on x 1 at once, then x 2 .. x 5 at 150 .. 600
+// (speed 4); slowed to 3 there, x 6 .. x 9 at 800 .. 1400; slowed to 2 there; at 1700 the wall
+// stops it — it goes off on x 9.  The hero, 9 away, is not touched.
+fn test_a_thrown_bomb_rolls_and_goes_off_where_it_hits() {
+  w = room(10, 1);
+  armed(w, 0, 1);
+  assert(rules::throw(w) == rules::Step.Thrown && w.hero_item == 0 && bomb_at(w, 1, 0), "thrown");
+  until(w, 599);
+  assert(bomb_at(w, 4, 0), "599: on x 4");
+  until(w, 600);
+  assert(bomb_at(w, 5, 0), "600: on x 5");
+  until(w, 1400);
+  assert(bomb_at(w, 9, 0) && w.blasted == 0, "1400: on x 9");
+  until(w, 1699);
+  assert(bomb_at(w, 9, 0) && w.blasted == 0, "1699: still rolling");
+  until(w, 1700);
+  b = w.blasts[0];
+  assert(w.blasted == 1 && b.x == 9 && b.at == 1700 && !bomb_at(w, 9, 0), "1700: it hit the wall and went off on x 9");
+  assert(w.health == 6, "the hero, 9 away, untouched: {w.health}");
+}
+
+// Down a long row it slows to a stop by itself — x 17 at 5000 — and lies there, not lit.
+fn test_a_bomb_that_stops_by_itself_lies_unlit() {
+  w = room(20, 1);
+  armed(w, 0, 1);
+  _ = rules::throw(w);
+  until(w, 4999);
+  assert(bomb_at(w, 16, 0), "4999: on x 16");
+  until(w, 9000);
+  assert(bomb_at(w, 17, 0) && w.blasted == 0 && len(w.bombs) == 0, "lying on x 17, not lit");
+}
+
+// Throwing into the wall at the hero's feet does nothing: the bomb stays in hand.
+fn test_no_throw_into_a_wall() {
+  w = room(4, 1);
+  armed(w, 0, -1);
+  assert(rules::throw(w) == rules::Step.Blocked && w.hero_item == rules::th(w, "bomb"), "still held");
+}
+
+// The reach spreads like light: from x 3, 3 cells — x 0 .. x 6 along the row; a wall at x 5 takes
+// the blast (d 2) and passes none on, so x 6 beyond it is not reached.
+fn test_the_reach_spreads_like_light() {
+  w = room(9, 1);
+  t = "";
+  for c in rules::blast_reach(w, 3, 0, 0) { if c.1 == 0 { t += "x{c.0}d{c.2} "; } }
+  assert(t == "x3d0 x4d1 x2d1 x5d2 x1d2 x6d3 x0d3 ", "open: {t}");
+  tile_world::set_terrain(w.w, 5, 0, 0, rules::tr(w, "wall"));
+  u = "";
+  for c in rules::blast_reach(w, 3, 0, 0) { if c.1 == 0 { u += "x{c.0}d{c.2} "; } }
+  assert(u == "x3d0 x4d1 x2d1 x5d2 x1d2 x0d3 ", "behind a wall: {u}");
+}
+
+// Hurt and pushed by distance.  A row x 0 .. 5, walled at 6: thrown from x 2 the bomb hits the wall
+// from x 5 at 450 — the hero 3 away loses 1 and is pushed 2 west, to x 0.  Thrown from x 3 it hits
+// at 300 — 2 away, the hero loses 2 and is pushed 3 west, to x 0.
+fn test_a_blast_hurts_and_pushes_by_distance() {
+  w = room(6, 1);
+  armed(w, 2, 1);
+  _ = rules::throw(w);
+  until(w, 450);
+  assert(w.blasted == 1 && w.health == 5 && w.hero_x == 0, "3 away: {w.health} at x {w.hero_x}");
+  v = room(6, 1);
+  armed(v, 3, 1);
+  _ = rules::throw(v);
+  until(v, 300);
+  assert(v.blasted == 1 && v.health == 4 && v.hero_x == 0, "2 away: {v.health} at x {v.hero_x}");
+}
+
+// A chain ripples.  Bombs lie on x 4, 6 and 9; thrown from x 0, the bomb stops against the one on
+// x 4 and goes off on x 3 at 450 (the hero 3 away: -1); x 4 (1 away) goes off at 600, x 6 (2 from
+// x 4) at 750; x 9 is 3 from x 6, too far: it lies on.
+fn test_a_chain_ripples() {
+  w = room(12, 1);
+  armed(w, 0, 1);
+  for x in [4, 6, 9] { tile_world::place(w.w, x, 0, 0, rules::th(w, "bomb")); }
+  _ = rules::throw(w);
+  until(w, 450);
+  assert(w.blasted == 1 && (w.blasts[0]).x == 3 && w.health == 5, "450: on x 3");
+  until(w, 599);
+  assert(w.blasted == 1, "599: not yet");
+  until(w, 600);
+  assert(w.blasted == 2 && (w.blasts[1]).x == 4, "600: x 4");
+  until(w, 750);
+  assert(w.blasted == 3 && (w.blasts[2]).x == 6, "750: x 6");
+  until(w, 5000);
+  assert(w.blasted == 3 && bomb_at(w, 9, 0), "x 9 lies on");
+}
+
+// A bomb on a slope rolls down by itself and goes off against the hero — whose own bomb goes off
+// in its hands.  The row x 0 .. 6, x 6 a step up: the bomb there rolls west at 600 (speed 2 after
+// the step), x 4 at 900, x 3 at 1200; at 1500 the hero on x 2 stops it — it goes off on x 3: the
+// hero, 1 away, loses 3 and is pushed 4 west, to x 0, and the bomb in its hands goes off at 1650:
+// 4 more, the last of its health.
+fn test_a_bomb_rolls_downhill_and_sets_off_the_one_in_hand() {
+  w = room(7, 1);
+  tile_world::set_rise(w.w, 6, 0, 0, 1);
+  tile_world::place(w.w, 6, 0, 0, rules::th(w, "bomb"));
+  armed(w, 2, 1);
+  rules::tick(w, 0);
+  assert(len(w.bombs) == 1, "it starts to roll");
+  until(w, 600);
+  assert(bomb_at(w, 5, 0), "600: down the step, on x 5");
+  until(w, 1499);
+  assert(bomb_at(w, 3, 0) && w.blasted == 0, "1499: on x 3");
+  until(w, 1500);
+  assert(w.blasted == 1 && w.health == 3 && w.hero_x == 0 && w.hero_item == rules::th(w, "bomb"),
+         "1500: hit, pushed to x {w.hero_x}, health {w.health}");
+  until(w, 1650);
+  assert(w.blasted == 2 && w.hero_item == 0 && w.health == 0 && (w.blasts[1]).x == 0, "1650: the one in hand");
+}
+
+// Put down on a slope, a bomb rolls off: the hero on x 1 (x 1 and x 2 a step up) drops it; it
+// rolls west, the only way down, to x 0 at 600 and hits the wall at 900 — 1 away, the hero loses 3
+// and is pushed 4 east, over x 2 and down to x 5.
+fn test_a_bomb_put_down_on_a_slope_rolls_off() {
+  w = room(6, 1);
+  tile_world::set_rise(w.w, 1, 0, 0, 1);
+  tile_world::set_rise(w.w, 2, 0, 0, 1);
+  armed(w, 1, -1);
+  assert(rules::drop(w) == rules::Step.Placed, "put down on a slope");
+  rules::tick(w, 0);
+  until(w, 899);
+  assert(bomb_at(w, 0, 0) && w.blasted == 0, "899: on x 0");
+  until(w, 900);
+  assert(w.blasted == 1 && w.health == 3 && w.hero_x == 5, "900: hit the wall; hero at x {w.hero_x}, {w.health}");
+}
+
+// Within two cells a chair breaks; three away it stands.  A room two rows high: the bomb, thrown
+// from x 0 along y 0, hits the wall from x 9 at 1700; the chair on (8, 1) is 2 away, the one on
+// (6, 1) 4 away.
+fn test_a_chair_near_a_blast_breaks() {
+  w = room(10, 2);
+  armed(w, 0, 1);
+  tile_world::place(w.w, 8, 1, 0, rules::th(w, "chair"));
+  tile_world::place(w.w, 6, 1, 0, rules::th(w, "chair"));
+  _ = rules::throw(w);
+  until(w, 1700);
+  assert(w.blasted == 1 && tile_world::top(w.w, 8, 1, 0) == 0, "the chair 2 away broke");
+  assert(tile_world::top(w.w, 6, 1, 0) == rules::th(w, "chair"), "the chair 4 away stands");
+}
+
+// A blast lights a torch in a socket; a blast in water puts it out.  A row x 0 .. 5 under a wall
+// with a socket on (5, -1): thrown from x 0 the bomb reaches x 5 at 600 (slowed to 3) and, against
+// the wall at x 6, goes off there at 800 — the socket 1 away: its torch burns.  With water on x 6
+// instead it rolls in and goes off in the water: the burning torch there is put out.
+fn test_a_blast_lights_a_torch_and_one_in_water_douses_it() {
+  w = room(6, 1);
+  tile_world::place(w.w, 5, -1, 0, rules::th(w, "socket"));
+  tile_world::place(w.w, 5, -1, 0, rules::th(w, "torch"));
+  armed(w, 0, 1);
+  _ = rules::throw(w);
+  until(w, 800);
+  assert(w.blasted == 1 && tile_world::top(w.w, 5, -1, 0) == rules::th(w, "burning_torch"), "lit");
+  v = room(6, 1);
+  tile_world::set_terrain(v.w, 6, 0, 0, rules::tr(v, "water"));
+  tile_world::place(v.w, 5, -1, 0, rules::th(v, "socket"));
+  tile_world::place(v.w, 5, -1, 0, rules::th(v, "burning_torch"));
+  armed(v, 0, 1);
+  rules::tick(v, 0);
+  _ = rules::throw(v);
+  until(v, 800);
+  bl = v.blasts[0];
+  assert(v.blasted == 1 && bl.x == 6 && bl.water, "it went off in the water");
+  assert(tile_world::top(v.w, 5, -1, 0) == rules::th(v, "torch"), "the torch put out: {tile_world::top(v.w, 5, -1, 0)}");
+}

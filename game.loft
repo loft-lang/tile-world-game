@@ -98,7 +98,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2"]
 }
 
 fn bindings() -> input::Bindings {
@@ -338,6 +338,13 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
 /// the air is seen and heard, and counts as a move; without a weapon nothing happens.
 pub fn swing(g: Game) {
   if g.won { return; }
+  // A bomb in hand is thrown: it rolls off the way the hero faces.
+  if rules::throw(g.world) == rules::Step.Thrown {
+    g.moves += 1;
+    motion::swing(g.motion, g.world.now);
+    sound(g, "bomb_roll", 0.6);
+    return;
+  }
   step = rules::swing(g.world);
   if step == rules::Step.Chopped || step == rules::Step.Swung {
     g.moves += 1;
@@ -578,6 +585,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   held = g.world.hero_item;
   flames = len(g.world.flames);
   rolled = g.world.rolled;
+  blasted = g.world.blasted;
   health = g.world.health;
   hx = g.world.hero_x;
   hy = g.world.hero_y;
@@ -585,6 +593,11 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   // A rolling cart is heard before it is seen: every cell it rolls rumbles; a hit hurts.
   if g.world.rolled != rolled {
     sound(g, "cart", 0.5);
+    changed = true;
+  }
+  // A blast is heard, however far.
+  if g.world.blasted != blasted {
+    sound(g, "explosion", 1.0);
     changed = true;
   }
   if g.world.health < health {

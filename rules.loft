@@ -72,6 +72,8 @@ struct TerrainProps {
   hits: integer,
   drops: text,
   saves: boolean,
+  /// Water: a bomb rolling into it goes off there, and its blast douses flames.
+  water: boolean,
   glyph: text
 }
 
@@ -112,6 +114,12 @@ struct ThingProps {
   burns_to: text,
   derails_to: text,
   switches_to: text,
+  /// A bomb: it rolls (downhill by itself), goes off on impact, and in a blast's reach.
+  bomb: boolean,
+  /// It breaks in a blast's reach (a chair).
+  fragile: boolean,
+  /// A flame a blast in water puts out becomes this.
+  doused_to: text,
   glyph: text
 }
 
@@ -142,7 +150,14 @@ pub struct Kinds {
   /// flat it loses one every `coast` cells.
   pub roll_ms: integer,
   pub max_speed: integer,
-  pub coast: integer
+  pub coast: integer,
+  /// Bombs: a rolling bomb slows one every `bomb_coast` cells on the flat; a blast reaches
+  /// `blast_radius` cells; a bomb a blast sets off goes off `ripple_ms` later; a throw starts it
+  /// at `throw_speed`.
+  pub bomb_coast: integer,
+  pub blast_radius: integer,
+  pub ripple_ms: integer,
+  pub throw_speed: integer
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -180,7 +195,11 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     flicker_odds: num(r, "flicker_odds", 4),
     roll_ms: num(r, "roll_ms", 600),
     max_speed: num(r, "max_speed", 4),
-    coast: num(r, "coast", 2)
+    coast: num(r, "coast", 2),
+    bomb_coast: num(r, "bomb_coast", 4),
+    blast_radius: num(r, "blast_radius", 3),
+    ripple_ms: num(r, "ripple_ms", 150),
+    throw_speed: num(r, "throw_speed", 4)
   };
   fd = r.field("fall_damage");
   for i in 0..fd.len() { k.fall_damage += [(fd.item(i).as_number() as integer) ?? 0]; }
@@ -193,7 +212,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
       stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
       hits: num(e, "hits", 1), drops: word(e, "drops", ""),
-      saves: flag(e, "saves"), glyph: word(e, "glyph", "?")
+      saves: flag(e, "saves"), water: flag(e, "water"), glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -216,6 +235,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       rest: flag(e, "rest"), holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
+      bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -231,12 +251,14 @@ pub fn kinds() -> Kinds {
       if k { return k ?? Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2,
                                  boost: 2, boost_ms: 60000, layer_height: 4, health: 6, fall_damage: [],
                                  burn_ms: 600000, low_ms: 60000, fade: 4, flicker_ms: 500,
-                                 flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2 }; }
+                                 flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
+                                 blast_radius: 3, ripple_ms: 150, throw_speed: 4 }; }
     }
   }
   Kinds { terrain: [], things: [], edges: [], push_strength: 3, pull_strength: 2, boost: 2, boost_ms: 60000,
           layer_height: 4, health: 6, fall_damage: [], burn_ms: 600000, low_ms: 60000, fade: 4,
-          flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2 }
+          flicker_ms: 500, flicker_odds: 4, roll_ms: 600, max_speed: 4, coast: 2, bomb_coast: 4,
+          blast_radius: 3, ripple_ms: 150, throw_speed: 4 }
 }
 
 /// A terrain kind's number by its name in kinds.json; 0 (void) for a name it does not declare.
@@ -392,7 +414,46 @@ pub struct Level {
   /// The way the hero faces: the way it last tried to walk (towards the thing it pulls), one
   /// of (1, 0), (-1, 0), (0, 1), (0, -1).  What it swings at is the cell there.
   pub face_x: integer,
-  pub face_y: integer
+  pub face_y: integer,
+  /// Bombs rolling; bombs set off, going off at their time; the blasts so far (the game shows and
+  /// hears them) and how many.
+  pub bombs: vector<BombRoll>,
+  pub fuses: vector<Fuse>,
+  pub blasts: vector<Blast>,
+  pub blasted: integer
+}
+
+/// A bomb rolling: on (x, y, z), moving (dx, dy) at `speed` (1 .. max_speed: a cell every
+/// roll_ms / speed), its next move at `due`, the cells it has rolled on the flat since it last
+/// slowed.
+pub struct BombRoll {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub dx: integer,
+  pub dy: integer,
+  pub speed: integer,
+  pub due: integer,
+  pub flat: integer
+}
+
+/// A bomb a blast set off: the one lying on (x, y, z), or the one the hero holds (`held`); it goes
+/// off `at`.
+pub struct Fuse {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub held: boolean,
+  pub at: integer
+}
+
+/// A blast: centred on (x, y, z) `at`, in water or not.
+pub struct Blast {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub at: integer,
+  pub water: boolean
 }
 
 /// What a step did.
@@ -424,7 +485,9 @@ pub enum Step {
   /// A flame lit a torch: the one the hero holds, or the one in a socket.
   Lit,
   /// The hero swung its weapon at the cell it faces, and hit nothing there.
-  Swung
+  Swung,
+  /// The hero threw the bomb it held.
+  Thrown
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -445,7 +508,8 @@ pub fn level(k: const Kinds) -> Level {
   }
   Level { w: w, k: k, hero_x: 0, hero_y: 0, hero_z: 0, hero_h: 0, now: 0, boost_until: 0, hero_item: 0,
           points: 0, health: k.health, flames: [], hero_until: 0, kindled: false, blows: [], pieces: [],
-          rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1 }
+          rolls: [], lean_x: 0, lean_y: 0, rolled: 0, face_x: 0, face_y: 1,
+          bombs: [], fuses: [], blasts: [], blasted: 0 }
 }
 
 /// Terrain kind and thing numbers by name, for building a level.
@@ -1168,7 +1232,7 @@ pub fn drop(l: Level) -> Step {
   if l.hero_item == 0 { return Step.Blocked; }
   under = tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z);
   if under != 0 && !rests(l, under) { return Step.Blocked; }
-  if under == 0 && l.hero_h != 0 { return Step.Blocked; }
+  if under == 0 && l.hero_h != tile_world::rise(l.w, l.hero_x, l.hero_y, l.hero_z) { return Step.Blocked; }
   tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.hero_item);
   set_down(l, l.hero_item, l.hero_x, l.hero_y, l.hero_z, l.hero_until);
   l.hero_item = 0;
@@ -1183,6 +1247,8 @@ pub fn tick(l: Level, ms: integer) {
   if ms > 0 { l.now += ms; }
   start_rolls(l);
   roll_due(l);
+  start_bomb_rolls(l);
+  bombs_due(l);
   burn_out(l);
 }
 
@@ -2150,4 +2216,383 @@ fn link(l: Level, ri: integer, x: integer, y: integer, z: integer, dx: integer, 
     l.rolls[oi].speed = sp;
     _ = l.rolls.remove(ri);
   }
+}
+
+// --- Bombs ---
+//
+// A bomb is the one thing that rolls (owner): thrown, it rolls straight on; on a slope it starts
+// rolling downhill by itself, faster down and slower up as a cart does, and slows on the flat.
+// It goes off on impact — hitting something while it moves (a wall, a thing, the hero, the
+// ground after a fall), or rolling into water; one that comes to rest by itself lies there, not
+// lit.  A blast reaches the cells within blast_radius by the way light spreads (a wall takes it
+// and passes none on), d steps from its centre: the hero loses 4 - d health and is pushed away
+// 5 - d cells, fragile things within 2 break, bombs within 2 go off ripple_ms later — the hero's
+// own in its hands too — and unlit torches in sockets catch fire; in water it puts flames out.
+
+fn is_bomb(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.bomb
+}
+
+fn is_water(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.water
+}
+
+fn fragile(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.fragile
+}
+
+fn doused_to(l: const Level, thing: integer) -> integer {
+  p = l.k.things[thing];
+  if !p || p.doused_to == "" { return 0; }
+  thing_id(l.k, p.doused_to)
+}
+
+fn opaque_kind(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.opaque
+}
+
+// The rolling bomb on (x, y, z), -1 for none.
+fn bomb_rolling_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(l.bombs) {
+    if (l.bombs[i].x ?? 0) == x && (l.bombs[i].y ?? 0) == y && (l.bombs[i].z ?? 0) == z { return i; }
+  }
+  -1
+}
+
+// Is a bomb on (x, y, z) set off already?
+fn fused(l: const Level, x: integer, y: integer, z: integer, held: boolean) -> boolean {
+  for f in l.fuses {
+    if f.held == held && (held || (f.x == x && f.y == y && f.z == z)) { return true; }
+  }
+  false
+}
+
+/// The hero throws the bomb it holds the way it faces: it rolls off from the cell there at
+/// throw_speed.  Into water there it goes off at once; over a drop it falls and goes off where it
+/// lands.  Blocked when the hero holds no bomb, or the cell there takes nothing (a wall, a thing,
+/// a step up of more than one) — a bomb is not thrown into a wall at the hero's feet (proposed).
+pub fn throw(l: Level) -> Step {
+  if !alive(l) || !is_bomb(l, l.hero_item) { return Step.Blocked; }
+  x = l.hero_x;
+  y = l.hero_y;
+  z = l.hero_z;
+  dx = l.face_x;
+  dy = l.face_y;
+  if !hero_crosses(l, x, y, z, dx, dy) { return Step.Blocked; }
+  tx = x + dx;
+  ty = y + dy;
+  k = tile_world::terrain(l.w, tx, ty, z);
+  bomb = l.hero_item;
+  if is_water(l, k) {
+    l.hero_item = 0;
+    explode(l, tx, ty, z, true, l.now);
+    return Step.Thrown;
+  }
+  if k == VOID {
+    l.hero_item = 0;
+    r = fall(l, tx, ty, z - 1, dx, dy, 0);
+    if r.0 == LANDS {
+      tile_world::place(l.w, r.1, r.2, r.3, bomb);
+      impact(l, r.1, r.2, r.3, l.now);
+    }
+    return Step.Thrown;
+  }
+  ground = tile_world::rise(l.w, x, y, z);
+  if !walkable(l, k) || blocks_things(l, k) || tile_world::top(l.w, tx, ty, z) != 0
+      || height(l, tx, ty, z) > ground + 1 {
+    return Step.Blocked;
+  }
+  l.hero_item = 0;
+  tile_world::place(l.w, tx, ty, z, bomb);
+  sp = l.k.throw_speed;
+  l.bombs += [BombRoll { x: tx, y: ty, z: z, dx: dx, dy: dy, speed: sp, due: l.now + l.k.roll_ms / sp, flat: 0 }];
+  Step.Thrown
+}
+
+// A bomb lying at rest on a slope starts rolling down it: to the first side (north, east, south,
+// west) a step lower that takes it.
+fn start_bomb_rolls(l: Level) {
+  for c in tile_world::stacks(l.w) {
+    if !is_bomb(l, tile_world::top(l.w, c.0, c.1, c.2)) || bomb_rolling_at(l, c.0, c.1, c.2) >= 0 { continue; }
+    if fused(l, c.0, c.1, c.2, false) { continue; }
+    here = height(l, c.0, c.1, c.2);
+    started = false;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if started || !hero_crosses(l, c.0, c.1, c.2, d.0, d.1) { continue; }
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      k = tile_world::terrain(l.w, nx, ny, c.2);
+      if !walkable(l, k) || blocks_things(l, k) || tile_world::top(l.w, nx, ny, c.2) != 0 { continue; }
+      if height(l, nx, ny, c.2) != here - 1 { continue; }
+      l.bombs += [BombRoll { x: c.0, y: c.1, z: c.2, dx: d.0, dy: d.1, speed: 1, due: l.now + l.k.roll_ms, flat: 0 }];
+      started = true;
+    }
+  }
+}
+
+// Every rolling bomb and every fuse whose time has come, the earliest first.
+fn bombs_due(l: Level) {
+  guard = 0;
+  while guard < 1000 {
+    guard += 1;
+    first = -1;
+    at = 0;
+    for i in 0..len(l.bombs) {
+      d = l.bombs[i].due ?? 0;
+      if d <= l.now && (first < 0 || d < at) {
+        first = i;
+        at = d;
+      }
+    }
+    fuse = -1;
+    for i in 0..len(l.fuses) {
+      d = l.fuses[i].at ?? 0;
+      if d <= l.now && (first < 0 && fuse < 0 || d < at) {
+        fuse = i;
+        first = -1;
+        at = d;
+      }
+    }
+    if fuse >= 0 {
+      f = l.fuses[fuse] ?? Fuse { x: 0, y: 0, z: 0, held: false, at: 0 };
+      fx = f.x;
+      fy = f.y;
+      fz = f.z;
+      held = f.held;
+      _ = l.fuses.remove(fuse);
+      if held {
+        // In the hero's hands: it goes off where the hero stands.
+        if is_bomb(l, l.hero_item) {
+          l.hero_item = 0;
+          explode(l, l.hero_x, l.hero_y, l.hero_z, false, at);
+        }
+      } else if is_bomb(l, tile_world::top(l.w, fx, fy, fz)) {
+        _ = tile_world::take(l.w, fx, fy, fz);
+        explode(l, fx, fy, fz, false, at);
+      }
+    } else if first >= 0 {
+      bomb_step(l, first);
+    } else {
+      return;
+    }
+  }
+}
+
+// The bomb on (x, y, z) hits something `at`: it goes off there.
+fn impact(l: Level, x: integer, y: integer, z: integer, at: integer) {
+  if is_bomb(l, tile_world::top(l.w, x, y, z)) { _ = tile_world::take(l.w, x, y, z); }
+  explode(l, x, y, z, false, at);
+}
+
+// Rolling bomb ri one cell on.
+fn bomb_step(l: Level, ri: integer) {
+  x = l.bombs[ri].x ?? 0;
+  y = l.bombs[ri].y ?? 0;
+  z = l.bombs[ri].z ?? 0;
+  dx = l.bombs[ri].dx ?? 0;
+  dy = l.bombs[ri].dy ?? 0;
+  speed = l.bombs[ri].speed ?? 1;
+  due = l.bombs[ri].due ?? l.now;
+  flat = l.bombs[ri].flat ?? 0;
+  _ = l.bombs.remove(ri);
+  if !is_bomb(l, tile_world::top(l.w, x, y, z)) { return; }
+  if !hero_crosses(l, x, y, z, dx, dy) {
+    impact(l, x, y, z, due);
+    return;
+  }
+  nx = x + dx;
+  ny = y + dy;
+  k = tile_world::terrain(l.w, nx, ny, z);
+  if is_water(l, k) {
+    // Into water: it goes off there, throwing the water around.
+    _ = tile_world::take(l.w, x, y, z);
+    explode(l, nx, ny, z, true, due);
+    return;
+  }
+  if k == VOID {
+    // Over a drop: it falls, and goes off where it lands.
+    bomb = tile_world::take(l.w, x, y, z);
+    r = fall(l, nx, ny, z - 1, dx, dy, 0);
+    if r.0 == LANDS {
+      tile_world::place(l.w, r.1, r.2, r.3, bomb);
+      impact(l, r.1, r.2, r.3, due);
+    }
+    return;
+  }
+  here = height(l, x, y, z);
+  there = height(l, nx, ny, z);
+  hero_there = l.hero_x == nx && l.hero_y == ny && l.hero_z == z;
+  if hero_there || !walkable(l, k) || blocks_things(l, k) || tile_world::top(l.w, nx, ny, z) != 0 || there > here + 1 {
+    impact(l, x, y, z, due);
+    return;
+  }
+  tile_world::place(l.w, nx, ny, z, tile_world::take(l.w, x, y, z));
+  sp = speed;
+  fl = flat;
+  if there < here {
+    sp = if sp + 1 > l.k.max_speed { l.k.max_speed } else { sp + 1 };
+    fl = 0;
+  } else if there > here {
+    sp -= 2;
+    fl = 0;
+  } else {
+    fl += 1;
+    if fl >= l.k.bomb_coast {
+      sp -= 1;
+      fl = 0;
+    }
+  }
+  // Slowed to a stop by itself: it lies there, not lit (and rolls back down, on a slope).
+  if sp <= 0 { return; }
+  l.bombs += [BombRoll { x: nx, y: ny, z: z, dx: dx, dy: dy, speed: sp, due: due + l.k.roll_ms / sp, flat: fl }];
+}
+
+/// The cells a blast centred on (x, y, z) reaches, each with its distance d (0 at the centre):
+/// within blast_radius, by the way light spreads — across the edges the hero crosses, a wall (an
+/// opaque kind) taking it and passing none on.  Nearest first.
+pub fn blast_reach(l: const Level, x: integer, y: integer, z: integer) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [(x, y, 0)];
+  i = 0;
+  while i < len(out) {
+    c = out[i] ?? (x, y, 0);
+    i += 1;
+    if c.2 >= l.k.blast_radius { continue; }
+    if c.2 > 0 && opaque_kind(l, tile_world::terrain(l.w, c.0, c.1, z)) { continue; }
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if !hero_crosses(l, c.0, c.1, z, d.0, d.1) && !opaque_kind(l, tile_world::terrain(l.w, c.0 + d.0, c.1 + d.1, z)) {
+        continue;
+      }
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      seen = false;
+      for o in out { if o.0 == nx && o.1 == ny { seen = true; } }
+      if !seen { out += [(nx, ny, c.2 + 1)]; }
+    }
+  }
+  out
+}
+
+// The way something on (x, y) is pushed from a blast centred on (bx, by): along the axis it lies
+// further from the centre on; on an even diagonal the side the place prefers; at the centre
+// itself, back from the way it faces (the hero) or as the place prefers.
+fn away(l: const Level, bx: integer, by: integer, x: integer, y: integer, z: integer) -> (integer, integer) {
+  ax = x - bx;
+  ay = y - by;
+  mx = if ax < 0 { -ax } else { ax };
+  my = if ay < 0 { -ay } else { ay };
+  if mx > my { return (if ax > 0 { 1 } else { -1 }, 0); }
+  if my > mx { return (0, if ay > 0 { 1 } else { -1 }); }
+  if mx == 0 { return (-l.face_x, -l.face_y); }
+  if prefers_right(x, y, z) { (if ax > 0 { 1 } else { -1 }, 0) } else { (0, if ay > 0 { 1 } else { -1 }) }
+}
+
+// The hero pushed (dx, dy) up to n cells: on, across edges it crosses, onto ground no higher than
+// where it stands with nothing on it; over a drop it falls to the floor below and the fall costs
+// what a fall costs (a blast pushes the hero over a ledge — owner).
+fn blown(l: Level, dx: integer, dy: integer, n: integer) {
+  for i in 0..n {
+    x = l.hero_x;
+    y = l.hero_y;
+    z = l.hero_z;
+    if !hero_crosses(l, x, y, z, dx, dy) { return; }
+    tx = x + dx;
+    ty = y + dy;
+    k = tile_world::terrain(l.w, tx, ty, z);
+    if k == VOID {
+      zb = z - 1;
+      bottom = lowest_layer(l);
+      while zb >= bottom && tile_world::terrain(l.w, tx, ty, zb) == VOID { zb -= 1; }
+      if zb < bottom || !walkable(l, tile_world::terrain(l.w, tx, ty, zb)) { return; }
+      arrive(l, tx, ty, zb);
+      hurt(l, z - zb);
+      return;
+    }
+    if !walkable(l, k) || tile_world::top(l.w, tx, ty, z) != 0 || height(l, tx, ty, z) > l.hero_h { return; }
+    arrive(l, tx, ty, z);
+  }
+}
+
+// A blast centred on (x, y, z) `at` (in water or not): everything in its reach, farthest first.
+fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: integer) {
+  l.blasts += [Blast { x: x, y: y, z: z, at: at, water: water }];
+  l.blasted += 1;
+  reach = blast_reach(l, x, y, z);
+  n = len(reach);
+  hero_d = -1;
+  k = n - 1;
+  while k >= 0 {
+    c = reach[k] ?? (x, y, 0);
+    k -= 1;
+    cx = c.0;
+    cy = c.1;
+    d = c.2;
+    if l.hero_x == cx && l.hero_y == cy && l.hero_z == z { hero_d = d; }
+    t = tile_world::top(l.w, cx, cy, z);
+    // Bombs within two go off a ripple later — lying, or rolling.
+    if d <= 2 && is_bomb(l, t) && !fused(l, cx, cy, z, false) {
+      r = bomb_rolling_at(l, cx, cy, z);
+      if r >= 0 { _ = l.bombs.remove(r); }
+      l.fuses += [Fuse { x: cx, y: cy, z: z, held: false, at: at + l.k.ripple_ms }];
+    }
+    // Fragile things within two break, what lay on them staying on the floor.
+    if d <= 2 {
+      st = tile_world::things(l.w, cx, cy, z);
+      if len(st) > 0 && fragile(l, st[0] ?? 0) {
+        above: vector<integer> = [];
+        while len(tile_world::things(l.w, cx, cy, z)) > 1 { above += [tile_world::take(l.w, cx, cy, z)]; }
+        _ = tile_world::take(l.w, cx, cy, z);
+        j = len(above) - 1;
+        while j >= 0 {
+          tile_world::place(l.w, cx, cy, z, above[j] ?? 0);
+          j -= 1;
+        }
+      }
+    }
+    // Torches: lit in their sockets by a blast; put out by one in water.
+    st = tile_world::things(l.w, cx, cy, z);
+    for i in 0..len(st) {
+      th = st[i] ?? 0;
+      if water {
+        to = doused_to(l, th);
+        if to != 0 && i == len(st) - 1 {
+          _ = tile_world::take(l.w, cx, cy, z);
+          tile_world::place(l.w, cx, cy, z, to);
+          f = flame_at(l, cx, cy, z);
+          if f >= 0 { _ = l.flames.remove(f); }
+        }
+      } else if i > 0 && holds(l, st[i - 1] ?? 0) && i == len(st) - 1 {
+        to = lit_to(l, th);
+        if to != 0 {
+          _ = tile_world::take(l.w, cx, cy, z);
+          tile_world::place(l.w, cx, cy, z, to);
+          set_flame(l, cx, cy, z, at + l.k.burn_ms);
+        }
+      }
+    }
+  }
+  if hero_d < 0 { return; }
+  // The hero: a bomb it holds goes off a ripple later in its hands; a flame it holds goes out in
+  // water; it is hurt 4 - d and pushed away 5 - d cells.
+  if hero_d <= 2 && is_bomb(l, l.hero_item) && !fused(l, 0, 0, 0, true) {
+    l.fuses += [Fuse { x: 0, y: 0, z: 0, held: true, at: at + l.k.ripple_ms }];
+  }
+  if water {
+    to = doused_to(l, l.hero_item);
+    if to != 0 {
+      l.hero_item = to;
+      l.hero_until = 0;
+    }
+  }
+  l.health -= 4 - hero_d;
+  if l.health < 0 { l.health = 0; }
+  a = away(l, x, y, l.hero_x, l.hero_y, z);
+  blown(l, a.0, a.1, 5 - hero_d);
 }
