@@ -1,0 +1,29 @@
+# The tile-world sheet's colours: Tiny Dungeon's own 27, one letter each; `.` is transparent.
+# A tile file (NN-name.txt) is 16 lines of 16 of these letters.  tools/sheet.loft refuses any other.
+o 3f2631 outline
+n 262b44 iron, darkest
+d 5a6988 iron, dark (rare)
+s 52607c iron, shadow
+g 8b9bb4 iron, body
+a aab7cc iron, between
+l c0cbdc iron, light
+e e4edf9 iron, glint
+w ffffff white
+b 763b36 wood, shadow
+m bd6c4a wood, body
+c cf8254 wood, between
+k e19a65 wood, warm light
+t eaa56c wood, light
+p f7c282 sand
+q fec99c skin light
+r e84537 flame, rim
+R ff706d flame, pink
+y feae34 flame, body
+Y fee761 flame, heart
+G 25956a green, dark
+h 43e1b3 green
+H 69ffd4 green, light
+v 9b4ca3 violet
+V d176d0 violet, light
+u 0099db blue
+U 75e3ff blue, light

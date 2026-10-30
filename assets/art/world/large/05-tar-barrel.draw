@@ -1,0 +1,25 @@
+# TAR BARREL — a wooden barrel, open on top, black tar and a drip.
+# Drawn at 16x the tile (16 px here = 1 px there); the reduction adds the 2 px outline.
+size 256x256
+Background transparent
+name body
+Poly (0.20,0.16)~ (0.80,0.16)~ (0.88,0.50)~ (0.82,0.90)~ (0.18,0.90)~ (0.12,0.50)~ rgb=189,108,74
+name lit_side
+Poly (0.20,0.20)~ (0.28,0.20) (0.24,0.50)~ (0.27,0.86) (0.19,0.86)~ (0.15,0.50)~ rgb=234,165,108
+name shade_side
+Poly (0.72,0.20) (0.80,0.20)~ (0.85,0.50)~ (0.81,0.86)~ (0.73,0.86) (0.76,0.50)~ rgb=118,59,54
+name staves
+Line (0.40,0.24) - (0.38,0.86) w=10 stroke=118,59,54
+Line (0.60,0.24) - (0.62,0.86) w=10 stroke=118,59,54
+name hoop_top
+Poly (0.15,0.30) (0.85,0.30) (0.86,0.38) (0.14,0.38) rgb=139,155,180
+name hoop_bottom
+Poly (0.14,0.70) (0.86,0.70) (0.85,0.78) (0.15,0.78) rgb=139,155,180
+name rim
+Poly (0.20,0.12)~ (0.80,0.12)~ (0.82,0.20)~ (0.18,0.20)~ rgb=234,165,108
+name tar
+Poly (0.27,0.135)~ (0.73,0.135)~ (0.75,0.185)~ (0.25,0.185)~ rgb=38,43,68
+name gloss
+Line (0.36,0.155) - (0.46,0.155) w=6 stroke=82,96,124
+name drip
+Poly (0.5625,0.16) (0.625,0.16) (0.625,0.36)~ (0.59,0.40)~ (0.5625,0.36) rgb=38,43,68

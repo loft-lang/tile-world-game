@@ -1,0 +1,6 @@
+The layers composed.txt puts the socket tiles together from, drawn at 16 px:
+- socket-back, socket-front: the iron ring, Kenney's own size (dungeon:7's spout ring: 6 px wide,
+  a 2 px hole), too small to come out of a larger drawing.  Outlined in `n`, as Kenney's iron wall
+  fittings are.
+- kenney-staff: dungeon:129 from Kenney's Tiny Dungeon (CC0), letter for letter, for the staff in
+  a socket.

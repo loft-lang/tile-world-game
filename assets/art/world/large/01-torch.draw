@@ -1,0 +1,13 @@
+# TORCH — tarred, not burning.
+# Drawn at 16x the tile (16 px here = 1 px there); the reduction adds the 2 px outline.
+size 256x256
+Background transparent
+name handle
+Poly (0.445,0.60) (0.555,0.60) (0.545,0.87) (0.455,0.87) rgb=189,108,74
+Poly (0.445,0.74) (0.555,0.74) (0.553,0.79) (0.447,0.79) rgb=234,165,108
+name binding
+Poly (0.42,0.585) (0.58,0.585) (0.58,0.64) (0.42,0.64) rgb=118,59,54
+name head
+Poly (0.375,0.40)~ (0.625,0.40)~ (0.62,0.60) (0.38,0.60) rgb=38,43,68
+Poly (0.385,0.42) (0.43,0.42) (0.43,0.58) (0.385,0.58) rgb=82,96,124
+Circle (0.45,0.44) r=0.022 rgb=139,155,180

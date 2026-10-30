@@ -1,0 +1,236 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+// Builds assets/sheets/tile-world.png, the game's own sheet (ART.md), from its text sources:
+//   assets/art/world/palette.txt   the letters and their colours (Tiny Dungeon's 27);
+//   assets/art/world/NN-name.txt   tile NN, 16 lines of 16 letters, `.` transparent;
+//   assets/art/world/composed.txt  the socket tiles, put together from layers/ and a tile.
+// It refuses a tile of the wrong size, a letter outside the palette and an index used twice.
+//   loft --lib libs tools/sheet.loft            write the sheet
+//   loft --lib libs tools/sheet.loft check      exit 1 when the committed sheet differs from it
+// (`check`, not `--check`: a `--` flag after the script is loft's own).  The game's checks run
+// it, so the sources and the picture cannot drift apart.
+use imaging;
+
+/// The tile size and the sheet's width in tiles: Tiny Dungeon's.
+const TILE = 16;
+const COLS = 12;
+/// Paths from tools/, the directory loft runs this script in.
+const ART = "../assets/art/world";
+const SHEET = "../assets/sheets/tile-world.png";
+/// The row from which a socket's ring hides what it holds.
+const RING_FRONT = 13;
+
+struct Colour {
+  letter: text,
+  rgb: integer
+}
+
+fn digit(c: character) -> integer {
+  v = c as integer;
+  if v >= 97 { return v - 87; }
+  if v >= 65 { return v - 55; }
+  v - 48
+}
+
+fn number(s: text) -> integer {
+  v = 0;
+  for c in s { v = v * 10 + digit(c); }
+  v
+}
+
+/// The palette's letters and colours, in palette.txt's order.
+fn palette() -> vector<Colour> {
+  out: vector<Colour> = [];
+  for l in file("{ART}/palette.txt").lines() {
+    if len(l) == 0 || l.starts_with("#") { continue; }
+    parts = l.split(' ');
+    v = 0;
+    for c in parts[1] { v = v * 16 + digit(c); }
+    out += [Colour { letter: parts[0], rgb: v }];
+  }
+  out
+}
+
+fn letter_at(g: text, x: integer, y: integer) -> text {
+  g[y * TILE + x..y * TILE + x + 1]
+}
+
+/// A tile file as one text of TILE * TILE letters, or "" after saying what is wrong with it.
+fn read_tile(path: text, pal: const vector<Colour>) -> text {
+  ls = file(path).lines();
+  if len(ls) != TILE {
+    println("{path}: {len(ls)} lines, not {TILE}");
+    return "";
+  }
+  g = "";
+  for l in ls {
+    if len(l) != TILE {
+      println("{path}: a line of {len(l)} letters, not {TILE}");
+      return "";
+    }
+    g += l;
+  }
+  for c in g {
+    if c == '.' { continue; }
+    known = false;
+    for p in pal { if p.letter == "{c}" { known = true; } }
+    if !known {
+      println("{path}: `{c}` is not in palette.txt");
+      return "";
+    }
+  }
+  g
+}
+
+fn is_line(c: text) -> boolean {
+  c == "o" || c == "n"
+}
+
+/// Does the outline pixel (x, y) of `t` touch t's own figure (a fill pixel beside it)?
+fn touches(t: text, x: integer, y: integer) -> boolean {
+  for dy in -1..2 {
+    for dx in -1..2 {
+      nx = x + dx;
+      ny = y + dy;
+      if nx >= 0 && nx < TILE && ny >= 0 && ny < TILE {
+        c = letter_at(t, nx, ny);
+        if c != "." && !is_line(c) { return true; }
+      }
+    }
+  }
+  false
+}
+
+/// `t` over `b`, Kenney's way: t's fill wins; of its outline, the ring touching its figure wins
+/// over what is behind (the 1 px line between overlapping things), the outer ring only over
+/// nothing (the 2 px outline around the whole).
+fn layer(b: text, t: text) -> text {
+  out = "";
+  for y in 0..TILE {
+    for x in 0..TILE {
+      a = letter_at(b, x, y);
+      c = letter_at(t, x, y);
+      if c == "." {
+        out += a;
+      } else if !is_line(c) || a == "." || touches(t, x, y) {
+        out += c;
+      } else {
+        out += a;
+      }
+    }
+  }
+  out
+}
+
+/// `g` with every row from `row` down made transparent.
+fn cut(g: text, row: integer) -> text {
+  out = g[0..row * TILE];
+  for _i in row * TILE..TILE * TILE { out += "."; }
+  out
+}
+
+/// The file name of a path: what follows its last `/`.
+fn base(path: text) -> text {
+  at = path.rfind("/") ?? -1;
+  path[at + 1..path.size()]
+}
+
+/// Every tile of the sheet by index ("" for none), or an empty vector after saying what is wrong.
+fn tiles(pal: const vector<Colour>) -> vector<text> {
+  out: vector<text> = [];
+  for _i in 0..256 { out += [""]; }
+  bad = false;
+  for f in file(ART).files() {
+    n = base(f.path);
+    if !n.ends_with(".txt") || n == "palette.txt" || n == "composed.txt" { continue; }
+    i = number(n[0..2]);
+    g = read_tile(f.path, pal);
+    if len(g) == 0 { bad = true; continue; }
+    if len(out[i] ?? "") > 0 {
+      println("{n}: index {i} is used twice");
+      bad = true;
+      continue;
+    }
+    out[i] = g;
+  }
+  back = read_tile("{ART}/layers/socket-back.txt", pal);
+  front = read_tile("{ART}/layers/socket-front.txt", pal);
+  if len(back) == 0 || len(front) == 0 { bad = true; }
+  for l in file("{ART}/composed.txt").lines() {
+    if bad || len(l) == 0 || l.starts_with("#") { continue; }
+    parts = l.split(' ');
+    i = number(parts[0]);
+    held = parts[2];
+    g = back;
+    if held.starts_with("layers/") {
+      g = layer(back, cut(read_tile("{ART}/{held}.txt", pal), RING_FRONT));
+    } else if held != "-" {
+      g = layer(back, cut(out[number(held)] ?? "", RING_FRONT));
+    }
+    if len(out[i] ?? "") > 0 {
+      println("composed.txt: index {i} is used twice");
+      bad = true;
+    }
+    out[i] = layer(g, front);
+  }
+  if bad { return []; }
+  out
+}
+
+/// The sheet as an image: COLS tiles wide, as many rows as the highest index needs.
+fn sheet(ts: const vector<text>, pal: const vector<Colour>) -> imaging::Image {
+  last = 0;
+  for i in 0..len(ts) { if len(ts[i]) > 0 { last = i; } }
+  rows = last / COLS + 1;
+  w = COLS * TILE;
+  h = rows * TILE;
+  img = imaging::Image { name: "tile-world", width: w, height: h, data: [] };
+  for y in 0..h {
+    for x in 0..w {
+      g = ts[(y / TILE) * COLS + x / TILE];
+      px = imaging::Pixel { r: 0, g: 0, b: 0, a: 0 };
+      if len(g) > 0 {
+        c = letter_at(g, x % TILE, y % TILE);
+        for p in pal {
+          if p.letter == c {
+            px = imaging::Pixel { r: (p.rgb >> 16) & 255, g: (p.rgb >> 8) & 255, b: p.rgb & 255, a: 255 };
+          }
+        }
+      }
+      img.data += [px];
+    }
+  }
+  img
+}
+
+fn main() {
+  check = false;
+  for a in arguments() { if a == "check" { check = true; } }
+  pal = palette();
+  ts = tiles(pal);
+  if len(ts) == 0 { exit(1); }
+  img = sheet(ts, pal);
+  if !check {
+    if !img.save_png(SHEET) {
+      println("could not write {SHEET}");
+      exit(1);
+    }
+    return;
+  }
+  old = file(SHEET).png();
+  if !old {
+    println("{SHEET} is missing: run tools/sheet.loft");
+    exit(1);
+  }
+  same = old.width == img.width && old.height == img.height;
+  if same {
+    for i in 0..len(img.data) {
+      if img.data[i].rgba() != old.data[i].rgba() { same = false; }
+    }
+  }
+  if !same {
+    println("{SHEET} differs from assets/art/world: run tools/sheet.loft");
+    exit(1);
+  }
+}

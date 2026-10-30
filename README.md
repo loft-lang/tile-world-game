@@ -2,8 +2,9 @@
 
 **Pictures and sounds by [Kenney](https://kenney.nl)**: the Tiny Dungeon, Tiny Town, Tiny Farm,
 Tiny Battle and Tiny Ski packs and the Impact, Interface, RPG, Sci-fi and Voiceover sound packs,
-all released under CC0.  With kind regards to Kenney for the pictures: the game opens with
-that credit.
+all released under CC0.  The torches, the tar barrel, the wall sockets and the horse are the
+game's own sheet, drawn in Tiny Dungeon's style and also CC0 (ART.md).  With kind regards to
+Kenney for the pictures: the game opens with that credit.
 
 A traversal-puzzle game on the `tile_world` library.  Run it:
 
@@ -57,7 +58,10 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | `EDITOR.md` | the design of the in-game world editor |
 | `tests/` | the rules, played out: `loft --lib libs --tests tests` |
 | `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
-| `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it) |
+| `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |
+| `ART.md` | the game's own sheet: its layout, its style, how a tile is drawn |
+| `assets/art/world/` | the own sheet's sources: a tile as 16 lines of letters, its larger drawing in `large/` |
+| `tools/` | `sheet.loft` builds `tile-world.png` from those sources (`check`: does the committed sheet match them?), `reduce.loft` turns a larger drawing into a tile, `present.loft` draws the sheet beside Kenney's |
 | `fetch-libs.sh` | fetches the libraries into `libs/` from their repositories, until they are all published |
 
 `TW_SHOT=frame.png [TW_LEVEL=1] [TW_MOVES="s d d"] [TW_EDIT="d d tab paint"] [TW_KEYS="101 9 32"] loft --native --lib libs main.loft`

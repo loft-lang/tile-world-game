@@ -1,0 +1,140 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+// Reduces a large drawing to a tile (ART.md § How the sheet is made): a picture 16 times the
+// tile, rendered from assets/art/world/large/<name>.draw, becomes the 16 x 16 letters of
+// assets/art/world/<name>.txt.
+//   loft --lib libs tools/reduce.loft <canvas.png> <tile.txt> [outline letter, default o]
+// Each 16 x 16 block of the drawing becomes one pixel: transparent when less than half of it is
+// covered, else the palette colour most of its covered pixels are nearest to.  Then Kenney's
+// outline goes around the figure: every empty pixel within dx*dx + dy*dy <= 5 of it (2 px on
+// the sides, rounded corners, as measured on dungeon:129).  The reduction is where a tile
+// STARTS: the hand pass after it lives in the .txt, so reducing again replaces that pass.
+use imaging;
+
+const TILE = 16;
+/// Paths from tools/, the directory loft runs this script in.
+const PALETTE = "../assets/art/world/palette.txt";
+
+struct Colour {
+  letter: text,
+  r: integer,
+  g: integer,
+  b: integer
+}
+
+fn digit(c: character) -> integer {
+  v = c as integer;
+  if v >= 97 { return v - 87; }
+  if v >= 65 { return v - 55; }
+  v - 48
+}
+
+fn palette() -> vector<Colour> {
+  out: vector<Colour> = [];
+  for l in file(PALETTE).lines() {
+    if len(l) == 0 || l.starts_with("#") { continue; }
+    parts = l.split(' ');
+    v = 0;
+    for c in parts[1] { v = v * 16 + digit(c); }
+    out += [Colour { letter: parts[0], r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 }];
+  }
+  out
+}
+
+/// The palette entry nearest to (r, g, b); the first one on a tie.
+fn nearest(pal: const vector<Colour>, r: integer, g: integer, b: integer) -> integer {
+  best = 0;
+  best_d = -1;
+  for i in 0..len(pal) {
+    p = pal[i];
+    d = (p.r - r) * (p.r - r) + (p.g - g) * (p.g - g) + (p.b - b) * (p.b - b);
+    if best_d < 0 || d < best_d {
+      best = i;
+      best_d = d;
+    }
+  }
+  best
+}
+
+/// The letter block (tx, ty) of `pic` reduces to: "." when less than half of it is covered,
+/// else the palette letter most of its covered pixels are nearest to (the one met first on a tie).
+fn block(pic: const imaging::Image, pal: const vector<Colour>, n: integer, tx: integer,
+         ty: integer) -> text {
+  counts: vector<integer> = [];
+  first: vector<integer> = [];
+  for _k in 0..len(pal) {
+    counts += [0];
+    first += [-1];
+  }
+  cover = 0;
+  seen = 0;
+  for y in ty * n..ty * n + n {
+    for x in tx * n..tx * n + n {
+      p = pic.data[y * pic.width + x];
+      if p.a < 128 { continue; }
+      cover += 1;
+      ki = nearest(pal, p.r ?? 0, p.g ?? 0, p.b ?? 0);
+      if counts[ki] == 0 {
+        first[ki] = seen;
+        seen += 1;
+      }
+      counts[ki] += 1;
+    }
+  }
+  if cover * 2 < n * n { return "."; }
+  best = -1;
+  for k in 0..len(pal) {
+    if counts[k] > 0 && (best < 0 || counts[k] > counts[best]
+                         || (counts[k] == counts[best] && first[k] < first[best])) {
+      best = k;
+    }
+  }
+  pal[best].letter ?? "."
+}
+
+/// Kenney's outline around the figure of `grid`: every empty pixel within dx*dx + dy*dy <= 5.
+fn outline(grid: vector<text>, letter: text) {
+  figure: vector<integer> = [];
+  for i in 0..TILE * TILE { if grid[i] != "." { figure += [i]; } }
+  for i in figure {
+    x = i % TILE;
+    y = i / TILE;
+    for dy in -2..3 {
+      for dx in -2..3 {
+        nx = x + dx;
+        ny = y + dy;
+        if dx * dx + dy * dy <= 5 && nx >= 0 && nx < TILE && ny >= 0 && ny < TILE
+            && grid[ny * TILE + nx] == "." {
+          grid[ny * TILE + nx] = letter;
+        }
+      }
+    }
+  }
+}
+
+fn main() {
+  args = arguments();
+  if len(args) < 2 {
+    println("usage: tools/reduce.loft <canvas.png> <tile.txt> [outline letter]");
+    exit(2);
+  }
+  pic = file(args[0]).png();
+  if !pic {
+    println("{args[0]}: not a picture");
+    exit(1);
+  }
+  pal = palette();
+  grid: vector<text> = [];
+  for ty in 0..TILE {
+    for tx in 0..TILE { grid += [block(pic, pal, pic.width / TILE, tx, ty)]; }
+  }
+  outline(grid, if len(args) > 2 { args[2] } else { "o" });
+  out = "";
+  for y in 0..TILE {
+    for x in 0..TILE { out += grid[y * TILE + x]; }
+    out += "\n";
+  }
+  f = file(args[1]);
+  f.write(out);
+}

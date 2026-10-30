@@ -1,0 +1,14 @@
+
+	tile-world sheet
+
+	Drawn for the tile_world game, in the style of Kenney's Tiny Dungeon
+	(www.kenney.nl), with Tiny Dungeon's own palette.  The staff in a socket
+	(tile 12) uses Kenney's staff (Tiny Dungeon tile 129) as it is.
+
+			------------------------------
+
+	License: (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+	This content is free to use in personal, educational and commercial projects.
+	Its sources are in assets/art/world (ART.md says how the sheet is made).

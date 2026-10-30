@@ -1,0 +1,12 @@
+# STICK — a plain stick, also what a torch is once burnt out.
+# Drawn at 16x the tile (16 px here = 1 px there); the reduction adds the 2 px outline.
+size 256x256
+Background transparent
+name stick
+Poly (0.50,0.08)@30 (0.495,0.30)@32 (0.505,0.62)@32 (0.50,0.90)@32 stroke=189,108,74
+name twig
+Line (0.52,0.42)@20 - (0.68,0.26)@14 stroke=189,108,74
+name light
+Line (0.47,0.10)@6 - (0.47,0.86)@6 stroke=234,165,108
+name knot
+Circle (0.51,0.60) r=0.03 rgb=118,59,54

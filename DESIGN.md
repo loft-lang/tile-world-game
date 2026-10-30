@@ -99,8 +99,8 @@ This is what the game built on tile_world should be.
 
 ## Torches and light
 
-The player lights the dungeon.  Every rule here is open; the tiles are designed in
-[ART.md](ART.md).
+The player lights the dungeon.  Every rule here is open (not built); the tiles are drawn, in
+the game's own sheet ([ART.md](ART.md)).
 
 - **Dark by default.**  A dungeon cell is lit only by what gives light: open sky, a lit
   terrain, or a burning torch.  Light falls off one shade a step from it, darkest 7 steps away,
@@ -120,10 +120,10 @@ The player lights the dungeon.  Every rule here is open; the tiles are designed 
   - A level gets its first flame from the editor: a burning torch in a socket or on the floor.
 - **Wall sockets.**  A socket is a thing on a wall cell, placed in the editor.  It never moves
   and it is never taken.
-  - A torch is fixed to a wall only in a socket.  This replaces "any wall mounts" for torches,
-    so the level decides where light can be hung.
-  - Walking into a socket with the empty hand takes its torch.  Walking into an empty socket
-    while holding a torch, burning or not, fixes it there.
+  - A torch or the staff is fixed to a wall only in a socket.  This replaces "any wall
+    mounts", so the level decides where light can be hung.
+  - Walking into a socket with the empty hand takes what it holds.  Walking into an empty
+    socket while holding a torch (burning or not), a stick or the staff fixes it there.
 - **Burning out.**  A torch burns for 10 minutes of the level's clock (kinds.json `burn_ms`,
   600 000) from the moment it is lit, wherever it is.
   - In its last minute the flame is low (the tile says so; the light does not change).
@@ -137,8 +137,8 @@ The player lights the dungeon.  Every rule here is open; the tiles are designed 
     is at most twice as long.  It crosses light when it has to: no dark way home, or cornered.
   - **Bats drift towards light, slightly.**  Among the steps a wandering bat would take anyway,
     it takes the brightest.  It is never drawn straight to a flame and never stays at one.
-- **The staff** (today the cellar's light, which never burns out) stays as a light of its own.
-  Whether `the_cellar` swaps it for a torch is open.
+- **The staff** (today the cellar's light) stays a light of its own: it never burns out, and
+  it hangs in a socket like a torch.
 
 ## Goals: chests and points
 
@@ -200,5 +200,5 @@ The player lights the dungeon.  Every rule here is open; the tiles are designed 
 | 1 | layers and chunks, walls, rails, carts and trains, rocks, chairs and tables, potion, demo level | shipped (0.1.0) |
 | 2 | 4-step layers and falls, ceilings, fence, tree, one held item (sword, axe), chests and the signpost, enemies that flee and heal, guards and doors, wells and safe points | in progress: 4-step layers, slopes, falls and health, ceilings, fence (a cell or an edge), tree, doors that open, stairs, the held item (full hands, drop, the axe), chests and the signpost, wells and safe points built |
 | 3 | bow and aim, bomb, the depth renderer with Kenney tiles | open |
-| — | torches and light: stick, tar, sockets, burning out; the game's own sheet (ART.md); light in the enemies' moves | designed, not built; its slice is open |
+| — | torches and light: stick, tar, sockets, burning out; the game's own sheet (ART.md); light in the enemies' moves | the tiles drawn (ART.md); the rules designed, not built; its slice is open |
 | later | growth: carried weapons, armour, stats — never required (the principle above) | open |

@@ -5,116 +5,119 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 
 # The game's own sheet
 
-The Kenney sheets have no torch to burn out, no tar and no horse.  This file designs a sheet
-of our own that sits BESIDE them.  It is drawn in the Tiny Dungeon style, so a tile of ours
-next to a tile of Kenney's reads as one set.  It is a design: nothing here is drawn yet.  The
-rules the tiles serve (torches, tar, light) are in [DESIGN.md § Torches and
-light](DESIGN.md#torches-and-light).
+The Kenney sheets have no torch that burns out, no tar and no horse.  `tile-world.png` is a
+sheet of our own that sits BESIDE them.  It is drawn in the Tiny Dungeon style, so a tile of
+ours next to one of Kenney's reads as one set.  It also leaves room for what comes later, such
+as more monsters; the horse is its first addition beyond light.  The rules its tiles serve
+(torches, tar, sockets, light) are in [DESIGN.md § Torches and light](DESIGN.md#torches-and-light).
+
+![The sheet beside Kenney's Tiny Dungeon, and each new tile beside the Kenney tile it must match](assets/sheets/tile-world-presentation.png)
 
 ## The sheet
 
-- **File.**  `assets/sheets/tile-world.png` (with `tile-world-License.txt` beside it), named
-  `world` in `theme.json`.
+- **File.**  `assets/sheets/tile-world.png`, CC0 like Kenney's (`tile-world-License.txt`
+  beside it).  It is named `world` in `theme.json` once the game draws from it.
 - **Grid.**  16 × 16 tiles with no spacing, 12 columns (192 px), the same as
   `tiny-dungeon.png`.  The sheet grows DOWN by whole rows.
 - **Indices never move.**  `materials.loft` numbers a tile `1 + slot * 256 + tile`, and levels
   and stamps store that number.  So a tile, once added, keeps its index.  A retired tile stays
   in place (blank), and `world` is listed LAST in `theme.json`'s `sheets` so no existing number
-  shifts.  256 tiles a sheet is the cap, 21 rows; a second sheet of ours follows when that fills.
+  shifts.  The cap is 256 tiles a sheet (21 rows); a second sheet of ours follows when that fills.
 - **Rows by family**, so a new addition has a home without a reshuffle:
 
 | rows | family | now |
 |---|---|---|
-| 0 | fire and light | the twelve tiles below |
-| 1 | travel | reserved: the horse (and its saddle, a mounted hero) |
-| 2–4 | monsters | reserved: frames of the rats, bats and spiders the Kenney sheet lacks |
-| 5– | later additions | |
+| 0–1 | fire and light | tiles 0–12 below |
+| 2 | travel | 24: the horse |
+| 3– | later additions (monsters, …) | |
 
-### Row 0: fire and light
+### The tiles
 
 | index | tile | used for |
 |---|---|---|
 | 0 | stick | a plain stick; also what a torch is once it has burnt out |
 | 1 | torch | tarred, not burning |
-| 2 | burning torch, frame A | held, or lying on the floor |
-| 3 | burning torch, frame B | the flicker (see Animation) |
-| 4 | burning torch, low | its last minute: a smaller flame, the warning it is about to go out |
+| 2 | burning torch, frame A | held or lying; the flame leans left |
+| 3 | burning torch, frame B | the same torch, the flame leaning right: A and B differ only in the flame |
+| 4 | burning torch, low | its last minute: a small red flame |
 | 5 | tar barrel | turns a stick into a torch |
-| 6 | wall socket | an empty iron bracket on a wall |
-| 7 | socket with a torch | holding a torch that does not burn |
-| 8 | socket with a burning torch, frame A | |
-| 9 | socket with a burning torch, frame B | |
+| 6 | wall socket | an empty iron ring on a wall |
+| 7 | socket with a torch | not burning |
+| 8, 9 | socket with a burning torch, frames A and B | |
 | 10 | socket with a low torch | its last minute |
 | 11 | socket with a stick | a torch that burnt out in the socket |
-
-The five tiles asked for are 1, 2, 6, 7 and 8.  The rest follow from the rules: tile 0 is the
-stick tar turns into a torch, and tile 5 is the tar barrel.  Tiles 3, 4, 9, 10 and 11 cover the
-flicker and burning out, and each can be dropped (see the open questions).
+| 12 | socket with the staff | Kenney's staff (dungeon:129) as it is |
+| 24 | horse | side view, facing right, saddled |
 
 ## The style, measured from `tiny-dungeon.png`
 
-- **Palette.**  Only the 27 colours `tiny-dungeon.png` already uses; no new colour.  The tool
-  that builds the sheet refuses any other.  The ramps a tile here needs:
-  - outline: `#3f2631`, one pixel, around every object (never black);
-  - wood: `#763b36` shadow, `#bd6c4a` body, `#eaa56c` light (the staff and the chests);
-  - iron: `#262b44`, `#52607c`, `#8b9bb4`, `#c0cbdc` (the sword, the anvil, the walls);
-  - flame: `#e84537` rim, `#feae34` body, `#fee761` heart, `#ffffff` a single hot pixel (all in
-    the banner and potions already);
-  - tar: `#262b44` with a `#52607c` gloss, on `#3f2631`.
-- **Light comes from the top left**: one highlight edge, one shadow edge, flat fills between.
-  No dithering, no anti-aliasing, and no gradient longer than the ramp.
-- **Items stand upright and centred**, like the sword (104) and the staff (129): a held or
-  dropped torch is a vertical stick 2–3 px wide with its head in the top third.  The flame
-  rises out of the tile's top rows but never touches the tile edge.
-- **Sockets are overlays.**  Tiles 6–11 are transparent except for the bracket and what it
-  holds.  The game draws a thing over its cell's terrain, so a socket on a wall cell shows on
-  the wall's own bricks (`dungeon:40`), and on any other wall material too.  The bracket sits
-  low on the face, about rows 8–12, so a burning torch's flame stays inside the tile.
-- **Things on the floor stand on the bottom rows**, like the chest (89): the tar barrel's
-  base is on row 14–15 and it is about as wide as the chest.
-
-## Animation
-
-Tiny Dungeon has no animation, and the game draws one picture per thing today.  A flame that
-does not move reads as a painted flame.  The design therefore gives the burning tiles two
-frames (A and B, alternating every 250 ms of the level clock), which needs `theme.json` to
-accept `"frames": ["world:2", "world:3"]` for a thing.  Without that, frame A alone is drawn
-and nothing else changes.
+- **Palette.**  Only the 27 colours `tiny-dungeon.png` uses, one letter each in
+  `assets/art/world/palette.txt`; `tools/sheet.loft` refuses any other.
+- **Outline.**  `#3f2631` (`o`), 2 px thick on the outside with rounded corners: every empty
+  pixel within dx² + dy² ≤ 5 of the figure (measured on the staff, dungeon:129).  Where two
+  things overlap, the line between them is 1 px.  **Iron on a wall is outlined in navy**
+  (`n`, `#262b44`), as Kenney's wall fittings are (dungeon:7, 19); wood and cloth keep `o`.
+- **Ramps.**  Wood: `b` `m` `t` (`#763b36` `#bd6c4a` `#eaa56c`).  Iron: `n` `s` `g` `l`.
+  Flame: `r` rim, `y` body, `Y` heart, one `w` hot pixel.  Tar: `n` with an `s` or `g` gloss.
+- **Light comes from the top left**: a highlight edge, a shadow edge, flat fills between.  No
+  dithering, no anti-aliasing.
+- **Items stand upright and centred**, like the sword (104) and the staff (129).  The flame
+  never touches the tile's sides.
+- **Sockets are overlays**: transparent except the ring and what it holds, so a socket shows on
+  any wall's bricks.
 
 ## How the sheet is made
 
-- **Source as text.**  Each tile is a file `assets/art/world/<index>-<name>.txt`: sixteen lines
-  of sixteen characters, one letter per palette colour and `.` for transparent.  The letter
-  key is the first lines of `assets/art/world/palette.txt`.  A tile is then reviewable in a
-  diff, and redrawing one pixel is a one-character change.
-- **Built by loft.**  `tools/sheet.loft` reads the tile files and writes `tile-world.png`
-  through `imaging`.  It refuses a tile that is not 16 × 16, a colour outside the palette and
-  an index used twice.  The PNG is committed, and a game check rebuilds it and compares, so the
-  source and the picture cannot drift apart.
-- **Drawn in passes** (the `draw` method): block in the silhouette and outline, render at 4×
-  beside the Kenney neighbours (staff 129, sword 104, chest 89, the wall 40), and compare
-  against the style rules above.  Then refine and render again, until the tile sits in the set
-  without standing out.
+Kenney's tiles are drawn larger first and reduced to their size, so that is how these are made.
+
+1. **Drawn large.**  A tile starts as a scene in `assets/art/world/large/NN-name.draw`, 16 times
+   the tile (256 × 256), in the scene language of crawler's drawing set
+   ([SPRITES.md](../crawler/SPRITES.md)).  Render one with crawler's `tools/draw.py`
+   (`SKETCH_OUT=<dir> python3 ../crawler/tools/draw.py --once <scene>`), or with the loft
+   `drawing` library, which renders the same scenes byte for byte.  No outer ink is drawn: the
+   reduction adds the outline.
+2. **Reduced.**  `loft --lib libs tools/reduce.loft <canvas.png> <tile.txt> [outline letter]`
+   turns each 16 × 16 block into one pixel.  A block less than half covered becomes
+   transparent; otherwise it takes the palette colour most of its pixels are nearest to.  Then
+   the outline goes on.
+3. **The hand pass.**  The tile, `assets/art/world/NN-name.txt`, is 16 lines of 16 letters (`.`
+   transparent).  The hand pass happens there: a pixel is one character.  Done so far:
+   - the flame tips (2, 3);
+   - the base of flame B, made the same width as A's so the head stays still while the flame
+     flickers (3);
+   - the glint on the tar (1);
+   - the horse's ear, eye and legs (24).
+
+   Reducing a tile again starts it over and drops its hand pass.
+4. **Composed.**  The socket tiles (6–12) are not drawn one by one; `composed.txt` puts each
+   together from three parts:
+   - the ring's back half (`layers/socket-back.txt`);
+   - what the socket holds (a tile of the sheet, or Kenney's staff in `layers/kenney-staff.txt`),
+     cut where the ring hides it;
+   - the ring's front band (`layers/socket-front.txt`).
+
+   The ring is Kenney's own size (dungeon:7's spout ring, 6 px with a 2 px hole), too small to
+   survive a reduction, so its layers are drawn at 16 px.  The bracket and the torch are
+   therefore the same pixels in every socket tile.
+5. **Built.**  `loft --lib libs tools/sheet.loft` writes `tile-world.png`.  With `check` it
+   instead exits 1 when the committed sheet differs from the sources (`check`, not `--check`:
+   a `--` flag after the script is loft's own).
 
 ## Presenting it
 
-`tools/present.loft` writes one picture, `assets/sheets/tile-world-presentation.png`, at 4×:
+`loft --lib libs tools/present.loft` writes `assets/sheets/tile-world-presentation.png` (above),
+at 4×:
 
-1. **The sheets side by side**: `tiny-dungeon.png`, then `tile-world.png`, on the same scale
-   and background, each titled.
-2. **Neighbours.**  Each new tile beside the Kenney tile it must match: the torch by the staff
-   and the sword, the barrel by the chest, the sockets on the wall bricks.
-3. **In the game**: `the_cellar` dark, lit only by socket torches (a `TW_SHOT` picture), then
-   the same with the hero carrying one.
+1. the two sheets side by side;
+2. each new tile beside the Kenney tile it must match: the stick and the torches by the staff
+   and the sword, the barrel by the chest, the sockets on the wall's bricks beside the banner,
+   and the horse by the rat.
 
-The picture is what gets shown when the sheet is finished.  An artifact page with the same
-three parts can carry it further.
+A third part waits for the rules: `the_cellar` dark, lit only by socket torches, as a `TW_SHOT`
+picture.
 
-## Open questions
+## Animation
 
-- **The licence of the sheet.**  CC0 like Kenney's, so the whole art set is one licence, or the
-  repository's LGPL-3.0?  The design assumes CC0.
-- **The extra tiles.**  Keep the low-flame warning (4, 10)?  Keep the flicker frames (3, 9),
-  which need the renderer change above?  Keep the socket with a stick (11), or should a torch
-  that burns out in a socket fall to the floor below it?
-- **The sheet's name.**  `world` / `tile-world.png`, or another name?
+The game draws one picture per thing today.  The burning tiles come in two frames (A, B)
+alternating every 250 ms of the level clock, which needs `theme.json` to accept
+`"frames": ["world:2", "world:3"]` for a thing.  Until it does, frame A alone is drawn.

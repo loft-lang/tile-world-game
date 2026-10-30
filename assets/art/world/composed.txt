@@ -1,0 +1,12 @@
+# The socket tiles, put together by tools/sheet.loft: the ring's back (layers/socket-back), what
+# the socket holds, the ring's front (layers/socket-front).  What it holds is a tile of this sheet
+# (its index), a layer (layers/<name>) or `-` for nothing; it is cut at row 13, where the ring's
+# front band hides the rest.  An outline pixel of a layer that touches its own figure wins over
+# what is behind (the 1 px line between overlapping things); its outer ring only over nothing.
+6 socket -
+7 socket-torch 1
+8 socket-torch-burning-a 2
+9 socket-torch-burning-b 3
+10 socket-torch-low 4
+11 socket-stick 0
+12 socket-staff layers/kenney-staff

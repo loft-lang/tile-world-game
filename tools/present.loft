@@ -1,0 +1,91 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+// The picture the game's own sheet is shown with (ART.md § Presenting it), at 4x:
+//   1. Kenney's Tiny Dungeon and the tile-world sheet side by side, on one background;
+//   2. each new tile beside the Kenney tile it must match: the stick and the torches by the
+//      staff and the sword, the barrel by the chest, the sockets on the wall's bricks beside
+//      Kenney's banner, the horse by the rat.
+//   loft --lib libs tools/present.loft     writes assets/sheets/tile-world-presentation.png
+use imaging;
+
+const TILE = 16;
+const COLS = 12;
+const ZOOM = 4;
+const GAP = 32;
+/// Paths from tools/, the directory loft runs this script in.
+const KENNEY = "../assets/sheets/tiny-dungeon.png";
+const OURS = "../assets/sheets/tile-world.png";
+const OUT = "../assets/sheets/tile-world-presentation.png";
+const BACK = 0x606068;
+/// Kenney's tiles the new ones are compared with (dungeon: index).
+const WALL = 40;
+const BANNER = 29;
+
+/// An empty picture of the background colour.
+fn canvas(w: integer, h: integer) -> imaging::Image {
+  img = imaging::Image { name: "presentation", width: w, height: h, data: [] };
+  for _i in 0..w * h {
+    img.data += [imaging::Pixel { r: (BACK >> 16) & 255, g: (BACK >> 8) & 255, b: BACK & 255 }];
+  }
+  img
+}
+
+/// Draw the w x h area at (sx, sy) of `src` onto `dst` at (dx, dy), ZOOM times enlarged; a
+/// transparent pixel leaves what is under it.
+fn blit(dst: imaging::Image, src: const imaging::Image, sx: integer, sy: integer, w: integer,
+        h: integer, dx: integer, dy: integer) {
+  for y in 0..h {
+    for x in 0..w {
+      p = src.data[(sy + y) * src.width + sx + x] ?? imaging::Pixel { r: 0, g: 0, b: 0, a: 0 };
+      if p.a < 128 { continue; }
+      for zy in 0..ZOOM {
+        for zx in 0..ZOOM {
+          dst.data[(dy + y * ZOOM + zy) * dst.width + dx + x * ZOOM + zx] = p;
+        }
+      }
+    }
+  }
+}
+
+/// Tile `i` of `sheet` onto `dst` at (dx, dy), enlarged.
+fn tile(dst: imaging::Image, sheet: const imaging::Image, i: integer, dx: integer, dy: integer) {
+  blit(dst, sheet, (i % COLS) * TILE, (i / COLS) * TILE, TILE, TILE, dx, dy);
+}
+
+fn main() {
+  k_png = file(KENNEY).png();
+  o_png = file(OURS).png();
+  if !k_png || !o_png {
+    println("the sheets are missing: run tools/sheet.loft first");
+    exit(1);
+  }
+  kenney = k_png ?? canvas(1, 1);
+  ours = o_png ?? canvas(1, 1);
+  t = TILE * ZOOM;
+  // 1. The sheets.
+  w = GAP + kenney.width * ZOOM + GAP + ours.width * ZOOM + GAP;
+  top = GAP + kenney.height * ZOOM + GAP;
+  img = canvas(w, top + t + GAP);
+  blit(img, kenney, 0, 0, kenney.width, kenney.height, GAP, GAP);
+  right = GAP + kenney.width * ZOOM + GAP;
+  blit(img, ours, 0, 0, ours.width, ours.height, right, GAP);
+  // 2. The neighbours, one group after another: (sheet, index), with -1 for a gap.
+  //    Kenney's are 1 000 + index; the sockets (6 .. 12) and the banner stand on the wall.
+  row = [1129, 1104, 0, 1, 2, 3, 4, -1, 1089, 5, -1, 1029, 6, 7, 8, 9, 10, 11, 12, -1, 1123, 24];
+  x = GAP;
+  for k in row {
+    if k < 0 {
+      x += t / 2;
+      continue;
+    }
+    on_wall = k == 1000 + BANNER || (k >= 6 && k <= 12);
+    if on_wall { tile(img, kenney, WALL, x, top); }
+    if k >= 1000 { tile(img, kenney, k - 1000, x, top); } else { tile(img, ours, k, x, top); }
+    x += t + 4;
+  }
+  if !img.save_png(OUT) {
+    println("could not write {OUT}");
+    exit(1);
+  }
+}

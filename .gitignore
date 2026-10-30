@@ -7,3 +7,4 @@ target/
 # Pictures written by TW_SHOT
 *.shot.png
 .check.log
+.loft/
