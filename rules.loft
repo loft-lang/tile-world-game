@@ -717,12 +717,34 @@ fn faded(l: const Level, until: integer) -> integer {
 /// end and its place), so two flames lit together do not flicker together.
 pub fn flicker(l: const Level, until: integer, x: integer, y: integer, z: integer) -> integer {
   if l.k.flicker_ms <= 0 || l.k.flicker_odds <= 0 { return 0; }
-  // Kept to 31 bits between the steps: a product never leaves the integer range.
-  h = ((l.now / l.k.flicker_ms ?? 0) * 40503 + until * 7919 + x * 104729 + y * 1299709 + z * 15485863)
-      & 0x7FFFFFFF;
-  h = ((h ^ (h >> 13)) * 1274126177) & 0x7FFFFFFF;
-  h = h ^ (h >> 16);
-  if (h & 1023) % l.k.flicker_odds == 0 { 1 } else { 0 }
+  h = mix((l.now / l.k.flicker_ms ?? 0) * 40503 + until * 7919 + place_key(x, y, z));
+  if (h >> 4) % l.k.flicker_odds == 0 { 1 } else { 0 }
+}
+
+// --- The world's fixed choices ---
+//
+// Where the rules must choose (which way an item goes aside, when a flame flickers) they choose
+// by a hash: the same situation always gives the same answer, so the game is deterministic, but
+// the pattern follows no row, column or checkerboard a player could read off the grid.
+
+// An integer mixed into 31 well-spread bits (two rounds of a known 32-bit integer hash), every
+// product kept inside the integer range.
+fn mix(v: integer) -> integer {
+  h = v & 0x7FFFFFFF;
+  h = (((h >> 16) ^ h) * 0x45d9f3b) & 0x7FFFFFFF;
+  h = (((h >> 16) ^ h) * 0x45d9f3b) & 0x7FFFFFFF;
+  (h >> 16) ^ h
+}
+
+// A cell as one integer to mix (large primes, so near cells land far apart).
+fn place_key(x: integer, y: integer, z: integer) -> integer {
+  (x * 73856093) ^ (y * 19349663) ^ (z * 83492791)
+}
+
+/// Does an item pushed aside on (x, y, z) try the right of its way first (else the left)?  Each
+/// place on the ground has its own, fixed, preference.
+pub fn prefers_right(x: integer, y: integer, z: integer) -> boolean {
+  ((mix(place_key(x, y, z)) >> 7) & 1) == 1
 }
 
 /// The lights the game gives `tile_world::shades` on layer z, and the shade each starts at
@@ -804,8 +826,8 @@ fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base
 //
 // A floor cell holds at most one item (a walk_on thing), and nothing is ever put on one: a light
 // item is pushed out of the way of what comes in.  It slides one cell on when there is room; when
-// another item lies there — a string of two — that one goes to the side (right of the way first,
-// then left), if there is room, and the first slides into its cell.  With no room the push or the
+// another item lies there — a string of two — that one goes to the side (the side its place
+// prefers first, then the other), if there is room, and the first slides into its cell.  With no room the push or the
 // pull does not happen.
 
 // Can the item on (x, y, z) slide one cell (dx, dy): onto floor at its own height that holds
@@ -821,11 +843,12 @@ fn slides(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: i
   height(l, nx, ny, z) == height(l, x, y, z)
 }
 
-// The side the item on (x, y, z) goes to, out of the way (dx, dy): its right, then its left;
-// (0, 0) when neither has room.
+// The side the item on (x, y, z) goes to, out of the way (dx, dy): the side that place prefers
+// (`prefers_right`), then the other; (0, 0) when neither has room.
 fn aside(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> (integer, integer) {
-  if slides(l, x, y, z, -dy, dx, false) { return (-dy, dx); }
-  if slides(l, x, y, z, dy, -dx, false) { return (dy, -dx); }
+  first = if prefers_right(x, y, z) { (-dy, dx) } else { (dy, -dx) };
+  if slides(l, x, y, z, first.0, first.1, false) { return first; }
+  if slides(l, x, y, z, -first.0, -first.1, false) { return (-first.0, -first.1); }
   (0, 0)
 }
 

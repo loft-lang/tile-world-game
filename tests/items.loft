@@ -3,9 +3,10 @@
 //
 // One item a cell (DESIGN.md § Moving things): nothing is ever put on an item.  A light item is
 // pushed out of the way of what comes in — one cell on when there is room; a string of two sends
-// the far one to the side (right of the way, then left), if there is room — and with no room the
-// push or the pull does not happen.  The room is x 0 .. 6, y 0 .. 2 under a ceiling, walled all
-// round; pushes run east along y 1, so "right" is south (y 2) and "left" north (y 0).
+// the far one to the side its place prefers (`prefers_right`, fixed per place), then the other,
+// if there is room — and with no room the push or the pull does not happen.  The room is x 0 .. 6,
+// y 0 .. 2 under a ceiling, walled all round; pushes run east along y 1, so "right" is south
+// (y 2) and "left" north (y 0).
 use tile_world;
 use rules;
 
@@ -34,6 +35,37 @@ fn main() {
   assert(at(w, 0, 1) == "", "an empty room");
 }
 
+// The row an item at (x, 1) pushed east goes aside to: y 2 when its place prefers right.
+fn first_side(x: integer) -> integer {
+  if rules::prefers_right(x, 1, 0) { 2 } else { 0 }
+}
+
+// Each place's preference is fixed — the same answer every time — and no simple rule of the grid
+// gives it away: over 32 x 32 cells each side has 40..60 %, and no rule (all right, by column,
+// by row, a checkerboard, every third column) agrees with it on more than 65 % or less than 35 %
+// of them.  Another layer has its own pattern.
+fn test_the_side_preference_is_fixed_and_unguessable() {
+  right = 0;
+  agree: vector<integer> = [0, 0, 0, 0, 0];
+  differs_above = 0;
+  for y in -16..16 {
+    for x in -16..16 {
+      r = rules::prefers_right(x, y, 0);
+      assert(r == rules::prefers_right(x, y, 0), "fixed at {x},{y}");
+      if r { right += 1; }
+      guesses = [true, x % 2 == 0, y % 2 == 0, (x + y) % 2 == 0, x % 3 == 0];
+      for g in 0..5 { if (guesses[g] ?? false) == r { agree[g] += 1; } }
+      if r != rules::prefers_right(x, y, 1) { differs_above += 1; }
+    }
+  }
+  assert(right >= 410 && right <= 614, "each side 40..60 % of 1024: right {right}");
+  for g in 0..5 {
+    a = agree[g] ?? 0;
+    assert(a >= 358 && a <= 666, "guess {g} agrees on {a} of 1024");
+  }
+  assert(differs_above >= 300, "the layer above has its own: {differs_above} differ");
+}
+
 // A rock pushed onto a potion: the potion goes one cell on.
 fn test_an_item_slides_out_of_the_way() {
   w = room();
@@ -55,7 +87,7 @@ fn test_no_room_no_push() {
   assert(at(w, 4, 1) == "rock," && at(w, 5, 1) == "potion," && w.hero_x == 3, "nothing moved");
 }
 
-// A string of two: the far item goes to the right of the way, the near one into its cell.
+// A string of two: the far item goes to the side its place prefers, the near one into its cell.
 fn test_a_string_of_two_sends_the_far_one_aside() {
   w = room();
   put(w, 2, 1, "rock");
@@ -63,26 +95,54 @@ fn test_a_string_of_two_sends_the_far_one_aside() {
   put(w, 4, 1, "axe");
   _ = rules::walk(w, 1, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
-  assert(at(w, 3, 1) == "rock," && at(w, 4, 1) == "potion," && at(w, 4, 2) == "axe,",
-         "{at(w, 3, 1)} {at(w, 4, 1)} {at(w, 4, 2)}");
+  s = first_side(4);
+  assert(at(w, 3, 1) == "rock," && at(w, 4, 1) == "potion," && at(w, 4, s) == "axe,",
+         "{at(w, 3, 1)} {at(w, 4, 1)} {at(w, 4, s)} (y {s})");
 }
 
-// The right side taken (a chair): the far item goes left.  Both taken: nothing moves.
-fn test_aside_left_and_no_room_at_all() {
+// Both preferences in play: in a longer room, a push whose far item lies on a place that
+// prefers the left sends it north (y 0), one that prefers the right south (y 2).
+fn test_each_place_sends_aside_its_own_way() {
+  seen_left = false;
+  seen_right = false;
+  for x in 3..20 {
+    if (seen_left && seen_right) { break; }
+    right = rules::prefers_right(x, 1, 0);
+    if (right && seen_right) || (!right && seen_left) { continue; }
+    w = rules::level(rules::kinds());
+    tile_world::fill(w.w, -1, -1, 21, 3, 0, rules::tr(w, "wall"));
+    tile_world::fill(w.w, 0, 0, 20, 2, 0, rules::tr(w, "floor"));
+    tile_world::fill(w.w, -1, -1, 21, 3, 1, rules::tr(w, "floor"));
+    put(w, x - 2, 1, "rock");
+    put(w, x - 1, 1, "potion");
+    put(w, x, 1, "axe");
+    rules::put_hero(w, x - 3, 1, 0);
+    assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed at {x}");
+    side = if right { 2 } else { 0 };
+    assert(at(w, x, side) == "axe," && at(w, x, 2 - side) == "", "x {x} prefers right {right}: y {side}");
+    if right { seen_right = true; } else { seen_left = true; }
+  }
+  assert(seen_left && seen_right, "both preferences met along the row");
+}
+
+// The preferred side taken (a chair): the far item goes to the other.  Both taken: nothing moves.
+fn test_aside_the_other_way_and_no_room_at_all() {
+  s = first_side(4);
+  o = 2 - s;
   w = room();
   put(w, 2, 1, "rock");
   put(w, 3, 1, "potion");
   put(w, 4, 1, "axe");
-  put(w, 4, 2, "chair");
+  put(w, 4, s, "chair");
   _ = rules::walk(w, 1, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
-  assert(at(w, 4, 0) == "axe," && at(w, 4, 1) == "potion," && at(w, 4, 2) == "chair,", "left");
+  assert(at(w, 4, o) == "axe," && at(w, 4, 1) == "potion," && at(w, 4, s) == "chair,", "the other side");
   v = room();
   put(v, 2, 1, "rock");
   put(v, 3, 1, "potion");
   put(v, 4, 1, "axe");
-  put(v, 4, 2, "chair");
-  tile_world::set_terrain(v.w, 4, 0, 0, rules::tr(v, "wall"));
+  put(v, 4, s, "chair");
+  tile_world::set_terrain(v.w, 4, o, 0, rules::tr(v, "wall"));
   _ = rules::walk(v, 1, 0);
   assert(rules::walk(v, 1, 0) == rules::Step.Blocked, "no room either side");
   assert(at(v, 2, 1) == "rock," && at(v, 3, 1) == "potion," && at(v, 4, 1) == "axe," && v.hero_x == 1,
@@ -98,7 +158,8 @@ fn test_a_third_item_stays() {
   put(w, 5, 1, "stick");
   _ = rules::walk(w, 1, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed");
-  assert(at(w, 4, 1) == "potion," && at(w, 4, 2) == "axe," && at(w, 5, 1) == "stick,", "the stick stays");
+  assert(at(w, 4, 1) == "potion," && at(w, 4, first_side(4)) == "axe," && at(w, 5, 1) == "stick,",
+         "the stick stays");
 }
 
 // A burning torch pushed along keeps its time: low from 9:00, a stick at 10:00 where it went —
@@ -123,7 +184,8 @@ fn test_a_pushed_flame_keeps_its_time() {
   _ = rules::walk(v, 1, 0);
   _ = rules::walk(v, 1, 0);
   rules::tick(v, 600000);
-  assert(at(v, 4, 2) == "stick," && at(v, 4, 1) == "potion,", "aside, burnt out there: {at(v, 4, 2)}");
+  assert(at(v, 4, first_side(4)) == "stick," && at(v, 4, 1) == "potion,",
+         "aside, burnt out there: {at(v, 4, first_side(4))}");
 }
 
 // A chair pulled onto the axe the hero just put down: the axe goes on, under the hero.

@@ -63,8 +63,13 @@ This is what the game built on tile_world should be.
   stays in sight and in reach.  Built (`tests/items.loft`).
   - Items are light: a thing pushed or pulled onto one pushes it one cell on, any time, when
     there is room (floor at its height, nothing on it, no edge in the way).
-  - A string of two: the far item goes to the side, right of the way first, then left, if
-    there is room, and the near one takes its cell.  Only two are moved; a third stays.
+  - A string of two: the far item goes to the side, if there is room, and the near one takes
+    its cell.  Only two are moved; a third stays.
+  - **Which side** is the place's own: every place on the ground prefers the right or the left
+    of the way (then tries the other), fixed by a hash of where it is.  The same push in the
+    same place always goes the same way — the game is deterministic — but the pattern follows
+    no row, column or checkerboard, so it is learnt by playing, not read off the grid.  Each
+    layer has its own.
   - With no room for the item, the push or the pull does not happen.
   - The hero puts nothing down where an item lies; it stands on one only after a swap.
   - A burning torch pushed along keeps its time.
