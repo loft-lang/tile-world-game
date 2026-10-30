@@ -94,8 +94,11 @@ This is what the game built on tile_world should be.
     hero steps onto its first cart (height 1), so a stuck train is a walkway, not a wall.
   - A green potion gives +2 to both for 60 s of the world clock. It is used by walking over it
     (slice 1).
-- **Tracks and rolling carts (designed, not built).**  The owner's rules (2026-10-30), and the
-  proposals not yet confirmed marked so.
+- **Tracks and rolling carts.**  The owner's rules (2026-10-30), and the proposals not yet
+  confirmed marked so.  Built, step 1 (`tests/tracks.loft`): tracks from the rails' joins (each
+  rail cell joins the rail beside it; painted pieces, which keep parallel tracks apart, come with
+  the junctions), carts along them round bends, pushed and pulled, trains along the track, and
+  derailing past an open end.  Steps 2 (junctions) and 3 (slopes) are not built.
   - **A track follows its picture.**  A rail cell's tile (Kenney's straight and bend pieces, and
     our junctions) says which sides it joins: straight, bend, end or junction.  Two tracks side by
     side do not fuse.

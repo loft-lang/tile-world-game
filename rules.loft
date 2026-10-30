@@ -33,6 +33,10 @@
 //            its light fades by `fade` shades, the warning that it burns down, and flickers: one
 //            shade dimmer now and then, a step of `flicker_ms` in `flicker_odds`).
 //
+// A train runs along its TRACK: a rail cell joins the rail cells beside it, and a cart leaves a
+// cell only through a side it joins (see Tracks); past a track's end, with free floor after it,
+// the front cart becomes its `derails_to` (a derailed cart: fixed, stood on).
+//
 // The hero holds at most one item, and while it holds one it pushes, pulls and lifts nothing.
 //
 // Height counts in steps — a cell's rise and the things stacked on it — and a layer is
@@ -102,6 +106,7 @@ struct ThingProps {
   lit_to: text,
   flame: boolean,
   burns_to: text,
+  derails_to: text,
   glyph: text
 }
 
@@ -197,6 +202,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
       rest: flag(e, "rest"), holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
+      derails_to: word(e, "derails_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -1101,12 +1107,158 @@ pub fn pull_strength(l: const Level) -> integer {
   l.k.pull_strength + (if boosted(l) { l.k.boost } else { 0 })
 }
 
-/// How many train things stand in a row from (x, y) on, a step (dx, dy) apart, each alone on
-/// its floor: the train a push or a pull there moves.
+// --- Tracks ---
+//
+// A rail cell joins each rail cell beside it across an edge things cross: its sides, as bits —
+// north 1, east 2, south 4, west 8.  One side is an end, two a straight or a bend, three or four
+// a junction.  The theme draws the piece its sides name, so what is seen is what a cart follows.
+// A cart leaves a cell through the joined side opposite the one it came in by: the other side of a
+// straight or a bend, straight on through a junction (choosing a branch comes with the switches).
+// Past a track's end it runs straight on, off the rails: it derails onto free floor there, and
+// anything else there — a wall, a thing — stops it.
+
+/// What `train_way` answers: the train cannot move, it moves on along the track, or its front
+/// cart derails.
+pub const STUCK = 0;
+pub const ALONG = 1;
+pub const DERAILS = 2;
+
+fn side_bit(dx: integer, dy: integer) -> integer {
+  if dy < 0 { return 1; }
+  if dx > 0 { return 2; }
+  if dy > 0 { return 4; }
+  if dx < 0 { return 8; }
+  0
+}
+
+fn bit_way(b: integer) -> (integer, integer) {
+  if b == 1 { return (0, -1); }
+  if b == 2 { return (1, 0); }
+  if b == 4 { return (0, 1); }
+  if b == 8 { return (-1, 0); }
+  (0, 0)
+}
+
+/// Is terrain kind `kind` rail?
+pub fn is_rail(l: const Level, kind: integer) -> boolean {
+  rail(l, kind)
+}
+
+/// The sides rail cell (x, y, z) joins: north 1, east 2, south 4, west 8; 0 for no rail.
+pub fn joins(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  if !rail(l, tile_world::terrain(l.w, x, y, z)) { return 0; }
+  m = 0;
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    if rail(l, tile_world::terrain(l.w, x + d.0, y + d.1, z)) && tile_world::crossable(l.w, x, y, z, d.0, d.1) {
+      m += side_bit(d.0, d.1);
+    }
+  }
+  m
+}
+
+// The way a cart moving (dx, dy) in rail cell (x, y, z) goes on: the side it leaves by and what
+// that is — ALONG (out to the joined cell there), DERAILS (an end: straight on, off the rails) or
+// STUCK (it came in by a side the cell does not join, or a junction with no way straight on).
+// `pushed`: the cart the hero pushes, which sits in the cell already — it also goes when the cell
+// joins only the side it is pushed to (an end, pushed back onto the track).
+fn way_on(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+          pushed: boolean) -> (integer, integer, integer) {
+  m = joins(l, x, y, z);
+  entry = side_bit(-dx, -dy);
+  ahead = side_bit(dx, dy);
+  if (m & entry) == 0 {
+    if pushed && m == ahead { return (dx, dy, ALONG); }
+    return (0, 0, STUCK);
+  }
+  rest = m - entry;
+  if rest == 0 { return (dx, dy, DERAILS); }
+  if (rest & ahead) != 0 { return (dx, dy, ALONG); }
+  if rest == 1 || rest == 2 || rest == 4 || rest == 8 {
+    w = bit_way(rest);
+    return (w.0, w.1, ALONG);
+  }
+  (0, 0, STUCK)
+}
+
+/// The train a push (dx, dy) moves from (x, y, z) on — its carts along the track, front last —
+/// and how its front goes on: STUCK, ALONG (one cell on along the rails) or DERAILS (off the end,
+/// onto the floor), with the way it goes (`way`).
+pub struct TrainWay {
+  pub cells: vector<(integer, integer)>,
+  pub how: integer,
+  pub way: (integer, integer)
+}
+
+fn train_way(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> TrainWay {
+  out = TrainWay { cells: [], how: STUCK, way: (0, 0) };
+  if !car(l, x, y, z) { return out; }
+  cx = x;
+  cy = y;
+  d = (dx, dy);
+  first = true;
+  while true {
+    out.cells += [(cx, cy)];
+    w = way_on(l, cx, cy, z, d.0, d.1, first);
+    first = false;
+    out.way = (w.0, w.1);
+    out.how = w.2;
+    if w.2 != ALONG || !car(l, cx + w.0, cy + w.1, z) { return out; }
+    cx += w.0;
+    cy += w.1;
+    d = (w.0, w.1);
+    if len(out.cells) > 64 { out.how = STUCK; return out; }
+  }
+  out
+}
+
+/// How many carts a push (dx, dy) at (x, y, z) moves: the train, counted along the track.
 pub fn train(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
-  n = 0;
-  while car(l, x + n * dx, y + n * dy, z) { n += 1; }
-  n
+  len(train_way(l, x, y, z, dx, dy).cells)
+}
+
+// Push the train (dx, dy) from (x, y, z), when the hero is strong enough and its front can go on:
+// along the rails onto a free cell (a light item there pushed out of the way), or off a track's
+// end onto free floor, where it derails.  Answers whether it moved.
+fn push_train(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  tw = train_way(l, x, y, z, dx, dy);
+  n = len(tw.cells);
+  if n == 0 || n > push_strength(l) || tw.how == STUCK { return false; }
+  last = tw.cells[n - 1] ?? (x, y);
+  fx = last.0 + tw.way.0;
+  fy = last.1 + tw.way.1;
+  front = base(l, last.0, last.1, z);
+  if tw.how == ALONG {
+    if !fits(l, front, fx, fy, z, 0) || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) { return false; }
+  } else {
+    k = tile_world::terrain(l.w, fx, fy, z);
+    if !walkable(l, k) || blocks_things(l, k) || !tile_world::crossable(l.w, last.0, last.1, z, tw.way.0, tw.way.1)
+        || height(l, fx, fy, z) != 0 || !way_clear(l, fx, fy, z, tw.way.0, tw.way.1) {
+      return false;
+    }
+    t = tile_world::top(l.w, fx, fy, z);
+    if t != 0 && !item(l, t) { return false; }
+  }
+  clear_way(l, fx, fy, z, tw.way.0, tw.way.1);
+  move_base(l, last.0, last.1, z, fx, fy);
+  if tw.how == DERAILS {
+    p = l.k.things[front];
+    to = if p { thing_id(l.k, p.derails_to) } else { 0 };
+    if to != 0 { replace_base(l, fx, fy, z, to); }
+  }
+  k = n - 2;
+  while k >= 0 {
+    c = tw.cells[k] ?? (x, y);
+    t = tw.cells[k + 1] ?? (x, y);
+    move_base(l, c.0, c.1, z, t.0, t.1);
+    k -= 1;
+  }
+  true
+}
+
+// Is (x, y, z) one car of a train: a train thing on its floor (an item resting on it or not).
+fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  t = base(l, x, y, z);
+  trainlike(l, t) && height(l, x, y, z) == thing_height(l, t)
 }
 
 // Can a line of n things from (x, y), each moving one step (dx, dy), cross every edge on the way.
@@ -1117,11 +1269,7 @@ fn crosses(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: 
   true
 }
 
-// Is (x, y, z) one car of a train: a train thing alone on its floor.
-fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
-  t = base(l, x, y, z);
-  trainlike(l, t) && height(l, x, y, z) == thing_height(l, t)
-}
+
 
 // The climb between layers, or null when this step is not one.
 /// Can the hero go from height `from` to height `to`, both counted from the same floor: up at
@@ -1293,17 +1441,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   surface = height(l, tx, ty, z);
   base = surface - thing_height(l, thing);
   // A train moves as one, when the hero is strong enough and the cell after it takes it.
-  // A train that cannot move is climbed, like a chair (below).
-  n = if trainlike(l, thing) { train(l, tx, ty, z, dx, dy) } else { 0 };
-  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) && n <= push_strength(l)
-      && fits(l, thing, tx + n * dx, ty + n * dy, z, 0) && crosses(l, tx, ty, z, dx, dy, n)
-      && way_clear(l, tx + n * dx, ty + n * dy, z, dx, dy) {
-    clear_way(l, tx + n * dx, ty + n * dy, z, dx, dy);
-    k = n - 1;
-    while k >= 0 {
-      move_base(l, tx + k * dx, ty + k * dy, z, tx + (k + 1) * dx, ty + (k + 1) * dy);
-      k -= 1;
-    }
+  // A train moves along its track (round a bend, off an open end), when the hero is strong
+  // enough; one that cannot move is climbed, like a chair (below).
+  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) && push_train(l, tx, ty, z, dx, dy) {
     arrive(l, tx, ty, z);
     return Step.Pushed;
   }
@@ -1345,23 +1485,49 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
       || height(l, tx, ty, z) > l.hero_h {
     return Step.Blocked;
   }
+  // Behind the hero on a track is the rail cell its own joins, other than the way it goes — round
+  // a bend too; elsewhere the cell behind it.
+  m = joins(l, fx, fy, z) - (joins(l, fx, fy, z) & side_bit(dx, dy));
+  if m == 1 || m == 2 || m == 4 || m == 8 {
+    bw = bit_way(m);
+    if car(l, fx + bw.0, fy + bw.1, z) {
+      bx = fx + bw.0;
+      by = fy + bw.1;
+    }
+  }
   thing = if hands_busy(l) { 0 } else { base(l, bx, by, z) };
   // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
   left = height(l, fx, fy, z);
   base = height(l, bx, by, z) - thing_height(l, thing);
   if trainlike(l, thing) {
-    // The whole train behind follows, one cell each, when the hero can pull it.
-    n = train(l, bx, by, z, -dx, -dy);
+    // The whole train behind follows along its track, one cell each, when the hero can pull it
+    // and the cell it leaves is rail the train's track joins.
+    cars: vector<(integer, integer)> = [];
+    cx = bx;
+    cy = by;
+    d = (bx - fx, by - fy);
+    while car(l, cx, cy, z) && len(cars) < 64 {
+      cars += [(cx, cy)];
+      w = way_on(l, cx, cy, z, d.0, d.1, false);
+      if w.2 != ALONG { break; }
+      cx += w.0;
+      cy += w.1;
+      d = (w.0, w.1);
+    }
+    n = len(cars);
     under = tile_world::top(l.w, fx, fy, z);
-    can = left == 0 && rail(l, tile_world::terrain(l.w, fx, fy, z)) && (under == 0 || item(l, under))
-          && crosses(l, bx - (n - 1) * dx, by - (n - 1) * dy, z, dx, dy, n);
+    pulled_way = (fx - bx, fy - by);
+    can = left == 0 && (joins(l, fx, fy, z) & side_bit(bx - fx, by - fy)) != 0 && (under == 0 || item(l, under));
     strong = n <= pull_strength(l);
     arrive(l, tx, ty, z);
     // An item where the hero stood goes out of the way, once the hero has moved on.
-    if !can || !strong || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
-    clear_way(l, fx, fy, z, dx, dy);
-    for k in 1..=n {
-      move_base(l, fx - k * dx, fy - k * dy, z, fx - (k - 1) * dx, fy - (k - 1) * dy);
+    if !can || !strong || !way_clear(l, fx, fy, z, pulled_way.0, pulled_way.1) { return Step.Walked; }
+    clear_way(l, fx, fy, z, pulled_way.0, pulled_way.1);
+    move_base(l, bx, by, z, fx, fy);
+    for k in 1..n {
+      c = cars[k] ?? (bx, by);
+      t = cars[k - 1] ?? (bx, by);
+      move_base(l, c.0, c.1, z, t.0, t.1);
     }
     return Step.Pulled;
   }

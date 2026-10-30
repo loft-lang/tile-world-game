@@ -91,6 +91,7 @@
     "sword": "dungeon:104",
     "open_chest": "dungeon:91",
     "signpost": "town:83",
+    "derailed_cart": "town:57",
     "stick": "world:0",
     "torch": "world:1",
     "burning_torch": {
@@ -111,6 +112,14 @@
         "staff": "world:12"
       }
     }
+  },
+  "tracks": {
+    "ew": "dungeon:70",
+    "ns": "dungeon:81",
+    "es": "dungeon:69",
+    "sw": "dungeon:71",
+    "ne": "dungeon:93",
+    "nw": "dungeon:95"
   },
   "categories": {
     "Outdoor": ["grass", "path", "tree", "fence"],

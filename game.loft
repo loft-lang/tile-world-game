@@ -554,7 +554,12 @@ fn draw_cell(g: Game, w: const rules::Level, x: integer, y: integer, z: integer,
   // A kind drawn over another (a rail, a tree, a fence over the floor) draws that one first.
   under = theme::under(g.look, k);
   if under != 0 { theme::put(g.surface, theme::terrain_sprite(g.look, under, x, y, false), px, py, shade); }
-  if theme::is_line(g.look, k) {
+  own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
+  track = if rules::is_rail(w, k) && own < 0 { theme::track_sprite(g.look, rules::joins(w, x, y, z)) } else { -1 };
+  if track >= 0 {
+    // A rail cell shows the piece of track its joins name: what a cart follows is what is seen.
+    theme::put(g.surface, track, px, py, shade);
+  } else if theme::is_line(g.look, k) {
     // A line (a rail, a fence) runs across or along its neighbours of the same kind.
     across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
     theme::put(g.surface, theme::line_sprite(g.look, k, across), px, py, shade);

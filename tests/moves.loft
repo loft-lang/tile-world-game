@@ -41,8 +41,8 @@ fn test_walls_and_water_block() {
   assert(at(w) == "1,0,0 h0", "stopped at 1: {at(w)}\n{show(w, 4)}");
 }
 
-// Rails at x 1..3; a cart at 1 is pushed to 2 and to 3, and stops where the rails end — and
-// there, unable to move, it is climbed (a cart is stood on, one step up).
+// Rails at x 1..3; a cart at 1 is pushed to 2 and to 3; pushed on past the rails' end, onto free
+// floor, it derails there (tests/tracks.loft has the rest).
 fn test_cart_runs_on_rails() {
   w = row(6);
   tile_world::fill(w.w, 1, 0, 3, 0, 0, rules::tr(w, "rail"));
@@ -50,9 +50,9 @@ fn test_cart_runs_on_rails() {
   rules::put_hero(w, 0, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "first push");
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "second push");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "no rail at 4: not pushed, climbed");
-  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "cart") && at(w) == "3,0,0 h1",
-         "cart at 3, the hero on it: {at(w)}\n{show(w, 6)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "past the end: derailed");
+  assert(tile_world::top(w.w, 4, 0, 0) == rules::th(w, "derailed_cart") && at(w) == "3,0,0 h0",
+         "a derailed cart at 4, the hero at 3: {at(w)}\n{show(w, 6)}");
 }
 
 // Pulling a cart: the hero at 2 walks west and the cart at 3 follows onto 2, and again onto 1

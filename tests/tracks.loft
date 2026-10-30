@@ -1,0 +1,116 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Tracks (DESIGN.md § Tracks and rolling carts, step 1): a rail cell joins the rail cells beside
+// it, and a cart moves only along its track — round a bend, never off the side — and past an open
+// end, onto free floor, it derails into a fixed big thing.  The scene: floor x -1 .. 6, y -1 .. 5,
+// walled round; an L of rails along y 0 from x 0 to 3, bending at (3, 0) south to (3, 3).
+use tile_world;
+use rules;
+
+fn yard() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -2, -2, 7, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, -1, -1, 6, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 0, 3, 0, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 3, 1, 3, 3, 0, rules::tr(w, "rail"));
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+fn at(w: const rules::Level, x: integer, y: integer) -> text {
+  t = "";
+  for s in tile_world::things(w.w, x, y, 0) { t += "{rules::thing_name(w.k, s)},"; }
+  t
+}
+
+fn main() {
+  w = yard();
+  assert(rules::joins(w, 1, 0, 0) == 10, "a straight: east and west");
+}
+
+// The pieces: north 1, east 2, south 4, west 8.
+fn test_a_track_joins_its_rails() {
+  w = yard();
+  assert(rules::joins(w, 0, 0, 0) == 2, "an end: east");
+  assert(rules::joins(w, 1, 0, 0) == 10, "a straight: east and west");
+  assert(rules::joins(w, 3, 0, 0) == 12, "a bend: west and south");
+  assert(rules::joins(w, 3, 2, 0) == 5, "a straight: north and south");
+  assert(rules::joins(w, 3, 3, 0) == 1, "an end: north");
+  assert(rules::joins(w, 4, 0, 0) == 0, "no rail");
+}
+
+// Pushed east into the bend, a cart goes on south: the track decides, not the push.
+fn test_a_cart_follows_a_bend() {
+  w = yard();
+  put(w, 2, 0, "cart");
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && at(w, 3, 0) == "cart,", "onto the bend");
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && at(w, 3, 1) == "cart," && at(w, 3, 0) == "",
+         "pushed east, it went south");
+  assert(w.hero_x == 3 && w.hero_y == 0, "the hero on the bend");
+}
+
+// From a side its track does not join, a cart does not move: the hero climbs on.
+fn test_a_cart_is_not_pushed_off_its_track() {
+  w = yard();
+  put(w, 3, 2, "cart");
+  rules::put_hero(w, 2, 2, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 3 && w.hero_h == 1, "climbed");
+  assert(at(w, 3, 2) == "cart,", "the cart stayed on its track");
+}
+
+// Pulled: the hero walks off the bend west; the cart round the corner at (3, 1) follows into the
+// bend.  A train of two follows a push round the bend, cart after cart.
+fn test_pulled_and_pushed_round_a_bend() {
+  w = yard();
+  put(w, 3, 1, "cart");
+  rules::put_hero(w, 3, 0, 0);
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && at(w, 3, 0) == "cart," && at(w, 3, 1) == "",
+         "round the corner into the bend");
+  v = yard();
+  put(v, 1, 0, "cart");
+  put(v, 2, 0, "cart");
+  rules::put_hero(v, 0, 0, 0);
+  assert(rules::train(v, 1, 0, 0, 1, 0) == 2, "a train of two");
+  assert(rules::walk(v, 1, 0) == rules::Step.Pushed && at(v, 2, 0) == "cart," && at(v, 3, 0) == "cart,", "one on");
+  assert(rules::walk(v, 1, 0) == rules::Step.Pushed && at(v, 3, 0) == "cart," && at(v, 3, 1) == "cart,",
+         "the front went south, the other into the bend");
+}
+
+// Past an open end, onto free floor, a cart derails: a fixed big thing that keeps its item and is
+// climbed, never moved.  A wall or a stone after the end stops it; a light item there is shoved on.
+fn test_a_cart_derails_past_an_open_end() {
+  w = yard();
+  tile_world::set_terrain(w.w, 3, 1, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 3, 2, 3, 3, 0, rules::tr(w, "floor"));
+  put(w, 3, 0, "cart");
+  put(w, 3, 0, "stick");
+  rules::put_hero(w, 2, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed off the end");
+  assert(at(w, 4, 0) == "derailed_cart,stick," && at(w, 3, 0) == "", "derailed, its stick kept: {at(w, 4, 0)}");
+  rules::put_hero(w, 3, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 4 && w.hero_h == 1, "never moved again: climbed");
+  assert(at(w, 4, 0) == "derailed_cart," && w.hero_item == rules::th(w, "stick"), "and its stick taken up there");
+  for after in ["wall", "rock"] {
+    v = yard();
+    tile_world::set_terrain(v.w, 3, 1, 0, rules::tr(v, "floor"));
+    tile_world::fill(v.w, 3, 2, 3, 3, 0, rules::tr(v, "floor"));
+    if after == "wall" { tile_world::set_terrain(v.w, 4, 0, 0, rules::tr(v, "wall")); } else { put(v, 4, 0, "rock"); }
+    put(v, 3, 0, "cart");
+    rules::put_hero(v, 2, 0, 0);
+    assert(rules::walk(v, 1, 0) == rules::Step.Walked && v.hero_h == 1 && at(v, 3, 0) == "cart,",
+           "a {after} after the end: it stops; climbed");
+  }
+  u = yard();
+  tile_world::set_terrain(u.w, 3, 1, 0, rules::tr(u, "floor"));
+  tile_world::fill(u.w, 3, 2, 3, 3, 0, rules::tr(u, "floor"));
+  put(u, 3, 0, "cart");
+  put(u, 4, 0, "potion");
+  rules::put_hero(u, 2, 0, 0);
+  assert(rules::walk(u, 1, 0) == rules::Step.Pushed && at(u, 4, 0) == "derailed_cart," && at(u, 5, 0) == "potion,",
+         "a potion after the end is shoved on");
+}
