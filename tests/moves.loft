@@ -41,7 +41,8 @@ fn test_walls_and_water_block() {
   assert(at(w) == "1,0,0 h0", "stopped at 1: {at(w)}\n{show(w, 4)}");
 }
 
-// Rails at x 1..3; a cart at 1 is pushed to 2 and to 3, and stops where the rails end.
+// Rails at x 1..3; a cart at 1 is pushed to 2 and to 3, and stops where the rails end — and
+// there, unable to move, it is climbed (a cart is stood on, one step up).
 fn test_cart_runs_on_rails() {
   w = row(6);
   tile_world::fill(w.w, 1, 0, 3, 0, 0, rules::tr(w, "rail"));
@@ -49,9 +50,9 @@ fn test_cart_runs_on_rails() {
   rules::put_hero(w, 0, 0, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "first push");
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "second push");
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "no rail at 4");
-  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "cart") && at(w) == "2,0,0 h0",
-         "cart at 3, hero at 2: {at(w)}\n{show(w, 6)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "no rail at 4: not pushed, climbed");
+  assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "cart") && at(w) == "3,0,0 h1",
+         "cart at 3, the hero on it: {at(w)}\n{show(w, 6)}");
 }
 
 // Pulling a cart: the hero at 2 walks west and the cart at 3 follows onto 2, and again onto 1
@@ -85,7 +86,8 @@ fn test_rock_blocks_rails_and_is_only_pushed() {
   tile_world::place(w.w, 2, 0, 0, rules::th(w, "cart"));
   tile_world::place(w.w, 3, 0, 0, rules::th(w, "rock"));
   rules::put_hero(w, 1, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "the cart cannot push the rock");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h1",
+         "the cart cannot push the rock: the hero climbs onto the cart: {at(w)}");
   assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "rock"), "the rock stays");
   // Round the other side: the hero at 4 pushes the rock west into the cart — blocked.
   rules::put_hero(w, 4, 0, 0);
@@ -101,7 +103,11 @@ fn test_rock_blocks_rails_and_is_only_pushed() {
   tile_world::place(w.w, 0, 0, 0, rules::th(w, "rock"));
   tile_world::place(w.w, 1, 0, 0, rules::th(w, "rock"));
   rules::put_hero(w, 2, 0, 0);
-  assert(rules::walk(w, -1, 0) == rules::Step.Blocked, "a rock is not pushed into a rock");
+  // A rock is a big thing (height 2, stood on like a chest): from the cart the hero climbs onto
+  // it; it is not pushed into the rock behind it.
+  assert(rules::walk(w, -1, 0) == rules::Step.Walked && w.hero_x == 1 && w.hero_h == 2, "climbed onto the rock");
+  assert(tile_world::top(w.w, 0, 0, 0) == rules::th(w, "rock") && len(tile_world::things(w.w, 1, 0, 0)) == 1,
+         "not pushed into the rock behind");
 }
 
 // A chair is pushed across the floor; against a table it cannot go on, so the hero climbs onto
@@ -202,7 +208,8 @@ fn test_a_train_is_pushed_up_to_the_strength() {
   assert(rules::train(w, 3, 0, 0, 1, 0) == 3 && tile_world::top(w.w, 2, 0, 0) == 0,
          "now at 3, 4, 5\n{show(w, 10)}");
   tile_world::place(w.w, 6, 0, 0, rules::th(w, "cart"));
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "four are too heavy");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "3,0,0 h1"
+         && rules::train(w, 3, 0, 0, 1, 0) == 4, "four are too heavy: not pushed, climbed: {at(w)}");
   assert(rules::push_strength(w) == 3 && rules::pull_strength(w) == 2, "the strengths");
 }
 
@@ -214,7 +221,8 @@ fn test_a_train_stops_at_a_rock() {
   tile_world::place(w.w, 3, 0, 0, rules::th(w, "cart"));
   tile_world::place(w.w, 4, 0, 0, rules::th(w, "rock"));
   rules::put_hero(w, 1, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "the rock holds the train");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h1"
+         && tile_world::top(w.w, 3, 0, 0) == rules::th(w, "cart"), "the rock holds the train; climbed: {at(w)}");
 }
 
 // Pulling: a train of two behind the hero follows one cell; a train of three is too heavy, and
@@ -260,7 +268,8 @@ fn test_a_potion_strengthens_for_a_minute() {
   assert(rules::boosted(w), "still strong at 60999");
   rules::tick(w, 1);
   assert(!rules::boosted(w) && rules::push_strength(w) == 3, "back to 3 at 61000");
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "four are too heavy again");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_h == 1 && rules::train(w, 4, 0, 0, 1, 0) == 4,
+         "four are too heavy again: climbed, not pushed");
 }
 
 
@@ -542,12 +551,19 @@ fn test_a_ledge_tree_drops_its_sticks_below() {
   o = 2 - s;
   _ = rules::walk(w, 1, 0);
   assert(below(w, 2, s, -1) == "stick", "blow 1: fallen to layer -1 at y {s}");
+  // Blow 2 falls the same side, onto the first stick: it lands beside it, east or west as that
+  // place below prefers for a fall going (0, dy).
+  dy = if s == 2 { 1 } else { -1 };
+  bx = if rules::prefers_right(2, s, -1) { 2 - dy } else { 2 + dy };
   _ = rules::walk(w, 1, 0);
-  assert(below(w, 2, o, -1) == "stick", "blow 2: the other side, below");
+  assert(below(w, bx, s, -1) == "stick", "blow 2: beside the first, at x {bx}");
+  // Blow 3 falls there too and takes the other cell beside; blow 4 finds no room (both sides
+  // taken, a wall straight on) and is gone.
   _ = rules::walk(w, 1, 0);
+  assert(below(w, 4 - bx, s, -1) == "stick", "blow 3: the other side of the pile, x {4 - bx}");
   _ = rules::walk(w, 1, 0);
   assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "felled at the fourth");
-  assert(len(tile_world::stacks(w.w)) == 2, "two sticks, no more: {len(tile_world::stacks(w.w))}");
+  assert(len(tile_world::stacks(w.w)) == 3, "three sticks; the fourth fell to nowhere: {len(tile_world::stacks(w.w))}");
   v = ledge_tree();
   tile_world::set_terrain(v.w, 2, s, -1, tile_world::VOID);
   tile_world::fill(v.w, 0, 0, 5, 2, -2, rules::tr(v, "floor"));
@@ -556,7 +572,51 @@ fn test_a_ledge_tree_drops_its_sticks_below() {
   u = ledge_tree();
   tile_world::place(u.w, 2, s, -1, rules::th(u, "rock"));
   _ = rules::walk(u, 1, 0);
-  assert(below(u, 2, o, -1) == "stick" && below(u, 2, s, -1) == "rock", "the cell below taken: the other side");
+  st = tile_world::things(u.w, 2, s, -1);
+  assert(len(st) == 2 && below(u, 2, s, -1) == "stick", "a stone below: the stick rests on it");
+  assert(o == 2 - s, "the other side unused: {below(u, 2, o, -1)}");
+}
+
+// A stone is a big thing: height 2, stood on like a chest — not from the floor, from a chair.
+fn test_a_stone_is_stood_on_like_a_chest() {
+  w = row(5);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "rock"));
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "rock"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "two steps up from the floor: no");
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_h == 2, "from the chair: onto the stone");
+}
+
+// A stone pushed along carries the item resting on it; a chest opened keeps it on top; the hero
+// puts an item down on a big thing it stands on, not on a chair.
+fn test_a_big_thing_keeps_its_item() {
+  w = row(6);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "rock"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "stick"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "the stone pushed");
+  st = "";
+  for t in tile_world::things(w.w, 3, 0, 0) { st += "{rules::thing_name(w.k, t)},"; }
+  assert(st == "rock,stick," && w.hero_item == 0, "the stick rode along: {st}");
+  v = row(5);
+  tile_world::place(v.w, 2, 0, 0, rules::th(v, "chest"));
+  tile_world::place(v.w, 2, 0, 0, rules::th(v, "stick"));
+  rules::put_hero(v, 1, 0, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Opened && v.points == 1, "opened");
+  st = "";
+  for t in tile_world::things(v.w, 2, 0, 0) { st += "{rules::thing_name(v.k, t)},"; }
+  assert(st == "open_chest,stick,", "the stick stays on top: {st}");
+  u = row(5);
+  tile_world::place(u.w, 2, 0, 0, rules::th(u, "rock"));
+  tile_world::place(u.w, 3, 0, 0, rules::th(u, "chair"));
+  rules::put_hero(u, 2, 0, 0);
+  u.hero_item = rules::th(u, "axe");
+  assert(rules::drop(u) == rules::Step.Placed && tile_world::top(u.w, 2, 0, 0) == rules::th(u, "axe"), "on the stone");
+  rules::put_hero(u, 3, 0, 0);
+  u.hero_item = rules::th(u, "sword");
+  assert(rules::drop(u) == rules::Step.Blocked, "not on a chair");
 }
 
 // No room beside (a corridor): four blows fell it all the same, and nothing drops.

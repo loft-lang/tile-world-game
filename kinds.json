@@ -33,22 +33,22 @@
     "fence":  { "id": 4, "climb": true, "glyph": "-" }
   },
   "things": {
-    "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "glyph": "c" },
+    "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "stand": true, "rest": true, "glyph": "c" },
     "chair":  { "id": 2, "height": 1, "move": "push_pull", "stand": true, "lift": true, "glyph": "h" },
-    "table":  { "id": 3, "height": 2, "stand": true, "surface": true, "glyph": "T" },
-    "rock":   { "id": 4, "height": 1, "move": "push", "glyph": "o" },
+    "table":  { "id": 3, "height": 2, "stand": true, "surface": true, "rest": true, "glyph": "T" },
+    "rock":   { "id": 4, "height": 2, "move": "push", "stand": true, "rest": true, "glyph": "o" },
     "anvil":  { "id": 5, "height": 1, "move": "push", "glyph": "a" },
     "potion": { "id": 6, "height": 0, "walk_on": "boost", "glyph": "g" },
     "staff":  { "id": 7, "height": 0, "walk_on": "take", "mount": true, "light": true, "glyph": "i" },
-    "chest":  { "id": 8, "height": 2, "stand": true, "opens_to": "open_chest", "points": 1, "glyph": "C" },
+    "chest":  { "id": 8, "height": 2, "stand": true, "opens_to": "open_chest", "points": 1, "rest": true, "glyph": "C" },
     "axe":    { "id": 9, "height": 0, "walk_on": "take", "chops": true, "glyph": "x" },
     "sword":  { "id": 10, "height": 0, "walk_on": "take", "glyph": "s" },
-    "open_chest": { "id": 11, "height": 2, "stand": true, "glyph": "U" },
+    "open_chest": { "id": 11, "height": 2, "stand": true, "rest": true, "glyph": "U" },
     "signpost": { "id": 12, "height": 1, "tells": "chests", "glyph": "!" },
     "stick":  { "id": 13, "height": 0, "walk_on": "take", "mount": true, "dipped_to": "torch", "glyph": "/" },
     "torch":  { "id": 14, "height": 0, "walk_on": "take", "mount": true, "lit_to": "burning_torch", "glyph": "j" },
     "burning_torch": { "id": 15, "height": 0, "walk_on": "take", "mount": true, "light": true, "flame": true, "burns_to": "stick", "glyph": "f" },
-    "tar_barrel": { "id": 16, "height": 2, "dips": true, "glyph": "b" },
+    "tar_barrel": { "id": 16, "height": 2, "move": "push", "stand": true, "rest": true, "dips": true, "glyph": "b" },
     "socket": { "id": 17, "height": 0, "holds": true, "glyph": "y" }
   }
 }

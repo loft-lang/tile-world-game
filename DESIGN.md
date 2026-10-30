@@ -58,9 +58,10 @@ This is what the game built on tile_world should be.
 ## Moving things
 
 - **Push and pull.** Walking pushes; `pull` drags what is behind the hero (slice 1).
-- **One item a cell.** A floor cell holds at most one item (what the hero walks over and takes:
-  a potion, the staff, the axe, a torch), and nothing is ever put on top of one, so every item
-  stays in sight and in reach.  Built (`tests/items.loft`).
+- **One item a cell.** A cell holds at most one item (what the hero walks over and takes: a
+  potion, the staff, the axe, a torch) — on its floor, or resting on a big thing there — and
+  nothing is ever put on top of one, so every item stays in sight and in reach.  Built
+  (`tests/items.loft`).
   - Items are light: a thing pushed or pulled onto one pushes it one cell on, any time, when
     there is room (floor at its height, nothing on it, no edge in the way).
   - A string of two: the far item goes to the side, if there is room, and the near one takes
@@ -70,19 +71,32 @@ This is what the game built on tile_world should be.
     same place always goes the same way — the game is deterministic — but the pattern follows
     no row, column or checkerboard, so it is learnt by playing, not read off the grid.  Each
     layer has its own.
-  - **Over a drop an item falls**: shoved (or sent aside) into the void, a light item falls to
-    the first floor below with nothing on it, a burning torch keeping its time; with nowhere to
-    land there is no room.  A rock or a chair stops at the edge.
-  - With no room for the item, the push or the pull does not happen.
-  - The hero puts nothing down where an item lies; it stands on one only after a swap.
+  - **Over a drop an item falls**: shoved (or sent aside) into the void, a light item falls
+    down the column, a burning torch keeping its time.  It comes to rest on the first floor
+    with nothing on it, or on a big thing with nothing on it.  Onto anything else — another item,
+    a chair, an anvil — it rolls off beside it (the side that place prefers, then the other,
+    then straight on, falling on over a drop there); the chair is never harmed.  With nowhere to
+    go (water, no floor at all, no room around) the falling item is destroyed, and the push
+    still happens.  A rock or a chair stops at the edge.
+  - On its own layer, with no room for the item, the push or the pull does not happen.
+  - The hero puts nothing down where an item lies (it stands on one only after a swap), nor on
+    a chair; on a big thing it stands on, it does.
+- **Big things.** A chest, a table, a stone, a tar barrel and a cart are big: the hero stands on
+  them (all height 2, the cart 1), and an item comes to rest on them — fallen, or put down
+  there.  The hero standing there takes it.  A big thing that moves carries its item along (a
+  stone, a barrel, a cart in its train); a chest opened keeps it on top.  Built
+  (`tests/items.loft`, `tests/moves.loft`).
   - A burning torch pushed along keeps its time.
 - **Carts.**
   - Carts run on rails, and a line of carts is a train.
   - The base strength pushes 3 carts and pulls 2.
+  - A train that cannot move — too heavy, at the rails' end, held by a stone — is climbed: the
+    hero steps onto its first cart (height 1), so a stuck train is a walkway, not a wall.
   - A green potion gives +2 to both for 60 s of the world clock. It is used by walking over it
     (slice 1).
-- **Rocks and anvils.** Pushed only, never pulled, and never by a cart or another rock. On the
-  rails they block trains (slice 1).
+- **Stones (rocks), anvils and tar barrels.** Pushed only, never pulled, and never by a cart or
+  another stone. On the rails they block trains (slice 1).  A stone and a tar barrel are big
+  things (height 2, stood on); an anvil is not (height 1, items roll off it).
 - **Chests.**
   - A chest never moves: it is not pushed or pulled.
   - Walking into a closed chest opens it (one move; the hero stays put).

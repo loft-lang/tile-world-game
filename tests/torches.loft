@@ -57,8 +57,15 @@ fn test_tar_turns_a_stick_into_a_torch() {
   assert(w.hero_item == rules::th(w, "torch") && w.hero_x == 2, "a torch, the hero at x 2: {w.hero_x}");
   assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "a torch is not dipped again");
   assert(rules::drop(w) == rules::Step.Placed, "put down");
-  assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "empty hands: the barrel is in the way");
-  assert(stack(w, 3) == "tar_barrel,", "the barrel never moved: {stack(w, 3)}");
+  w.hero_item = 0;
+  rules::put_hero(w, 1, 0, 0);
+  _ = rules::walk(w, 1, 0);
+  w.hero_item = rules::th(w, "torch");
+  _ = tile_world::take(w.w, 2, 0, 0);
+  rules::put_hero(w, 2, 0, 0);
+  w.hero_item = 0;
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && stack(w, 4) == "tar_barrel,",
+         "empty hands: the barrel is pushed like a stone: {stack(w, 4)}");
 }
 
 // A torch hangs only in a socket: a bare wall takes nothing; the socket takes it, and gives it

@@ -219,7 +219,41 @@ fn test_an_item_shoved_over_a_ledge_falls() {
   tile_world::set_terrain(u.w, 5, 1, -1, tile_world::VOID);
   put(u, 3, 1, "rock");
   put(u, 4, 1, "potion");
-  assert(rules::walk(u, 1, 0) == rules::Step.Blocked && at(u, 4, 1) == "potion,", "no floor below: no room");
+  assert(rules::walk(u, 1, 0) == rules::Step.Pushed && at(u, 4, 1) == "rock,", "the push goes on");
+  assert(len(tile_world::stacks(u.w)) == 1, "no floor below: the potion is gone");
+}
+
+// What a falling item lands on, below the ledge at (5, 1): a big thing holds it (it rests on top,
+// and the hero takes it standing there); a chair or another item does not — it rolls off beside,
+// the side that place prefers for a fall going east, then the other, then on; with no room
+// around it is gone, and the chair stays.
+fn test_where_a_falling_item_comes_to_rest() {
+  w = ledge_room();
+  put(w, 3, 1, "rock");
+  put(w, 4, 1, "stick");
+  tile_world::place(w.w, 5, 1, -1, rules::th(w, "table"));
+  _ = rules::walk(w, 1, 0);
+  assert(low(w, 5, 1) == "table,stick,", "rests on the table: {low(w, 5, 1)}");
+  tile_world::place(w.w, 4, 1, -1, rules::th(w, "chair"));
+  rules::put_hero(w, 4, 1, -1);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "stick"), "taken from the table");
+  side = if rules::prefers_right(5, 1, -1) { 2 } else { 0 };
+  for under in ["chair", "potion"] {
+    v = ledge_room();
+    put(v, 3, 1, "rock");
+    put(v, 4, 1, "stick");
+    tile_world::place(v.w, 5, 1, -1, rules::th(v, under));
+    _ = rules::walk(v, 1, 0);
+    assert(low(v, 5, 1) == "{under}," && low(v, 5, side) == "stick,", "onto a {under}: beside it at y {side}");
+  }
+  u = ledge_room();
+  put(u, 3, 1, "rock");
+  put(u, 4, 1, "stick");
+  tile_world::place(u.w, 5, 1, -1, rules::th(u, "chair"));
+  for c in [(5, 0), (5, 2), (6, 1)] { tile_world::place(u.w, c.0, c.1, -1, rules::th(u, "anvil")); }
+  assert(rules::walk(u, 1, 0) == rules::Step.Pushed, "the push goes on");
+  assert(low(u, 5, 1) == "chair," && at(u, 4, 1) == "rock," && len(tile_world::stacks(u.w)) == 5,
+         "no room round the chair: the stick is gone, the chair stays");
 }
 
 // A burning torch shoved over the ledge keeps its time down there: a stick at 10:00.
@@ -232,6 +266,45 @@ fn test_a_fallen_flame_keeps_its_time() {
   assert(low(w, 5, 1) == "burning_torch,", "fallen, burning");
   rules::tick(w, 600000);
   assert(low(w, 5, 1) == "stick," && len(w.flames) == 0, "out at 10:00 below: {low(w, 5, 1)}");
+}
+
+// A cart carries what rests on it: pushed or pulled, the train takes the item along; a cart
+// that cannot move is climbed, one step up.  A falling item comes to rest on a cart.
+fn test_a_cart_carries_and_is_climbed() {
+  w = room();
+  tile_world::fill(w.w, 0, 1, 6, 1, 0, rules::tr(w, "rail"));
+  put(w, 2, 1, "cart");
+  put(w, 3, 1, "cart");
+  put(w, 3, 1, "stick");
+  rules::put_hero(w, 1, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "the train pushed");
+  assert(at(w, 3, 1) == "cart," && at(w, 4, 1) == "cart,stick,", "the stick rode along: {at(w, 4, 1)}");
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled, "pulled back");
+  assert(at(w, 2, 1) == "cart," && at(w, 3, 1) == "cart,stick,", "and back with it: {at(w, 3, 1)}");
+  v = room();
+  tile_world::fill(v.w, 0, 1, 6, 1, 0, rules::tr(v, "rail"));
+  put(v, 2, 1, "cart");
+  put(v, 3, 1, "rock");
+  rules::put_hero(v, 1, 1, 0);
+  assert(rules::walk(v, 1, 0) == rules::Step.Walked && v.hero_x == 2 && v.hero_h == 1, "blocked by the rock: climbed");
+  u = ledge_room();
+  put(u, 3, 1, "rock");
+  put(u, 4, 1, "stick");
+  tile_world::place(u.w, 5, 1, -1, rules::th(u, "cart"));
+  _ = rules::walk(u, 1, 0);
+  assert(low(u, 5, 1) == "cart,stick,", "fallen onto a cart: {low(u, 5, 1)}");
+}
+
+// A tar barrel is pushed like a stone and carries what rests on it; a stick in the hand is still
+// dipped first.
+fn test_a_barrel_moves_like_a_stone() {
+  w = room();
+  put(w, 3, 1, "tar_barrel");
+  put(w, 3, 1, "axe");
+  rules::put_hero(w, 2, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && at(w, 4, 1) == "tar_barrel,axe,", "{at(w, 4, 1)}");
+  w.hero_item = rules::th(w, "stick");
+  assert(rules::walk(w, 1, 0) == rules::Step.Dipped && at(w, 4, 1) == "tar_barrel,axe,", "dipped, not pushed");
 }
 
 // A chair pulled onto the axe the hero just put down: the axe goes on, under the hero.

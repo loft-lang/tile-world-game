@@ -22,7 +22,9 @@
 //            mount (can be fixed to mount terrain), light (gives light, carried or set down),
 //            chops (held, it fells what can be chopped: an axe), opens_to (walking into it
 //            turns it into that thing and scores its `points`: a chest opens), tells ("chests":
-//            walking into it says how many things are still to open: a signpost), holds (a
+//            walking into it says how many things are still to open: a signpost), rest (a light
+//            item falling onto it comes to rest on top: a chest, a table, a stone — big things;
+//            the hero takes it standing there, and a stone pushed along carries it), holds (a
 //            mountable thing hangs in it: a wall socket — mounting needs one), dips (walking into
 //            it turns what the hero holds into that thing's `dipped_to`: a tar barrel, a stick
 //            into a torch), lit_to (lit from a flame it becomes that: a torch), flame (it burns:
@@ -93,6 +95,7 @@ struct ThingProps {
   opens_to: text,
   points: integer,
   tells: text,
+  rest: boolean,
   holds: boolean,
   dips: boolean,
   dipped_to: text,
@@ -192,7 +195,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       train: flag(e, "train"), lift: flag(e, "lift"), walk_on: word(e, "walk_on", ""),
       mount: flag(e, "mount"), light: flag(e, "light"), chops: flag(e, "chops"),
       opens_to: word(e, "opens_to", ""), points: num(e, "points", 0), tells: word(e, "tells", ""),
-      holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
+      rest: flag(e, "rest"), holds: flag(e, "holds"), dips: flag(e, "dips"), dipped_to: word(e, "dipped_to", ""),
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       glyph: word(e, "glyph", "?")
     }];
@@ -565,7 +568,8 @@ fn strike(l: Level, kind: integer, to: integer, x: integer, y: integer, z: integ
   if dropped != 0 {
     s = aside(l, x, y, z, dx, dy);
     if s.0 != 0 || s.1 != 0 {
-      tile_world::place(l.w, x + s.0, y + s.1, landing(l, x, y, z, s.0, s.1, false), dropped);
+      r = landing(l, x, y, z, s.0, s.1, false);
+      if r.0 == LANDS { tile_world::place(l.w, r.1, r.2, r.3, dropped); }
     }
   }
   n = 1;
@@ -610,6 +614,49 @@ fn gives_light(l: const Level, thing: integer) -> boolean {
   p = l.k.things[thing];
   if !p { return false; }
   p.light
+}
+
+fn rests(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  p.rest
+}
+
+// What the hero meets at (x, y, z): the top thing, or — when that is an item resting on a big
+// thing (a rest thing) — the big thing under it.
+fn base(l: const Level, x: integer, y: integer, z: integer) -> integer {
+  st = tile_world::things(l.w, x, y, z);
+  n = len(st);
+  if n == 0 { return 0; }
+  t = st[n - 1] ?? 0;
+  if n >= 2 && item(l, t) && rests(l, st[n - 2] ?? 0) { return st[n - 2] ?? 0; }
+  t
+}
+
+// Move the thing at the top of (x, y, z) to (nx, ny, z) — a big thing with the item resting on
+// it, which rides along (a flame with its time).
+fn move_base(l: Level, x: integer, y: integer, z: integer, nx: integer, ny: integer) {
+  on = 0;
+  if base(l, x, y, z) != tile_world::top(l.w, x, y, z) { on = tile_world::take(l.w, x, y, z); }
+  t = tile_world::take(l.w, x, y, z);
+  tile_world::place(l.w, nx, ny, z, t);
+  if on == 0 { return; }
+  tile_world::place(l.w, nx, ny, z, on);
+  i = flame_at(l, x, y, z);
+  if i >= 0 {
+    l.flames[i].x = nx;
+    l.flames[i].y = ny;
+  }
+}
+
+// Turn the thing at (x, y, z) — under an item resting on it, if any — into `to` (a chest opens);
+// the item stays on top.
+fn replace_base(l: Level, x: integer, y: integer, z: integer, to: integer) {
+  on = 0;
+  if base(l, x, y, z) != tile_world::top(l.w, x, y, z) { on = tile_world::take(l.w, x, y, z); }
+  _ = tile_world::take(l.w, x, y, z);
+  tile_world::place(l.w, x, y, z, to);
+  if on != 0 { tile_world::place(l.w, x, y, z, on); }
 }
 
 fn holds(l: const Level, thing: integer) -> boolean {
@@ -876,39 +923,67 @@ fn fits(l: const Level, thing: integer, x: integer, y: integer, z: integer, base
 // prefers first, then the other), if there is room, and the first slides into its cell.  With no room the push or the
 // pull does not happen.
 
-/// The layer `landing` answers when there is no room.
-pub const NOWHERE = -1000000;
+/// What `landing` answers first: no room (the move does not happen), lands (at the position it
+/// answers), or gone (the item fell to nowhere and is destroyed).
+pub const NO_ROOM = 0;
+pub const LANDS = 1;
+pub const GONE = 2;
 
-// Where an item on (x, y, z) lands moving one cell (dx, dy), across an edge things cross: that
-// cell, when it is floor at the item's height holding nothing (with `leaving`, what lies there is
-// about to go aside) and not kept off things; or, when that cell is a drop (void), the first
-// floor below it holding nothing — the item falls, light as it is.  The layer it lands on, or
-// NOWHERE.
+// Where an item on (x, y, z) goes moving one cell (dx, dy), across an edge things cross.  On its
+// own layer: that cell, when it is floor at the item's height holding nothing (with `leaving`,
+// what lies there is about to go aside) and not kept off things — else NO_ROOM.  Over a drop
+// (void) it falls (`fall`): a fall always happens, and lands somewhere or is GONE.
 fn landing(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
-           leaving: boolean) -> integer {
+           leaving: boolean) -> (integer, integer, integer, integer) {
   nx = x + dx;
   ny = y + dy;
-  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return NOWHERE; }
+  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return (NO_ROOM, x, y, z); }
   k = tile_world::terrain(l.w, nx, ny, z);
-  if k == VOID {
-    bottom = lowest_layer(l);
-    zb = z - 1;
-    while zb >= bottom && tile_world::terrain(l.w, nx, ny, zb) == VOID { zb -= 1; }
-    if zb < bottom { return NOWHERE; }
-    kb = tile_world::terrain(l.w, nx, ny, zb);
-    if !walkable(l, kb) || blocks_things(l, kb) || tile_world::top(l.w, nx, ny, zb) != 0 { return NOWHERE; }
-    return zb;
+  if k == VOID { return fall(l, nx, ny, z - 1, dx, dy, 0); }
+  if !walkable(l, k) || blocks_things(l, k) { return (NO_ROOM, x, y, z); }
+  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return (NO_ROOM, x, y, z); }
+  if height(l, nx, ny, z) != height(l, x, y, z) { return (NO_ROOM, x, y, z); }
+  (LANDS, nx, ny, z)
+}
+
+// Where a light item falling down column (x, y) from layer z comes to rest: the first floor below
+// holding nothing, or a big thing (a rest thing) with nothing on it.  Onto anything else — another
+// item, a chair — it rolls off beside it: the side the place prefers, then the other, then
+// straight on (dx, dy), falling on over a drop there.  With nowhere to go (water, no floor at all,
+// no room around) it is GONE.
+fn fall(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+        depth: integer) -> (integer, integer, integer, integer) {
+  bottom = lowest_layer(l);
+  zb = z;
+  while zb >= bottom && tile_world::terrain(l.w, x, y, zb) == VOID { zb -= 1; }
+  if zb < bottom { return (GONE, x, y, zb); }
+  kb = tile_world::terrain(l.w, x, y, zb);
+  if !walkable(l, kb) || blocks_things(l, kb) { return (GONE, x, y, zb); }
+  t = tile_world::top(l.w, x, y, zb);
+  if t == 0 || rests(l, t) { return (LANDS, x, y, zb); }
+  if depth >= 3 { return (GONE, x, y, zb); }
+  first = if prefers_right(x, y, zb) { (-dy, dx) } else { (dy, -dx) };
+  for d in [first, (-first.0, -first.1), (dx, dy)] {
+    if !tile_world::crossable(l.w, x, y, zb, d.0, d.1) { continue; }
+    cx = x + d.0;
+    cy = y + d.1;
+    ck = tile_world::terrain(l.w, cx, cy, zb);
+    if ck == VOID {
+      r = fall(l, cx, cy, zb - 1, d.0, d.1, depth + 1);
+      if r.0 == LANDS { return r; }
+      continue;
+    }
+    if !walkable(l, ck) || blocks_things(l, ck) { continue; }
+    ct = tile_world::top(l.w, cx, cy, zb);
+    if ct == 0 || rests(l, ct) { return (LANDS, cx, cy, zb); }
   }
-  if !walkable(l, k) || blocks_things(l, k) { return NOWHERE; }
-  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return NOWHERE; }
-  if height(l, nx, ny, z) != height(l, x, y, z) { return NOWHERE; }
-  z
+  (GONE, x, y, zb)
 }
 
 // Is there room for the item on (x, y, z) one cell (dx, dy) on (`landing`)?
 fn slides(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer,
           leaving: boolean) -> boolean {
-  landing(l, x, y, z, dx, dy, leaving) != NOWHERE
+  landing(l, x, y, z, dx, dy, leaving).0 != NO_ROOM
 }
 
 // The side the item on (x, y, z) goes to, out of the way (dx, dy): the side that place prefers
@@ -931,17 +1006,21 @@ fn way_clear(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
 }
 
 // Move the item on top of (x, y, z) one cell (dx, dy), to where it lands (falling, over a drop);
-// a flame takes its time along.
+// a flame takes its time along.  An item that falls to nowhere is gone, its flame with it.
 fn shift(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) {
-  lz = landing(l, x, y, z, dx, dy, false);
-  if lz == NOWHERE { lz = z; }
+  r = landing(l, x, y, z, dx, dy, false);
+  if r.0 == NO_ROOM { return; }
   t = tile_world::take(l.w, x, y, z);
-  tile_world::place(l.w, x + dx, y + dy, lz, t);
   i = flame_at(l, x, y, z);
+  if r.0 == GONE {
+    if i >= 0 { _ = l.flames.remove(i); }
+    return;
+  }
+  tile_world::place(l.w, r.1, r.2, r.3, t);
   if i >= 0 {
-    l.flames[i].x = x + dx;
-    l.flames[i].y = y + dy;
-    l.flames[i].z = lz;
+    l.flames[i].x = r.1;
+    l.flames[i].y = r.2;
+    l.flames[i].z = r.3;
   }
 }
 
@@ -963,7 +1042,7 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
   l.hero_y = y;
   l.hero_z = z;
   l.hero_h = height(l, x, y, z);
-  if l.hero_h != 0 { return; }
+  // An item on the floor, or resting on the big thing the hero stands on, is met.
   t = tile_world::top(l.w, x, y, z);
   effect = walk_on(l, t);
   if effect == "boost" {
@@ -984,12 +1063,15 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
 
 // --- Strength and time ---
 
-/// Put down what the hero holds, on the floor where it stands: the hero then stands on it, and
-/// picks it up again only by walking off and back on.  Step.Placed, or Blocked when it holds
-/// nothing, does not stand on the floor, or stands on something already (an item: one a cell).
+/// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
+/// a table, a chest, a stone) it stands on: the hero then stands on it, and picks it up again only
+/// by walking off and back on.  Step.Placed, or Blocked when it holds nothing or stands on
+/// anything else (an item already: one a cell; a chair).
 pub fn drop(l: Level) -> Step {
-  if l.hero_item == 0 || l.hero_h != 0 { return Step.Blocked; }
-  if tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z) != 0 { return Step.Blocked; }
+  if l.hero_item == 0 { return Step.Blocked; }
+  under = tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z);
+  if under != 0 && !rests(l, under) { return Step.Blocked; }
+  if under == 0 && l.hero_h != 0 { return Step.Blocked; }
   tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.hero_item);
   set_down(l, l.hero_item, l.hero_x, l.hero_y, l.hero_z, l.hero_until);
   l.hero_item = 0;
@@ -1037,7 +1119,7 @@ fn crosses(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: 
 
 // Is (x, y, z) one car of a train: a train thing alone on its floor.
 fn car(l: const Level, x: integer, y: integer, z: integer) -> boolean {
-  t = tile_world::top(l.w, x, y, z);
+  t = base(l, x, y, z);
   trainlike(l, t) && height(l, x, y, z) == thing_height(l, t)
 }
 
@@ -1176,7 +1258,8 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     return Step.Opened;
   }
   if !walkable(l, kind) { return Step.Blocked; }
-  thing = tile_world::top(l.w, tx, ty, z);
+  // What stands there: an item resting on a big thing is met through the big thing.
+  thing = base(l, tx, ty, z);
   // A thing that dips (a tar barrel) turns what the hero holds into what it dips to (a stick,
   // into a torch); the hero stays where it is.
   if dips(l, thing) && dipped_to(l, l.hero_item) != 0 {
@@ -1186,8 +1269,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // A closed thing (a chest) opens and scores its points; the hero stays where it is.
   opened = thing_opens_to(l, thing);
   if opened != 0 {
-    _ = tile_world::take(l.w, tx, ty, z);
-    tile_world::place(l.w, tx, ty, z, opened);
+    replace_base(l, tx, ty, z, opened);
     p = l.k.things[thing];
     l.points += if p { p.points } else { 0 };
     return Step.Opened;
@@ -1211,28 +1293,26 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   surface = height(l, tx, ty, z);
   base = surface - thing_height(l, thing);
   // A train moves as one, when the hero is strong enough and the cell after it takes it.
-  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) {
-    n = train(l, tx, ty, z, dx, dy);
-    if n > push_strength(l) || !fits(l, thing, tx + n * dx, ty + n * dy, z, 0)
-        || !crosses(l, tx, ty, z, dx, dy, n) || !way_clear(l, tx + n * dx, ty + n * dy, z, dx, dy) {
-      return Step.Blocked;
-    }
+  // A train that cannot move is climbed, like a chair (below).
+  n = if trainlike(l, thing) { train(l, tx, ty, z, dx, dy) } else { 0 };
+  if trainlike(l, thing) && l.hero_h == 0 && !hands_busy(l) && n <= push_strength(l)
+      && fits(l, thing, tx + n * dx, ty + n * dy, z, 0) && crosses(l, tx, ty, z, dx, dy, n)
+      && way_clear(l, tx + n * dx, ty + n * dy, z, dx, dy) {
     clear_way(l, tx + n * dx, ty + n * dy, z, dx, dy);
     k = n - 1;
     while k >= 0 {
-      t = tile_world::take(l.w, tx + k * dx, ty + k * dy, z);
-      tile_world::place(l.w, tx + (k + 1) * dx, ty + (k + 1) * dy, z, t);
+      move_base(l, tx + k * dx, ty + k * dy, z, tx + (k + 1) * dx, ty + (k + 1) * dy);
       k -= 1;
     }
     arrive(l, tx, ty, z);
     return Step.Pushed;
   }
   // Any other movable thing at the hero's own level is pushed, when it can go one cell on.
-  if movable(l, thing) && !hands_busy(l) && base == l.hero_h && fits(l, thing, tx + dx, ty + dy, z, base)
+  if !trainlike(l, thing) && movable(l, thing) && !hands_busy(l) && base == l.hero_h
+      && fits(l, thing, tx + dx, ty + dy, z, base)
       && tile_world::crossable(l.w, tx, ty, z, dx, dy) && way_clear(l, tx + dx, ty + dy, z, dx, dy) {
     clear_way(l, tx + dx, ty + dy, z, dx, dy);
-    t = tile_world::take(l.w, tx, ty, z);
-    tile_world::place(l.w, tx + dx, ty + dy, z, t);
+    move_base(l, tx, ty, z, tx + dx, ty + dy);
     arrive(l, tx, ty, z);
     return Step.Pushed;
   }
@@ -1265,7 +1345,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
       || height(l, tx, ty, z) > l.hero_h {
     return Step.Blocked;
   }
-  thing = if hands_busy(l) { 0 } else { tile_world::top(l.w, bx, by, z) };
+  thing = if hands_busy(l) { 0 } else { base(l, bx, by, z) };
   // The cell the hero leaves: the dragged thing lands on its surface, where the hero stood.
   left = height(l, fx, fy, z);
   base = height(l, bx, by, z) - thing_height(l, thing);
@@ -1281,8 +1361,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
     if !can || !strong || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
     clear_way(l, fx, fy, z, dx, dy);
     for k in 1..=n {
-      t = tile_world::take(l.w, fx - k * dx, fy - k * dy, z);
-      tile_world::place(l.w, fx - (k - 1) * dx, fy - (k - 1) * dy, z, t);
+      move_base(l, fx - k * dx, fy - k * dy, z, fx - (k - 1) * dx, fy - (k - 1) * dy);
     }
     return Step.Pulled;
   }
@@ -1300,8 +1379,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
   arrive(l, tx, ty, z);
   if !ok || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
   clear_way(l, fx, fy, z, dx, dy);
-  t = tile_world::take(l.w, bx, by, z);
-  tile_world::place(l.w, fx, fy, z, t);
+  move_base(l, bx, by, z, fx, fy);
   Step.Pulled
 }
 
