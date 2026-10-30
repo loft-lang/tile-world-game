@@ -226,9 +226,16 @@ This is what the game built on tile_world should be.
     below.  An arrow will too (the bow).
   - **Built** (step 1, `tests/bombs.loft`): rolling, fusing, impact, falls, the reach (radius 3, `blast_reach`),
     the hero's damage and push, chairs breaking, the ripple of chains (the hero's own bomb
-    included), torches lit in their sockets and put out by a blast in water.  Not built: items
-    flying, big things sliding, carts pushed or blown off their tracks (step 2); the bomb's and
-    the blast's pictures (step 3: our own sheet, drawn as the torches were).
+    included), torches lit in their sockets and put out by a blast in water.  **Built** (step 2,
+    `tests/blast.loft`): items flying 5 - d (over items, short of walls, big things and the hero;
+    falling over drops; lost in water; rolling off an item they come down on, or stopping a cell
+    short), potions shattering within 1, big things sliding 3 - d, farthest first, an item on a
+    big thing landing ahead of it, carts rolling off along their tracks at 4 - d and held across
+    them, carts beside a blast blown onto the next rail or derailed, and derailed carts beside a
+    blast pushed the same way — a rail they reach puts them back on a track (owner).  A bomb the
+    blast sets off goes off where it lies, not thrown first; one 3 away is thrown like any item.
+    Not built: the bomb's and the blast's pictures (step 3: our own sheet, drawn as the torches
+    were).
   - **The blast** (the owner's rules, 2026-10-30, and proposals marked so).
     It reaches every cell within its radius (proposed 3) by the shortest way the blast can take:
     it spreads like light, so walls and closed doors stop it and a wall cell takes it but passes

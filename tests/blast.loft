@@ -1,0 +1,204 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// What a blast moves (DESIGN.md § Bomb), away from it and faster the nearer, d steps out: a small
+// item flies 5 - d cells (a potion within 1 shatters), a big thing slides 3 - d (a chest never
+// moves), a cart rolls along its track at speed 4 - d — or, beside the blast, is blown off it to
+// the next rail or the floor.  Resolved farthest first.  Every blast here is a bomb on (0, y) lit
+// to go off at 100; the hero stands out of reach on layer 1.  Every place is worked by hand.
+use tile_world;
+use rules;
+
+// A room x 0 .. n - 1, y 0 .. rows - 1, walled; the bomb on (0, by), going off at 100; the hero
+// on layer 1, out of the blast's reach.
+fn room(n: integer, rows: integer, by: integer) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, n, rows, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, n - 1, rows - 1, 0, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 2);
+  tile_world::place(w.w, 0, by, 0, rules::th(w, "bomb"));
+  w.fuses += [rules::Fuse { x: 0, y: by, z: 0, held: false, at: 100 }];
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+fn holds_at(w: const rules::Level, x: integer, y: integer, name: text) -> boolean {
+  tile_world::top(w.w, x, y, 0) == rules::th(w, name)
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn main() {
+  w = room(4, 1, 0);
+  assert(len(w.fuses) == 1, "a bomb lit");
+}
+
+// A stick flies 5 - d cells: from x 1 (d 1) 4, from x 2 3, from x 3 2 — each to x 5.
+fn test_an_item_flies_further_the_nearer() {
+  for x in 1..4 {
+    w = room(12, 1, 0);
+    put(w, x, 0, "stick");
+    until(w, 100);
+    assert(w.blasted == 1 && holds_at(w, 5, 0, "stick") && tile_world::top(w.w, x, 0, 0) == 0, "from x {x}: to x 5");
+  }
+}
+
+// It stops before a wall: from x 2 (3 cells) in a row ending at x 3, it lands on x 3.  Into water
+// it is lost: water on x 4, it flies x 3, then into the water.
+fn test_an_item_stops_at_a_wall_and_is_lost_in_water() {
+  w = room(4, 1, 0);
+  put(w, 2, 0, "stick");
+  until(w, 100);
+  assert(holds_at(w, 3, 0, "stick"), "against the wall: x 3");
+  v = room(8, 1, 0);
+  tile_world::set_terrain(v.w, 4, 0, 0, rules::tr(v, "water"));
+  put(v, 2, 0, "stick");
+  until(v, 100);
+  t = "";
+  for x in 0..8 { if tile_world::top(v.w, x, 0, 0) != 0 { t += "x{x} "; } }
+  assert(t == "", "lost in the water: {t}");
+}
+
+// A potion beside the blast shatters; two away it flies 3, to x 5.
+fn test_a_potion_beside_a_blast_shatters() {
+  w = room(10, 1, 0);
+  put(w, 1, 0, "potion");
+  until(w, 100);
+  assert(tile_world::top(w.w, 1, 0, 0) == 0 && tile_world::top(w.w, 5, 0, 0) == 0, "shattered");
+  v = room(10, 1, 0);
+  put(v, 2, 0, "potion");
+  until(v, 100);
+  assert(holds_at(v, 5, 0, "potion"), "two away: flown to x 5");
+}
+
+// Coming down on another item it rolls off beside it: from (2, 1) the stick flies over to (5, 1),
+// where a potion lies (out of reach), and rolls off to the side that place prefers.
+fn test_an_item_landing_on_another_rolls_off() {
+  w = room(10, 3, 1);
+  put(w, 2, 1, "stick");
+  put(w, 5, 1, "potion");
+  until(w, 100);
+  side = if rules::prefers_right(5, 1, 0) { 2 } else { 0 };
+  assert(holds_at(w, 5, 1, "potion") && holds_at(w, 5, side, "stick"), "rolled off to (5, {side})");
+  // In a single row there is no room beside it: it stops a cell short, on x 4.
+  v = room(10, 1, 0);
+  put(v, 2, 0, "stick");
+  put(v, 5, 0, "potion");
+  until(v, 100);
+  assert(holds_at(v, 5, 0, "potion") && holds_at(v, 4, 0, "stick"), "no room beside: x 4");
+}
+
+// A big thing slides 3 - d: a rock beside the blast 2 cells, to x 3; an anvil two away 1, to x 3;
+// a rock three away stays; a chest never moves.
+fn test_a_big_thing_slides_less() {
+  w = room(10, 1, 0);
+  put(w, 1, 0, "rock");
+  until(w, 100);
+  assert(holds_at(w, 3, 0, "rock"), "rock beside: to x 3");
+  v = room(10, 1, 0);
+  put(v, 2, 0, "anvil");
+  until(v, 100);
+  assert(holds_at(v, 3, 0, "anvil"), "anvil two away: to x 3");
+  u = room(10, 1, 0);
+  put(u, 3, 0, "rock");
+  put(u, 1, 0, "chest");
+  until(u, 100);
+  assert(holds_at(u, 3, 0, "rock") && holds_at(u, 1, 0, "chest"), "three away stays; a chest stays");
+}
+
+// Farthest first: a rock on x 1 and a barrel on x 2.  The barrel (d 2) moves first, 1 cell to
+// x 3; the rock (d 1) slides 2 but stops against the barrel, on x 2.
+fn test_farthest_first() {
+  w = room(10, 1, 0);
+  put(w, 1, 0, "rock");
+  put(w, 2, 0, "tar_barrel");
+  until(w, 100);
+  assert(holds_at(w, 2, 0, "rock") && holds_at(w, 3, 0, "tar_barrel"), "rock x 2, barrel x 3");
+}
+
+// An item resting on a big thing is flung off it and lands ahead: a stick on the rock on x 1
+// flies 4, to x 5; the rock slides 2, to x 3.
+fn test_an_item_on_a_big_thing_lands_ahead() {
+  w = room(10, 1, 0);
+  put(w, 1, 0, "rock");
+  put(w, 1, 0, "stick");
+  until(w, 100);
+  assert(holds_at(w, 5, 0, "stick") && holds_at(w, 3, 0, "rock"), "stick x 5, rock x 3");
+}
+
+// A cart two away rolls off along its track at speed 2: x 3 at 400, x 4 at 700 (slowed to 1),
+// x 5 at 1300, x 6 at 1900, where it stops.
+fn test_a_cart_rolls_off_along_its_track() {
+  w = room(12, 1, 0);
+  tile_world::fill(w.w, 1, 0, 10, 0, 0, rules::tr(w, "rail"));
+  put(w, 2, 0, "cart");
+  until(w, 100);
+  assert(len(w.rolls) == 1, "rolling");
+  until(w, 399);
+  assert(holds_at(w, 2, 0, "cart"), "399");
+  until(w, 400);
+  assert(holds_at(w, 3, 0, "cart"), "400: x 3");
+  until(w, 5000);
+  assert(holds_at(w, 6, 0, "cart") && len(w.rolls) == 0, "stopped on x 6");
+}
+
+// Across its track the rails hold it: a north-south track on x 2, the blast west of it.
+fn test_rails_hold_a_cart_across_them() {
+  w = room(6, 3, 1);
+  tile_world::fill(w.w, 2, 0, 2, 2, 0, rules::tr(w, "rail"));
+  put(w, 2, 1, "cart");
+  until(w, 1000);
+  assert(holds_at(w, 2, 1, "cart") && len(w.rolls) == 0, "held");
+}
+
+// Beside the blast a cart is blown off its track: from the north-south track on x 1 it slides
+// east over the floor of x 2 and the track on x 3 catches it — a cart on that track.  With no
+// second track it comes to rest on x 3, derailed; with a wall on x 2 it stays on its track.
+fn test_a_cart_beside_a_blast_is_blown_off_its_track() {
+  w = room(6, 3, 1);
+  tile_world::fill(w.w, 1, 0, 1, 2, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 3, 0, 3, 2, 0, rules::tr(w, "rail"));
+  put(w, 1, 1, "cart");
+  until(w, 100);
+  assert(holds_at(w, 3, 1, "cart") && tile_world::top(w.w, 1, 1, 0) == 0, "caught by the next track");
+  v = room(6, 3, 1);
+  tile_world::fill(v.w, 1, 0, 1, 2, 0, rules::tr(v, "rail"));
+  put(v, 1, 1, "cart");
+  until(v, 100);
+  assert(holds_at(v, 3, 1, "derailed_cart"), "on the floor: derailed");
+  u = room(6, 3, 1);
+  tile_world::fill(u.w, 1, 0, 1, 2, 0, rules::tr(u, "rail"));
+  tile_world::set_terrain(u.w, 2, 1, 0, rules::tr(u, "wall"));
+  put(u, 1, 1, "cart");
+  until(u, 100);
+  assert(holds_at(u, 1, 1, "cart"), "no room: it stays on its track");
+  // The first rail catches it: a track right beside, on x 2, stops it there — it does not slide on
+  // to x 3.
+  t = room(6, 3, 1);
+  tile_world::fill(t.w, 1, 0, 2, 2, 0, rules::tr(t, "rail"));
+  put(t, 1, 1, "cart");
+  until(t, 100);
+  assert(holds_at(t, 2, 1, "cart") && tile_world::top(t.w, 3, 1, 0) == 0, "caught by the rail beside");
+}
+
+// A derailed cart beside a blast is pushed away as a cart off its rails, and a rail puts it back
+// on a track: a derailed cart on (1, 1), a track on x 3 — it slides over x 2 onto the track, a
+// cart again.  Two away it does not move: it is fixed, as derailed.
+fn test_a_blast_pushes_a_derailed_cart_back_onto_rails() {
+  w = room(6, 3, 1);
+  tile_world::fill(w.w, 3, 0, 3, 2, 0, rules::tr(w, "rail"));
+  put(w, 1, 1, "derailed_cart");
+  until(w, 100);
+  assert(holds_at(w, 3, 1, "cart") && tile_world::top(w.w, 1, 1, 0) == 0, "back on the track on x 3, a cart");
+  v = room(6, 3, 1);
+  tile_world::fill(v.w, 4, 0, 4, 2, 0, rules::tr(v, "rail"));
+  put(v, 2, 1, "derailed_cart");
+  until(v, 100);
+  assert(holds_at(v, 2, 1, "derailed_cart"), "two away: it stays");
+}

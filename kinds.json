@@ -54,7 +54,7 @@
     "burning_torch": { "id": 15, "height": 0, "walk_on": "take", "mount": true, "light": true, "flame": true, "burns_to": "stick", "glyph": "f", "doused_to": "torch" },
     "tar_barrel": { "id": 16, "height": 2, "move": "push", "stand": true, "rest": true, "dips": true, "glyph": "b" },
     "socket": { "id": 17, "height": 0, "holds": true, "glyph": "y" },
-    "derailed_cart": { "id": 18, "height": 1, "stand": true, "rest": true, "glyph": "k" },
+    "derailed_cart": { "id": 18, "height": 1, "stand": true, "rest": true, "glyph": "k", "rerails_to": "cart" },
     "lever_straight": { "id": 19, "height": 1, "switches_to": "lever_turn", "glyph": "l" },
     "lever_turn": { "id": 20, "height": 1, "switches_to": "lever_straight", "glyph": "r" }
   }

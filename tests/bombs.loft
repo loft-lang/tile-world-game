@@ -111,24 +111,27 @@ fn test_a_blast_hurts_and_pushes_by_distance() {
   assert(v.blasted == 1 && v.health == 4 && v.hero_x == 0, "2 away: {v.health} at x {v.hero_x}");
 }
 
-// A chain ripples.  Bombs lie on x 4, 6 and 9; thrown from x 0, the bomb stops against the one on
-// x 4 and goes off on x 3 at 450 (the hero 3 away: -1); x 4 (1 away) goes off at 600, x 6 (2 from
-// x 4) at 750; x 9 is 3 from x 6, too far: it lies on.
+// A chain ripples, 150 ms a link, as far as bombs lie within two of each other; one three away is
+// thrown instead.  Bombs on x 0 (lit, going off at 100), x 2, x 4 and x 7; the hero far off on
+// x 13.  At 100 x 0 goes off: x 2 (2 away) is set off — it lies where it is — and x 4 is out of
+// reach (4).  At 250 x 2 sets off x 4 (2 away); at 400 x 4 goes off: x 7 is 3 away, too far to be
+// set off — it flies 5 - 3 = 2 cells, to x 9, and lies there.
 fn test_a_chain_ripples() {
-  w = room(12, 1);
-  armed(w, 0, 1);
-  for x in [4, 6, 9] { tile_world::place(w.w, x, 0, 0, rules::th(w, "bomb")); }
-  _ = rules::throw(w);
-  until(w, 450);
-  assert(w.blasted == 1 && (w.blasts[0]).x == 3 && w.health == 5, "450: on x 3");
-  until(w, 599);
-  assert(w.blasted == 1, "599: not yet");
-  until(w, 600);
-  assert(w.blasted == 2 && (w.blasts[1]).x == 4, "600: x 4");
-  until(w, 750);
-  assert(w.blasted == 3 && (w.blasts[2]).x == 6, "750: x 6");
+  w = room(14, 1);
+  for x in [0, 2, 4, 7] { tile_world::place(w.w, x, 0, 0, rules::th(w, "bomb")); }
+  rules::put_hero(w, 13, 0, 0);
+  w.fuses += [rules::Fuse { x: 0, y: 0, z: 0, held: false, at: 100 }];
+  until(w, 100);
+  assert(w.blasted == 1 && bomb_at(w, 2, 0) && bomb_at(w, 4, 0), "100: x 0; x 2 set off, lying");
+  until(w, 249);
+  assert(w.blasted == 1, "249: not yet");
+  until(w, 250);
+  assert(w.blasted == 2 && (w.blasts[1]).x == 2, "250: x 2");
+  until(w, 400);
+  assert(w.blasted == 3 && (w.blasts[2]).x == 4, "400: x 4");
   until(w, 5000);
-  assert(w.blasted == 3 && bomb_at(w, 9, 0), "x 9 lies on");
+  assert(w.blasted == 3 && bomb_at(w, 9, 0) && !bomb_at(w, 7, 0), "x 7 thrown to x 9, lying");
+  assert(w.health == 6, "the hero far off: {w.health}");
 }
 
 // A bomb nobody fused rolls down a slope by itself and stops where it hits — here against the

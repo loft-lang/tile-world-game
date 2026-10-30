@@ -120,6 +120,8 @@ struct ThingProps {
   fragile: boolean,
   /// A flame a blast in water puts out becomes this.
   doused_to: text,
+  /// A derailed cart a blast beside it pushes onto a rail becomes this (a cart again).
+  rerails_to: text,
   glyph: text
 }
 
@@ -239,6 +241,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
+      rerails_to: word(e, "rerails_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -2587,6 +2590,11 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
         }
       }
     }
+    // What lies and stands here is thrown away from the blast (not what hangs on a wall).
+    if d >= 1 && !opaque_kind(l, tile_world::terrain(l.w, cx, cy, z)) {
+      a = away(l, x, y, cx, cy, z);
+      blast_moves(l, cx, cy, z, a.0, a.1, d, at);
+    }
   }
   if hero_d < 0 { return; }
   // The hero: a bomb it holds goes off a ripple later in its hands; a flame it holds goes out in
@@ -2605,4 +2613,186 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
   if l.health < 0 { l.health = 0; }
   a = away(l, x, y, l.hero_x, l.hero_y, z);
   blown(l, a.0, a.1, 5 - hero_d);
+}
+
+// --- What a blast moves ---
+//
+// Pushed away from the blast, faster the nearer (owner): d steps out, a small item flies 5 - d
+// cells (it is light), a big thing that moves slides 3 - d (it resists, owner), a cart rolls off
+// along its track at speed 4 - d — or, beside the blast, is blown off its track.
+
+fn big_mover(l: const Level, thing: integer) -> boolean {
+  p = l.k.things[thing];
+  if !p { return false; }
+  !p.train && p.walk_on == "" && p.move != "none"
+}
+
+// The stack on (x, y, z) d steps from a blast, pushed (ax, ay): the items on top fly off first
+// (an item resting on a big thing lands ahead of it), then the thing under them moves.
+fn blast_moves(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer, d: integer, at: integer) {
+  guard = 0;
+  while guard < 4 && item(l, tile_world::top(l.w, x, y, z)) {
+    guard += 1;
+    // A bomb the blast set off goes off where it lies: it is not thrown first.
+    if is_bomb(l, tile_world::top(l.w, x, y, z)) && fused(l, x, y, z, false) { return; }
+    n = len(tile_world::things(l.w, x, y, z));
+    fling(l, x, y, z, ax, ay, 5 - d, d);
+    if len(tile_world::things(l.w, x, y, z)) == n { return; }
+  }
+  t = tile_world::top(l.w, x, y, z);
+  if t == 0 { return; }
+  p = l.k.things[t];
+  if trainlike(l, t) {
+    if d == 1 { blown_off(l, x, y, z, ax, ay); } else { push_cart(l, x, y, z, ax, ay, 4 - d, at); }
+  } else if d == 1 && p && p.rerails_to != "" {
+    // A derailed cart beside the blast is pushed as a cart is blown off its rails (owner): the
+    // first rail it comes to puts it back on a track.
+    blown_off(l, x, y, z, ax, ay);
+  } else if big_mover(l, t) {
+    slide(l, x, y, z, ax, ay, 3 - d);
+  }
+}
+
+// The item on top of (x, y, z) flies up to n cells (ax, ay): over other items, stopping before a
+// wall, a big thing or the hero; over a drop it falls (landing, rolling off or lost, as a falling
+// item does); into water it is lost.  Where it comes down on another item it rolls off beside it.
+// A potion within one step shatters.  A flame keeps its time.
+fn fling(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer, n: integer, d: integer) {
+  t = tile_world::top(l.w, x, y, z);
+  p = l.k.things[t];
+  if d <= 1 && p && p.walk_on == "boost" {
+    _ = tile_world::take(l.w, x, y, z);
+    return;
+  }
+  cx = x;
+  cy = y;
+  for i in 0..n {
+    if !hero_crosses(l, cx, cy, z, ax, ay) { break; }
+    nx = cx + ax;
+    ny = cy + ay;
+    k = tile_world::terrain(l.w, nx, ny, z);
+    if k == VOID {
+      // Over a drop: it falls from there.
+      r = fall(l, nx, ny, z - 1, ax, ay, 0);
+      put_item(l, x, y, z, r);
+      return;
+    }
+    if is_water(l, k) {
+      put_item(l, x, y, z, (GONE, nx, ny, z));
+      return;
+    }
+    if !walkable(l, k) || blocks_things(l, k) { break; }
+    if l.hero_x == nx && l.hero_y == ny && l.hero_z == z { break; }
+    o = tile_world::top(l.w, nx, ny, z);
+    if o != 0 && !item(l, o) { break; }
+    cx = nx;
+    cy = ny;
+  }
+  if cx == x && cy == y { return; }
+  o = tile_world::top(l.w, cx, cy, z);
+  if o == 0 {
+    put_item(l, x, y, z, (LANDS, cx, cy, z));
+    return;
+  }
+  // Coming down on another item: it rolls off beside it, else stops a cell short.
+  a = aside(l, cx, cy, z, ax, ay);
+  if a.0 != 0 || a.1 != 0 {
+    r = landing(l, cx, cy, z, a.0, a.1, false);
+    put_item(l, x, y, z, r);
+    return;
+  }
+  if cx - ax != x || cy - ay != y { put_item(l, x, y, z, (LANDS, cx - ax, cy - ay, z)); }
+}
+
+// Move the item on top of (x, y, z) to where `r` says it lands (or lose it: GONE), its flame with
+// it; a bomb that fell bomb_fall layers or more goes off where it lands.
+fn put_item(l: Level, x: integer, y: integer, z: integer, r: (integer, integer, integer, integer)) {
+  if r.0 == NO_ROOM { return; }
+  t = tile_world::take(l.w, x, y, z);
+  i = flame_at(l, x, y, z);
+  if r.0 == GONE {
+    if i >= 0 { _ = l.flames.remove(i); }
+    return;
+  }
+  tile_world::place(l.w, r.1, r.2, r.3, t);
+  if i >= 0 {
+    l.flames[i].x = r.1;
+    l.flames[i].y = r.2;
+    l.flames[i].z = r.3;
+  }
+  if is_bomb(l, t) && z - r.3 >= l.k.bomb_fall { impact(l, r.1, r.2, r.3, l.now); }
+}
+
+// The big thing on (x, y, z) slides up to n cells (ax, ay), over floor at its own height: it
+// stops at a wall, an edge, a drop, the hero, another big thing (owner, proposed: it passes
+// nothing on); an item in its way is pushed out of it, as by a push.
+fn slide(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer, n: integer) {
+  cx = x;
+  cy = y;
+  ground = tile_world::rise(l.w, x, y, z);
+  for i in 0..n {
+    if !tile_world::crossable(l.w, cx, cy, z, ax, ay) { return; }
+    nx = cx + ax;
+    ny = cy + ay;
+    k = tile_world::terrain(l.w, nx, ny, z);
+    if !walkable(l, k) || blocks_things(l, k) || tile_world::rise(l.w, nx, ny, z) != ground { return; }
+    if l.hero_x == nx && l.hero_y == ny && l.hero_z == z { return; }
+    o = tile_world::top(l.w, nx, ny, z);
+    if o != 0 && !item(l, o) { return; }
+    if !way_clear(l, nx, ny, z, ax, ay) { return; }
+    clear_way(l, nx, ny, z, ax, ay);
+    move_base(l, cx, cy, z, nx, ny);
+    cx = nx;
+    cy = ny;
+  }
+}
+
+// The cart on (x, y, z), beside a blast: blown off its track (owner), sliding up to two cells
+// (ax, ay) whatever way its track runs.  The first rail it comes to catches it — it stays a cart,
+// on that track; come to rest on plain floor it lies derailed.  With no room to leave, it stays on
+// its track (proposed).  A derailed cart beside a blast slides the same way, and a rail it comes
+// to puts it back on that track, a cart again (owner).
+fn blown_off(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer) {
+  if rolling_at(l, x, y, z) >= 0 { return; }
+  cx = x;
+  cy = y;
+  for j in 0..2 {
+    if !tile_world::crossable(l.w, cx, cy, z, ax, ay) { break; }
+    nx = cx + ax;
+    ny = cy + ay;
+    k = tile_world::terrain(l.w, nx, ny, z);
+    if !walkable(l, k) || blocks_things(l, k) { break; }
+    if height(l, nx, ny, z) != height(l, cx, cy, z) - thing_height(l, base(l, cx, cy, z)) { break; }
+    if l.hero_x == nx && l.hero_y == ny && l.hero_z == z { break; }
+    o = tile_world::top(l.w, nx, ny, z);
+    if o != 0 && !item(l, o) { break; }
+    if !way_clear(l, nx, ny, z, ax, ay) { break; }
+    clear_way(l, nx, ny, z, ax, ay);
+    move_base(l, cx, cy, z, nx, ny);
+    cx = nx;
+    cy = ny;
+    if rail(l, k) {
+      p = l.k.things[base(l, cx, cy, z)];
+      to = if p && p.rerails_to != "" { thing_id(l.k, p.rerails_to) } else { 0 };
+      if to != 0 { replace_base(l, cx, cy, z, to); }
+      return;
+    }
+  }
+  if cx == x && cy == y { return; }
+  // Off the rails on plain floor: derailed.
+  if !rail(l, tile_world::terrain(l.w, cx, cy, z)) {
+    p = l.k.things[base(l, cx, cy, z)];
+    to = if p { thing_id(l.k, p.derails_to) } else { 0 };
+    if to != 0 { replace_base(l, cx, cy, z, to); }
+  }
+}
+
+// The cart on (x, y, z), d > 1 from a blast pushing (ax, ay): along its track it rolls off at
+// `speed`, the train behind it with it (owner); across its track the rails hold it.
+fn push_cart(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer, speed: integer, at: integer) {
+  if speed <= 0 || rolling_at(l, x, y, z) >= 0 { return; }
+  if (joins(l, x, y, z) & side_bit(ax, ay)) == 0 { return; }
+  sp = if speed > l.k.max_speed { l.k.max_speed } else { speed };
+  l.rolls += [Roll { cells: train_behind(l, x, y, z, ax, ay), dx: ax, dy: ay, speed: sp,
+                     due: at + l.k.roll_ms / sp, flat: 0 }];
 }
