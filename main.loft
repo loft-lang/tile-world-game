@@ -81,15 +81,36 @@ fn fit_display(game: game::Game) -> (integer, integer) {
   (w, h)
 }
 
+// Where a frame's time goes, in microseconds, reported on the console every ten seconds: the
+// device has no other channel back (TANMATSU.md § Reading an app's log).
+struct Timing { frames: integer, draw: integer, copy: integer, show: integer, since: integer }
+
+fn report(t: Timing, size: (integer, integer)) {
+  if t.frames == 0 || ticks() - t.since < 10000000 { return; }
+  n = t.frames;
+  println("@t frame {size.0}x{size.1}: draw {t.draw / n} us, copy {t.copy / n} us, show {t.show / n} us ({n} frames)");
+  t.frames = 0;
+  t.draw = 0;
+  t.copy = 0;
+  t.show = 0;
+  t.since = ticks();
+}
+
 // The frame on the screen: black round the view, then shown at the screen's size.
-fn present(game: game::Game, size: (integer, integer)) {
+fn present(game: game::Game, size: (integer, integer), t: Timing) {
   s = game.surface;
   far = 100000.0;
   tiles::fill(s, -far, -far, far, 2.0 * far, 0);
   tiles::fill(s, game::W as float, -far, far, 2.0 * far, 0);
   tiles::fill(s, 0.0, -far, game::W as float, far, 0);
   tiles::fill(s, 0.0, game::H as float, game::W as float, far, 0);
-  screen::show(tiles::pixels(s, size.0, size.1), size.0, size.1);
+  at = ticks();
+  px = tiles::pixels(s, size.0, size.1);
+  copied = ticks();
+  screen::show(px, size.0, size.1);
+  t.copy += copied - at;
+  t.show += ticks() - copied;
+  t.frames += 1;
 }
 
 fn main() {
@@ -115,8 +136,9 @@ fn main() {
   // Kenney's pictures and sounds, credited first: until a key is pressed, or five seconds.
   println(game::CREDITS);
   size = fit_display(game);
+  timing = Timing { frames: 0, draw: 0, copy: 0, show: 0, since: ticks() };
   game::draw_credits(game);
-  present(game, size);
+  present(game, size, timing);
   shown = ticks() / 1000;
   while screen::poll(15) && ticks() / 1000 - shown < 5000 {
     if window_keys {
@@ -128,7 +150,7 @@ fn main() {
   }
   game::start_level(game, 0);
   game::draw(game);
-  present(game, size);
+  present(game, size, timing);
   last = ticks() / 1000;
   while screen::poll(15) {
     if window_keys {
@@ -141,8 +163,11 @@ fn main() {
     resized = screen::width() != size.0 || screen::height() != size.1;
     if resized { size = fit_display(game); }
     if game::update(game, now - last, now) || resized {
+      at = ticks();
       game::draw(game);
-      present(game, size);
+      timing.draw += ticks() - at;
+      present(game, size, timing);
+      report(timing, size);
     }
     last = now;
   }
