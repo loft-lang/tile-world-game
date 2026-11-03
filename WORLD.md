@@ -133,24 +133,24 @@ one.  While it runs, nothing changes in the hero's region because of it:
   any other, at a door or the region's edge, after the recalculation is done.  Nobody appears;
 - a creature the new table takes away leaves at its next departure.  Nobody vanishes.
 
-**Consequences that take their time.**  What the hero does can change the world later, and
-elsewhere, and out of sight: a letter handed to a courier that the courier forgets beside the
-road, found days later by someone else, whose habits change only then.
+**Consequences that take their time.**  What the hero chooses to do can change the world later,
+elsewhere and out of sight.  A letter found forgotten beside the road: the player decides what
+becomes of it (send it on, deliver it, read it, keep it, burn it), and when it is sent on, what
+it sets going happens when it arrives, not when it was sent.
 
+- **The choice is the player's**; the world never acts on the hero's behalf, and nothing
+  happens to a thing the hero has not touched.
 - **A pending consequence** is a moment, a place and what it changes: a creature's points, a
-  link, a thing.  Only the hero's actions make them, directly or as the next link of a chain one
-  of them started, so there are few.
+  link, a thing.  The player's choice makes it, its moment is how long the effect takes to get
+  there (a letter's journey to its addressee), and a consequence can make the next one when it
+  applies.  Only the hero's choices start them, so there are few.
 - **They wait in order of their moment**, and each tick compares the clock with the first, as
   arrivals do.  When a moment comes the consequence applies; when it changes the table, the
   recalculation starts then, under the rule above (nothing changes in the hero's region because
   of it).
-- **A thing a creature carries goes with its route.**  Losing it is a moment and a cell on the
-  carrier's way, drawn from its seed; the thing then lies in that place until the next creature
-  whose route crosses the cell takes it (found from the coverage table at the moment it falls),
-  or the hero finds it.
 - **Hidden, never unfair.**  Nothing announces a consequence; its trace is in the world, to be
-  found: the letter where it fell, the courier arriving without it, a shop shut a week after
-  its keeper's letter went astray.
+  found: a shop shut a week after its keeper's letter arrived, a guard posted where the letter
+  asked for one.
 - **They are saved**, being what the hero set going: the moment, the place and the change each.
 
 **The table is never saved.**  Loading rebuilds it from the data and each place's saved changes,
@@ -214,8 +214,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; by a recalculation during a
    visit that changes no creature in the hero's region, the new ones walking in afterwards; and
-   by a letter handed to a courier, lost on the way and found by a passer-by at the same moment
-   and the same cell in every run, across a save and reload.
+   by a letter the hero sends on, whose change happens at the moment it arrives and not before,
+   the same in every run and across a save and reload.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
