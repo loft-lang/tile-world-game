@@ -64,6 +64,14 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
 Its points and their hours are the whole of its life until one of those changes them (§ Who can
 be near the hero): no creature changes its habits by itself.
 
+**Why scripted is enough.**  Whether a scene was scripted or emerged from a simulation is mostly
+irrelevant to the player: they see a scene, and what they appreciate is that it is not always
+exactly the same.  So the world spends nothing on simulating what nobody watches, and its effort
+goes into variety instead: a creature's points and scripts offer alternatives (several points
+for the same hours, a script with more than one outcome), and the one taken is drawn from the
+creature's seed and the day.  The market looks different from one day to the next and from one
+game to the next, and the same game replayed is still the same.
+
 **No goals, a world to explore.**  A level's goal (a layer, daylight, a cell, every chest) goes.
 What the player is after is in the world: a locked door and its key elsewhere, a chest behind a
 river, a way down that needs a torch.  Nothing is tutorialised; the world is learnt by watching it
