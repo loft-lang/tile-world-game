@@ -138,12 +138,19 @@ elsewhere and out of sight.  A letter found forgotten beside the road: the playe
 becomes of it (send it on, deliver it, read it, keep it, burn it), and when it is sent on, what
 it sets going happens when it arrives, not when it was sent.
 
-- **The choice is the player's**; the world never acts on the hero's behalf, and nothing
-  happens to a thing the hero has not touched.
-- **A pending consequence** is a moment, a place and what it changes: a creature's points, a
-  link, a thing.  The player's choice makes it, its moment is how long the effect takes to get
-  there (a letter's journey to its addressee), and a consequence can make the next one when it
-  applies.  Only the hero's choices start them, so there are few.
+- **A choice is the player's or the author's.**  The world never acts on the hero's behalf.  A
+  passer-by may come upon the letter, but what it does with it is scripted in the game's data
+  ("the miller takes a letter he finds to the castle, two days later"), never improvised: which
+  creature, which things it reacts to, what it does and after how long.
+- **A passer-by comes upon a thing** when its route crosses the thing's cell: the coverage table
+  gives the first such creature after the thing is there, and so the moment.
+- **A pending consequence** is a moment, a place, what it changes (a creature's points, a link,
+  a thing), and the condition it still needs at that moment ("the letter is still beside the
+  road").  The player's choice or a script makes it; its moment is how long the effect takes to
+  get there (a letter's journey to its addressee, a passer-by's scripted delay); and it can make
+  the next one when it applies.  A condition no longer met at its moment does nothing: the hero
+  who takes the letter first has pre-empted the miller.  Only the hero's choices and the
+  author's scripts start them, so there are few.
 - **They wait in order of their moment**, and each tick compares the clock with the first, as
   arrivals do.  When a moment comes the consequence applies; when it changes the table, the
   recalculation starts then, under the rule above (nothing changes in the hero's region because
@@ -184,6 +191,7 @@ an edit is played the moment it is made):
 - **sounds**: which sound an event plays;
 - **creatures' points**: placed on the map with their hours, for NPCs and monsters alike, and a
   view of where every creature is at a chosen time of day;
+- **scripts**: what a creature does with what it comes upon, and after how long;
 - **the start**: where a new game begins;
 - **checks**, as the in-game editor has them (K): a door that leads nowhere, a place no door
   reaches, a chest that cannot be reached;
@@ -214,8 +222,10 @@ Each step is checked before the next starts; "checked" names what goes red.
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; by a recalculation during a
    visit that changes no creature in the hero's region, the new ones walking in afterwards; and
-   by a letter the hero sends on, whose change happens at the moment it arrives and not before,
-   the same in every run and across a save and reload.
+   by a letter the hero sends on, whose change happens at the moment it arrives and not before;
+   by a letter left beside the road, taken by the scripted passer-by at the moment the table
+   gives and acted on after its scripted delay, or left alone when the hero took it first; the
+   same in every run and across a save and reload.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
@@ -229,7 +239,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
 8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
-   points, materials, kinds, sounds and the start; export and import.  Checked by an edit made
+   points, scripts, materials, kinds, sounds and the start; export and import.  Checked by an edit made
    in the page, exported, and played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
