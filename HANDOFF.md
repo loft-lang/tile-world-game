@@ -7,7 +7,7 @@ machine (`~/workspace`).
 
 | What | Where | State |
 |---|---|---|
-| The game | `~/workspace/tile-world-game` (this repo, local git) | **no GitHub remote yet**: creating `loft-lang/tile-world-game` was blocked by the session's permissions; the owner runs `gh repo create loft-lang/tile-world-game --public --source . --remote origin --push` |
+| The game | `~/workspace/tile-world-game`, hosted at [loft-lang/tile-world-game](https://github.com/loft-lang/tile-world-game) (public, `origin`) | `main` is the game; push there |
 | Game libraries | `./fetch-libs.sh` → `libs/` (git-ignored) | every library from `main` |
 | loft branch | `~/workspace/loft2`, branch `tuxedo-pln204-int32` @ `72602f4b6` | = `main` (ec098768e) + one commit, the loft#2222 fix; force-pushed, no PR yet.  Use its RELEASE build (`target/release/loft`) for the game: an older loft stalls in `parse` on `input` → `graphics` → `mesh3d` |
 
