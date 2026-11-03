@@ -20,8 +20,23 @@ The developer always works in a simple view of the situation, and the game fills
   derived and what was adjusted, so the simple view stays readable however many details were
   set by hand.
 
-The materials already work this way: a cell's tile follows from its material, and the rare
-tile set by hand is listed apart (EDITOR.md § 2).
+The same holds for the world itself.  A developer depicts a room with a bit of rubble, not
+forty cells of floor, wall and stone:
+
+| The developer depicts | The game fills in |
+|---|---|
+| a room: its outline, "a bit of rubble" | its walls autotiled, its floor's variants, the rubble scattered by the place's seed |
+| a corridor between two rooms | its floor and walls, and the doorways at both ends |
+| "an old cellar: damp, crates along the walls" | moss on the stones near water, crates against the walls, the cellar's dark |
+| a yard outside a house, "overgrown" | grass and weeds over the path's edges, the fence's corners |
+
+What the game fills in keeps the place playable: nothing scattered stands in a doorway, cuts off
+a part of the room or covers a spot, and the editor's checks say when an intent cannot be met
+(more rubble than the room holds with its ways kept open).  A cell painted by hand is an
+adjustment like any other: kept apart, surviving when the room is filled in again, and the
+filled-in cell back when the adjustment is taken away.  The materials already work this way: a
+cell's tile follows from its material, and the rare tile set by hand is listed apart (EDITOR.md
+§ 2).
 
 ## The world
 
@@ -298,8 +313,11 @@ The game asks what the machine has (keys, a pointer, the screen's size), never w
 Everything the game reads is editable there, in the same loft code the game runs (one model, so
 an edit is played the moment it is made):
 
-- **places**: terrain and materials, layers and rises, edges and doors, the things standing in a
-  cell — the in-game editor (EDITOR.md) with the mouse added;
+- **places**, in the developer's terms first: rooms, corridors, caves and yards drawn as
+  outlines with words for what is in them ("a bit of rubble", "damp", "crates along the walls"),
+  filled in by the game; then, as adjustments, terrain and materials, layers and rises, edges and
+  doors and the things standing in a cell, cell by cell — the in-game editor (EDITOR.md) with the
+  mouse added;
 - **doors**: link a door to a door in another place, follow a link, list the doors that lead
   nowhere;
 - **materials and sheets** (theme.json): which tile a material draws, its variants and autotiles;
@@ -353,10 +371,13 @@ Each step is checked before the next starts; "checked" names what goes red.
    by a letter left beside the road, taken by the scripted passer-by at the moment the table
    gives and acted on after its scripted delay, or left alone when the hero took it first; the
    same in every run and across a save and reload.
-4. **The world from what exists.**  The five levels stitched together through a stretch of land
-   outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
-   walking the whole world in a scripted run, and by the editor's checks finding no door to
-   nowhere.
+4. **The world from what exists**, in the developer's terms.  The five levels stitched together
+   through a stretch of land outside (Kenney's Tiny Town and Tiny Farm sheets), each with a
+   second way out; their rooms and corridors described as outlines with their words, the game
+   filling them in, today's cells kept as adjustments where the filling differs.  Checked by
+   walking the whole world in a scripted run; by the editor's checks finding no door to nowhere;
+   and by filling a room in again, which leaves its doorways and ways open and every hand-set
+   cell as it was.
 5. **Saves.**  The clock, the hero, each visited place's changes, the creatures interrupted and the
    pending consequences, written and read back.  Checked by a save, a restart and the same state.
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
