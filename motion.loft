@@ -93,9 +93,10 @@ pub fn busy(m: const Motion, now: integer) -> boolean {
   m.act != Act.Still && now >= m.start && now < m.start + length(m.act)
 }
 
-// `top` scaled by e / n, rounded half up, for 0 <= e <= n.
+// `top` scaled by e / n, rounded half up, for 0 <= e <= n; a motion of no length is at its end.
 fn part(top: integer, e: integer, n: integer) -> integer {
-  (top * e * 2 + n) / (2 * n)
+  if n <= 0 { return top; }
+  ((top * e * 2 + n) / (2 * n))!
 }
 
 // A rise and fall to `top` over a phase e of n: the triangle top * min(e, n - e) / (n / 2),
@@ -147,7 +148,8 @@ pub fn pose(m: const Motion, fx: integer, fy: integer, now: integer) -> Pose {
     out.y = sign(m.from_y) * part(magnitude(m.from_y), n - e, n) + m.knock_y * d;
     wobble = [-6, 5, -3, 1];
     away = if m.knock_x < 0 { -1 } else { 1 };
-    out.tilt = away * (wobble[e * 4 / n] ?? 0);
+    slot = if n > 0 { (e * 4 / n)! } else { 0 };
+    out.tilt = away * (wobble[slot] ?? 0);
     out.weapon = face - sweep(fx, fy) * part(FLING, n - e, n);
   } else if m.act == Act.Swing {
     n = SWING_MS;

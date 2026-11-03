@@ -889,8 +889,8 @@ fn throw_lever(l: Level, x: integer, y: integer, z: integer) -> boolean {
   lever = l.k.things[base(l, x, y, z)];
   if !lever || lever.switches_to == "" { return false; }
   for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-    p = l.pieces[painted(l, x + d.0, y + d.1, z)];
-    if p && p.twin != 0 {
+    p = l.pieces[painted(l, x + d.0, y + d.1, z)]?;
+    if p.twin != 0 {
       tile_world::set_terrain(l.w, x + d.0, y + d.1, z, tile_world::terrain(l.w, x + d.0, y + d.1, z), p.twin);
     }
   }
@@ -994,7 +994,7 @@ fn strike(l: Level, kind: integer, to: integer, x: integer, y: integer, z: integ
   n = 1;
   i = 0;
   while i < len(l.blows) {
-    b = l.blows[i];
+    b = l.blows[i]!;
     if b.x == x && b.y == y && b.z == z {
       n = b.n + 1;
       _ = l.blows.remove(i);
@@ -1154,7 +1154,7 @@ fn took(l: Level, thing: integer, x: integer, y: integer, z: integer) {
     l.hero_until = l.now + l.k.burn_ms;
     return;
   }
-  l.hero_until = l.flames[i].until;
+  l.hero_until = l.flames[i]!.until;
   _ = l.flames.remove(i);
 }
 
@@ -1196,7 +1196,7 @@ fn burnt(l: Level, x: integer, y: integer, z: integer) {
 fn burn_out(l: Level) {
   i = 0;
   while i < len(l.flames) {
-    f = l.flames[i];
+    f = l.flames[i]!;
     if f.until > l.now {
       i += 1;
       continue;
@@ -2486,7 +2486,7 @@ fn roll_step(l: Level, ri: integer) {
   l.rolls[ri].flat = fl;
   // From when this move was due, not from now: a tick that covers several moves (a slow frame)
   // must give the same path as many small ones — the game is deterministic.
-  l.rolls[ri].due = due + l.k.roll_ms / sp;
+  l.rolls[ri].due = due + cell_ms(l, sp);
 }
 
 // Move the carts of rolling train ri (its cells `old`, front first) one cell on: its front to
@@ -2547,7 +2547,7 @@ fn link(l: Level, ri: integer, x: integer, y: integer, z: integer, dx: integer, 
     l.rolls[ri].dy = d.1;
     l.rolls[ri].speed = sp;
     l.rolls[ri].flat = 0;
-    l.rolls[ri].due = due + l.k.roll_ms / (if sp > 0 { sp } else { 1 });
+    l.rolls[ri].due = due + cell_ms(l, sp);
     if sp <= 0 { stop_roll(l, ri); }
     return;
   }
@@ -2704,11 +2704,19 @@ pub fn throw(l: Level) -> Step {
   Step.Thrown
 }
 
+// How long something rolling at `sp` takes per cell: roll_ms / sp.  A speed of 0 or less does
+// not roll (its callers stop it); here it counts as the slowest, so a speed from the data that
+// is 0 cannot give a roll a missing time.
+fn cell_ms(l: const Level, sp: integer) -> integer {
+  if sp <= 0 { return l.k.roll_ms; }
+  (l.k.roll_ms / sp)!
+}
+
 // A thrown bomb set down on (x, y, z), fused, rolling (dx, dy) at the throwing speed.
 fn roll_out(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer, bomb: integer) {
   tile_world::place(l.w, x, y, z, bomb);
   sp = l.k.throw_speed;
-  l.bombs += [BombRoll { fused: true, x: x, y: y, z: z, dx: dx, dy: dy, speed: sp, due: l.now + l.k.roll_ms / sp, flat: 0 }];
+  l.bombs += [BombRoll { fused: true, x: x, y: y, z: z, dx: dx, dy: dy, speed: sp, due: l.now + cell_ms(l, sp), flat: 0 }];
 }
 
 // A bomb lying at rest on a slope starts rolling down it: to the first side (north, east, south,
@@ -2848,7 +2856,7 @@ fn bomb_step(l: Level, ri: integer) {
   }
   // Slowed to a stop by itself: it lies there, not lit (and rolls back down, on a slope).
   if sp <= 0 { return; }
-  l.bombs += [BombRoll { fused: fused, x: nx, y: ny, z: z, dx: dx, dy: dy, speed: sp, due: due + l.k.roll_ms / sp, flat: fl }];
+  l.bombs += [BombRoll { fused: fused, x: nx, y: ny, z: z, dx: dx, dy: dy, speed: sp, due: due + cell_ms(l, sp), flat: fl }];
 }
 
 /// The cells a blast centred on (x, y, z) reaches, each with its distance d (0 at the centre):
@@ -2894,7 +2902,7 @@ fn away(l: const Level, bx: integer, by: integer, x: integer, y: integer, z: int
 // where it stands with nothing on it; over a drop it falls to the floor below and the fall costs
 // what a fall costs (a blast pushes the hero over a ledge — owner).
 fn blown(l: Level, dx: integer, dy: integer, n: integer) {
-  for i in 0..n {
+  for _ in 0..n {
     x = l.hero_x;
     y = l.hero_y;
     z = l.hero_z;
@@ -3066,7 +3074,7 @@ fn fling(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer,
   }
   cx = x;
   cy = y;
-  for i in 0..n {
+  for _ in 0..n {
     if !hero_crosses(l, cx, cy, z, ax, ay) { break; }
     nx = cx + ax;
     ny = cy + ay;
@@ -3130,7 +3138,7 @@ fn slide(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: integer,
   cx = x;
   cy = y;
   ground = tile_world::rise(l.w, x, y, z);
-  for i in 0..n {
+  for _ in 0..n {
     if !tile_world::crossable(l.w, cx, cy, z, ax, ay) { return; }
     nx = cx + ax;
     ny = cy + ay;
@@ -3156,7 +3164,7 @@ fn blown_off(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
   if rolling_at(l, x, y, z) >= 0 { return; }
   cx = x;
   cy = y;
-  for j in 0..2 {
+  for _ in 0..2 {
     if !tile_world::crossable(l.w, cx, cy, z, ax, ay) { break; }
     nx = cx + ax;
     ny = cy + ay;
@@ -3172,8 +3180,8 @@ fn blown_off(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
     cx = nx;
     cy = ny;
     if rail(l, k) {
-      p = l.k.things[base(l, cx, cy, z)];
-      to = if p && p.rerails_to != "" { thing_id(l.k, p.rerails_to) } else { 0 };
+      p = l.k.things[base(l, cx, cy, z)]?;
+      to = if p.rerails_to != "" { thing_id(l.k, p.rerails_to) } else { 0 };
       if to != 0 { replace_base(l, cx, cy, z, to); }
       return;
     }
@@ -3181,8 +3189,8 @@ fn blown_off(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
   if cx == x && cy == y { return; }
   // Off the rails on plain floor: derailed.
   if !rail(l, tile_world::terrain(l.w, cx, cy, z)) {
-    p = l.k.things[base(l, cx, cy, z)];
-    to = if p { thing_id(l.k, p.derails_to) } else { 0 };
+    p = l.k.things[base(l, cx, cy, z)]?;
+    to = if p.derails_to != "" { thing_id(l.k, p.derails_to) } else { 0 };
     if to != 0 { replace_base(l, cx, cy, z, to); }
   }
 }
@@ -3194,7 +3202,7 @@ fn push_cart(l: Level, x: integer, y: integer, z: integer, ax: integer, ay: inte
   if (joins(l, x, y, z) & side_bit(ax, ay)) == 0 { return; }
   sp = if speed > l.k.max_speed { l.k.max_speed } else { speed };
   l.rolls += [Roll { cells: train_behind(l, x, y, z, ax, ay), dx: ax, dy: ay, speed: sp,
-                     due: at + l.k.roll_ms / sp, flat: 0 }];
+                     due: at + cell_ms(l, sp), flat: 0 }];
 }
 
 // --- Enemies ---
@@ -3967,8 +3975,8 @@ pub fn strike_enemy(l: Level, i: integer, damage: integer) {
 
 // What a blow by the hero costs an enemy: its weapon's damage, else 1.
 fn blow(l: const Level) -> integer {
-  p = l.k.things[l.hero_item];
-  if p && p.damage > 0 { return p.damage; }
+  p = l.k.things[l.hero_item]?;
+  if p.damage > 0 { return p.damage; }
   1
 }
 

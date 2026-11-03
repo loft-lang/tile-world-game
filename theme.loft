@@ -286,7 +286,9 @@ pub fn track_sprite(th: const Theme, mask: integer) -> integer {
   if t { return t.tile; }
   ns = th.tracks[5];
   ew = th.tracks[10];
-  if (mask & 5) != 0 && ns { return ns.tile; }
+  if (mask & 5) != 0 {
+    if ns { return ns.tile; }
+  }
   if ew { return ew.tile; }
   -1
 }
@@ -339,7 +341,7 @@ pub fn blast_sprite(th: const Theme, elapsed: integer, length: integer) -> integ
 pub fn holding_sprite(th: const Theme, holder: integer, held: integer, now: integer, low: boolean) -> integer {
   look = th.things[holder];
   if !look || held == 0 { return -1; }
-  for h in look.holding ?? [] {
+  for h in look.holding {
     if h.thing == held { return pick(h.look, now, low); }
   }
   -1

@@ -803,8 +803,16 @@ fn corner(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, di
   north = me - gr.w;
   if cy == 0 && y - 1 > gr.y0 && (gr.has[north] ?? false) {
     rn = gr.rise[north] ?? 0;
-    if rn - r0 <= 1 && r0 - rn <= 1 { return corner(gr, x, y - 1, cx, 1, dim); }
+    if rn - r0 <= 1 && r0 - rn <= 1 { return corner_of(gr, x, y - 1, cx, 1, dim); }
   }
+  corner_of(gr, x, y, cx, cy, dim)
+}
+
+// Corner (cx, cy) of cell (x, y), lifted and darkened as `corner` describes, measured where it
+// is: `corner` has already moved a top corner onto the bottom corner of the cell north of it.
+fn corner_of(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, dim: integer) -> (integer, integer) {
+  me = (y - gr.y0) * gr.w + (x - gr.x0);
+  r0 = gr.rise[me] ?? 0;
   rs = 0;
   rn = 0;
   ss = 0;
@@ -822,8 +830,8 @@ fn corner(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, di
     ss += if sh < dim { dim } else { sh };
     sn += 1;
   }
-  lift = if rn == 0 { r0 * 4 } else { (rs * 8 + rn) / (2 * rn) };
-  dark = if sn == 0 { dim * 16 } else { (ss * 32 + sn) / (2 * sn) };
+  lift = if rn == 0 { r0 * 4 } else { ((rs * 8 + rn) / (2 * rn))! };
+  dark = if sn == 0 { dim * 16 } else { ((ss * 32 + sn) / (2 * sn))! };
   (lift, dark)
 }
 
@@ -884,7 +892,7 @@ fn standing_light(gr: const Ground, x: integer, y: integer, cx: integer, cy: int
     ss += if sh < dim { dim } else { sh };
     sn += 1;
   }
-  if sn == 0 { dim * 16 } else { (ss * 32 + sn) / (2 * sn) }
+  if sn == 0 { dim * 16 } else { ((ss * 32 + sn) / (2 * sn))! }
 }
 
 // What stands on cell (x, y, z): its kind when it stands up (a wall, a tree), and its stack.
@@ -1087,6 +1095,13 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   }
 }
 
+// The pixels covered in `e` ms by something moving `d` cells (-1, 0 or 1) every `ms` ms, at
+// `ts` pixels a cell.  A cell time of 0 or less (a mistake in the data) counts as one ms.
+fn covered(d: integer, e: integer, ts: integer, ms: integer) -> integer {
+  per = if ms > 0 { ms } else { 1 };
+  (d * e * ts / per)!
+}
+
 // The bow, over the picture: the mark on its locked target, and each arrow in flight — from where
 // it was shot, a cell every arrow_ms, turned the way it flies.
 fn draw_bow(g: Game) {
@@ -1101,8 +1116,8 @@ fn draw_bow(g: Game) {
   for s in w.shots {
     e = w.now - s.at;
     if s.done || e < 0 { continue; }
-    px = (s.x - g.cam_x) * ts + s.dx * e * ts / w.k.arrow_ms;
-    py = (s.y - g.cam_y) * ts - s.z * ts - 6 + s.dy * e * ts / w.k.arrow_ms;
+    px = (s.x - g.cam_x) * ts + covered(s.dx, e, ts, w.k.arrow_ms);
+    py = (s.y - g.cam_y) * ts - s.z * ts - 6 + covered(s.dy, e, ts, w.k.arrow_ms);
     theme::put_turned(g.surface, g.look.arrow, px, py, motion::facing(s.dx, s.dy), (7, 8), 0);
   }
 }
