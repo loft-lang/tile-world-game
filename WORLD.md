@@ -64,9 +64,33 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
   with more than one form (a loiterer's few spots, a patrol's two turns) takes the one drawn
   from the creature's seed and the day, as points do.
 - **In the hero's place a creature acts** on what it sees and hears (DESIGN.md's light, sound
-  and sight).  A creature the hero held up (talked to, followed, a door locked in its way, a
-  monster drawn out by a torch) goes on from where it stands when the hero leaves, to its next
-  point.
+  and sight), and can be interrupted (below).
+
+**A creature's routine is its plan, and the player can interrupt it in many ways**: talk to it,
+trade, give or show it something, ask it to follow, block its way, wake it, scare it, attack it,
+steal from it, draw it with light or noise.  Its activity says which apply and how it takes
+them: a sleeper is woken before it hears anything, a smith at the forge answers briefly, a guard
+on watch notices a theft another would miss.
+
+**Every interruption carries a way back** to the routine, one of a few:
+
+| Way back | The creature | For example |
+|---|---|---|
+| pause | goes on where it stopped, late by the time it lost | talked to on its way to the inn, it arrives late |
+| rejoin | goes straight to where its routine has it now | a guard pulled off its round returns to its post for this hour |
+| skip | drops the point it missed, and goes on to the next | a farmer kept from the field all morning goes straight to market |
+| detour | goes elsewhere for a time or until a condition holds, then rejoins | follows the hero to the gate; flees home until the danger is gone; chases a thief |
+
+Which way back an interruption takes is data, per activity and per kind of interruption, so the
+author shapes it and the editor shows it.  An interruption that should outlast the scene (a
+creature hired, a shopkeeper too frightened to open for a week) is a change of its habits: a
+pending consequence (§ Who can be near the hero), not an interruption.
+
+**An interrupted creature away from the hero** is in the list of creatures off their period:
+where it was, since when, and its way back.  Where it is at a moment follows from those and the
+clock, as its routine's whereabouts do; it leaves the list when it is back on its routine.  A
+creature on a detour with the hero (following, chasing) crosses doors with the hero, by the rule
+of what passes through a door.
 
 **Outside what the hero does and what the author scripted, every creature keeps its routine.**
 Its points and their hours are the whole of its life until one of those changes them (§ Who can
@@ -212,6 +236,7 @@ an edit is played the moment it is made):
 - **creatures' points**: placed on the map with their hours and activities, for NPCs and monsters
   alike, and a view of where every creature is, and what it is doing, at a chosen time of day;
 - **scripts**: what a creature does with what it comes upon, and after how long;
+- **interruptions**: per activity, which interruptions a creature takes and its way back from each;
 - **the start**: where a new game begins;
 - **checks**, as the in-game editor has them (K): a door that leads nowhere, a place no door
   reaches, a chest that cannot be reached;
@@ -239,7 +264,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
    hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, doing their
    activities, each monster at one of its points for the hour; a shopkeeper who trades at the
-   stall and not asleep; by entering a region and finding exactly the
+   stall and not asleep; a creature interrupted in each way back (pause, rejoin, skip, detour)
+   back on its routine at the moment its way back gives, whether the hero watches or leaves; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; by a recalculation during a
    visit that changes no creature in the hero's region, the new ones walking in afterwards; and
@@ -260,7 +286,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
 8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
-   points, scripts, materials, kinds, sounds and the start; export and import.  Checked by an edit made
+   points, scripts, interruptions, materials, kinds, sounds and the start; export and import.  Checked by an edit made
    in the page, exported, and played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
