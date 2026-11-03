@@ -34,6 +34,10 @@ moment it ends (`until = now + duration`) and is what it is until the clock pass
 - **Elsewhere, whereabouts are a question asked at a moment**: entering a place asks, for every
   creature with a point there, whether it is here now and where.  One halfway through a door
   when the hero arrives is halfway through that door.
+- **While the hero is in a place**, a creature whose points bring it there walks in at its
+  moment: entering the place works out when each such creature reaches one of its doors, and the
+  game waits for that tick, as a timed state waits for its `until`.  Nothing is computed for it
+  before then.
 - **The answer is deterministic**: worked out from the creature's points, its seed and the
   clock, never from how often anyone looked.  The same moment always answers the same place,
   which keeps a save small and a replay exact.
