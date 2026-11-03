@@ -116,9 +116,16 @@ a wall inside a room) leaves it as it is; the rest is recalculated where it reac
 | a creature added or removed: born, killed, arrived | that creature's entries |
 | the editor changes points, doors or regions | the same, or the whole table |
 
-The recalculation is a queue worked a few routes a frame, nearest the hero first.  Until a
-creature's new route is in, it keeps its old one, which reads as a creature reacting a moment
-later; near the hero that is a few frames, far away it can be seconds, unseen.
+**Habits change over time, never at once.**  The recalculation is background work, a few routes
+a frame, with no deadline: a burnt bridge reshapes the merchants' routes over the time it
+takes, as habits change in a real town.  Until a creature's new route is in, it keeps its old
+one.  While it runs, nothing changes in the hero's region because of it:
+
+- the creatures in the hero's region stay, and go on with their old routes until they leave by
+  them;
+- a creature the new table brings into the hero's region walks in: its arrival is a moment like
+  any other, at a door or the region's edge, after the recalculation is done.  Nobody appears;
+- a creature the new table takes away leaves at its next departure.  Nobody vanishes.
 
 **The table is never saved.**  Loading rebuilds it from the data and each place's saved changes,
 deterministically, so a save stays small and cannot disagree with the world.
@@ -179,7 +186,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    world changes.  Checked by a scripted period: each NPC at its points at their hours, each
    monster at one of its points for the hour; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random world changes
-   leaving the recalculated table equal to one built from scratch.
+   leaving the recalculated table equal to one built from scratch; and by a recalculation during
+   a visit that changes no creature in the hero's region, the new ones walking in afterwards.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
