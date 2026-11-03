@@ -32,26 +32,27 @@ moment it ends (`until = now + duration`) and is what it is until the clock pass
 - **The hero's place runs live**, in real time and deterministically, as now: creatures there
   see, hear and act every tick.
 - **Elsewhere, whereabouts are a question asked at a moment**: entering a place asks, for every
-  creature whose day can bring it there, whether it is here now and where.  One halfway
-  through a door when the hero arrives is halfway through that door.
-- **The answer is deterministic**: worked out from the creature's timetable or territory, its
-  seed and the clock, never from how often anyone looked.  The same moment always answers the
-  same place, which keeps a save small and a replay exact.
+  creature with a point there, whether it is here now and where.  One halfway through a door
+  when the hero arrives is halfway through that door.
+- **The answer is deterministic**: worked out from the creature's points, its seed and the
+  clock, never from how often anyone looked.  The same moment always answers the same place,
+  which keeps a save small and a replay exact.
 
-**NPCs keep a timetable**: where they are during the day ("home until 7:00, the smithy until
-12:00, the inn until 13:00, the smithy until 18:00, the market until 20:00, home"), and the doors
-they use.  Between two entries they walk the way along the door graph and through each place,
-leaving early enough to arrive on time, so they cross the land outside like the hero does and
-can be met there.  Where an NPC is at a moment is the timetable at that time of day: in the
-entry it is at, or on the way between two.  An NPC the hero held up in the hero's place (talked
-to, followed, a door locked in its way) goes on from where it stands when the hero leaves, to
-where its timetable says it should be next.
+**Every creature has points it likes to be at, at certain times.**  A point is a place and a
+cell with the hours it is liked ("the smithy's anvil, 7:00 to 12:00"; "the cave's back pool,
+from dusk").  One model serves NPCs and monsters:
 
-**Monsters keep a territory**: an area over one or more places, a lair, how far they stray, and
-when in the day they are out (a lair by day, the territory by night).  Where a monster is at a
-moment is a point of its roaming in that territory, drawn from its seed and the clock; in the
-hero's place it acts on what it sees and hears (DESIGN.md's light, sound and sight), and leaves
-its territory only when something it reacts to draws it out.
+- **An NPC's points in time order are its day**: home, the smithy, the inn at noon, the market,
+  home.
+- **A monster's points spread over an area are its territory**: a lair by day, hunting spots at
+  night, several points for the same hours so its seed picks among them and it seems to roam.
+- **Between two points a creature walks** the way along the door graph and through each place,
+  leaving early enough to arrive on time, so NPCs cross the land outside and can be met there.
+- **Where a creature is at a moment** is the point it is at, or the way between two points.
+- **In the hero's place a creature acts** on what it sees and hears (DESIGN.md's light, sound
+  and sight).  A creature the hero held up (talked to, followed, a door locked in its way, a
+  monster drawn out by a torch) goes on from where it stands when the hero leaves, to its next
+  point.
 
 **No goals, a world to explore.**  A level's goal (a layer, daylight, a cell, every chest) goes.
 What the player is after is in the world: a locked door and its key elsewhere, a chest behind a
@@ -89,9 +90,8 @@ an edit is played the moment it is made):
 - **materials and sheets** (theme.json): which tile a material draws, its variants and autotiles;
 - **kinds** (kinds.json): what each thing and creature is and does;
 - **sounds**: which sound an event plays;
-- **NPCs**: their homes, timetables and the doors they use, with a view of where each one is at a
-  chosen time of day;
-- **monsters**: their territories, lairs, how far they stray and when they are out;
+- **creatures' points**: placed on the map with their hours, for NPCs and monsters alike, and a
+  view of where every creature is at a chosen time of day;
 - **the start**: where a new game begins;
 - **checks**, as the in-game editor has them (K): a door that leads nowhere, a place no door
   reaches, a chest that cannot be reached;
@@ -111,13 +111,13 @@ Each step is checked before the next starts; "checked" names what goes red.
    walk: out of one place through its front door, back in through its back door, every place's
    state as left.
 2. **The clock and whereabouts.**  A time of day; timed states as moments; whereabouts asked on
-   entering a place, from a timetable or a territory; a held-up creature going on from where it
-   stands.  Checked by asking the same moment twice and across a save and reload: the same
-   answers; and by the hero following a creature through a door and finding it on its way.
-3. **NPC timetables and monster territories.**  Timetables walked along the door graph,
-   arriving on time; territories with lairs and hours.  Checked by a scripted day: each NPC
-   where its timetable puts it at chosen times, each monster inside its territory and in its lair
-   by day.
+   entering a place; a held-up creature going on from where it stands.  Checked by asking the
+   same moment twice and across a save and reload: the same answers; and by the hero following a
+   creature through a door and finding it on its way.
+3. **Creatures' points.**  Points with hours, walked between along the door graph, arriving on
+   time; several points for the same hours chosen by seed.  Checked by a scripted day: each NPC
+   at its points at their hours, each monster at one of its points for the hour, never outside
+   them unless drawn out.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
@@ -131,8 +131,8 @@ Each step is checked before the next starts; "checked" names what goes red.
 7. **The browser.**  `screen`, `input`, `audio` and saves in a page (@PLN209 F2, F4, F7: library
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
-8. **The editor in the page.**  The mouse in the place editor first, then doors, NPC timetables,
-   monster territories, materials, kinds, sounds and the start; export and import.  Checked by an edit made in the page, exported, and
+8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
+   points, materials, kinds, sounds and the start; export and import.  Checked by an edit made in the page, exported, and
    played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
