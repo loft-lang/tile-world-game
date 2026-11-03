@@ -48,6 +48,11 @@ fn main() {
   log("pixels n={len(frame)}");
   screen::show(frame, W, H);
   log("shown");
+  // The same frame again, to time a show on its own: what a game pays per frame.
+  repeats = 30;
+  before = ticks();
+  for _ in 0..repeats { screen::show(frame, W, H); }
+  log("shows n={repeats} us_each={(ticks() - before) / repeats}");
   window_keys = screen::has_keys();
   if !window_keys && !input::device_open() {
     log("error no-keys");

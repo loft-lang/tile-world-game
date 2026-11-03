@@ -20,7 +20,7 @@ door is a link from one place to another, both ways:
   enemy close behind (the same rule on both sides, readable from the screen).
 
 **A place you leave keeps its state.**  The rock you pushed, the chest you opened, the rat you
-lit away from the door: all are where they were when you come back, unless a creature's plan
+lit away from the door: all are where they were when you come back, unless a creature's day
 (below) moved it.
 
 **One clock that always runs.**  The world has a time of day: the clock runs in real time,
