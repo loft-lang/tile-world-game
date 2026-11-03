@@ -66,6 +66,43 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
 - **In the hero's place a creature acts** on what it sees and hears (DESIGN.md's light, sound
   and sight), and can be interrupted (below).
 
+**Monsters roam in bands, between points of interest.**  A monster is rarely alone in a dungeon,
+and its world is bigger than one room.  The developer gives a group of monsters a **pool**:
+
+- **points of interest** across the dungeon's rooms, layers and places: a water hole, a larder,
+  a lair, a crossing, a lookout.  Each is a point as above: hours, an activity (drink, feed,
+  sleep, lurk, keep watch) and how long a band stays;
+- **its members**: the kinds and how many (eight rats; two cyclopes and a hunter);
+- **the band size**: how many band together on a roam (two to four).
+
+For each roam the pool splits into bands of that size, and each band picks its next point of
+interest; the split and the picks are drawn from the pool's seed and the roam's number, so the
+rats met in the cellar are not always the same band, and a replay is the same.  A band travels
+together, one leading the way and the others close behind it; its whereabouts at a moment are
+worked out for the band, not for each member, and the coverage table holds the pool once, in
+the regions of its points of interest.
+
+A band is interrupted together: a rat struck alerts its band, which chases or flees as one.  A
+member split from its band (fled to another layer, chased off) takes the band's next point of
+interest as its way back and joins it there.  A member killed leaves the pool for good, a
+change the player made; the bands of a smaller pool are smaller, and an empty pool roams no
+more.
+
+**The monsters as they are**, read as this model (`kinds.json`, `rules.loft` `enemy_act`):
+
+| Monster | Today | In the model |
+|---|---|---|
+| rat, bat, spider | one nest, wandering within `roam` cells of it, chosen by its id and steps | a pool with points of interest; the nest becomes its lair |
+| guard | stands at its post, steps aside for the hero | one point, the activity "keep watch" |
+| cyclops | one nest; seeing the hero it shouts and those within `calls` cells search the spot until `search_until` | a band; asleep in its lair by day, the stealthy way past |
+| hunter | one nest; hunts other monsters, follows a hurt one home | a pool whose points of interest are other pools' haunts |
+
+What it keeps: timed states are moments already (`scared_until`, `search_until`, `heal_due`),
+and every reaction is a way back — a hurt monster's way home to heal and a scared one's flight
+are detours, the walk back to its nest a rejoin.  What it gains: hours, more points than one,
+activities as data, bands, and a way back across layers: a spider that fled to another layer
+today stays there, because walking home and wandering both ask for its nest's layer.
+
 **A creature's routine is its plan, and the player can interrupt it in many ways**: talk to it,
 trade, give or show it something, ask it to follow, block its way, wake it, scare it, attack it,
 steal from it, draw it with light or noise.  Its activity says which apply and how it takes
@@ -236,6 +273,8 @@ an edit is played the moment it is made):
 - **sounds**: which sound an event plays;
 - **creatures' points**: placed on the map with their hours and activities, for NPCs and monsters
   alike, and a view of where every creature is, and what it is doing, at a chosen time of day;
+- **monster pools**: their points of interest on the map, their members and the band size, and a
+  view of the bands a chosen roam makes;
 - **scripts**: what a creature does with what it comes upon, and after how long;
 - **interruptions**: per activity, which interruptions a creature takes and its way back from each;
 - **the start**: where a new game begins;
@@ -265,7 +304,9 @@ Each step is checked before the next starts; "checked" names what goes red.
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
    hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, doing their
    activities, each monster at one of its points for the hour; a shopkeeper who trades at the
-   stall and not asleep; a creature interrupted in each way back (pause, rejoin, skip, detour)
+   stall and not asleep; a pool's bands of the size it gives, each at one of its points of
+   interest, the same bands for the same roam and different ones for the next; a spider that
+   fled to another layer rejoining its band; a creature interrupted in each way back (pause, rejoin, skip, detour)
    back on its routine at the moment its way back gives, whether the hero watches or leaves; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; by a recalculation during a
@@ -287,7 +328,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
 8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
-   points, scripts, interruptions, materials, kinds, sounds and the start; export and import.  Checked by an edit made
+   points, monster pools, scripts, interruptions, materials, kinds, sounds and the start; export and import.  Checked by an edit made
    in the page, exported, and played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
