@@ -67,7 +67,8 @@ river, a way down that needs a torch.  Nothing is tutorialised; the world is lea
 
 **Saving.**  A save is the clock, the hero (place, cell, what is carried), each visited place's
 changes against its file, and each creature the hero held up, with where it stood: everyone
-else's whereabouts follow from the clock.  On the Tanmatsu in its FAT area, in the browser in
+else's whereabouts follow from the clock; and the consequences still pending (§ Who can be near
+the hero).  On the Tanmatsu in its FAT area, in the browser in
 the page's storage, on a desktop beside the game.  The one rollback of DESIGN.md stays.
 
 ## Who can be near the hero
@@ -132,6 +133,26 @@ one.  While it runs, nothing changes in the hero's region because of it:
   any other, at a door or the region's edge, after the recalculation is done.  Nobody appears;
 - a creature the new table takes away leaves at its next departure.  Nobody vanishes.
 
+**Consequences that take their time.**  What the hero does can change the world later, and
+elsewhere, and out of sight: a letter handed to a courier that the courier forgets beside the
+road, found days later by someone else, whose habits change only then.
+
+- **A pending consequence** is a moment, a place and what it changes: a creature's points, a
+  link, a thing.  Only the hero's actions make them, directly or as the next link of a chain one
+  of them started, so there are few.
+- **They wait in order of their moment**, and each tick compares the clock with the first, as
+  arrivals do.  When a moment comes the consequence applies; when it changes the table, the
+  recalculation starts then, under the rule above (nothing changes in the hero's region because
+  of it).
+- **A thing a creature carries goes with its route.**  Losing it is a moment and a cell on the
+  carrier's way, drawn from its seed; the thing then lies in that place until the next creature
+  whose route crosses the cell takes it (found from the coverage table at the moment it falls),
+  or the hero finds it.
+- **Hidden, never unfair.**  Nothing announces a consequence; its trace is in the world, to be
+  found: the letter where it fell, the courier arriving without it, a shop shut a week after
+  its keeper's letter went astray.
+- **They are saved**, being what the hero set going: the moment, the place and the change each.
+
 **The table is never saved.**  Loading rebuilds it from the data and each place's saved changes,
 deterministically, so a save stays small and cannot disagree with the world.
 
@@ -191,14 +212,16 @@ Each step is checked before the next starts; "checked" names what goes red.
    hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, each
    monster at one of its points for the hour; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random player actions
-   leaving the recalculated table equal to one built from scratch; and by a recalculation during
-   a visit that changes no creature in the hero's region, the new ones walking in afterwards.
+   leaving the recalculated table equal to one built from scratch; by a recalculation during a
+   visit that changes no creature in the hero's region, the new ones walking in afterwards; and
+   by a letter handed to a courier, lost on the way and found by a passer-by at the same moment
+   and the same cell in every run, across a save and reload.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
    nowhere.
-5. **Saves.**  The clock, the hero, each visited place's changes and the creatures held up,
-   written and read back.  Checked by a save, a restart and the same state.
+5. **Saves.**  The clock, the hero, each visited place's changes, the creatures held up and the
+   pending consequences, written and read back.  Checked by a save, a restart and the same state.
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
    decoded at a time.  Checked on the device with the timing log: frame time, the time a door
    takes, the PSRAM a place takes.
