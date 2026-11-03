@@ -63,6 +63,35 @@ fn picture(game: game::Game, shot: text) {
   println(if game::snapshot(game, shot, 3) { "wrote {shot}" } else { "could not write {shot}" });
 }
 
+// Draw at the screen's own resolution: the game's surface is the screen's size, and its camera
+// shows the game's W x H view at the largest whole zoom that fits, centred.  Answers the size it
+// was made for, so the loop can tell when the window changed.
+fn fit_display(game: game::Game) -> (integer, integer) {
+  w = screen::width();
+  h = screen::height();
+  s = tiles::surface(w, h) ?? return (0, 0);
+  tiles::free_surface(game.surface);
+  game.surface = s;
+  zoom = w / game::W;
+  if h / game::H < zoom { zoom = h / game::H; }
+  if zoom < 1 { zoom = 1; }
+  z = zoom as float;
+  tiles::camera(s, z, -((w as float) / z - (game::W as float)) / 2.0,
+                -((h as float) / z - (game::H as float)) / 2.0);
+  (w, h)
+}
+
+// The frame on the screen: black round the view, then shown at the screen's size.
+fn present(game: game::Game, size: (integer, integer)) {
+  s = game.surface;
+  far = 100000.0;
+  tiles::fill(s, -far, -far, far, 2.0 * far, 0);
+  tiles::fill(s, game::W as float, -far, far, 2.0 * far, 0);
+  tiles::fill(s, 0.0, -far, game::W as float, far, 0);
+  tiles::fill(s, 0.0, game::H as float, game::W as float, far, 0);
+  screen::show(tiles::pixels(s, size.0, size.1), size.0, size.1);
+}
+
 fn main() {
   g = game::new_game(".");
   if !g {
@@ -75,7 +104,7 @@ fn main() {
     picture(game, shot);
     return;
   }
-  if !screen::open(game::W, game::H, 4, "tile_world - the first climb") {
+  if !screen::open(game::W, game::H, 4, "tile_world - the first climb", fill: true) {
     println("this machine has no screen loft can open (no display?)");
     return;
   }
@@ -85,8 +114,9 @@ fn main() {
   if !window_keys { _ = input::device_open(); }
   // Kenney's pictures and sounds, credited first: until a key is pressed, or five seconds.
   println(game::CREDITS);
+  size = fit_display(game);
   game::draw_credits(game);
-  screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+  present(game, size);
   shown = ticks() / 1000;
   while screen::poll(15) && ticks() / 1000 - shown < 5000 {
     if window_keys {
@@ -98,7 +128,7 @@ fn main() {
   }
   game::start_level(game, 0);
   game::draw(game);
-  screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+  present(game, size);
   last = ticks() / 1000;
   while screen::poll(15) {
     if window_keys {
@@ -108,9 +138,11 @@ fn main() {
     }
     if game::quit(game) { break; }
     now = ticks() / 1000;
-    if game::update(game, now - last, now) {
+    resized = screen::width() != size.0 || screen::height() != size.1;
+    if resized { size = fit_display(game); }
+    if game::update(game, now - last, now) || resized {
       game::draw(game);
-      screen::show(tiles::pixels(game.surface, game::W, game::H), game::W, game::H);
+      present(game, size);
     }
     last = now;
   }

@@ -8,14 +8,14 @@ set -eu
 cd "$(dirname "$0")"
 
 # package          repository           ref
-# (screen and audio: the branch with their browser and Tanmatsu sections, until they are published;
+# (screen, audio and tiles: the branches with their browser and Tanmatsu sections, until they are published;
 # then main)
 LIBS='
 tile_world         loft-libs-world      main
 audio              loft-libs-game       tuxedo-screen-esp-present
 input              loft-libs-game       main
 screen             loft-libs-game       tuxedo-screen-esp-present
-tiles              loft-libs-graphics   main
+tiles              loft-libs-graphics   tuxedo-native-pixels
 imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
 mesh3d             loft-libs-assets     main
