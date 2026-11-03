@@ -188,7 +188,7 @@ Each step is checked before the next starts; "checked" names what goes red.
 3. **Creatures' points and who can be near the hero.**  Points with hours over a period, walked
    between along the door graph, arriving on time; regions, the region graph and the coverage
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
-   world changes.  Checked by a scripted period: each NPC at its points at their hours, each
+   hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, each
    monster at one of its points for the hour; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; and by a recalculation during
