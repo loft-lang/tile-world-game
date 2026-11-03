@@ -5,6 +5,24 @@ outside, into the next.  No levels, no screens between places, no order to play 
 on the Tanmatsu and as a web page, and the page carries a full editor for every part of the game's
 data.
 
+## The developer's view
+
+The developer always works in a simple view of the situation, and the game fills in the details:
+
+- **simple to say**: a spot ("2 rats here, often"), a door between two places, a material on a
+  cell, an NPC's home and work;
+- **the game fills in the rest**: pools and bands, hours and activities, routes and timetables,
+  a material's autotiles, a door's other side;
+- **every detail can be adjusted**: the editor shows each detail the game derived and lets the
+  developer set it by hand (a band of exactly three, a stay of an hour, a tile other than the
+  autotile's).  An adjustment is kept apart from the intent and survives when the game derives
+  the rest again; taking it away gives back what the game derives.  The editor marks what is
+  derived and what was adjusted, so the simple view stays readable however many details were
+  set by hand.
+
+The materials already work this way: a cell's tile follows from its material, and the rare
+tile set by hand is listed apart (EDITOR.md § 2).
+
 ## The world
 
 **Places joined by doors.**  The world is a set of places: a dungeon, a building, a stretch of
@@ -84,7 +102,8 @@ comes from the game's rules for the kind and the spot's surroundings: the activi
 a larder: feed; a lair: sleep), how long a band stays, how far a kind roams, how it reacts and
 how it comes back.  The editor shows what the game made of the spots: the pools, the bands of a
 chosen roam, where every creature is at a chosen hour; so the developer sees the result of an
-intent, and changes the intent, never the rules.
+intent, and adjusts a detail where the derived one is not what they want (§ The developer's
+view).
 
 **What the game derives for monsters: pools, bands and points of interest.**  The spots of a kind
 that its members can walk between form a **pool**: its **points of interest** are the spots
@@ -290,7 +309,7 @@ an edit is played the moment it is made):
   alike, and a view of where every creature is, and what it is doing, at a chosen time of day;
 - **spots**: where, which kind, how many, how often and when, for monsters and NPCs alike; the
   editor shows what the game derived from them (the pools, the bands of a chosen roam, an NPC's
-  day), and the developer edits the spots, never the derived rules;
+  day), each derived detail adjustable and marked as derived or adjusted;
 - **scripts**: what a creature does with what it comes upon, and after how long;
 - **interruptions**: per activity, which interruptions a creature takes and its way back from each;
 - **the start**: where a new game begins;
@@ -321,7 +340,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, doing their
    activities, each monster at one of its points for the hour; a shopkeeper who trades at the
    stall and not asleep; spots turned into the pools, bands and timetables their words say
-   ("2 rats here, often": bands of two at that spot on many roams); a pool's bands of the size
+   ("2 rats here, often": bands of two at that spot on many roams), and an adjusted detail kept
+   when the rest is derived again, the derived one back when the adjustment is taken away; a pool's bands of the size
    its spots give, each at one of its points of
    interest, the same bands for the same roam and different ones for the next; a spider that
    fled to another layer rejoining its band; a creature interrupted in each way back (pause, rejoin, skip, detour)
