@@ -66,21 +66,36 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
 - **In the hero's place a creature acts** on what it sees and hears (DESIGN.md's light, sound
   and sight), and can be interrupted (below).
 
-**Monsters roam in bands, between points of interest.**  A monster is rarely alone in a dungeon,
-and its world is bigger than one room.  The developer gives a group of monsters a **pool**:
+**The developer says where and how often; the game works out the rules.**  A game developer does
+not write pools, routes or timetables.  They place **spots** in the editor, each a sentence of
+intent, and the game derives the detailed rules behind it:
 
-- **points of interest** across the dungeon's rooms, layers and places: a water hole, a larder,
-  a lair, a crossing, a lookout.  Each is a point as above: hours, an activity (drink, feed,
-  sleep, lurk, keep watch) and how long a band stays;
-- **its members**: the kinds and how many (eight rats; two cyclopes and a hunter);
-- **the band size**: how many band together on a roam (two to four).
+| The developer places | The game derives |
+|---|---|
+| a spot: "2 rats here, often" | a point of interest, visited by a band of two on many of the pool's roams |
+| "bats round this pool, at dusk" | a point with hours from "at dusk", and the bat's own habits (out from dusk, back by dawn) |
+| "a cyclops sleeps here by day" | its lair, with the activity sleep for the daylight hours |
+| several rat spots in one dungeon | one pool: the spots of a kind that its kind can walk between, within its reach |
+| "a smith lives here, works there" | a timetable from the smith's habits: home at night, the forge by day, the inn at noon |
 
-For each roam the pool splits into bands of that size, and each band picks its next point of
-interest; the split and the picks are drawn from the pool's seed and the roam's number, so the
-rats met in the cellar are not always the same band, and a replay is the same.  A band travels
-together, one leading the way and the others close behind it; its whereabouts at a moment are
-worked out for the band, not for each member, and the coverage table holds the pool once, in
-the regions of its points of interest.
+A spot is a place and a cell with a kind, how many (2 rats), how often (always, often,
+sometimes, rarely) and, when it matters, when (by day, at night, at dusk).  Everything else
+comes from the game's rules for the kind and the spot's surroundings: the activity (water: drink;
+a larder: feed; a lair: sleep), how long a band stays, how far a kind roams, how it reacts and
+how it comes back.  The editor shows what the game made of the spots: the pools, the bands of a
+chosen roam, where every creature is at a chosen hour; so the developer sees the result of an
+intent, and changes the intent, never the rules.
+
+**What the game derives for monsters: pools, bands and points of interest.**  The spots of a kind
+that its members can walk between form a **pool**: its **points of interest** are the spots
+(across the dungeon's rooms, layers and places), its **members** the monsters the spots ask for,
+and the counts at the spots give how many band together on a roam.  For each roam the pool
+splits into bands, and each band picks its next point of interest, the "often" ones more often;
+the split and the picks are drawn from the pool's seed and the roam's number, so the rats met in
+the cellar are not always the same band, and a replay is the same.  A band travels together, one
+leading the way and the others close behind it; its whereabouts at a moment are worked out for
+the band, not for each member, and the coverage table holds the pool once, in the regions of its
+points of interest.
 
 A band is interrupted together: a rat struck alerts its band, which chases or flees as one.  A
 member split from its band (fled to another layer, chased off) takes the band's next point of
@@ -273,8 +288,9 @@ an edit is played the moment it is made):
 - **sounds**: which sound an event plays;
 - **creatures' points**: placed on the map with their hours and activities, for NPCs and monsters
   alike, and a view of where every creature is, and what it is doing, at a chosen time of day;
-- **monster pools**: their points of interest on the map, their members and the band size, and a
-  view of the bands a chosen roam makes;
+- **spots**: where, which kind, how many, how often and when, for monsters and NPCs alike; the
+  editor shows what the game derived from them (the pools, the bands of a chosen roam, an NPC's
+  day), and the developer edits the spots, never the derived rules;
 - **scripts**: what a creature does with what it comes upon, and after how long;
 - **interruptions**: per activity, which interruptions a creature takes and its way back from each;
 - **the start**: where a new game begins;
@@ -304,7 +320,9 @@ Each step is checked before the next starts; "checked" names what goes red.
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
    hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, doing their
    activities, each monster at one of its points for the hour; a shopkeeper who trades at the
-   stall and not asleep; a pool's bands of the size it gives, each at one of its points of
+   stall and not asleep; spots turned into the pools, bands and timetables their words say
+   ("2 rats here, often": bands of two at that spot on many roams); a pool's bands of the size
+   its spots give, each at one of its points of
    interest, the same bands for the same roam and different ones for the next; a spider that
    fled to another layer rejoining its band; a creature interrupted in each way back (pause, rejoin, skip, detour)
    back on its routine at the moment its way back gives, whether the hero watches or leaves; by entering a region and finding exactly the
@@ -328,7 +346,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
 8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
-   points, monster pools, scripts, interruptions, materials, kinds, sounds and the start; export and import.  Checked by an edit made
+   points, spots, scripts, interruptions, materials, kinds, sounds and the start; export and import.  Checked by an edit made
    in the page, exported, and played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
