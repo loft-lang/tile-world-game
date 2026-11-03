@@ -69,7 +69,7 @@ fn picture(game: game::Game, shot: text) {
 fn fit_display(game: game::Game) -> (integer, integer) {
   w = screen::width();
   h = screen::height();
-  s = tiles::surface(w, h) ?? return (0, 0);
+  s = tiles::display_surface(w, h) ?? return (0, 0);
   tiles::free_surface(game.surface);
   game.surface = s;
   zoom = w / game::W;
@@ -104,13 +104,15 @@ fn present(game: game::Game, size: (integer, integer), t: Timing) {
   tiles::fill(s, game::W as float, -far, far, 2.0 * far, 0);
   tiles::fill(s, 0.0, -far, game::W as float, far, 0);
   tiles::fill(s, 0.0, game::H as float, game::W as float, far, 0);
+  t.frames += 1;
+  // Drawn straight onto the display (a page's GPU), the frame is already on the screen.
+  if tiles::on_display(s) { return; }
   at = ticks();
   px = tiles::pixels(s, size.0, size.1);
   copied = ticks();
   screen::show(px, size.0, size.1);
   t.copy += copied - at;
   t.show += ticks() - copied;
-  t.frames += 1;
 }
 
 fn main() {
