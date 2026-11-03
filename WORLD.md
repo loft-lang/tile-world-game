@@ -310,7 +310,8 @@ The game asks what the machine has (keys, a pointer, the screen's size), never w
 
 ## The editor in the browser
 
-Everything the game reads is editable there, in the same loft code the game runs (one model, so
+How it is built and used — two passes, building a world and then placing its challenges — is
+BROWSER_EDITOR.md.  Everything the game reads is editable there, in the same loft code the game runs (one model, so
 an edit is played the moment it is made):
 
 - **places**, in the developer's terms first: rooms, corridors, caves and yards drawn as
