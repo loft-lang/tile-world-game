@@ -60,6 +60,10 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
   monster drawn out by a torch) goes on from where it stands when the hero leaves, to its next
   point.
 
+**Outside what the hero does and what the author scripted, every creature keeps its routine.**
+Its points and their hours are the whole of its life until one of those changes them (§ Who can
+be near the hero): no creature changes its habits by itself.
+
 **No goals, a world to explore.**  A level's goal (a layer, daylight, a cell, every chest) goes.
 What the player is after is in the world: a locked door and its key elsewhere, a chest behind a
 river, a way down that needs a torch.  Nothing is tutorialised; the world is learnt by watching it
