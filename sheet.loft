@@ -1,0 +1,86 @@
+// Kenney's Tiny Dungeon sheet, every tile in its place, on the machine's screen until space is
+// pressed.  Each step is logged to the console with its time, one line each:
+//
+//   @t <microseconds since start> <event> [key=value ...]
+//
+// so a host reading the Tanmatsu's USB serial port sees what the device did and how long it
+// took.  Run: loft --lib libs sheet.loft
+use screen;
+use tiles;
+use input;
+
+const SHEET = "assets/sheets/tiny-dungeon.png";
+const TILE = 16;
+const COLS = 12;
+const ROWS = 11;
+const W = COLS * TILE;
+const H = ROWS * TILE;
+const SCALE = 2;
+const KEY_SPACE = 32;
+
+fn log(what: text) {
+  println("@t {ticks()} {what}");
+}
+
+fn main() {
+  log("start");
+  sheet = tiles::sheet_from_png(SHEET, TILE, TILE) ?? -1;
+  if sheet < 0 {
+    log("error sheet-not-loaded path={SHEET}");
+    return;
+  }
+  log("sheet-loaded tiles={tiles::tile_count(sheet)} colours={tiles::colour_count(sheet)}");
+  surface = tiles::surface(W, H) ?? -1;
+  if surface < 0 {
+    log("error no-surface w={W} h={H}");
+    return;
+  }
+  for t in 0..tiles::tile_count(sheet) {
+    tiles::draw(surface, sheet, t, t % COLS * TILE, t / COLS * TILE);
+  }
+  log("composed w={W} h={H}");
+  if !screen::open(W, H, SCALE, "tiny dungeon") {
+    log("error no-screen");
+    return;
+  }
+  log("screen-open w={screen::width()} h={screen::height()} scale={SCALE}");
+  frame = tiles::pixels(surface, W, H);
+  log("pixels n={len(frame)}");
+  screen::show(frame, W, H);
+  log("shown");
+  window_keys = screen::has_keys();
+  if !window_keys && !input::device_open() {
+    log("error no-keys");
+    screen::close();
+    return;
+  }
+  log("keys source={if window_keys { "window" } else { "device" }}");
+  keys = input::input_new(input::Bindings { bnd_actions: [], bnd_axes: [] });
+  held: vector<boolean> = [];
+  for _ in 0..256 { held += [false]; }
+  polls = 0;
+  beat = ticks();
+  while screen::poll(15) {
+    if window_keys {
+      keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
+    } else {
+      keys.input_tick_device();
+    }
+    polls += 1;
+    for k in 1..256 {
+      down = keys.is_key_down(k);
+      if down && !held[k] { log("key-down code={k}"); }
+      if !down && held[k] { log("key-up code={k}"); }
+      held[k] = down;
+    }
+    if keys.is_key_down(KEY_SPACE) { break; }
+    if ticks() - beat >= 1000000 {
+      log("alive polls={polls}");
+      polls = 0;
+      beat = ticks();
+    }
+  }
+  screen::close();
+  if !window_keys { input::device_close(); }
+  log("stop");
+}
