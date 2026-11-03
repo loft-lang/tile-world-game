@@ -1,0 +1,236 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Widgets drawn with tiles: panels, labels, buttons, lists and text fields, nothing of any game
+// in them (BROWSER_EDITOR.md step 2; a library once it settles).
+//
+// Immediate mode: every frame the caller calls `begin` with what the pointer and the keyboard
+// did, then asks for each widget with its own data, and a widget answers what happened to it —
+// a button whether it was clicked, a field whether Enter was pressed, a list whether the pick
+// changed.  The data stays the caller's: a field edits the caller's text, a list the caller's
+// index, so what the widgets did is always in the caller's model and nowhere else.
+//
+// The UI has its own units: `begin` points the surface's camera at (0, 0) with `scale` pixels a
+// unit, so the widgets sit on the screen wherever the game's own camera looks.  The pointer
+// comes in screen pixels and is read in those units.
+use tiles;
+
+/// A font of tiles: the tile of each character code below 128, -1 for one it lacks (drawn as a
+/// space), `size` the tiles' height in pixels.
+pub struct Font {
+  pub sheet: integer,
+  pub size: integer,
+  pub glyphs: vector<integer>
+}
+
+/// The colours (RGB565) widgets are drawn in.
+pub struct Style {
+  pub panel: integer,
+  pub edge: integer,
+  pub face: integer,
+  pub over: integer,
+  pub down: integer,
+  pub field: integer,
+  pub focus: integer,
+  pub picked: integer
+}
+
+pub struct Ui {
+  pub surface: integer,
+  pub scale: float,
+  pub font: Font,
+  pub glyph: float,
+  pub style: Style,
+  pub x: float,
+  pub y: float,
+  pub down: boolean,
+  pub was_down: boolean,
+  pub typed: text,
+  pub pressed: text,
+  pub focus: text,
+  pub over_any: boolean
+}
+
+/// A style in greys and one blue, for a start.
+pub fn plain_style() -> Style {
+  Style {
+    panel: tiles::rgb(36, 38, 48), edge: tiles::rgb(120, 124, 140), face: tiles::rgb(64, 68, 84),
+    over: tiles::rgb(84, 90, 112), down: tiles::rgb(40, 110, 200), field: tiles::rgb(20, 22, 28),
+    focus: tiles::rgb(90, 170, 255), picked: tiles::rgb(40, 90, 160)
+  }
+}
+
+/// Widgets with `font`, its characters `glyph` units high.
+pub fn new_ui(font: Font, style: Style, glyph: float = 8.0) -> Ui {
+  Ui {
+    surface: 0, scale: 1.0, font: font, glyph: glyph, style: style, x: -1.0, y: -1.0, down: false,
+    was_down: false, typed: "", pressed: "", focus: "", over_any: false
+  }
+}
+
+/// Start a frame of widgets on `surface`, `scale` pixels a unit: the pointer at (px, py) screen
+/// pixels with `buttons` held (1 the left), and `typed` the text typed since the last frame.
+pub fn begin(ui: Ui, surface: integer, scale: float, px: integer, py: integer, buttons: integer,
+             typed: text) {
+  ui.surface = surface;
+  ui.scale = scale;
+  ui.x = ((px as float) / scale)!;
+  ui.y = ((py as float) / scale)!;
+  ui.was_down = ui.down;
+  ui.down = buttons & 1 != 0;
+  ui.typed = typed;
+  ui.over_any = false;
+  // A press lets the keyboard go; a field pressed in this frame takes it back before it reads
+  // the typed text, so a press anywhere else ends the typing.
+  if ui.down && !ui.was_down {
+    ui.pressed = "";
+    ui.focus = "";
+  }
+  tiles::camera(surface, scale, 0.0, 0.0);
+}
+
+/// Was the pointer over a widget this frame — so the scene under it should not take the click.
+pub fn pointer_taken(ui: const Ui) -> boolean {
+  ui.over_any || ui.pressed != ""
+}
+
+/// Is a field taking the keyboard — so the keys are text, not commands.
+pub fn typing(ui: const Ui) -> boolean {
+  ui.focus != ""
+}
+
+fn inside(ui: const Ui, x: float, y: float, w: float, h: float) -> boolean {
+  ui.x >= x && ui.y >= y && ui.x < x + w && ui.y < y + h
+}
+
+fn pressed_now(ui: const Ui) -> boolean {
+  ui.down && !ui.was_down
+}
+
+fn released_now(ui: const Ui) -> boolean {
+  !ui.down && ui.was_down
+}
+
+// The width of `t` in this font.
+fn width_of(ui: const Ui, t: text) -> float {
+  (len(t) as float) * ui.glyph
+}
+
+/// Draw `t` with its top-left at (x, y): one tile a character, lower case as upper where the font
+/// has no lower case, and `_` as a line where it has none — a name must show what it holds.
+pub fn write(ui: const Ui, x: float, y: float, t: text) {
+  f = ui.font;
+  s = (ui.glyph / (f.size as float))!;
+  cx = x;
+  for c in t {
+    n = c as integer;
+    g = if n >= 0 && n < 128 { f.glyphs[n] ?? -1 } else { -1 };
+    if g < 0 && n >= 97 && n <= 122 { g = f.glyphs[n - 32] ?? -1; }
+    if g >= 0 {
+      tiles::sprite(ui.surface, f.sheet, g, cx, y, scale_x: s, scale_y: s);
+    } else if n == 95 {
+      tiles::fill(ui.surface, cx + ui.glyph * 0.125, y + ui.glyph * 0.75, ui.glyph * 0.75, ui.glyph * 0.125, ui.style.edge);
+    }
+    cx += ui.glyph;
+  }
+}
+
+fn box(ui: const Ui, x: float, y: float, w: float, h: float, fill: integer, edge: integer) {
+  tiles::fill(ui.surface, x, y, w, h, edge);
+  tiles::fill(ui.surface, x + 1.0, y + 1.0, w - 2.0, h - 2.0, fill);
+}
+
+/// A panel: the ground other widgets sit on.  The pointer over it is taken, like a widget's.
+pub fn panel(ui: Ui, x: float, y: float, w: float, h: float) {
+  if inside(ui, x, y, w, h) { ui.over_any = true; }
+  box(ui, x, y, w, h, ui.style.panel, ui.style.edge);
+}
+
+/// A line of text.
+pub fn label(ui: const Ui, x: float, y: float, t: text) {
+  write(ui, x, y, t);
+}
+
+/// A button: true in the frame it is clicked — pressed and released over it.
+pub fn button(ui: Ui, id: text, x: float, y: float, w: float, h: float, t: text) -> boolean {
+  over = inside(ui, x, y, w, h);
+  if over { ui.over_any = true; }
+  if over && pressed_now(ui) {
+    ui.pressed = id;
+    ui.focus = "";
+  }
+  clicked = released_now(ui) && ui.pressed == id && over;
+  held = ui.down && ui.pressed == id;
+  if released_now(ui) && ui.pressed == id { ui.pressed = ""; }
+  box(ui, x, y, w, h, if held { ui.style.down } else if over { ui.style.over } else { ui.style.face }, ui.style.edge);
+  write(ui, x + (w - width_of(ui, t)) * 0.5, y + (h - ui.glyph) * 0.5, t);
+  clicked
+}
+
+/// A text field editing `value`: a click gives it the keyboard; typed characters are added,
+/// Backspace takes the last off, Escape lets the keyboard go, and Enter does too and answers
+/// true.  Shows the end of a value too long for it, and a caret while it has the keyboard.
+pub fn field(ui: Ui, id: text, x: float, y: float, w: float, h: float, value: &text) -> boolean {
+  over = inside(ui, x, y, w, h);
+  if over { ui.over_any = true; }
+  if over && pressed_now(ui) {
+    ui.focus = id;
+    ui.pressed = id;
+  }
+  if released_now(ui) && ui.pressed == id { ui.pressed = ""; }
+  entered = false;
+  if ui.focus == id {
+    for c in ui.typed {
+      n = c as integer;
+      if n == 8 || n == 127 {
+        if len(value) > 0 { value = value.char_slice(0, len(value) - 1); }
+      } else if n == 13 || n == 10 {
+        entered = true;
+        ui.focus = "";
+      } else if n == 27 {
+        ui.focus = "";
+      } else if n >= 32 {
+        value += "{c}";
+      }
+    }
+    ui.typed = "";
+  }
+  focused = ui.focus == id;
+  box(ui, x, y, w, h, ui.style.field, if focused { ui.style.focus } else { ui.style.edge });
+  room = ((w - 4.0) / ui.glyph)! as integer - (if focused { 1 } else { 0 });
+  shown = if len(value) > room && room > 0 { value.char_slice(len(value) - room, len(value)) } else { value };
+  ty = y + (h - ui.glyph) * 0.5;
+  write(ui, x + 2.0, ty, shown);
+  if focused { tiles::fill(ui.surface, x + 2.0 + width_of(ui, shown), ty, 1.0, ui.glyph, ui.style.focus); }
+  entered
+}
+
+/// A list of `items`, one a row of `row` units, `picked` the one marked: a click on a row picks
+/// it and answers true.  Shows as many rows as fit, from the top.
+pub fn list(ui: Ui, id: text, x: float, y: float, w: float, h: float, items: const vector<text>,
+            picked: &integer, row: float = 10.0) -> boolean {
+  over = inside(ui, x, y, w, h);
+  if over { ui.over_any = true; }
+  box(ui, x, y, w, h, ui.style.field, ui.style.edge);
+  changed = false;
+  if over && pressed_now(ui) {
+    ui.pressed = id;
+    ui.focus = "";
+  }
+  fits = ((h - 2.0) / row)! as integer;
+  for i in 0..len(items) {
+    if i >= fits { break; }
+    ry = y + 1.0 + (i as float) * row;
+    hit = ui.x >= x && ui.x < x + w && ui.y >= ry && ui.y < ry + row;
+    if released_now(ui) && ui.pressed == id && hit && i != picked {
+      picked = i;
+      changed = true;
+    }
+    if i == picked { tiles::fill(ui.surface, x + 1.0, ry, w - 2.0, row, ui.style.picked); }
+    room = ((w - 4.0) / ui.glyph)! as integer;
+    t = items[i];
+    write(ui, x + 3.0, ry + (row - ui.glyph) * 0.5, if len(t) > room && room > 0 { t.char_slice(0, room) } else { t });
+  }
+  if released_now(ui) && ui.pressed == id { ui.pressed = ""; }
+  changed
+}

@@ -192,8 +192,8 @@ has none.
 | `tile_world` | `region(w, x, y, z, limit)`: the connected cells of one kind and tile — built (0.5.0) | flood fill |
 | `tile_world` | `copy(w, x0, y0, x1, y1, z0, z1)` / `paste(w, from, x, y, z)` of cells, edges, rises and stacks — built (0.5.0) | stamps, copy and paste |
 | `tiles` | `rect(surface, x, y, w, h, colour)` and `frame(...)`: a filled and an outlined rectangle | the cursor, a selection, the palette's frame |
-| `screen` | the pointer (position, buttons) where the window has one | optional mouse editing on a desktop |
-| `screen` | the browser section (a canvas) | the editor and the game in a browser |
+| `screen` | the pointer (position, buttons, wheel) and typed text where the window has them — built | the editor's panel; mouse editing next |
+| `screen` | the browser section (a canvas) — built | the editor and the game in a browser |
 | `input` | typed text: the characters pressed this tick (not only key codes) | names, sign text |
 
 ## 8. Order of work

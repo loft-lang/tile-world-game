@@ -1,0 +1,116 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The widgets driven frame by frame as a pointer and a keyboard would drive them, on a surface
+// of no screen; every answer is the one the frames call for, and every edit lands in the
+// caller's own value.  The UI is at 1 pixel a unit, so pointer pixels are units.
+use tiles;
+use ui;
+
+// A one-tile font: every character the same 8x8 white tile, so drawing works and costs nothing.
+fn font() -> ui::Font {
+  bytes: vector<u8> = [];
+  for i in 0..64 { bytes += [255 as u8, 255 as u8, 255 as u8, 255 as u8]; }
+  sheet = tiles::sheet(bytes, 8, 8, 8, 8) ?? 0;
+  glyphs: vector<integer> = [];
+  for c in 0..128 { glyphs += [if c > 32 { 0 } else { -1 }]; }
+  ui::Font { sheet: sheet, size: 8, glyphs: glyphs }
+}
+
+fn frame(u: ui::Ui, s: integer, x: integer, y: integer, buttons: integer, typed: text) {
+  ui::begin(u, s, 1.0, x, y, buttons, typed);
+}
+
+fn test_a_button_is_clicked_by_a_press_and_release_over_it() {
+  s = tiles::surface(100, 60) ?? 0;
+  u = ui::new_ui(font(), ui::plain_style());
+  frame(u, s, 15, 15, 1, "");
+  assert(!ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK"), "pressed: not yet clicked");
+  frame(u, s, 16, 14, 0, "");
+  assert(ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK"), "released over it: clicked");
+  frame(u, s, 16, 14, 0, "");
+  assert(!ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK"), "once only");
+  // Pressed over it, released away from it: not clicked.
+  frame(u, s, 15, 15, 1, "");
+  _ = ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK");
+  frame(u, s, 80, 50, 0, "");
+  assert(!ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK"), "released elsewhere");
+  // Pressed elsewhere, released over it: not clicked either.
+  frame(u, s, 80, 50, 1, "");
+  _ = ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK");
+  frame(u, s, 15, 15, 0, "");
+  assert(!ui::button(u, "ok", 10.0, 10.0, 30.0, 12.0, "OK"), "pressed elsewhere");
+}
+
+fn test_a_field_edits_the_callers_text() {
+  s = tiles::surface(100, 60) ?? 0;
+  u = ui::new_ui(font(), ui::plain_style());
+  name = "cave";
+  // Typing before the field has the keyboard changes nothing.
+  frame(u, s, 0, 0, 0, "zz");
+  assert(!ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name) && name == "cave", "no keyboard yet: {name}");
+  frame(u, s, 20, 15, 1, "");
+  _ = ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name);
+  assert(ui::typing(u), "the click gave it the keyboard");
+  frame(u, s, 20, 15, 0, "_2\u{8}3");
+  assert(!ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name), "no Enter yet");
+  assert(name == "cave_3", "typed, a Backspace, typed: {name}");
+  frame(u, s, 20, 15, 0, "x\r");
+  assert(ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name), "Enter answers true");
+  assert(name == "cave_3x" && !ui::typing(u), "and lets the keyboard go: {name}");
+  frame(u, s, 20, 15, 0, "y");
+  _ = ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name);
+  assert(name == "cave_3x", "after Enter the keys are not the field's: {name}");
+}
+
+fn test_a_press_elsewhere_ends_the_typing() {
+  s = tiles::surface(100, 60) ?? 0;
+  u = ui::new_ui(font(), ui::plain_style());
+  name = "";
+  frame(u, s, 20, 15, 1, "");
+  _ = ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name);
+  frame(u, s, 20, 15, 0, "");
+  _ = ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name);
+  frame(u, s, 90, 55, 1, "q");
+  _ = ui::field(u, "name", 10.0, 10.0, 60.0, 12.0, name);
+  assert(!ui::typing(u) && name == "", "pressed away: the keyboard is let go: '{name}'");
+}
+
+fn test_a_list_picks_the_row_clicked() {
+  s = tiles::surface(100, 80) ?? 0;
+  u = ui::new_ui(font(), ui::plain_style());
+  items = ["one", "two", "three", "four"];
+  picked = 0;
+  // Rows of 10 from y 11 (the box's edge is 1): row 2 is y 31 .. 41.
+  frame(u, s, 20, 35, 1, "");
+  assert(!ui::list(u, "l", 10.0, 10.0, 60.0, 50.0, items, picked), "pressed: not yet");
+  frame(u, s, 20, 35, 0, "");
+  assert(ui::list(u, "l", 10.0, 10.0, 60.0, 50.0, items, picked) && picked == 2, "row 2: {picked}");
+  frame(u, s, 20, 35, 1, "");
+  _ = ui::list(u, "l", 10.0, 10.0, 60.0, 50.0, items, picked);
+  frame(u, s, 20, 35, 0, "");
+  assert(!ui::list(u, "l", 10.0, 10.0, 60.0, 50.0, items, picked), "the same row again is no change");
+}
+
+fn test_the_pointer_over_a_panel_is_taken() {
+  s = tiles::surface(100, 60) ?? 0;
+  u = ui::new_ui(font(), ui::plain_style());
+  frame(u, s, 30, 30, 0, "");
+  ui::panel(u, 20.0, 20.0, 40.0, 30.0);
+  assert(ui::pointer_taken(u), "over the panel");
+  frame(u, s, 5, 5, 0, "");
+  ui::panel(u, 20.0, 20.0, 40.0, 30.0);
+  assert(!ui::pointer_taken(u), "beside it");
+}
+
+// Drawn: a pressed button's face is the style's `down`, at the screen's scale.
+fn test_widgets_draw_through_their_own_camera() {
+  s = tiles::surface(40, 20) ?? 0;
+  st = ui::plain_style();
+  u = ui::new_ui(font(), st);
+  ui::begin(u, s, 2.0, 12, 12, 1, "");
+  _ = ui::button(u, "b", 2.0, 2.0, 10.0, 6.0, "");
+  px = tiles::pixels(s, 40, 20);
+  // Unit (2, 2) is pixel (4, 4): the edge; unit (3, 3) is pixel (6, 6): the face, held down.
+  assert(px[4 * 40 + 4] == st.edge && px[6 * 40 + 6] == st.down, "edge {px[4 * 40 + 4]}, face {px[6 * 40 + 6]}");
+}

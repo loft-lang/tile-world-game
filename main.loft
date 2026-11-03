@@ -7,6 +7,7 @@ use screen;
 use tiles;
 use audio;
 use input;
+use ui;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them.
 fn play_moves(game: game::Game, moves: text) {
@@ -146,14 +147,20 @@ fn clamp_f(v: float, lo: float, hi: float) -> float {
   if v < lo { lo } else if v > hi { hi } else { v }
 }
 
-// The frame on the screen: black round the view, then shown at the screen's size.
-fn present(game: game::Game, size: (integer, integer), t: Timing) {
+// Black round the view, under the game's camera: drawn after the game and before anything drawn
+// over it (the editor's widgets, in their own units).
+fn mask(game: game::Game) {
   s = game.surface;
   far = 100000.0;
   tiles::fill(s, -far, -far, far, 2.0 * far, 0);
   tiles::fill(s, game::W as float, -far, far, 2.0 * far, 0);
   tiles::fill(s, 0.0, -far, game::W as float, far, 0);
   tiles::fill(s, 0.0, game::H as float, game::W as float, far, 0);
+}
+
+// The frame on the screen, at the screen's size.
+fn present(game: game::Game, size: (integer, integer), t: Timing) {
+  s = game.surface;
   t.frames += 1;
   // Drawn straight onto the display (a page's GPU), the frame is already on the screen.
   if tiles::on_display(s) { return; }
@@ -190,6 +197,7 @@ fn main() {
   size = fit_display(game);
   timing = Timing { frames: 0, draw: 0, copy: 0, show: 0, since: ticks() };
   game::draw_credits(game);
+  mask(game);
   present(game, size, timing);
   shown = ticks() / 1000;
   while screen::poll(15) && ticks() / 1000 - shown < 5000 {
@@ -202,29 +210,54 @@ fn main() {
   }
   game::start_level(game, 0);
   view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
+  // The editor's widgets, where the screen has a pointer: drawn over the frame at half the game's
+  // zoom, so their 8-unit letters are as large on any screen as the game's own.
+  widgets = ui::new_ui(game::ui_font(game), ui::plain_style());
+  pointing = screen::has_pointer();
   aim(game, view, size);
   game::draw(game);
+  mask(game);
   present(game, size, timing);
   last = ticks() / 1000;
+  was_at = (-1, -1);
+  was_buttons = 0;
+  panel_changed = false;
   while screen::poll(15) {
+    at_ptr = screen::pointer();
+    btn = screen::buttons();
+    typed_now = screen::typed();
     if window_keys {
-      game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
+      game.keys.input_tick_from_state(screen::keys(), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
     } else {
       game.keys.input_tick_device();
     }
-    if game::quit(game) { break; }
+    if !game.typing && game::quit(game) { break; }
     now = ticks() / 1000;
     resized = screen::width() != size.0 || screen::height() != size.1;
     if resized {
       size = fit_display(game);
       view.fit = fit_of(size);
     }
-    if game::zoom_pressed(game) { view.target = if view.target > 1.0 { 1.0 } else { CLOSE }; }
+    if !game.typing && game::zoom_pressed(game) { view.target = if view.target > 1.0 { 1.0 } else { CLOSE }; }
     zooming = ease(view, now - last);
-    if game::update(game, now - last, now) || resized || zooming {
+    // While editing, what the pointer or the keyboard does to the widgets redraws the frame.
+    panel = pointing && game.editing;
+    touched = panel && (at_ptr.0 != was_at.0 || at_ptr.1 != was_at.1 || btn != was_buttons || typed_now != "");
+    was_at = at_ptr;
+    was_buttons = btn;
+    if game::update(game, now - last, now) || resized || zooming || touched || panel_changed {
+      panel_changed = false;
       aim(game, view, size);
       at = ticks();
       game::draw(game);
+      mask(game);
+      if panel {
+        scale = view.fit / 2.0;
+        ui::begin(widgets, game.surface, scale, at_ptr.0, at_ptr.1, btn, typed_now);
+        panel_changed = game::editor_panel(game, widgets, ((size.0 as float) / scale)!);
+      } else {
+        game.typing = false;
+      }
       timing.draw += ticks() - at;
       present(game, size, timing);
       report(timing, size);

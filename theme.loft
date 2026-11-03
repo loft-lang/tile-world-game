@@ -5,6 +5,7 @@
 // A sprite is written "sheet:tile" ("dungeon:48") and held as one integer, the sheet's handle
 // times 4096 plus the tile, -1 for none.
 use tiles;
+use ui;
 use rules;
 
 struct Sheet {
@@ -406,6 +407,22 @@ pub fn put_held_fine(surface: integer, th: const Theme, thing: integer, hand_x: 
   gy = look.grip_y as float;
   put_fine(surface, pick(look.look, now, low), hand_x + ox - gx, hand_y + oy - gy, angle,
            (gx + 0.5, gy + 0.5), shade);
+}
+
+/// The theme's font for the widgets: its digits and letters, and the characters it names.
+pub fn ui_font(th: const Theme) -> ui::Font {
+  glyphs: vector<integer> = [];
+  for n in 0..128 {
+    t = -1;
+    if n >= 48 && n <= 57 && th.digits >= 0 { t = th.digits + n - 48; }
+    else if n >= 65 && n <= 90 && th.letters >= 0 { t = th.letters + n - 65; }
+    else if n > 32 && n != 92 && n != 34 {
+      c = th.chars["{n as character}"];
+      if c { t = c.tile; }
+    }
+    glyphs += [t];
+  }
+  ui::Font { sheet: th.font, size: th.tile_size, glyphs: glyphs }
 }
 
 /// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks

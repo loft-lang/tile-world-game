@@ -22,10 +22,10 @@ challenge is placed into a world that already works.
 | Part | What it is | State |
 |---|---|---|
 | the page | the game and editor as one loft program, built through the C backend as a page (`loft --native-c --html`): no Rust | the C page build exists (@PLN203 C6) |
-| the canvas | `screen`'s browser section: the frame drawn into a canvas, scaled to the window (@PLN209 F2) | to build |
-| keys, pointer, text | one `input` over the page's events (@PLN209 F4), with text, IME and the clipboard (BROWSER_INTEROP.md § Step 4) | to build |
+| the canvas | `screen`'s browser section: the canvas fills the window, and `tiles`' display surface draws on it with WebGL at the window's resolution | built |
+| keys, pointer, text | `screen`'s `pointer`, `buttons`, `wheel` and `typed` on a page and a desktop window, fed into `input`; IME and the clipboard to come (BROWSER_INTEROP.md § Step 4) | pointer and text built |
 | the files | the page filesystem (WASM.md § The page filesystem): the game's assets and data as the base tree, every write a delta kept in the page's storage | built |
-| the widgets | panels, lists, buttons, text fields and an undo stack: a platform-blind loft library drawn with `tiles` and the theme's font, so the same widgets serve the in-game editor on the desktop and the Tanmatsu (BROWSER_INTEROP.md § The four tiers) | to build |
+| the widgets | `ui.loft`: panels, labels, buttons, lists and text fields, immediate mode over the caller's own data, drawn with `tiles` in their own units and the theme's font; nothing of the game in it, a library once it settles.  Undo is the editor's edit log | first set built |
 | export, import | the world's files out of the page as one archive and back in: a small browser-only library over the engine's byte channel | to build |
 | onto a Tanmatsu | the archive installed over WebUSB (badgelink speaks WebUSB) | later |
 
@@ -141,7 +141,12 @@ Each step goes red on its own; the earlier ones are what the later ones are buil
    desktop's.
 2. **The widget library.**  Panels, lists, buttons, text fields, undo, drawn in the frame, on the
    desktop and in the page.  Red when: a scripted edit through the widgets (CDP-typed text, a
-   click) does not leave the model it says.
+   click) does not leave the model it says.  Built: `ui.loft` (tested frame by frame in
+   `tests/ui.loft`) and the editor's panel where the screen has a pointer — the level's file
+   name, SAVE (or Enter) under it, the levels to open, PLAY.  Checked in the page: a scripted
+   click on the name field, Backspaces, `my_cave` and Enter leave `levels/my_cave.json` (the
+   edited level) and `my_cave` in `order.json` in the page's storage; the same check for a name
+   never typed fails.
 3. **Intent, adjustments, derived** in the game's code, with rooms, corridors and words filled in.
    Red when: filling a room in again changes a hand-set cell or closes a doorway; the same intent
    fills in the same cells on every machine.

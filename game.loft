@@ -13,6 +13,7 @@ use editor;
 use camera;
 use materials;
 use motion;
+use ui;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
 /// editor gives a row of the level to its palette.
@@ -62,6 +63,10 @@ pub struct Game {
   /// light (L); a word the status line shows until the next key ("SAVED").
   pub editing: boolean,
   pub ed: editor::Editor,
+  /// The editor panel's name field (the level's file name), and whether a field has the
+  /// keyboard, so the keys are text and not commands.
+  pub name_field: text,
+  pub typing: boolean,
   lit: boolean,
   /// The editor shows the checks (K): the way to a cell goal, chests cut off or hidden.
   pub checking: boolean,
@@ -187,7 +192,7 @@ pub fn new_game(dir: text) -> Game? {
     sounds: [],
     keys: input::input_new(bindings()),
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
-    editing: false, ed: ed, lit: false, checking: false, note: "",
+    editing: false, ed: ed, name_field: "", typing: false, lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
     just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0
@@ -239,7 +244,77 @@ fn load_level(g: Game, level: integer) -> boolean {
   g.file = m;
   g.level = level;
   g.ed = editor::new_editor_with(g.file, g.mats);
+  g.name_field = g.order[level] ?? "";
   true
+}
+
+// A level's file name from what was typed: lower-case letters, digits, `_` and `-`; spaces as
+// `_`; anything else left out.
+fn file_name(typed: text) -> text {
+  out = "";
+  for c in typed {
+    n = c as integer;
+    if n >= 65 && n <= 90 { out += "{(n + 32) as character}"; }
+    else if (n >= 97 && n <= 122) || (n >= 48 && n <= 57) || n == 95 || n == 45 { out += "{c}"; }
+    else if n == 32 { out += "_"; }
+  }
+  out
+}
+
+/// Write the level being edited as `levels/<name>.json`, and add the name to `order.json` when it
+/// is new; the level is then that one.  False for a name with nothing left in it, or a file that
+/// could not be written.
+pub fn save_as(g: Game, typed: text) -> boolean {
+  name = file_name(typed);
+  if name == "" { return false; }
+  at = -1;
+  for i in 0..len(g.order) { if g.order[i] == name { at = i; } }
+  if at < 0 {
+    g.order += [name];
+    at = len(g.order) - 1;
+    names = "";
+    for n in g.order { names += if names == "" { "\"{n}\"" } else { ", \"{n}\"" }; }
+    if !file("{g.dir}/levels/order.json").write("{{ \"order\": [{names}] }}\n").ok() { return false; }
+  }
+  g.level = at;
+  g.name_field = name;
+  save(g)
+}
+
+/// The editor's panel, for a screen with a pointer, at the right of a UI `width` units wide: the
+/// level's name, saved under it (SAVE or Enter), the levels to open, and PLAY.  Answers whether
+/// the level or the view changed.
+pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
+  x = width - 124.0;
+  y = 4.0;
+  changed = false;
+  ui::panel(u, x, y, 120.0, 156.0);
+  ui::label(u, x + 4.0, y + 4.0, "LEVEL");
+  entered = ui::field(u, "name", x + 4.0, y + 14.0, 112.0, 12.0, g.name_field);
+  if ui::button(u, "save", x + 4.0, y + 30.0, 54.0, 12.0, "SAVE") || entered {
+    g.note = if save_as(g, g.name_field) { "SAVED" } else { "NOT SAVED!" };
+    changed = true;
+  }
+  if ui::button(u, "play", x + 62.0, y + 30.0, 54.0, 12.0, "PLAY") {
+    toggle_editor(g);
+    return true;
+  }
+  ui::label(u, x + 4.0, y + 48.0, "LEVELS");
+  pick = g.level;
+  if ui::list(u, "levels", x + 4.0, y + 58.0, 112.0, 94.0, g.order, pick) {
+    if load_level(g, pick) {
+      g.note = g.order[pick] ?? "";
+      aim_editor(g);
+    }
+    changed = true;
+  }
+  g.typing = ui::typing(u);
+  changed
+}
+
+/// The theme's font for the widgets.
+pub fn ui_font(g: const Game) -> ui::Font {
+  theme::ui_font(g.look)
 }
 
 fn solved(g: const Game) -> boolean {
@@ -625,6 +700,8 @@ fn chests_left(n: integer) -> text {
 /// `g.keys`); `now` is the time in milliseconds.  Answers whether the picture changed, and
 /// false for "quit" through `g.won`... see `quit`.
 pub fn update(g: Game, ms: integer, now: integer) -> boolean {
+  // A field has the keyboard: the keys are text, not commands.
+  if g.typing { return false; }
   if g.keys.is_action_just_pressed("edit") {
     toggle_editor(g);
     return true;
