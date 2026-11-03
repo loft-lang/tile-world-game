@@ -99,22 +99,27 @@ nothing.
 - **The live set** is the hero's region and the regions next to it.  Crossing into a region of
   the land outside adds its entries and drops the ones left behind, so on a large outdoor area
   only the creatures in the block around the hero run live.
-- **Creatures off their period** (held up by the hero, or steered by their own state, as
-  crawler's gatherer heads home when its bag is full) are a short list beside the table: where
+- **Creatures off their period** (held up by the hero) are a short list beside the table: where
   each was last, and since when.  Entering asks it as it asks the table; a creature leaves it
-  when it is back on its points.
+  when it is back on its points.  No creature leaves its period by itself.
 
-**Recalculating it when the world changes.**  The table depends on two things only: the
-creatures' points and the region graph.  A change inside a region (a rock pushed, a chest opened,
-a wall inside a room) leaves it as it is; the rest is recalculated where it reaches:
+**Recalculating it when the hero changes the world.**  The table depends on two things only: the
+creatures' points and the region graph.  Only the hero changes either while the game is played:
+a habit changes because of something the player did, never by itself.  The change starts where
+the hero is and can reach across the world (a bridge blown up re-routes every merchant whose
+route crossed it, wherever they are); it reaches exactly as far as the routes the change touches.
+A change inside a region (a rock pushed, a chest opened, a wall inside a room) leaves the table as
+it is; the rest is recalculated where it reaches:
 
-| Change | What is recalculated |
+| What the hero did | What is recalculated |
 |---|---|
-| a link between regions blocked: a door locked, a bridge burnt | the routes that use the link, found from a reverse index (link → routes over it) |
-| a new link: a door unlocked, a wall broken through, a bridge built | the routes that become shorter through it: with the regions' travel times cached (a world has hundreds of regions), each route is one comparison |
-| a creature's points changed: a shop closed, a home moved | that creature |
-| a creature added or removed: born, killed, arrived | that creature's entries |
-| the editor changes points, doors or regions | the same, or the whole table |
+| blocked a link between regions: locked a door, blew up a bridge | the routes that use the link, found from a reverse index (link → routes over it), wherever they are |
+| made a new link: unlocked a door, broke through a wall, built a bridge | the routes that become shorter through it: with the regions' travel times cached (a world has hundreds of regions), each route is one comparison |
+| changed what a creature's points depend on: drove a shopkeeper out, burnt a home | that creature |
+| removed a creature: killed it | that creature's entries |
+
+The editor changes points, doors and regions too, outside play: the same recalculation, or the
+whole table.
 
 **Habits change over time, never at once.**  The recalculation is background work, a few routes
 a frame, with no deadline: a burnt bridge reshapes the merchants' routes over the time it
@@ -185,7 +190,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
    world changes.  Checked by a scripted period: each NPC at its points at their hours, each
    monster at one of its points for the hour; by entering a region and finding exactly the
-   creatures a search over every creature finds there; and by any run of random world changes
+   creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; and by a recalculation during
    a visit that changes no creature in the hero's region, the new ones walking in afterwards.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
