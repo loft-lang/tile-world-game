@@ -42,9 +42,9 @@ moment it ends (`until = now + duration`) and is what it is until the clock pass
   clock, never from how often anyone looked.  The same moment always answers the same place,
   which keeps a save small and a replay exact.
 
-**Every creature has points it likes to be at, at certain times.**  A point is a place and a
-cell with the hours it is liked ("the smithy's anvil, 7:00 to 12:00"; "the cave's back pool,
-from dusk").  A creature's points repeat over its period: a day for a smith, a week or more for
+**Every creature has points it likes to be at, at certain times.**  A point is a place, a cell,
+the hours it is liked and what the creature does there ("the smithy's anvil, 7:00 to 12:00,
+working the forge"; "the cave's back pool, from dusk, drinking").  A creature's points repeat over its period: a day for a smith, a week or more for
 a merchant whose trade route crosses the map (crawler's merchants alternate markets day by day,
 `npc_route` in `crawler/src/sim.loft`).  One model serves NPCs and monsters:
 
@@ -55,6 +55,14 @@ a merchant whose trade route crosses the map (crawler's merchants alternate mark
 - **Between two points a creature walks** the way along the door graph and through each place,
   leaving early enough to arrive on time, so NPCs cross the land outside and can be met there.
 - **Where a creature is at a moment** is the point it is at, or the way between two points.
+- **An activity is what a creature does at a point**: sleep, eat, work (the forge, a stall, a
+  field), serve, sit, loiter, patrol a few cells, guard, keep watch, drink, hunt.  In the
+  hero's place the activity is the live behaviour and the picture (a smith hammering, a guard
+  pacing, a sleeper lying still), and it says what the creature is open to: a shopkeeper at the
+  stall trades, the same one asleep does not; a sleeping guard does not see.  Away from the hero
+  an activity costs nothing; it is only data until someone is there to see it.  An activity
+  with more than one form (a loiterer's few spots, a patrol's two turns) takes the one drawn
+  from the creature's seed and the day, as points do.
 - **In the hero's place a creature acts** on what it sees and hears (DESIGN.md's light, sound
   and sight).  A creature the hero held up (talked to, followed, a door locked in its way, a
   monster drawn out by a torch) goes on from where it stands when the hero leaves, to its next
@@ -201,8 +209,8 @@ an edit is played the moment it is made):
 - **materials and sheets** (theme.json): which tile a material draws, its variants and autotiles;
 - **kinds** (kinds.json): what each thing and creature is and does;
 - **sounds**: which sound an event plays;
-- **creatures' points**: placed on the map with their hours, for NPCs and monsters alike, and a
-  view of where every creature is at a chosen time of day;
+- **creatures' points**: placed on the map with their hours and activities, for NPCs and monsters
+  alike, and a view of where every creature is, and what it is doing, at a chosen time of day;
 - **scripts**: what a creature does with what it comes upon, and after how long;
 - **the start**: where a new game begins;
 - **checks**, as the in-game editor has them (K): a door that leads nowhere, a place no door
@@ -227,10 +235,11 @@ Each step is checked before the next starts; "checked" names what goes red.
    same moment twice and across a save and reload: the same answers; and by the hero following a
    creature through a door and finding it on its way.
 3. **Creatures' points and who can be near the hero.**  Points with hours over a period, walked
-   between along the door graph, arriving on time; regions, the region graph and the coverage
+   between along the door graph, arriving on time; activities at the points; regions, the region graph and the coverage
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
-   hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, each
-   monster at one of its points for the hour; by entering a region and finding exactly the
+   hero changes the world.  Checked by a scripted period: each NPC at its points at their hours, doing their
+   activities, each monster at one of its points for the hour; a shopkeeper who trades at the
+   stall and not asleep; by entering a region and finding exactly the
    creatures a search over every creature finds there; and by any run of random player actions
    leaving the recalculated table equal to one built from scratch; by a recalculation during a
    visit that changes no creature in the hero's region, the new ones walking in afterwards; and
