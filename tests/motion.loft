@@ -18,16 +18,16 @@ fn main() {
 
 // One step right from standing (the first step rocks to the left): it glides in from 16 px back,
 // hops and rocks to the top at 70 ms, and the weapon, pointing right, sways a quarter step late.
-//   35 ms: x -part(16, 105, 140) = -12, hop part(2, 35, 70) = 1, rock -part(4, 35, 70) = -2,
+//   35 ms: x -part(16, 105, 140) = -12, hop part(2, 35, 70) = 1, rock -part(7, 35, 70) = -4,
 //          the sway not begun;
-//   70 ms: x -8, hop 2, rock -4, the sway part(8, 35, 53) = 5 the other way: 95;
+//   70 ms: x -8, hop 2, rock -part(7, 70, 70) = -7, the sway part(8, 35, 53) = 5 the other way: 95;
 //   140 ms: done — standing still.
 fn test_a_step_glides_hops_and_rocks() {
   m = motion::still();
   motion::walk(m, 1000, 1, 0, 0, 1, 0);
   assert(show(motion::pose(m, 1, 0, 1000)) == "x-16 y0 t0 w90 r1", "0: {show(motion::pose(m, 1, 0, 1000))}");
-  assert(show(motion::pose(m, 1, 0, 1035)) == "x-12 y-1 t-2 w90 r1", "35: {show(motion::pose(m, 1, 0, 1035))}");
-  assert(show(motion::pose(m, 1, 0, 1070)) == "x-8 y-2 t-4 w95 r1", "70: {show(motion::pose(m, 1, 0, 1070))}");
+  assert(show(motion::pose(m, 1, 0, 1035)) == "x-12 y-1 t-4 w90 r1", "35: {show(motion::pose(m, 1, 0, 1035))}");
+  assert(show(motion::pose(m, 1, 0, 1070)) == "x-8 y-2 t-7 w95 r1", "70: {show(motion::pose(m, 1, 0, 1070))}");
   assert(show(motion::pose(m, 1, 0, 1140)) == "x0 y0 t0 w90 r0", "after: {show(motion::pose(m, 1, 0, 1140))}");
   assert(!motion::busy(m, 1140) && motion::busy(m, 1139), "busy for 140 ms");
 }
@@ -40,7 +40,7 @@ fn test_steps_alternate_and_chain() {
   motion::walk(m, 0, 1, 0, 0, 1, 0);
   motion::walk(m, 70, 1, 0, 0, 1, 0);
   assert(m.from_x == -24 && m.from_y == 0, "from {m.from_x},{m.from_y}");
-  assert(motion::pose(m, 1, 0, 140).tilt == 4, "the second step rocks right: {motion::pose(m, 1, 0, 140).tilt}");
+  assert(motion::pose(m, 1, 0, 140).tilt == motion::ROCK, "the second step rocks right: {motion::pose(m, 1, 0, 140).tilt}");
   u = motion::still();
   motion::walk(u, 0, 0, 1, 4, 0, 1);
   assert(u.from_x == 0 && u.from_y == -12, "down a cell and up a step: from {u.from_x},{u.from_y}");

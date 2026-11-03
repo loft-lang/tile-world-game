@@ -25,7 +25,7 @@ pub const SWING_MS = 240;
 /// step and the other on the next; the weapon trails the rock by a quarter of the step and
 /// sways `SWAY` degrees.
 pub const HOP = 2;
-pub const ROCK = 4;
+pub const ROCK = 7;
 pub const SWAY = 8;
 
 /// A stagger knocks the body `KNOCK` pixels back and flings the weapon `FLING` degrees.
