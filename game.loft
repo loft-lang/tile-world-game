@@ -14,6 +14,7 @@ use camera;
 use materials;
 use motion;
 use ui;
+use intent;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
 /// editor gives a row of the level to its palette.
@@ -32,6 +33,8 @@ const CURSOR = 65535;
 const GOAL = 2016;
 const ABOVE = 16904;
 const PICKED = 65504;
+// The intent's outlines over the editor's map.
+const INTENT = 64543;
 // The checks: a chest cut off from the start, a hidden one.
 const CUT_OFF = 63488;
 const HIDDEN = 63519;
@@ -67,6 +70,15 @@ pub struct Game {
   /// keyboard, so the keys are text and not commands.
   pub name_field: text,
   pub typing: boolean,
+  /// Building with the pointer (BROWSER_EDITOR.md § Pass 1): the tool ("", "room", "corridor"),
+  /// a drag on the map from one cell to another, the room picked (-1 none), and the words a room
+  /// can take (theme.json's).
+  pub tool: text,
+  pub dragging: boolean,
+  drag_from: (integer, integer),
+  drag_to: (integer, integer),
+  pub room_pick: integer,
+  pub words: vector<intent::Word>,
   lit: boolean,
   /// The editor shows the checks (K): the way to a cell goal, chests cut off or hidden.
   pub checking: boolean,
@@ -192,7 +204,8 @@ pub fn new_game(dir: text) -> Game? {
     sounds: [],
     keys: input::input_new(bindings()),
     level: 0, moves: 0, won: false, held_since: 0, next_repeat: 0, was_boosted: false,
-    editing: false, ed: ed, name_field: "", typing: false, lit: false, checking: false, note: "",
+    editing: false, ed: ed, name_field: "", typing: false, tool: "", dragging: false, drag_from: (0, 0),
+    drag_to: (0, 0), room_pick: -1, words: intent::words_from(theme_text), lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
     just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0
@@ -281,6 +294,115 @@ pub fn save_as(g: Game, typed: text) -> boolean {
   save(g)
 }
 
+/// Start an empty place to build in, named "new_place" until it is saved under a name.
+pub fn new_place(g: Game) {
+  k = g.kinds;
+  g.file = levels::LevelFile {
+    name: "a new place", camera: "follow", level: rules::level(k), start_x: 1, start_y: 1, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }
+  };
+  for t in g.mats.track { rules::add_piece(g.file.level, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
+  g.ed = editor::new_editor_with(g.file, g.mats);
+  g.name_field = "new_place";
+  g.room_pick = -1;
+  g.note = "";
+  aim_editor(g);
+}
+
+/// Fill the place in from its intent, as the editor shows it: the cells set by hand kept.
+pub fn fill_in(g: Game) -> boolean {
+  editor::refill(g.ed, g.file, g.words)
+}
+
+// The map cell under (ux, uy), the view's units, as the editor draws its cells.
+fn cell_under(g: const Game, ux: float, uy: float) -> (integer, integer) {
+  ts = g.look.tile_size as float;
+  (g.cam_x + (floor((ux / ts)!) as integer), g.cam_y + (floor((uy / ts)!) as integer))
+}
+
+/// The pointer on the editor's map, where the widgets did not take it, at (ux, uy) in the view's
+/// units with the button `down` now and `was_down` the frame before.  With the ROOM tool a drag
+/// from one cell to another draws a room there (its outline the two corners), and a click inside
+/// a room picks it; with CORRIDOR a drag runs a corridor.  What is drawn is filled in at once.
+/// Answers whether the picture changed.
+pub fn editor_map_pointer(g: Game, ux: float, uy: float, down: boolean, was_down: boolean) -> boolean {
+  if g.tool == "" { return false; }
+  at = cell_under(g, ux, uy);
+  if down && !was_down {
+    g.dragging = true;
+    g.drag_from = at;
+    g.drag_to = at;
+    return true;
+  }
+  if down && g.dragging {
+    moved = at.0 != g.drag_to.0 || at.1 != g.drag_to.1;
+    g.drag_to = at;
+    return moved;
+  }
+  if !g.dragging { return false; }
+  g.dragging = false;
+  a = g.drag_from;
+  b = at;
+  x0 = if a.0 < b.0 { a.0 } else { b.0 };
+  y0 = if a.1 < b.1 { a.1 } else { b.1 };
+  w = (if a.0 > b.0 { a.0 - b.0 } else { b.0 - a.0 }) + 1;
+  h = (if a.1 > b.1 { a.1 - b.1 } else { b.1 - a.1 }) + 1;
+  z = g.ed.z;
+  if g.tool == "room" {
+    if w == 1 && h == 1 {
+      g.room_pick = -1;
+      for i in 0..len(g.file.intent.rooms) {
+        r = g.file.intent.rooms[i];
+        if r.z == z && a.0 >= r.x && a.1 >= r.y && a.0 < r.x + r.w && a.1 < r.y + r.h { g.room_pick = i; }
+      }
+      return true;
+    }
+    if w < 3 || h < 3 {
+      g.note = "A ROOM IS 3 BY 3 OR MORE";
+      return true;
+    }
+    g.file.intent.rooms += [intent::Room { x: x0, y: y0, w: w, h: h, z: z, words: [] }];
+    g.room_pick = len(g.file.intent.rooms) - 1;
+  } else if g.tool == "corridor" {
+    if w == 1 && h == 1 { return true; }
+    g.file.intent.corridors += [intent::Corridor { x0: a.0, y0: a.1, x1: b.0, y1: b.1, z: z }];
+  }
+  _ = fill_in(g);
+  true
+}
+
+// The intent over the editor's map: each room's outline on this layer (the picked one in the
+// picked colour), each corridor's way, and a drag in progress.
+fn draw_intent(g: Game) {
+  ts = g.look.tile_size;
+  z = g.ed.z;
+  for i in 0..len(g.file.intent.rooms) {
+    r = g.file.intent.rooms[i];
+    if r.z != z { continue; }
+    tiles::frame(g.surface, (r.x - g.cam_x) * ts, (r.y - g.cam_y) * ts, r.w * ts, r.h * ts,
+                 if i == g.room_pick { PICKED } else { INTENT });
+  }
+  for c in g.file.intent.corridors {
+    if c.z != z { continue; }
+    mid = ts / 2 - 1;
+    xa = if c.x0 < c.x1 { c.x0 } else { c.x1 };
+    xb = if c.x0 < c.x1 { c.x1 } else { c.x0 };
+    ya = if c.y0 < c.y1 { c.y0 } else { c.y1 };
+    yb = if c.y0 < c.y1 { c.y1 } else { c.y0 };
+    tiles::rect(g.surface, (xa - g.cam_x) * ts + mid, (c.y0 - g.cam_y) * ts + mid, (xb - xa) * ts + 2, 2, INTENT);
+    tiles::rect(g.surface, (c.x1 - g.cam_x) * ts + mid, (ya - g.cam_y) * ts + mid, 2, (yb - ya) * ts + 2, INTENT);
+  }
+  if g.dragging && g.tool != "" {
+    a = g.drag_from;
+    b = g.drag_to;
+    x0 = if a.0 < b.0 { a.0 } else { b.0 };
+    y0 = if a.1 < b.1 { a.1 } else { b.1 };
+    w = (if a.0 > b.0 { a.0 - b.0 } else { b.0 - a.0 }) + 1;
+    h = (if a.1 > b.1 { a.1 - b.1 } else { b.1 - a.1 }) + 1;
+    tiles::frame(g.surface, (x0 - g.cam_x) * ts, (y0 - g.cam_y) * ts, w * ts, h * ts, CURSOR);
+  }
+}
+
 /// The editor's panel, for a screen with a pointer, at the right of a UI `width` units wide: the
 /// level's name, saved under it (SAVE or Enter), the levels to open, and PLAY.  Answers whether
 /// the level or the view changed.
@@ -288,8 +410,12 @@ pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
   x = width - 124.0;
   y = 4.0;
   changed = false;
-  ui::panel(u, x, y, 120.0, 156.0);
+  ui::panel(u, x, y, 120.0, 176.0 + 14.0 * (len(g.words) as float) + 30.0);
   ui::label(u, x + 4.0, y + 4.0, "LEVEL");
+  if ui::button(u, "new", x + 76.0, y + 2.0, 40.0, 11.0, "NEW") {
+    new_place(g);
+    return true;
+  }
   entered = ui::field(u, "name", x + 4.0, y + 14.0, 112.0, 12.0, g.name_field);
   if ui::button(u, "save", x + 4.0, y + 30.0, 54.0, 12.0, "SAVE") || entered {
     g.note = if save_as(g, g.name_field) { "SAVED" } else { "NOT SAVED!" };
@@ -306,6 +432,46 @@ pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
       g.note = g.order[pick] ?? "";
       aim_editor(g);
     }
+    changed = true;
+  }
+  // Building: the tools, the picked room's words, filling in, and taking a room away.
+  by = y + 158.0;
+  ui::label(u, x + 4.0, by, "BUILD");
+  if ui::button(u, "tool_room", x + 4.0, by + 10.0, 54.0, 12.0, if g.tool == "room" { "*ROOM" } else { "ROOM" }) {
+    g.tool = if g.tool == "room" { "" } else { "room" };
+    changed = true;
+  }
+  if ui::button(u, "tool_corridor", x + 62.0, by + 10.0, 54.0, 12.0, if g.tool == "corridor" { "*HALL" } else { "HALL" }) {
+    g.tool = if g.tool == "corridor" { "" } else { "corridor" };
+    changed = true;
+  }
+  wy = by + 26.0;
+  picked = g.room_pick >= 0 && g.room_pick < len(g.file.intent.rooms);
+  for wd in g.words {
+    has = picked && g.file.intent.rooms[g.room_pick]!.words.contains(wd.name);
+    if ui::button(u, "word_{wd.name}", x + 4.0, wy, 112.0, 12.0, if has { "*{wd.name}" } else { wd.name }) && picked {
+      r = g.file.intent.rooms[g.room_pick]!;
+      if has {
+        kept: vector<text> = [];
+        for w in r.words { if w != wd.name { kept += [w]; } }
+        r.words = kept;
+      } else {
+        r.words += [wd.name];
+      }
+      _ = fill_in(g);
+      changed = true;
+    }
+    wy += 14.0;
+  }
+  if ui::button(u, "fill", x + 4.0, wy, 54.0, 12.0, "FILL") {
+    g.note = if fill_in(g) { "FILLED IN" } else { "NOTHING TO FILL" };
+    changed = true;
+  }
+  if ui::button(u, "drop_room", x + 62.0, wy, 54.0, 12.0, "DROP") && picked {
+    rooms: vector<intent::Room> = [];
+    for i in 0..len(g.file.intent.rooms) { if i != g.room_pick { rooms += [g.file.intent.rooms[i]]; } }
+    g.file.intent.rooms = rooms;
+    g.room_pick = -1;
     changed = true;
   }
   g.typing = ui::typing(u);
@@ -626,6 +792,7 @@ pub fn edit(g: Game, word: text) {
 
 /// Write the level being edited to its file.  False when it could not be written.
 pub fn save(g: Game) -> boolean {
+  g.file.adjusted = editor::adjusted(g.ed, g.file);
   file(level_path(g, g.level)).write(levels::save_with(g.file, g.mats)).ok()
 }
 
@@ -1381,6 +1548,7 @@ pub fn draw_editor(g: Game) {
     tiles::frame(g.surface, (x0 - g.cam_x) * ts, (y0 - g.cam_y) * ts, bw * ts, bh * ts, PICKED);
   }
   if g.checking { draw_checks(g, z); }
+  draw_intent(g);
   box(g, ed.x, ed.y, 0, CURSOR);
   box(g, ed.x, ed.y, 1, 0);
   n = len(ed.palette);

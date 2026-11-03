@@ -149,7 +149,16 @@ Each step goes red on its own; the earlier ones are what the later ones are buil
    never typed fails.
 3. **Intent, adjustments, derived** in the game's code, with rooms, corridors and words filled in.
    Red when: filling a room in again changes a hand-set cell or closes a doorway; the same intent
-   fills in the same cells on every machine.
+   fills in the same cells on every machine.  Built: `intent.loft` (`derive`: outlines, floors,
+   corridors and their doorways, the words' scattering that never blocks a way, the hand-set cells
+   worked round; integers and a seeded hash, the same cells on both backends), the words as
+   theme.json data (`rubble`, `furnished`, `torches`), and in the editor `refill`, `adjusted` (the
+   file's list and every cell a hand edit set, undone with the edit) and `unadjust`; a level file
+   carries its intent and adjustments.  In the page: NEW, the ROOM and HALL tools (a drag on the
+   map), the picked room's words, FILL and DROP, each change filled in at once.  Tested in
+   `tests/intent.loft` and `tests/refill.loft`; in the page a scripted build of two rooms, rubble
+   and a corridor saves exactly that intent with both doorways open.  Open: the existing levels'
+   cells as adjustments (WORLD.md step 4); taking a single adjustment away from the page.
 4. **The land, the places, the stamps.**  Painting outside, stamps that make a place and its door
    pair, back doors, templates from the five places.  Red when: a stamped place's doors do not
    lead both ways; a template stamped twice fills in differently for the same spot.

@@ -133,7 +133,7 @@ pub fn z_of(key: integer) -> integer { (key / 1099511627776)! - 64 }
 // prime, every step far inside 64 bits.
 fn mix(seed: integer, x: integer, y: integer, z: integer, salt: integer) -> integer {
   p = 2147483629;
-  h = (seed % p + p) % p;
+  h = ((seed % p + p) % p)!;
   for v in [x, y, z, salt] {
     h = ((h * 1103515245 + (v % p + p) % p + 12345) % p)!;
   }
@@ -230,12 +230,12 @@ fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boole
   seen += [Fill { key: free[0], x: first.x, y: first.y, z: first.z, terrain: "", thing: "" }];
   reached = 1;
   while len(todo) > 0 {
-    k = todo[len(todo) - 1];
+    k = todo[len(todo) - 1]!;
     todo = todo[0..len(todo) - 1];
     c = g.cells[k]!;
-    for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
-      nx = c.x + d.0;
-      ny = c.y + d.1;
+    for dir in 0..4 {
+      nx = (c.x + (if dir == 0 { 1 } else if dir == 1 { -1 } else { 0 }))!;
+      ny = (c.y + (if dir == 2 { 1 } else if dir == 3 { -1 } else { 0 }))!;
       if !inside(r, nx, ny) { continue; }
       nk = key_of(nx, ny, r.z);
       if seen[nk] { continue; }

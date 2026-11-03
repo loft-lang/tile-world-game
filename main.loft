@@ -107,7 +107,7 @@ fn report(t: Timing, size: (integer, integer)) {
 // The camera: `zoom` times the fit, easing towards `target`.  At 1 it shows the whole view; closer
 // in it centres on the hero, never past the view's edge.  A conversation or a long walk will set
 // the target; for now the zoom key toggles it.
-struct View { zoom: float, target: float, fit: float }
+struct View { zoom: float, target: float, fit: float, cam_zoom: float = 1.0, cam_x: float = 0.0, cam_y: float = 0.0 }
 
 const CLOSE = 2.0;
 const EASE_MS = 180.0;
@@ -125,7 +125,7 @@ fn ease(v: View, ms: integer) -> boolean {
 }
 
 // Point the surface's camera for this frame.
-fn aim(game: game::Game, v: const View, size: (integer, integer)) {
+fn aim(game: game::Game, v: View, size: (integer, integer)) {
   z = v.fit * v.zoom;
   vw = ((size.0 as float) / z)!;
   vh = ((size.1 as float) / z)!;
@@ -141,6 +141,9 @@ fn aim(game: game::Game, v: const View, size: (integer, integer)) {
   if vw < view_w { cx = clamp_f(cx, vw * 0.5, view_w - vw * 0.5); }
   if vh < view_h { cy = clamp_f(cy, vh * 0.5, view_h - vh * 0.5); }
   tiles::camera(game.surface, z, cx - vw * 0.5, cy - vh * 0.5);
+  v.cam_zoom = z;
+  v.cam_x = cx - vw * 0.5;
+  v.cam_y = cy - vh * 0.5;
 }
 
 fn clamp_f(v: float, lo: float, hi: float) -> float {
@@ -255,6 +258,13 @@ fn main() {
         scale = view.fit / 2.0;
         ui::begin(widgets, game.surface, scale, at_ptr.0, at_ptr.1, btn, typed_now);
         panel_changed = game::editor_panel(game, widgets, ((size.0 as float) / scale)!);
+        // The pointer on the map, unless a widget holds the press; a drag that crosses the panel
+        // still ends where it is let go.
+        if widgets.pressed == "" && (!widgets.over_any || game.dragging) {
+          ux = view.cam_x + ((at_ptr.0 as float) / view.cam_zoom)!;
+          uy = view.cam_y + ((at_ptr.1 as float) / view.cam_zoom)!;
+          if game::editor_map_pointer(game, ux, uy, widgets.down, widgets.was_down) { panel_changed = true; }
+        }
       } else {
         game.typing = false;
       }
