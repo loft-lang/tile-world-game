@@ -46,6 +46,28 @@ The editor shows all three, the derived ones marked as such; an adjustment is ma
 derived detail, and taken away to get the derived one back.  Because the derived layer is never
 stored, a change to the game's rules reaches every world the next time it is opened.
 
+## What the editor draws
+
+**The world as it looks.**  The map view is drawn with the game's own tiles, sheets and lights,
+so a place in the editor is the place in the game, and editing it is editing what the player
+will see.
+
+**What the world means, over it.**  The editor draws more than the game's pictures: overlays in
+its own lines, arrows, outlines and colours, shown or hidden one by one:
+
+- **routes**: an NPC's day as a line through the doors it takes, a band's roams between its
+  points of interest, the hour along each;
+- **layers**: the layer above and below, seen through, and the stairs and openings between them;
+- **connections**: doors and where they lead, the region graph, the challenge graph (what opens
+  what), a consequence and the place it reaches;
+- **reach**: what the hero can get to from here, the cells a key may go in, a monster's
+  territory.
+
+The drawing tools work on the overlays too: a route drawn by hand becomes an NPC's way between
+two points (an adjustment of the derived route), a line between two doors links them, an
+outline drawn over the land marks a region.  The overlays are the editor's, never the game's:
+nothing of them reaches the player.
+
 ## Pass 1 — building a world
 
 **The land outside.**  A map of the outdoors painted with the materials (grass, path, lake, the
