@@ -110,7 +110,8 @@ river, a way down that needs a torch.  Nothing is tutorialised; the world is lea
 (DESIGN.md's principles hold).
 
 **Saving.**  A save is the clock, the hero (place, cell, what is carried), each visited place's
-changes against its file, and each creature the hero held up, with where it stood: everyone
+changes against its file, and each creature the hero interrupted, with where it stood and its way
+back: everyone
 else's whereabouts follow from the clock; and the consequences still pending (§ Who can be near
 the hero).  On the Tanmatsu in its FAT area, in the browser in
 the page's storage, on a desktop beside the game.  The one rollback of DESIGN.md stays.
@@ -144,8 +145,8 @@ nothing.
 - **The live set** is the hero's region and the regions next to it.  Crossing into a region of
   the land outside adds its entries and drops the ones left behind, so on a large outdoor area
   only the creatures in the block around the hero run live.
-- **Creatures off their period** (held up by the hero) are a short list beside the table: where
-  each was last, and since when.  Entering asks it as it asks the table; a creature leaves it
+- **Creatures off their period** (interrupted by the hero) are a short list beside the table:
+  where each was last, since when, and its way back.  Entering asks it as it asks the table; a creature leaves it
   when it is back on its points.  No creature leaves its period by itself.
 
 **Recalculating it when the hero changes the world.**  The table depends on two things only: the
@@ -277,7 +278,7 @@ Each step is checked before the next starts; "checked" names what goes red.
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
    nowhere.
-5. **Saves.**  The clock, the hero, each visited place's changes, the creatures held up and the
+5. **Saves.**  The clock, the hero, each visited place's changes, the creatures interrupted and the
    pending consequences, written and read back.  Checked by a save, a restart and the same state.
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
    decoded at a time.  Checked on the device with the timing log: frame time, the time a door
