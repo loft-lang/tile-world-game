@@ -131,6 +131,7 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
       input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] },
+      input::ActionBinding { ab_name: "zoom", ab_keys: [109] },
       input::ActionBinding { ab_name: "edit", ab_keys: [101] },
       input::ActionBinding { ab_name: "layer_up", ab_keys: [151] },
       input::ActionBinding { ab_name: "layer_down", ab_keys: [152] },
@@ -735,6 +736,22 @@ pub fn quit(g: const Game) -> boolean {
   g.keys.is_action_just_pressed("quit")
 }
 
+/// Was the zoom key (`m`) just pressed?
+pub fn zoom_pressed(g: const Game) -> boolean {
+  g.keys.is_action_just_pressed("zoom")
+}
+
+/// Where the hero is drawn, in the view's units: the middle of its body, gliding and hopping as
+/// it is drawn — the point a camera closes in on.
+pub fn hero_point(g: const Game) -> (float, float) {
+  w = g.world;
+  ts = g.look.tile_size;
+  p = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+  half = (ts as float) / 2.0;
+  (((w.hero_x - g.cam_x) * ts) as float + p.x + half,
+   ((w.hero_y - g.cam_y) * ts - w.hero_z * ts - w.hero_h * 4) as float + p.y + half)
+}
+
 // --- The picture ---
 
 // Cell (x, y, z) of `w`, at its place in the view.
@@ -974,7 +991,8 @@ struct Figure {
   low: boolean,
   face_x: integer,
   face_y: integer,
-  pose: motion::Pose
+  pose: motion::Pose,
+  fine: motion::FinePose
 }
 
 // The figures on layer z: the hero and the enemies.
@@ -986,12 +1004,14 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
     out += [Figure { x: e.x, y: e.y, h: tile_world::rise(w.w, e.x, e.y, z), sprite: theme::enemy_sprite(g.look, e.kind),
                      item: e.item, low: false, face_x: e.face_x, face_y: e.face_y,
-                     pose: motion::pose(m, e.face_x, e.face_y, w.now) }];
+                     pose: motion::pose(m, e.face_x, e.face_y, w.now),
+                     fine: motion::fine_pose(m, e.face_x, e.face_y, w.now) }];
   }
   if w.hero_z == z {
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
-                     pose: motion::pose(g.motion, w.face_x, w.face_y, w.now) }];
+                     pose: motion::pose(g.motion, w.face_x, w.face_y, w.now),
+                     fine: motion::fine_pose(g.motion, w.face_x, w.face_y, w.now) }];
   }
   out
 }
@@ -1008,19 +1028,23 @@ fn depth_row(g: const Game, f: const Figure) -> integer {
 // Figure f: the body glides, hops and rocks about its feet; what it carries is at its hand,
 // pointing the way it faces — behind the body facing up (owner: everything carried is held the
 // way the figure moves).
+// Drawn from the fine pose, in fractions of a pixel and a degree: on a display surface the figure
+// moves smoothly at the display's resolution; on a 1x surface it lands on whole pixels.
 fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   ts = g.look.tile_size;
-  p = f.pose;
-  bx = (f.x - g.cam_x) * ts + p.x;
-  by = (f.y - g.cam_y) * ts - g.lift - f.h * 4 + p.y;
+  p = f.fine;
+  bx = (((f.x - g.cam_x) * ts) as float) + p.x;
+  by = (((f.y - g.cam_y) * ts - g.lift - f.h * 4) as float) + p.y;
   hd = hand(f.face_x, f.face_y);
+  hx = bx + (hd.0 as float);
+  hy = by + (hd.1 as float);
   behind = f.face_y < 0 && f.face_x == 0;
   if f.item != 0 && behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
+    theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
-  theme::put_turned(g.surface, f.sprite, bx, by, p.tilt, (ts / 2, ts - 1), shade);
+  theme::put_fine(g.surface, f.sprite, bx, by, p.tilt, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade);
   if f.item != 0 && !behind {
-    theme::put_held(g.surface, g.look, f.item, bx + hd.0, by + hd.1, p.weapon, p.reach, shade, now, f.low);
+    theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
 }
 

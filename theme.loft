@@ -384,6 +384,30 @@ pub fn put_held(surface: integer, th: const Theme, thing: integer, hand_x: integ
              (look.grip_x, look.grip_y), shade);
 }
 
+/// Draw sprite `s` with its top-left at (x, y) and turned `degrees` clockwise about its point
+/// `pivot` (in its own pixels; (8.5, 15.5) is the middle of a 16 px tile's bottom row): `put_turned`
+/// in fractions, for a figure that glides, hops and rocks smoothly at a display's resolution.
+pub fn put_fine(surface: integer, s: integer, x: float, y: float, degrees: float, pivot: (float, float),
+                shade: integer) {
+  if s < 0 { return; }
+  tiles::sprite(surface, s / 4096 ?? 0, s % 4096 ?? 0, x, y, degrees, pivot.0, pivot.1, shade: shade);
+}
+
+/// `put_held` in fractions: the thing at the hand (hand_x, hand_y), turned `angle` and pushed
+/// `reach` the way it points.
+pub fn put_held_fine(surface: integer, th: const Theme, thing: integer, hand_x: float, hand_y: float,
+                     angle: float, reach: float, shade: integer, now: integer, low: boolean) {
+  look = th.carried[thing];
+  if !look { return; }
+  quarter = ((((round(angle) as integer) % 360) + 360 + 45) % 360) / 90;
+  ox = if quarter == 1 { reach } else if quarter == 3 { -reach } else { 0.0 };
+  oy = if quarter == 0 { -reach } else if quarter == 2 { reach } else { 0.0 };
+  gx = look.grip_x as float;
+  gy = look.grip_y as float;
+  put_fine(surface, pick(look.look, now, low), hand_x + ox - gx, hand_y + oy - gy, angle,
+           (gx + 0.5, gy + 0.5), shade);
+}
+
 /// Write `s` in the theme's font at (x, y), one tile a character; a character the font lacks
 /// leaves a space.
 pub fn write(surface: integer, th: const Theme, s: text, x: integer, y: integer) {

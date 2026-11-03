@@ -81,6 +81,13 @@ fn fit_display(game: game::Game) -> (integer, integer) {
   (w, h)
 }
 
+// The whole-number zoom that fits the view on a screen of `size`.
+fn fit_of(size: (integer, integer)) -> float {
+  zoom = size.0 / game::W;
+  if size.1 / game::H < zoom { zoom = size.1 / game::H; }
+  (if zoom < 1 { 1 } else { zoom }) as float
+}
+
 // Where a frame's time goes, in microseconds, reported on the console every ten seconds: the
 // device has no other channel back (TANMATSU.md § Reading an app's log).
 struct Timing { frames: integer, draw: integer, copy: integer, show: integer, since: integer }
@@ -94,6 +101,49 @@ fn report(t: Timing, size: (integer, integer)) {
   t.copy = 0;
   t.show = 0;
   t.since = ticks();
+}
+
+// The camera: `zoom` times the fit, easing towards `target`.  At 1 it shows the whole view; closer
+// in it centres on the hero, never past the view's edge.  A conversation or a long walk will set
+// the target; for now the zoom key toggles it.
+struct View { zoom: float, target: float, fit: float }
+
+const CLOSE = 2.0;
+const EASE_MS = 180.0;
+
+// Ease the zoom `ms` milliseconds on; true while it is still moving, so the frame must be drawn.
+fn ease(v: View, ms: integer) -> boolean {
+  d = v.target - v.zoom;
+  if d < 0.001 && d > -0.001 {
+    v.zoom = v.target;
+    return false;
+  }
+  k = ((ms as float) / EASE_MS)!;
+  v.zoom += d * (if k > 1.0 { 1.0 } else { k });
+  true
+}
+
+// Point the surface's camera for this frame.
+fn aim(game: game::Game, v: const View, size: (integer, integer)) {
+  z = v.fit * v.zoom;
+  vw = ((size.0 as float) / z)!;
+  vh = ((size.1 as float) / z)!;
+  view_w = game::W as float;
+  view_h = game::H as float;
+  // From the view's centre at 1 towards the hero at CLOSE.
+  s = ((v.zoom - 1.0) / (CLOSE - 1.0))!;
+  s = if s < 0.0 { 0.0 } else if s > 1.0 { 1.0 } else { s };
+  hero = game::hero_point(game);
+  cx = view_w * 0.5 + (hero.0 - view_w * 0.5) * s;
+  cy = view_h * 0.5 + (hero.1 - view_h * 0.5) * s;
+  // Closer in, the picture stays inside the view.
+  if vw < view_w { cx = clamp_f(cx, vw * 0.5, view_w - vw * 0.5); }
+  if vh < view_h { cy = clamp_f(cy, vh * 0.5, view_h - vh * 0.5); }
+  tiles::camera(game.surface, z, cx - vw * 0.5, cy - vh * 0.5);
+}
+
+fn clamp_f(v: float, lo: float, hi: float) -> float {
+  if v < lo { lo } else if v > hi { hi } else { v }
 }
 
 // The frame on the screen: black round the view, then shown at the screen's size.
@@ -151,6 +201,8 @@ fn main() {
     if game::any_key(game) { break; }
   }
   game::start_level(game, 0);
+  view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
+  aim(game, view, size);
   game::draw(game);
   present(game, size, timing);
   last = ticks() / 1000;
@@ -163,8 +215,14 @@ fn main() {
     if game::quit(game) { break; }
     now = ticks() / 1000;
     resized = screen::width() != size.0 || screen::height() != size.1;
-    if resized { size = fit_display(game); }
-    if game::update(game, now - last, now) || resized {
+    if resized {
+      size = fit_display(game);
+      view.fit = fit_of(size);
+    }
+    if game::zoom_pressed(game) { view.target = if view.target > 1.0 { 1.0 } else { CLOSE }; }
+    zooming = ease(view, now - last);
+    if game::update(game, now - last, now) || resized || zooming {
+      aim(game, view, size);
       at = ticks();
       game::draw(game);
       timing.draw += ticks() - at;

@@ -83,3 +83,35 @@ fn test_a_hit_that_moves_glides_while_it_staggers() {
   assert(motion::pose(m, 1, 0, 70).y == -9 && motion::pose(m, 1, 0, 70).x == 0, "70: {show(motion::pose(m, 1, 0, 70))}");
   assert(motion::pose(m, 1, 0, 140).y == -6, "140: {show(motion::pose(m, 1, 0, 140))}");
 }
+
+// The fine pose, for drawing at a display's resolution.  A step right from a cell left
+// (from_x -16), the first, so rocking to -ROCK: at 70 of 140 ms halfway in (x -8), the hop at its
+// top (2 sin(pi/2) = 2, so y -2) and the rock at its peak (-7); at 35 ms the hop is
+// 2 sin(pi/4) = 1.414..., the glide three quarters left (-12).
+fn near(a: float, b: float) -> boolean {
+  d = a - b;
+  d < 0.000001 && d > -0.000001
+}
+
+fn test_the_fine_pose_of_a_step() {
+  m = motion::still();
+  motion::walk(m, 1000, 1, 0, 0, 1, 0);
+  p = motion::fine_pose(m, 1, 0, 1070);
+  assert(near(p.x, -8.0) && near(p.hop, 2.0) && near(p.y, -2.0) && near(p.tilt, -7.0), "70: {p.x} {p.y} {p.tilt}");
+  q = motion::fine_pose(m, 1, 0, 1035);
+  assert(near(q.x, -12.0) && near(q.hop, 2.0 * sin(PI / 4.0)) && near(q.tilt, -7.0 * sin(PI / 4.0)), "35: {q.x} {q.hop}");
+  r = motion::fine_pose(m, 1, 0, 1140);
+  assert(r.x == 0.0 && r.y == 0.0 && r.tilt == 0.0, "after: standing");
+}
+
+// A stagger knocked left (away -1): the wobble is 7 (1 - t) cos(4 pi (t - 1/8)) the far way:
+// 0 at the start, +6.125 at an eighth (pose's first quarter reads +6), 0 at a quarter,
+// -4.375 at three eighths (pose: -5).
+fn test_the_fine_wobble_is_a_damped_wave() {
+  m = motion::still();
+  motion::stagger(m, 0, -1, 0, 0, 0, 1, 0);
+  assert(near(motion::fine_pose(m, 1, 0, 0).tilt, 0.0), "starts upright: {motion::fine_pose(m, 1, 0, 0).tilt}");
+  assert(near(motion::fine_pose(m, 1, 0, 35).tilt, 6.125), "an eighth: {motion::fine_pose(m, 1, 0, 35).tilt}");
+  assert(near(motion::fine_pose(m, 1, 0, 70).tilt, 0.0), "a quarter: {motion::fine_pose(m, 1, 0, 70).tilt}");
+  assert(near(motion::fine_pose(m, 1, 0, 105).tilt, -4.375), "three eighths: {motion::fine_pose(m, 1, 0, 105).tilt}");
+}
