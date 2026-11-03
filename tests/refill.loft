@@ -1,0 +1,148 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Filling a place in from its intent, with the cells set by hand kept (BROWSER_EDITOR.md step 3):
+// filling a room in again changes no hand-set cell and closes no doorway; taking an adjustment
+// away gives the derived cell back; undo takes a fill back as one edit; the intent and the
+// adjustments survive a save and a load.
+use tile_world;
+use rules;
+use levels;
+use editor;
+use intent;
+
+// Room A (0, 0) 8x6 and room B (11, 0) 6x6, a corridor along y = 2 between them: doorways at
+// (7, 2) and (11, 2).
+fn place() -> levels::LevelFile {
+  k = rules::kinds();
+  levels::LevelFile {
+    name: "", level: rules::level(k), start_x: 2, start_y: 2, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 },
+    intent: intent::Intent { seed: 5,
+      rooms: [intent::Room { x: 0, y: 0, w: 8, h: 6, z: 0, words: ["rubble"] },
+              intent::Room { x: 11, y: 0, w: 6, h: 6, z: 0, words: ["rubble"] }],
+      corridors: [intent::Corridor { x0: 7, y0: 2, x1: 11, y1: 2, z: 0 }] }
+  }
+}
+
+fn words() -> vector<intent::Word> {
+  [intent::Word { name: "rubble", things: ["rock"], per_100: 40, along_walls: false }]
+}
+
+fn kind_at(lf: const levels::LevelFile, x: integer, y: integer) -> text {
+  rules::terrain_name(lf.level.k, tile_world::terrain(lf.level.w, x, y, 0))
+}
+
+fn things_at(lf: const levels::LevelFile, x: integer, y: integer) -> integer {
+  len(tile_world::things(lf.level.w, x, y, 0))
+}
+
+// Does the level hold what `fills` says, but for the cells in `skip`?
+fn holds(lf: const levels::LevelFile, fills: const vector<intent::Fill>, skip: const vector<integer>) -> boolean {
+  for f in fills {
+    if skip.contains(f.key) { continue; }
+    if kind_at(lf, f.x, f.y) != f.terrain { return false; }
+    if things_at(lf, f.x, f.y) != (if f.thing == "" { 0 } else { 1 }) { return false; }
+  }
+  true
+}
+
+fn pick(ed: editor::Editor, k: const rules::Kinds, name: text) {
+  for i in 0..len(ed.palette) {
+    if editor::name(k, ed.palette[i] ?? editor::picked(ed)) == name { ed.pick = i; }
+  }
+}
+
+fn test_a_refill_gives_the_derived_cells() {
+  lf = place();
+  ed = editor::new_editor(lf);
+  assert(editor::refill(ed, lf, words()), "something filled in");
+  assert(holds(lf, intent::derive(lf.intent, words()), []), "the level is what derive says");
+  assert(kind_at(lf, 7, 2) == "floor" && kind_at(lf, 11, 2) == "floor", "the doorways are open");
+  assert(!editor::refill(ed, lf, words()), "filling in again changes nothing");
+}
+
+fn test_a_hand_set_cell_survives_a_refill_and_no_doorway_closes() {
+  lf = place();
+  ed = editor::new_editor(lf);
+  _ = editor::refill(ed, lf, words());
+  // A wall by hand inside room A, beside where the corridor comes in.
+  ed.x = 5;
+  ed.y = 2;
+  ed.z = 0;
+  pick(ed, lf.level.k, "wall");
+  assert(editor::paint(ed, lf), "painted");
+  assert(editor::adjusted(ed, lf).contains(intent::key_of(5, 2, 0)), "the painted cell is an adjustment");
+  // Two chairs stacked by hand: more than a fill can say about a cell, so a refill must leave the
+  // cell alone rather than write it again.
+  ed.x = 3;
+  ed.y = 4;
+  pick(ed, lf.level.k, "chair");
+  _ = editor::paint(ed, lf);
+  _ = editor::paint(ed, lf);
+  assert(things_at(lf, 3, 4) == 2, "two chairs stacked: {things_at(lf, 3, 4)}");
+  for seed in [6, 7, 8, 9, 10] {
+    lf.intent.seed = seed;
+    _ = editor::refill(ed, lf, words());
+    assert(kind_at(lf, 5, 2) == "wall", "seed {seed}: the hand-set wall is kept");
+    assert(things_at(lf, 3, 4) == 2, "seed {seed}: the stacked chairs are kept: {things_at(lf, 3, 4)}");
+    for d in [(7, 2), (6, 2), (11, 2), (12, 2)] {
+      assert(kind_at(lf, d.0, d.1) == "floor" && things_at(lf, d.0, d.1) == 0, "seed {seed}: ({d.0}, {d.1}) is open");
+    }
+    // The free floor of room A, the wall in place, is one piece.
+    free: vector<(integer, integer)> = [];
+    for y in 1..5 { for x in 1..7 { if kind_at(lf, x, y) == "floor" && things_at(lf, x, y) == 0 { free += [(x, y)]; } } }
+    seen = [free[0]!];
+    todo = [free[0]!];
+    while len(todo) > 0 {
+      p = todo[len(todo) - 1]!;
+      todo = todo[0..len(todo) - 1];
+      for q in free {
+        dx = q.0 - p.0;
+        dy = q.1 - p.1;
+        if dx * dx + dy * dy == 1 && !seen.contains(q) { seen += [q]; todo += [q]; }
+      }
+    }
+    assert(len(seen) == len(free), "seed {seed}: room A's free floor is one piece ({len(seen)} of {len(free)})");
+  }
+}
+
+fn test_taking_an_adjustment_away_gives_the_derived_cell_back() {
+  lf = place();
+  ed = editor::new_editor(lf);
+  _ = editor::refill(ed, lf, words());
+  ed.x = 3;
+  ed.y = 3;
+  pick(ed, lf.level.k, "water");
+  _ = editor::paint(ed, lf);
+  _ = editor::refill(ed, lf, words());
+  assert(kind_at(lf, 3, 3) == "water", "kept while adjusted");
+  editor::unadjust(ed, lf, 3, 3, 0);
+  _ = editor::refill(ed, lf, words());
+  assert(kind_at(lf, 3, 3) == "floor", "the derived floor is back: {kind_at(lf, 3, 3)}");
+  assert(holds(lf, intent::derive(lf.intent, words()), []), "and the level is what derive says");
+}
+
+fn test_undo_takes_a_refill_back_as_one_edit() {
+  lf = place();
+  ed = editor::new_editor(lf);
+  _ = editor::refill(ed, lf, words());
+  assert(editor::undoable(ed) == 1, "one edit");
+  assert(editor::undo(ed, lf), "undone");
+  assert(!tile_world::is_set(lf.level.w, 0, 0, 0) && !tile_world::is_set(lf.level.w, 9, 2, 0), "the place is empty again");
+}
+
+fn test_the_intent_and_the_adjustments_survive_a_save() {
+  lf = place();
+  ed = editor::new_editor(lf);
+  _ = editor::refill(ed, lf, words());
+  ed.x = 13;
+  ed.y = 3;
+  pick(ed, lf.level.k, "wall");
+  _ = editor::paint(ed, lf);
+  lf.adjusted = editor::adjusted(ed, lf);
+  back = levels::load(levels::save(lf), rules::kinds()) ?? place();
+  assert(len(back.intent.rooms) == 2 && back.intent.seed == 5 && len(back.intent.corridors) == 1, "the intent");
+  assert(back.intent.rooms[0].words == ["rubble"] && back.intent.corridors[0].x1 == 11, "its details");
+  assert(back.adjusted == [intent::key_of(13, 3, 0)], "the adjustment: {len(back.adjusted)}");
+}

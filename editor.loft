@@ -12,6 +12,7 @@ use tile_world;
 use rules;
 use levels;
 use materials;
+use intent;
 
 /// A palette entry: terrain kind `id` (0 is void), material `material` (when 0 or more, with
 /// its name in `label`), or thing `id`.
@@ -64,7 +65,9 @@ struct Edit {
   z: integer,
   cells: vector<Change>,
   was_at: Marker,
-  now_at: Marker
+  now_at: Marker,
+  /// Made by hand, not filled in from the intent: the cells it changed are adjustments.
+  hand: boolean = true
 }
 
 pub struct Editor {
@@ -81,6 +84,8 @@ pub struct Editor {
   /// How many of the log's edits are applied: undo steps back, redo forward, and a new edit
   /// drops the ones undone.
   done: integer,
+  /// Cells whose adjustment was taken away (`unadjust`), until a hand edit touches them again.
+  released: vector<integer> = [],
   /// A corner marked with R: a rectangle, a copy, runs from it to the cursor.
   pub marked: boolean,
   pub mark_x: integer,
@@ -218,6 +223,86 @@ fn keep(ed: Editor, e: const Edit) {
   if ed.done < len(ed.log) { ed.log = ed.log[0..ed.done]; }
   ed.log += [e];
   ed.done += 1;
+  if e.hand {
+    for c in e.cells {
+      k = intent::key_of(c.x, c.y, c.z);
+      if ed.released.contains(k) {
+        kept: vector<integer> = [];
+        for r in ed.released { if r != k { kept += [r]; } }
+        ed.released = kept;
+      }
+    }
+  }
+}
+
+// Did a change set the cell itself — its kind, its things, its height — rather than only retile
+// its picture beside a neighbour's edit?
+fn sets_cell(c: const Change) -> boolean {
+  c.was.set != c.now.set || c.was.kind != c.now.kind || c.was.stack != c.now.stack || c.was.rise != c.now.rise
+}
+
+/// The cells set by hand: the level file's, and every cell an applied hand edit set since —
+/// undoing the edit undoes the adjustment — but for those `unadjust` released.
+pub fn adjusted(ed: const Editor, lf: const levels::LevelFile) -> vector<integer> {
+  out: vector<integer> = [];
+  for k in lf.adjusted { if !ed.released.contains(k) { out += [k]; } }
+  for i in 0..ed.done {
+    e = ed.log[i] ?? continue;
+    if !e.hand || e.what != CELL { continue; }
+    for c in e.cells {
+      if !sets_cell(c) { continue; }
+      k = intent::key_of(c.x, c.y, c.z);
+      if !out.contains(k) && !ed.released.contains(k) { out += [k]; }
+    }
+  }
+  out
+}
+
+/// Take the adjustment of cell (x, y, z) away: the next `refill` gives it what the intent
+/// derives.
+pub fn unadjust(ed: Editor, lf: levels::LevelFile, x: integer, y: integer, z: integer) {
+  k = intent::key_of(x, y, z);
+  kept: vector<integer> = [];
+  for a in lf.adjusted { if a != k { kept += [a]; } }
+  lf.adjusted = kept;
+  if !ed.released.contains(k) { ed.released += [k]; }
+}
+
+/// Fill the place in from its intent again: each cell the intent implies is set to what it
+/// derives (its kind, and the thing scattered on it or none), but for the cells set by hand,
+/// which keep what they are.  A cell already so is left as it is, its picture included.  One
+/// edit, undone as one; false when nothing changed.
+pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Word>) -> boolean {
+  k = lf.level.k;
+  w = lf.level.w;
+  hand = adjusted(ed, lf);
+  // The hand-set cells as they are, for the scattering to work round.
+  held: vector<intent::Fill> = [];
+  for h in hand {
+    x = intent::x_of(h);
+    y = intent::y_of(h);
+    z = intent::z_of(h);
+    c = cell_of(w, x, y, z);
+    top = if len(c.stack) > 0 { rules::thing_name(k, c.stack[0] ?? 0) } else { "" };
+    held += [intent::Fill { key: h, x: x, y: y, z: z, terrain: if c.set { rules::terrain_name(k, c.kind) } else { "" }, thing: top }];
+  }
+  changes: vector<Change> = [];
+  for f in intent::derive(lf.intent, words, held) {
+    if hand.contains(f.key) { continue; }
+    was = cell_of(w, f.x, f.y, f.z);
+    kind = rules::terrain_id(k, f.terrain);
+    stack: vector<integer> = [];
+    if f.thing != "" { stack += [rules::thing_id(k, f.thing)]; }
+    if was.set && was.kind == kind && was.stack == stack { continue; }
+    now = Cell { set: true, kind: kind, tile: 0, stack: stack, rise: was.rise };
+    put_cell(w, f.x, f.y, f.z, now);
+    changes += [Change { x: f.x, y: f.y, z: f.z, was: was, now: now }];
+  }
+  if len(changes) == 0 { return false; }
+  keep(ed, Edit {
+    what: CELL, x: ed.x, y: ed.y, z: ed.z, cells: changes, was_at: no_marker(), now_at: no_marker(), hand: false
+  });
+  true
 }
 
 struct Spot {

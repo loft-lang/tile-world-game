@@ -1,0 +1,111 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// What the game fills in from a developer's intent: the shapes by hand, and the promises — what
+// is scattered never blocks a doorway or cuts a room in two, and the same intent gives the same
+// cells (this file runs on both backends).
+use intent;
+
+fn rubble(per: integer) -> vector<intent::Word> {
+  [intent::Word { name: "rubble", things: ["rock"], per_100: per, along_walls: false },
+   intent::Word { name: "furnished", things: ["table", "chair"], per_100: per, along_walls: true }]
+}
+
+fn room(x: integer, y: integer, w: integer, h: integer, words: vector<text>) -> intent::Room {
+  intent::Room { x: x, y: y, w: w, h: h, z: 0, words: words }
+}
+
+fn picture(fills: const vector<intent::Fill>, x0: integer, y0: integer, w: integer, h: integer) -> text {
+  rows = "";
+  for y in y0..y0 + h {
+    for x in x0..x0 + w {
+      ch = " ";
+      for f in fills {
+        if f.x == x && f.y == y {
+          ch = if f.thing != "" { "o" } else if f.terrain == "wall" { "#" } else { "." };
+        }
+      }
+      rows += ch;
+    }
+    rows += "|";
+  }
+  rows
+}
+
+fn test_a_room_is_its_outline_and_floor() {
+  it = intent::Intent { seed: 1, rooms: [room(0, 0, 4, 3, [])], corridors: [] };
+  got = picture(intent::derive(it, rubble(0)), 0, 0, 4, 3);
+  assert(got == "####|#..#|####|", "a 4x3 room: {got}");
+}
+
+// Two rooms joined by a corridor from (3, 1) to (6, 1): the walls it crosses, (3, 1) and (6, 1),
+// are doorways; walls are put beside the corridor where there was nothing.
+fn test_a_corridor_opens_doorways_in_both_rooms() {
+  it = intent::Intent { seed: 1, rooms: [room(0, 0, 4, 3, []), room(6, 0, 4, 3, [])],
+                        corridors: [intent::Corridor { x0: 3, y0: 1, x1: 6, y1: 1, z: 0 }] };
+  got = picture(intent::derive(it, rubble(0)), 0, 0, 10, 3);
+  assert(got == "##########|#........#|##########|", "joined: {got}");
+}
+
+// (area * per + 50) / 100 things: a 7x6 room has 5 x 4 = 20 floor cells, so 25 per hundred is 5.
+fn test_a_word_scatters_its_share() {
+  it = intent::Intent { seed: 3, rooms: [room(0, 0, 7, 6, ["rubble"])], corridors: [] };
+  n = 0;
+  for f in intent::derive(it, rubble(25)) { if f.thing == "rock" { n += 1; } }
+  assert(n == 5, "5 rocks: {n}");
+}
+
+// However thick the rubble, the room's free floor stays one piece, every doorway and the cell
+// inside it stay free, and the corridor between them stays open.
+fn free_floor_is_one_piece(fills: const vector<intent::Fill>, x0: integer, y0: integer, x1: integer, y1: integer) -> boolean {
+  free: vector<(integer, integer)> = [];
+  for f in fills { if f.terrain == "floor" && f.thing == "" && f.x >= x0 && f.x <= x1 && f.y >= y0 && f.y <= y1 { free += [(f.x, f.y)]; } }
+  if len(free) == 0 { return true; }
+  seen = [free[0]];
+  todo = [free[0]];
+  while len(todo) > 0 {
+    p = todo[len(todo) - 1];
+    todo = todo[0..len(todo) - 1];
+    for q in free {
+      d = (if q.0 > p.0 { q.0 - p.0 } else { p.0 - q.0 }) + (if q.1 > p.1 { q.1 - p.1 } else { p.1 - q.1 });
+      if d == 1 && !seen.contains(q) {
+        seen += [q];
+        todo += [q];
+      }
+    }
+  }
+  len(seen) == len(free)
+}
+
+fn test_scattering_never_blocks_a_way() {
+  for seed in 1..12 {
+    it = intent::Intent { seed: seed, rooms: [room(0, 0, 6, 6, ["rubble", "furnished"]), room(9, 0, 5, 6, ["rubble"])],
+                          corridors: [intent::Corridor { x0: 5, y0: 2, x1: 9, y1: 2, z: 0 },
+                                      intent::Corridor { x0: 2, y0: 5, x1: 2, y1: 8, z: 0 }] };
+    fills = intent::derive(it, rubble(100));
+    things = 0;
+    for f in fills {
+      if f.thing != "" { things += 1; }
+      // The doorways and the cells inside them.
+      if (f.x == 5 && f.y == 2) || (f.x == 4 && f.y == 2) || (f.x == 9 && f.y == 2) || (f.x == 10 && f.y == 2) ||
+         (f.x == 2 && f.y == 5) || (f.x == 2 && f.y == 4) {
+        assert(f.terrain == "floor" && f.thing == "", "seed {seed}: ({f.x}, {f.y}) is {f.terrain} {f.thing}");
+      }
+    }
+    assert(things > 0, "seed {seed}: something was scattered");
+    assert(free_floor_is_one_piece(fills, 0, 0, 13, 8), "seed {seed}: the free floor is one piece");
+  }
+}
+
+fn test_the_same_intent_gives_the_same_cells() {
+  it = intent::Intent { seed: 42, rooms: [room(0, 0, 9, 7, ["rubble", "furnished"])], corridors: [] };
+  a = picture(intent::derive(it, rubble(30)), 0, 0, 9, 7);
+  b = picture(intent::derive(it, rubble(30)), 0, 0, 9, 7);
+  assert(a == b, "twice the same: {a} / {b}");
+  it.seed = 43;
+  c = picture(intent::derive(it, rubble(30)), 0, 0, 9, 7);
+  assert(a != c, "another seed scatters elsewhere");
+  // The cells, pinned as the interpreter derived them (20 things, the 15 free cells one piece,
+  // read by hand): the C backend runs this file too and must give the same picture.
+  assert(a == "#########|#ooooooo#|#o..o...#|#oo...o.#|#o..oo..#|#oooo..o#|#########|", "pinned: {a}");
+}

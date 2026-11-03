@@ -228,5 +228,10 @@
       "frames": ["world:2", "world:3"],
       "low": "world:4"
     }
+  },
+  "words": {
+    "rubble": { "things": ["rock"], "per_100": 10 },
+    "furnished": { "things": ["table", "chair"], "per_100": 30, "along_walls": true },
+    "torches": { "things": ["burning_torch"], "per_100": 8, "along_walls": true }
   }
 }

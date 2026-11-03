@@ -1,0 +1,339 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// What the developer says about a place, and the cells the game fills in from it (WORLD.md § The
+// developer's view; BROWSER_EDITOR.md step 3).  A room is an outline with words ("a bit of
+// rubble"); a corridor runs from a cell to a cell.  `derive` answers every cell they imply: a
+// room's outline wall and its inside floor, a corridor's floor with walls beside it and a doorway
+// where it crosses a room's wall, and what each word scatters.  What is scattered keeps the place
+// playable: never in a doorway or the cell inside it, and never cutting a room's free floor in
+// two.  The same intent answers the same cells everywhere: integer arithmetic only, and the
+// scatter order a hash of the seed and the cell.
+//
+// Applying the cells, and the cells set by hand that a fill keeps, is the editor's (editor.loft).
+
+/// A room: the outline from (x, y), `w` by `h` cells with its walls, on layer z, and its words.
+pub struct Room {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub words: vector<text>
+}
+
+/// A corridor from (x0, y0) to (x1, y1) on layer z: along x first, then along y.
+pub struct Corridor {
+  pub x0: integer,
+  pub y0: integer,
+  pub x1: integer,
+  pub y1: integer,
+  pub z: integer
+}
+
+pub struct Intent {
+  pub seed: integer,
+  pub rooms: vector<Room>,
+  pub corridors: vector<Corridor>
+}
+
+/// A word a room can take: the things it scatters (picked in turn by the hash), how many for
+/// every hundred floor cells, and whether only against the walls.
+pub struct Word {
+  pub name: text,
+  pub things: vector<text>,
+  pub per_100: integer,
+  pub along_walls: boolean
+}
+
+/// A cell the intent implies: its terrain kind's name, and the thing on it ("" for none).
+pub struct Fill {
+  pub key: integer,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub terrain: text,
+  pub thing: text
+}
+
+pub fn no_intent() -> Intent {
+  Intent { seed: 1, rooms: [], corridors: [] }
+}
+
+/// Does the intent say anything?
+pub fn is_empty(it: const Intent) -> boolean {
+  len(it.rooms) == 0 && len(it.corridors) == 0
+}
+
+fn int_of(v: const JsonValue, default: integer) -> integer {
+  if v.kind() == "JInteger" || v.kind() == "JNumber" { (v.as_number() as integer) ?? default } else { default }
+}
+
+/// An intent from a level file's "intent" object; no intent when it has none.
+pub fn intent_from(v: const JsonValue) -> Intent {
+  it = no_intent();
+  if v.kind() != "JObject" { return it; }
+  it.seed = int_of(v.field("seed"), 1);
+  rs = v.field("rooms");
+  for i in 0..rs.len() {
+    r = rs.item(i);
+    ws: vector<text> = [];
+    wv = r.field("words");
+    for j in 0..wv.len() { ws += [wv.item(j).as_text()]; }
+    it.rooms += [Room { x: int_of(r.field("x"), 0), y: int_of(r.field("y"), 0), w: int_of(r.field("w"), 3),
+                        h: int_of(r.field("h"), 3), z: int_of(r.field("z"), 0), words: ws }];
+  }
+  cs = v.field("corridors");
+  for i in 0..cs.len() {
+    c = cs.item(i);
+    a = c.field("from");
+    b = c.field("to");
+    it.corridors += [Corridor { x0: int_of(a.item(0), 0), y0: int_of(a.item(1), 0), x1: int_of(b.item(0), 0),
+                                y1: int_of(b.item(1), 0), z: int_of(c.field("z"), 0) }];
+  }
+  it
+}
+
+fn quote(t: text) -> text {
+  "\"{t}\""
+}
+
+/// The intent as a level file's "intent" object.
+pub fn intent_json(it: const Intent) -> text {
+  out = "{{ \"seed\": {it.seed}, \"rooms\": [";
+  first = true;
+  for r in it.rooms {
+    ws = "";
+    for w in r.words { ws += if ws == "" { quote(w) } else { ", " + quote(w) }; }
+    out += if first { "\n" } else { ",\n" };
+    out += "    {{ \"x\": {r.x}, \"y\": {r.y}, \"w\": {r.w}, \"h\": {r.h}, \"z\": {r.z}, \"words\": [{ws}] }}";
+    first = false;
+  }
+  out += " ], \"corridors\": [";
+  first = true;
+  for c in it.corridors {
+    out += if first { "\n" } else { ",\n" };
+    out += "    {{ \"from\": [{c.x0}, {c.y0}], \"to\": [{c.x1}, {c.y1}], \"z\": {c.z} }}";
+    first = false;
+  }
+  out + " ] }}"
+}
+
+/// A cell's key: one integer for (x, y, z), ordered by layer, then row, then column.
+pub fn key_of(x: integer, y: integer, z: integer) -> integer {
+  ((z + 64) * 1048576 + (y + 524288)) * 1048576 + (x + 524288)
+}
+
+/// The cell a key names.
+pub fn x_of(key: integer) -> integer { (key % 1048576)! - 524288 }
+pub fn y_of(key: integer) -> integer { ((key / 1048576)! % 1048576)! - 524288 }
+pub fn z_of(key: integer) -> integer { (key / 1099511627776)! - 64 }
+
+// A number from the seed and a cell and a salt, the same everywhere: a polynomial hash modulo a
+// prime, every step far inside 64 bits.
+fn mix(seed: integer, x: integer, y: integer, z: integer, salt: integer) -> integer {
+  p = 2147483629;
+  h = (seed % p + p) % p;
+  for v in [x, y, z, salt] {
+    h = ((h * 1103515245 + (v % p + p) % p + 12345) % p)!;
+  }
+  h
+}
+
+/// The words theme.json's "words" object declares: { name: { "things": [...], "per_100": n,
+/// "along_walls": bool } }.
+pub fn words_from(theme_text: text) -> vector<Word> {
+  out: vector<Word> = [];
+  w = json_parse(theme_text).field("words");
+  for name in w.keys() {
+    e = w.field(name);
+    things: vector<text> = [];
+    t = e.field("things");
+    for i in 0..t.len() { things += [t.item(i).as_text()]; }
+    n = e.field("per_100");
+    per = if n.kind() == "JInteger" || n.kind() == "JNumber" { (n.as_number() as integer) ?? 0 } else { 0 };
+    out += [Word { name: name, things: things, per_100: per, along_walls: e.field("along_walls").as_bool() ?? false }];
+  }
+  out
+}
+
+fn word_named(words: const vector<Word>, name: text) -> Word? {
+  for w in words { if w.name == name { return w; } }
+  null
+}
+
+// A cell to scatter on, with its place in the hash's order.
+struct Candidate {
+  rank: integer,
+  key: integer
+}
+
+// The cells, as they are worked out.
+struct Grid {
+  cells: hash<Fill[key]>,
+  doors: vector<integer>,
+  held: vector<integer>
+}
+
+fn set(g: Grid, x: integer, y: integer, z: integer, terrain: text) {
+  k = key_of(x, y, z);
+  c = g.cells[k];
+  if c { c.terrain = terrain; } else { g.cells += [Fill { key: k, x: x, y: y, z: z, terrain: terrain, thing: "" }]; }
+}
+
+fn terrain_at(g: const Grid, x: integer, y: integer, z: integer) -> text {
+  c = g.cells[key_of(x, y, z)];
+  if c { c.terrain } else { "" }
+}
+
+fn inside(r: const Room, x: integer, y: integer) -> boolean {
+  x > r.x && y > r.y && x < r.x + r.w - 1 && y < r.y + r.h - 1
+}
+
+fn on_outline(r: const Room, x: integer, y: integer) -> boolean {
+  x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h && !inside(r, x, y)
+}
+
+// A corridor's cells, in order.
+fn path(c: const Corridor) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  sx = if c.x1 >= c.x0 { 1 } else { -1 };
+  sy = if c.y1 >= c.y0 { 1 } else { -1 };
+  x = c.x0;
+  out += [(x, c.y0)];
+  while x != c.x1 {
+    x += sx;
+    out += [(x, c.y0)];
+  }
+  y = c.y0;
+  while y != c.y1 {
+    y += sy;
+    out += [(c.x1, y)];
+  }
+  out
+}
+
+// Is the room's free floor — its inside with no thing on it — one piece, reaching every doorway's
+// inner cell?
+fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boolean {
+  free: vector<integer> = [];
+  for y in r.y + 1..r.y + r.h - 1 {
+    for x in r.x + 1..r.x + r.w - 1 {
+      c = g.cells[key_of(x, y, r.z)];
+      if c && c.terrain == "floor" && c.thing == "" { free += [key_of(x, y, r.z)]; }
+    }
+  }
+  if len(free) == 0 { return true; }
+  seen: hash<Fill[key]> = [];
+  todo = [free[0]];
+  first = g.cells[free[0]]!;
+  seen += [Fill { key: free[0], x: first.x, y: first.y, z: first.z, terrain: "", thing: "" }];
+  reached = 1;
+  while len(todo) > 0 {
+    k = todo[len(todo) - 1];
+    todo = todo[0..len(todo) - 1];
+    c = g.cells[k]!;
+    for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+      nx = c.x + d.0;
+      ny = c.y + d.1;
+      if !inside(r, nx, ny) { continue; }
+      nk = key_of(nx, ny, r.z);
+      if seen[nk] { continue; }
+      n = g.cells[nk];
+      if !n || n.terrain != "floor" || n.thing != "" { continue; }
+      seen += [Fill { key: nk, x: nx, y: ny, z: r.z, terrain: "", thing: "" }];
+      todo += [nk];
+      reached += 1;
+    }
+  }
+  if reached != len(free) { return false; }
+  for k in need { if !seen[k] { return false; } }
+  true
+}
+
+// Scatter room r's words over its floor.
+fn scatter(g: Grid, r: const Room, words: const vector<Word>, seed: integer) {
+  // The doorways in this room's outline, and the inside cell each opens onto: kept free.
+  keep: vector<integer> = [];
+  for dk in g.doors {
+    d = g.cells[dk]!;
+    if d.z != r.z || !on_outline(r, d.x, d.y) { continue; }
+    for o in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+      if inside(r, d.x + o.0, d.y + o.1) { keep += [key_of(d.x + o.0, d.y + o.1, r.z)]; }
+    }
+  }
+  area = (r.w - 2) * (r.h - 2);
+  for wi in 0..len(r.words) {
+    wd = word_named(words, r.words[wi]) ?? continue;
+    if len(wd.things) == 0 || wd.per_100 <= 0 { continue; }
+    want = ((area * wd.per_100 + 50) / 100)!;
+    // The candidates, in the order the hash gives them.
+    order: vector<Candidate> = [];
+    for y in r.y + 1..r.y + r.h - 1 {
+      for x in r.x + 1..r.x + r.w - 1 {
+        k = key_of(x, y, r.z);
+        if keep.contains(k) || g.held.contains(k) { continue; }
+        c = g.cells[k] ?? continue;
+        if c.terrain != "floor" || c.thing != "" { continue; }
+        if wd.along_walls && !(x == r.x + 1 || y == r.y + 1 || x == r.x + r.w - 2 || y == r.y + r.h - 2) { continue; }
+        order += [Candidate { rank: mix(seed, x, y, r.z, wi + 1), key: k }];
+      }
+    }
+    order.sort_by(|c| { c.rank });
+    placed = 0;
+    for o in order {
+      if placed >= want { break; }
+      c = g.cells[o.key]!;
+      c.thing = wd.things[(o.rank % len(wd.things))!] ?? "";
+      if connected(g, r, keep) {
+        placed += 1;
+      } else {
+        c.thing = "";
+      }
+    }
+  }
+}
+
+/// Every cell intent `it` implies, ordered by layer, row and column.  `held` are cells set by
+/// hand, as they are: they stand where they are before anything is scattered, nothing is scattered
+/// on them, and the free floor that must stay one piece is counted with them in place.
+pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fill> = []) -> vector<Fill> {
+  g = Grid { cells: [], doors: [], held: [] };
+  // Rooms: the outline wall, the inside floor; an inside wins over an earlier room's wall, so
+  // rooms drawn against each other open into one.
+  for r in it.rooms {
+    if r.w < 3 || r.h < 3 { continue; }
+    for y in r.y..r.y + r.h {
+      for x in r.x..r.x + r.w {
+        if inside(r, x, y) { set(g, x, y, r.z, "floor"); }
+        else if terrain_at(g, x, y, r.z) != "floor" { set(g, x, y, r.z, "wall"); }
+      }
+    }
+  }
+  // Corridors: floor along the way, a wall beside it where there is nothing yet, and a doorway
+  // where it crosses a wall.
+  for c in it.corridors {
+    for p in path(c) {
+      if terrain_at(g, p.0, p.1, c.z) == "wall" { g.doors += [key_of(p.0, p.1, c.z)]; }
+      set(g, p.0, p.1, c.z, "floor");
+    }
+    for p in path(c) {
+      for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        if terrain_at(g, p.0 + d.0, p.1 + d.1, c.z) == "" { set(g, p.0 + d.0, p.1 + d.1, c.z, "wall"); }
+      }
+    }
+  }
+  for h in held {
+    set(g, h.x, h.y, h.z, h.terrain);
+    c = g.cells[key_of(h.x, h.y, h.z)]!;
+    c.thing = h.thing;
+    g.held += [c.key];
+  }
+  for r in it.rooms {
+    if r.w >= 3 && r.h >= 3 { scatter(g, r, words, it.seed); }
+  }
+  out: vector<Fill> = [];
+  for c in g.cells { out += [c]; }
+  out.sort_by(|f| { f.key });
+  out
+}

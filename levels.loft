@@ -28,6 +28,7 @@
 use tile_world;
 use rules;
 use materials;
+use intent;
 
 const CHUNK = 32;
 
@@ -53,7 +54,12 @@ pub struct LevelFile {
   pub start_x: integer,
   pub start_y: integer,
   pub start_z: integer,
-  pub goal: Goal
+  pub goal: Goal,
+  /// What the developer said about the place (rooms and corridors with their words), and the
+  /// cells set by hand that filling it in again keeps (intent::key_of each).  The cells above are
+  /// the place as it is; these are what `editor::refill` works from.
+  pub intent: intent::Intent = intent::no_intent(),
+  pub adjusted: vector<integer> = []
 }
 
 struct LegendChar {
@@ -185,9 +191,16 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     x: num(ga.item(0), 0), y: num(ga.item(1), 0),
     z: if g.has_field("z") { num(g.field("z"), 0) } else { num(ga.item(2), 0) }
   };
+  adjusted: vector<integer> = [];
+  av = v.field("adjusted");
+  for i in 0..av.len() {
+    a = av.item(i);
+    adjusted += [intent::key_of(num(a.item(0), 0), num(a.item(1), 0), num(a.item(2), 0))];
+  }
   LevelFile {
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
-    start_x: sx, start_y: sy, start_z: sz, goal: goal
+    start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
+    adjusted: adjusted
   }
 }
 
@@ -392,6 +405,17 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       out += if first { " " } else { ", " };
       held = if rules::armed_as_kind(l, e) { "" } else if e.item == 0 { ", \"none\"" } else { ", {quoted(rules::thing_name(l.k, e.item))}" };
       out += "[{quoted(e.kind)}, {e.nest_x}, {e.nest_y}, {e.nest_z}{held}]";
+      first = false;
+    }
+    out += " ],";
+  }
+  // The developer's intent and the cells set by hand, when the place has them.
+  if !intent::is_empty(lf.intent) || len(lf.adjusted) > 0 {
+    out += "\n  \"intent\": {intent::intent_json(lf.intent)},\n  \"adjusted\": [";
+    first = true;
+    for a in lf.adjusted {
+      out += if first { " " } else { ", " };
+      out += "[{intent::x_of(a)}, {intent::y_of(a)}, {intent::z_of(a)}]";
       first = false;
     }
     out += " ],";
