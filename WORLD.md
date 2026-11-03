@@ -44,7 +44,9 @@ moment it ends (`until = now + duration`) and is what it is until the clock pass
 
 **Every creature has points it likes to be at, at certain times.**  A point is a place and a
 cell with the hours it is liked ("the smithy's anvil, 7:00 to 12:00"; "the cave's back pool,
-from dusk").  One model serves NPCs and monsters:
+from dusk").  A creature's points repeat over its period: a day for a smith, a week or more for
+a merchant whose trade route crosses the map (crawler's merchants alternate markets day by day,
+`npc_route` in `crawler/src/sim.loft`).  One model serves NPCs and monsters:
 
 - **An NPC's points in time order are its day**: home, the smithy, the inn at noon, the market,
   home.
@@ -65,8 +67,61 @@ river, a way down that needs a torch.  Nothing is tutorialised; the world is lea
 
 **Saving.**  A save is the clock, the hero (place, cell, what is carried), each visited place's
 changes against its file, and each creature the hero held up, with where it stood: everyone
-else's whereabouts follow from the clock.  On the Tanmatsu in its FAT area, in the browser in the page's storage, on a
-desktop beside the game.  The one rollback of DESIGN.md stays.
+else's whereabouts follow from the clock.  On the Tanmatsu in its FAT area, in the browser in
+the page's storage, on a desktop beside the game.  The one rollback of DESIGN.md stays.
+
+## Who can be near the hero
+
+A creature's period can span weeks and the whole map, so "who has a point here" would be nearly
+everyone in a busy world.  The game never looks at a creature that is far away: a table, worked
+out from the data, says who can be where at which hour.
+
+**Regions.**  The world is divided into regions: a building or a dungeon is one region; the land
+outside is cut into blocks of `tile_world` chunks.  The **region graph** holds which regions
+connect (the doors between a building and the land, a bridge, a pass between two blocks) and
+how long crossing each region takes.
+
+**The coverage table.**  For each region and each hour of a period: the creatures that can be in
+that region in that hour, at one of their points or on their way between two.  A creature's
+points and the routes between them are data, so its whole period is known: a merchant crossing
+ten regions in its week is in the table of those ten, each only for the hours it passes.  Its
+hours carry an hour of slack each side, so a path a little longer inside a region changes
+nothing.
+
+**Asking it.**
+
+- **Entering a region** reads that region's entries for the current hour (the clock modulo each
+  creature's period) and works out where each of those creatures is now, from its points and the
+  clock.  Nobody else is looked at.
+- **Arrivals during a visit** come from the next hour or two of entries: each one's moment of
+  reaching this region's edge goes into a small queue by time, and each tick compares the clock
+  with its head.  Leaving the region drops the queue.
+- **The live set** is the hero's region and the regions next to it.  Crossing into a region of
+  the land outside adds its entries and drops the ones left behind, so on a large outdoor area
+  only the creatures in the block around the hero run live.
+- **Creatures off their period** (held up by the hero, or steered by their own state, as
+  crawler's gatherer heads home when its bag is full) are a short list beside the table: where
+  each was last, and since when.  Entering asks it as it asks the table; a creature leaves it
+  when it is back on its points.
+
+**Recalculating it when the world changes.**  The table depends on two things only: the
+creatures' points and the region graph.  A change inside a region (a rock pushed, a chest opened,
+a wall inside a room) leaves it as it is; the rest is recalculated where it reaches:
+
+| Change | What is recalculated |
+|---|---|
+| a link between regions blocked: a door locked, a bridge burnt | the routes that use the link, found from a reverse index (link → routes over it) |
+| a new link: a door unlocked, a wall broken through, a bridge built | the routes that become shorter through it: with the regions' travel times cached (a world has hundreds of regions), each route is one comparison |
+| a creature's points changed: a shop closed, a home moved | that creature |
+| a creature added or removed: born, killed, arrived | that creature's entries |
+| the editor changes points, doors or regions | the same, or the whole table |
+
+The recalculation is a queue worked a few routes a frame, nearest the hero first.  Until a
+creature's new route is in, it keeps its old one, which reads as a creature reacting a moment
+later; near the hero that is a few frames, far away it can be seconds, unseen.
+
+**The table is never saved.**  Loading rebuilds it from the data and each place's saved changes,
+deterministically, so a save stays small and cannot disagree with the world.
 
 ## The two machines
 
@@ -118,17 +173,19 @@ Each step is checked before the next starts; "checked" names what goes red.
    entering a place; a held-up creature going on from where it stands.  Checked by asking the
    same moment twice and across a save and reload: the same answers; and by the hero following a
    creature through a door and finding it on its way.
-3. **Creatures' points.**  Points with hours, walked between along the door graph, arriving on
-   time; several points for the same hours chosen by seed.  Checked by a scripted day: each NPC
-   at its points at their hours, each monster at one of its points for the hour, never outside
-   them unless drawn out.
+3. **Creatures' points and who can be near the hero.**  Points with hours over a period, walked
+   between along the door graph, arriving on time; regions, the region graph and the coverage
+   table; arrivals during a visit; the list of creatures off their period; recalculation when the
+   world changes.  Checked by a scripted period: each NPC at its points at their hours, each
+   monster at one of its points for the hour; by entering a region and finding exactly the
+   creatures a search over every creature finds there; and by any run of random world changes
+   leaving the recalculated table equal to one built from scratch.
 4. **The world from what exists.**  The five levels stitched together through a stretch of land
    outside (Kenney's Tiny Town and Tiny Farm sheets), each with a second way out.  Checked by
    walking the whole world in a scripted run, and by the editor's checks finding no door to
    nowhere.
 5. **Saves.**  The clock, the hero, each visited place's changes and the creatures held up,
-   written and read back.  Checked by a
-   save, a restart and the same state.
+   written and read back.  Checked by a save, a restart and the same state.
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
    decoded at a time.  Checked on the device with the timing log: frame time, the time a door
    takes, the PSRAM a place takes.
@@ -136,8 +193,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
 8. **The editor in the page.**  The mouse in the place editor first, then doors, creatures'
-   points, materials, kinds, sounds and the start; export and import.  Checked by an edit made in the page, exported, and
-   played on the Tanmatsu.
+   points, materials, kinds, sounds and the start; export and import.  Checked by an edit made
+   in the page, exported, and played on the Tanmatsu.
 9. **Fun.**  Not last in time: every step above is played, and what is not fun is changed.  The
    measure is DESIGN.md's: familiar pictures, rules that surprise a player who knows the genre,
    fair and readable, hurt rarely killed.
