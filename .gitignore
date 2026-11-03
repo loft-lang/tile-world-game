@@ -8,3 +8,5 @@ target/
 *.shot.png
 .check.log
 .loft/
+# The web page ./play-web.sh builds
+/build/
