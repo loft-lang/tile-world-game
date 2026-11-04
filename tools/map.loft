@@ -1,0 +1,72 @@
+// A picture of a whole place: every layer, in full light, as the game draws it, stitched from
+// views into one PNG — how the drawing kit's shapes (intent.loft) are checked by eye.
+//
+//   loft --lib libs tools/map.loft PLACE OUT.png [SCALE]
+//
+// PLACE is a file in levels/ (without `.json`); SCALE, the picture's pixels per pixel (2).
+use tile_world;
+use tiles;
+use imaging;
+use camera;
+use game;
+
+fn main() {
+  args = arguments();
+  place = args[0] ?? "";
+  out = args[1] ?? "map.png";
+  scale = (args[2] ?? "2") as integer ?? 2;
+  if place == "" {
+    println("usage: loft --lib libs tools/map.loft PLACE OUT.png [SCALE]");
+    exit(1);
+  }
+  m = game::new_game("..");
+  if !m { println("the game does not load"); exit(1); }
+  g = m;
+  if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
+  b = camera::bounds(g.world.w);
+  top = 0;
+  for z in tile_world::layers(g.world.w) { if z > top { top = z; } }
+  ts = g.look.tile_size;
+  cols = game::COLS;
+  rows = game::ROWS - 1;
+  // The cells to show: the place, and a row per layer above it, where raised layers are drawn.
+  x0 = b.0;
+  y0 = b.1 - top;
+  wide = b.2 - b.0 + 1;
+  high = b.3 - y0 + 1;
+  pw = wide * ts;
+  ph = high * ts;
+  px: vector<i32> = [];
+  for _ in 0..pw * ph { px += [0]; }
+  vy = 0;
+  while vy < high {
+    vx = 0;
+    while vx < wide {
+      game::draw_map(g, x0 + vx, y0 + vy);
+      frame = tiles::pixels(g.surface, game::W, game::H);
+      for y in 0..rows * ts {
+        for x in 0..cols * ts {
+          mx = vx * ts + x;
+          my = vy * ts + y;
+          if mx < pw && my < ph { px[my * pw + mx] = frame[y * game::W + x] ?? 0; }
+        }
+      }
+      vx += cols;
+    }
+    vy += rows;
+  }
+  img = imaging::Image { name: place, width: pw * scale, height: ph * scale, data: [] };
+  for y in 0..ph * scale {
+    for x in 0..pw * scale {
+      c = px[((y / scale) ?? 0) * pw + ((x / scale) ?? 0)] ?? 0;
+      img.data += [imaging::Pixel {
+        r: ((((c >> 11) & 31) * 255 / 31) ?? 0) & 255,
+        g: ((((c >> 5) & 63) * 255 / 63) ?? 0) & 255,
+        b: (((c & 31) * 255 / 31) ?? 0) & 255,
+        a: 255
+      }];
+    }
+  }
+  if !img.save_png(out) { println("could not write {out}"); exit(1); }
+  println("{out}: {place}, {wide} by {high} cells");
+}

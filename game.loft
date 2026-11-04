@@ -1831,6 +1831,22 @@ pub fn draw_editor(g: Game) {
   write(g, status, 0, (rows + 1) * ts);
 }
 
+/// Draw the place being played as a map with its view's top-left at cell (cam_x, cam_y): every
+/// layer from the lowest up, in full light, the upper ones only where they are set — what the
+/// map tool (tools/map.loft) stitches into a picture of a whole place.
+pub fn draw_map(g: Game, cam_x: integer, cam_y: integer) {
+  g.cam_x = cam_x;
+  g.cam_y = cam_y;
+  tiles::clear(g.surface, 0);
+  zs = tile_world::layers(g.world.w);
+  zs.sort();
+  first = true;
+  for z in zs {
+    draw_layer(g, g.world, z, false, !first, false, 0);
+    first = false;
+  }
+}
+
 /// Write the frame as it is now to a PNG at `path`, scaled by `scale` — a picture of the game
 /// for a machine with no screen.
 pub fn snapshot(g: Game, path: text, scale: integer) -> boolean {

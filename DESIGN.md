@@ -464,7 +464,10 @@ on water, and things pushed or blown into it are lost.
   player plans with care which beams to take.  Most beams just lie on the ground, put there for the
   builder miners; but there are too few of those if the accidental barricade is burned, and then
   the ones with an active function are needed (owner, 2026-11-04).  So a beam lying loose is safe
-  to take and a beam standing in its place holds something up: the difference is on screen.
+  to take and a beam standing in its place holds something up: the difference is on screen.  The
+  risk is in the planning (owner, 2026-11-04): a caved-in tunnel no longer gives ready access to
+  where it led.  Proposed: the collapse fills it with rubble (rocks touching), so the way can still
+  be cleared with the pick and a cart, at a cost in time, never a dead end.
 
 The player lights the dungeon.  Built (`tests/torches.loft`, and `the torch room`, the third
 level, played to its goal in `tests/levels.loft`) except the enemies' part, which waits for the

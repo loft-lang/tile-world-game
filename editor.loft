@@ -286,17 +286,60 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     top = if len(c.stack) > 0 { rules::thing_name(k, c.stack[0] ?? 0) } else { "" };
     held += [intent::Fill { key: h, x: x, y: y, z: z, terrain: if c.set { rules::terrain_name(k, c.kind) } else { "" }, thing: top }];
   }
-  changes: vector<Change> = [];
+  // What to set: each derived cell whose terrain, things or rise differ.  A terrain may name a
+  // material (grass, roof, …): painted as the editor paints one, its neighbours retiled.
+  todo: vector<intent::Fill> = [];
   for f in intent::derive(lf.intent, words, held) {
     if hand.contains(f.key) { continue; }
     was = cell_of(w, f.x, f.y, f.z);
-    kind = rules::terrain_id(k, f.terrain);
+    mi = materials::named(ed.mats, f.terrain);
+    kind = if mi >= 0 { (ed.mats.list[mi] ?? materials::none_material()).kind } else { rules::terrain_id(k, f.terrain) };
     stack: vector<integer> = [];
     if f.thing != "" { stack += [rules::thing_id(k, f.thing)]; }
-    if was.set && was.kind == kind && was.stack == stack { continue; }
-    now = Cell { set: true, kind: kind, tile: 0, stack: stack, rise: was.rise };
-    put_cell(w, f.x, f.y, f.z, now);
-    changes += [Change { x: f.x, y: f.y, z: f.z, was: was, now: now }];
+    for t in f.more { stack += [rules::thing_id(k, t)]; }
+    same_terrain = if mi >= 0 { materials::at(ed.mats, w, f.x, f.y, f.z) == mi } else { was.kind == kind && was.tile == 0 };
+    rise = if f.rise >= 0 { f.rise } else { was.rise };
+    if was.set && same_terrain && was.stack == stack && was.rise == rise { continue; }
+    todo += [f];
+  }
+  if len(todo) == 0 { return false; }
+  // Every cell the fill can change — its cells and, for a material, the ring round each — as it
+  // was, so undo takes the whole fill back.
+  spots: vector<integer> = [];
+  for f in todo {
+    for dy in -1..=1 {
+      for dx in -1..=1 {
+        sk = intent::key_of(f.x + dx, f.y + dy, f.z);
+        if !spots.contains(sk) { spots += [sk]; }
+      }
+    }
+  }
+  before: vector<Cell> = [];
+  for sk in spots { before += [cell_of(w, intent::x_of(sk), intent::y_of(sk), intent::z_of(sk))]; }
+  // Kinds and things first, then the materials' pictures, which follow their neighbours.
+  for f in todo {
+    was = cell_of(w, f.x, f.y, f.z);
+    mi = materials::named(ed.mats, f.terrain);
+    kind = if mi >= 0 { (ed.mats.list[mi] ?? materials::none_material()).kind } else { rules::terrain_id(k, f.terrain) };
+    stack: vector<integer> = [];
+    if f.thing != "" { stack += [rules::thing_id(k, f.thing)]; }
+    for t in f.more { stack += [rules::thing_id(k, t)]; }
+    put_cell(w, f.x, f.y, f.z, Cell { set: true, kind: kind, tile: 0, stack: stack,
+                                     rise: if f.rise >= 0 { f.rise } else { was.rise } });
+  }
+  for f in todo {
+    mi = materials::named(ed.mats, f.terrain);
+    if mi >= 0 { materials::paint(ed.mats, w, mi, f.x, f.y, f.z); } else { materials::retile(ed.mats, w, f.x, f.y, f.z); }
+  }
+  changes: vector<Change> = [];
+  for i in 0..len(spots) {
+    sk = spots[i] ?? continue;
+    x = intent::x_of(sk);
+    y = intent::y_of(sk);
+    z = intent::z_of(sk);
+    was = before[i] ?? no_cell();
+    now = cell_of(w, x, y, z);
+    if was != now { changes += [Change { x: x, y: y, z: z, was: was, now: now }]; }
   }
   if len(changes) == 0 { return false; }
   keep(ed, Edit {

@@ -130,6 +130,12 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   reach; the item rulings (the open shaft, the sack in the rope's slot, rubble as touching rocks,
   crystal sizes that do not mix, no fire spreading but a tar barrel and the accidental barricade
   that a pick turns into 2 beams, standing beams that collapse a tunnel).
+  Built since (BUILD.md A0): the drawing kit (intent.loft shapes: ground, trails, blobs, rooms,
+  corridors, houses, slopes, items; editor refill paints materials and rises), tools/fill.loft and
+  tools/map.loft; the test world's seven new rooms drawn with it and a street for them in the demo
+  village (12 houses).  Kit bugs found by drawing them and fixed: rails split a room's free floor
+  (no rubble placed), a door drawn into a wall was not kept clear, trails before rooms walled a
+  tunnel's mouth.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

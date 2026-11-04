@@ -1,0 +1,32 @@
+// Fill a place in from its intent and save it: what the editor's FILL does, from the command line,
+// so a place drawn with the drawing kit's shapes (intent.loft) is written as cells.
+//
+//   loft --lib libs tools/fill.loft PLACE
+//
+// PLACE is a file in levels/ (without `.json`).  The cells set by hand stay as they are.
+use rules;
+use materials;
+use levels;
+use intent;
+use editor;
+
+fn main() {
+  args = arguments();
+  place = args[0] ?? "";
+  if place == "" {
+    println("usage: loft --lib libs tools/fill.loft PLACE");
+    exit(1);
+  }
+  path = "../levels/{place}.json";
+  theme_text = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme_text, k);
+  m = levels::load_with(file(path).content() ?? "", k, mats);
+  if !m { println("{path} does not load"); exit(1); }
+  lf = m ?? return;
+  ed = editor::new_editor_with(lf, mats);
+  changed = editor::refill(ed, lf, intent::words_from(theme_text));
+  lf.adjusted = editor::adjusted(ed, lf);
+  if !file(path).write(levels::save_with(lf, mats)).ok() { println("could not write {path}"); exit(1); }
+  println(if changed { "{place}: filled in" } else { "{place}: already as its intent says" });
+}

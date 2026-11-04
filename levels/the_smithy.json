@@ -1,0 +1,52 @@
+{
+  "name": "the smithy",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "###########",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#####d#####"
+    ] }
+  ],
+  "things": [
+    { "at": [8, 0, 0], "stack": ["socket", "burning_torch"] },
+    { "at": [1, 1, 0], "stack": ["table"] },
+    { "at": [3, 1, 0], "stack": ["table"] },
+    { "at": [5, 1, 0], "stack": ["chair"] },
+    { "at": [6, 1, 0], "stack": ["table"] },
+    { "at": [7, 1, 0], "stack": ["chair"] },
+    { "at": [8, 1, 0], "stack": ["table"] },
+    { "at": [1, 2, 0], "stack": ["table"] },
+    { "at": [1, 3, 0], "stack": ["chair"] },
+    { "at": [5, 3, 0], "stack": ["anvil"] },
+    { "at": [1, 4, 0], "stack": ["chair"] },
+    { "at": [9, 4, 0], "stack": ["chair"] },
+    { "at": [1, 6, 0], "stack": ["table"] },
+    { "at": [2, 6, 0], "stack": ["chair"] },
+    { "at": [4, 6, 0], "stack": ["table"] },
+    { "at": [6, 6, 0], "stack": ["table"] },
+    { "at": [8, 6, 0], "stack": ["chair"] },
+    { "at": [9, 6, 0], "stack": ["table"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "intent": { "seed": 9, "rooms": [
+    { "x": 0, "y": 0, "w": 11, "h": 8, "z": 0, "words": ["furnished"] } ], "corridors": [ ], "trails": [
+    { "points": [[5, 7]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [5, 3], "z": 0, "stack": ["anvil"] },
+    { "at": [8, 0], "z": 0, "stack": ["socket", "burning_torch"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [5, 7, 0], "to": "demo", "door": "the_smithy" }
+  ],
+  "start": [5, 6, 0],
+  "goal": { "type": "" }
+}

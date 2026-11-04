@@ -32,6 +32,15 @@ is built yet.
 
 Small editor steps that every later place needs; none changes the rules.
 
+- **A0. The drawing kit — built (2026-11-04).**  Shapes a place file's intent holds and the game
+  fills in (intent.loft): ground, trails (paths, brooks, tunnels with a rim), blobs (caves, ponds,
+  groves scattering trees), rooms and corridors, houses, slopes, items; `tools/fill.loft` fills a
+  place in, `tools/map.loft` pictures it whole.  The test world's seven new rooms are drawn with
+  it (the armoury, the workings, the lift, the flooded hall, the lake, the smithy, the garden), a
+  street of houses for them in the demo village.  Red: `tests/kit.loft` (a house's door, the
+  slope onto a ledge, the ford, the grove's trees, the ramp between galleries, items, a tunnel's
+  doorway and rubble kept off the rails).
+
 - **A1. Figures in the editor.**  Place and remove enemies and people (the kinds in kinds.json)
   from the palette, saved in the place file's `enemies`.  Red: `tests/editor.loft`, a figure placed,
   saved and loaded back.

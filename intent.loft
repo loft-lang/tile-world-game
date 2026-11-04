@@ -10,6 +10,15 @@
 // two.  The same intent answers the same cells everywhere: integer arithmetic only, and the
 // scatter order a hash of the seed and the cell.
 //
+// Outside and in the mine, the same holds for more shapes (the drawing kit): ground (a rectangle of
+// one material), a trail (a path, a brook, a winding tunnel), a blob (a cave, a pond, a grove), a
+// house (roof, walls and its door) and a slope (three cells rising to the layer above).  A shape's
+// `what` names a material (theme.json's: grass, path, lake, roof, …) or a terrain kind (floor,
+// wall, water, …); the editor tells them apart when it fills them in.  The shapes are filled in
+// in this order — ground, blobs, rooms, trails, corridors, houses, slopes — so a later one wins
+// where they meet: a path through a grove, a house on the grass; and a tunnel (a trail with a rim)
+// opens a doorway where it meets a cave's or a room's wall.
+//
 // Applying the cells, and the cells set by hand that a fill keeps, is the editor's (editor.loft).
 
 /// A room: the outline from (x, y), `w` by `h` cells with its walls, on layer z, and its words.
@@ -31,10 +40,97 @@ pub struct Corridor {
   pub z: integer
 }
 
+/// A point on a trail.
+pub struct Point {
+  pub x: integer,
+  pub y: integer
+}
+
+/// Ground: the rectangle from (x, y), `w` by `h` cells on layer z, all `what`.
+pub struct Ground {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub what: text
+}
+
+/// A trail through its points in order, each leg along x first and then along y, `width` cells
+/// wide, of `what`; with a `rim`, a wall of that beside it where nothing is yet (a tunnel), and a
+/// doorway where it crosses a wall.
+pub struct Trail {
+  pub points: vector<Point>,
+  pub z: integer,
+  pub what: text,
+  pub width: integer,
+  pub rim: text
+}
+
+/// A terrain (a material or kind) a blob scatters over its cells, so many in every hundred.
+pub struct Scatter {
+  pub what: text,
+  pub per_100: integer
+}
+
+/// A blob: an irregular round shape within (x, y) `w` by `h` on layer z, of `what`, its edge
+/// ragged by the seed; with a `rim`, a ring of that round it (a cave's wall); `scatter` sets some
+/// of its cells to another terrain (the trees of a grove).
+pub struct Blob {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub what: text,
+  pub rim: text,
+  pub scatter: vector<Scatter>
+}
+
+/// A house as seen from outside: `w` by `h` from (x, y) on layer z, its rows of `roof` and its
+/// bottom row of `wall`, with its door (of `door`) in the bottom row at `door_at` cells from its
+/// west side (-1: the middle).  The cell in front of the door is kept free.
+pub struct House {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub roof: text,
+  pub wall: text,
+  pub door: text,
+  pub door_at: integer
+}
+
+/// A slope: three cells from (x, y) on layer z, stepping (dx, dy), rising 1, 2 and 3 steps, so the
+/// cell after them is the layer above's.  Their terrain stays what it is.
+pub struct Slope {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub dx: integer,
+  pub dy: integer
+}
+
+/// An item: the things stacked on cell (x, y) of layer z, bottom first (a socket and the torch in
+/// it); the cell's terrain stays what the shapes make it, and nothing is scattered there.
+pub struct Item {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub stack: vector<text>
+}
+
 pub struct Intent {
   pub seed: integer,
   pub rooms: vector<Room>,
-  pub corridors: vector<Corridor>
+  pub corridors: vector<Corridor>,
+  pub grounds: vector<Ground> = [],
+  pub trails: vector<Trail> = [],
+  pub blobs: vector<Blob> = [],
+  pub houses: vector<House> = [],
+  pub slopes: vector<Slope> = [],
+  pub items: vector<Item> = []
 }
 
 /// A word a room can take: the things it scatters (picked in turn by the hash), how many for
@@ -46,14 +142,18 @@ pub struct Word {
   pub along_walls: boolean
 }
 
-/// A cell the intent implies: its terrain kind's name, and the thing on it ("" for none).
+/// A cell the intent implies: its terrain (a kind's or a material's name), the thing on it ("" for
+/// none), and its rise (-1: left as it is).
 pub struct Fill {
   pub key: integer,
   pub x: integer,
   pub y: integer,
   pub z: integer,
   pub terrain: text,
-  pub thing: text
+  pub thing: text,
+  pub rise: integer = -1,
+  /// Things stacked on `thing`, bottom first (an item's).
+  pub more: vector<text> = []
 }
 
 pub fn no_intent() -> Intent {
@@ -62,7 +162,21 @@ pub fn no_intent() -> Intent {
 
 /// Does the intent say anything?
 pub fn is_empty(it: const Intent) -> boolean {
-  len(it.rooms) == 0 && len(it.corridors) == 0
+  len(it.rooms) == 0 && len(it.corridors) == 0 && len(it.grounds) == 0 && len(it.trails) == 0
+    && len(it.blobs) == 0 && len(it.houses) == 0 && len(it.slopes) == 0 && len(it.items) == 0
+}
+
+fn text_of(v: const JsonValue, default: text) -> text {
+  if v.kind() == "JString" { v.as_text() } else { default }
+}
+
+// A side's step: "N" (0, -1), "E" (1, 0), "S" (0, 1), "W" (-1, 0).
+fn step_of(side: text) -> (integer, integer) {
+  if side == "N" { (0, -1) } else if side == "E" { (1, 0) } else if side == "S" { (0, 1) } else { (-1, 0) }
+}
+
+fn side_of(dx: integer, dy: integer) -> text {
+  if dy < 0 { "N" } else if dx > 0 { "E" } else if dy > 0 { "S" } else { "W" }
 }
 
 fn int_of(v: const JsonValue, default: integer) -> integer {
@@ -91,6 +205,61 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     it.corridors += [Corridor { x0: int_of(a.item(0), 0), y0: int_of(a.item(1), 0), x1: int_of(b.item(0), 0),
                                 y1: int_of(b.item(1), 0), z: int_of(c.field("z"), 0) }];
   }
+  gs = v.field("grounds");
+  for i in 0..gs.len() {
+    e = gs.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    it.grounds += [Ground { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1),
+                            h: int_of(sz.item(1), 1), z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor") }];
+  }
+  ts = v.field("trails");
+  for i in 0..ts.len() {
+    e = ts.item(i);
+    pts: vector<Point> = [];
+    pv = e.field("points");
+    for j in 0..pv.len() { pts += [Point { x: int_of(pv.item(j).item(0), 0), y: int_of(pv.item(j).item(1), 0) }]; }
+    it.trails += [Trail { points: pts, z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor"),
+                          width: int_of(e.field("width"), 1), rim: text_of(e.field("rim"), "") }];
+  }
+  bs = v.field("blobs");
+  for i in 0..bs.len() {
+    e = bs.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    sc: vector<Scatter> = [];
+    sv = e.field("scatter");
+    for what in sv.keys() { sc += [Scatter { what: what, per_100: int_of(sv.field(what), 0) }]; }
+    it.blobs += [Blob { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 3), h: int_of(sz.item(1), 3),
+                        z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor"), rim: text_of(e.field("rim"), ""),
+                        scatter: sc }];
+  }
+  hs = v.field("houses");
+  for i in 0..hs.len() {
+    e = hs.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    it.houses += [House { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 4), h: int_of(sz.item(1), 3),
+                          z: int_of(e.field("z"), 0), roof: text_of(e.field("roof"), "roof"),
+                          wall: text_of(e.field("wall"), "wood_wall"), door: text_of(e.field("door"), "house_door"),
+                          door_at: int_of(e.field("door_at"), -1) }];
+  }
+  ss = v.field("slopes");
+  for i in 0..ss.len() {
+    e = ss.item(i);
+    at = e.field("at");
+    st = step_of(text_of(e.field("up"), "N"));
+    it.slopes += [Slope { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), z: int_of(e.field("z"), 0), dx: st.0, dy: st.1 }];
+  }
+  ims = v.field("items");
+  for i in 0..ims.len() {
+    e = ims.item(i);
+    at = e.field("at");
+    things: vector<text> = [];
+    sv = e.field("stack");
+    for j in 0..sv.len() { things += [sv.item(j).as_text()]; }
+    it.items += [Item { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), z: int_of(e.field("z"), 0), stack: things }];
+  }
   it
 }
 
@@ -116,7 +285,84 @@ pub fn intent_json(it: const Intent) -> text {
     out += "    {{ \"from\": [{c.x0}, {c.y0}], \"to\": [{c.x1}, {c.y1}], \"z\": {c.z} }}";
     first = false;
   }
-  out + " ] }}"
+  out += " ]";
+  if len(it.grounds) > 0 {
+    out += ", \"grounds\": [";
+    first = true;
+    for g in it.grounds {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{g.x}, {g.y}], \"size\": [{g.w}, {g.h}], \"z\": {g.z}, \"as\": {quote(g.what)} }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.trails) > 0 {
+    out += ", \"trails\": [";
+    first = true;
+    for t in it.trails {
+      ps = "";
+      for p in t.points { ps += if ps == "" { "[{p.x}, {p.y}]" } else { ", [{p.x}, {p.y}]" }; }
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"points\": [{ps}], \"z\": {t.z}, \"as\": {quote(t.what)}";
+      if t.width != 1 { out += ", \"width\": {t.width}"; }
+      if t.rim != "" { out += ", \"rim\": {quote(t.rim)}"; }
+      out += " }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.blobs) > 0 {
+    out += ", \"blobs\": [";
+    first = true;
+    for b in it.blobs {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{b.x}, {b.y}], \"size\": [{b.w}, {b.h}], \"z\": {b.z}, \"as\": {quote(b.what)}";
+      if b.rim != "" { out += ", \"rim\": {quote(b.rim)}"; }
+      if len(b.scatter) > 0 {
+        sc = "";
+        for e in b.scatter { sc += if sc == "" { "{quote(e.what)}: {e.per_100}" } else { ", {quote(e.what)}: {e.per_100}" }; }
+        out += ", \"scatter\": {{ {sc} }}";
+      }
+      out += " }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.houses) > 0 {
+    out += ", \"houses\": [";
+    first = true;
+    for h in it.houses {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{h.x}, {h.y}], \"size\": [{h.w}, {h.h}], \"z\": {h.z}, \"roof\": {quote(h.roof)}, \"wall\": {quote(h.wall)}, \"door\": {quote(h.door)}";
+      if h.door_at >= 0 { out += ", \"door_at\": {h.door_at}"; }
+      out += " }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.slopes) > 0 {
+    out += ", \"slopes\": [";
+    first = true;
+    for sl in it.slopes {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{sl.x}, {sl.y}], \"z\": {sl.z}, \"up\": {quote(side_of(sl.dx, sl.dy))} }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.items) > 0 {
+    out += ", \"items\": [";
+    first = true;
+    for im in it.items {
+      st = "";
+      for t in im.stack { st += if st == "" { quote(t) } else { ", " + quote(t) }; }
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{im.x}, {im.y}], \"z\": {im.z}, \"stack\": [{st}] }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  out + " }}"
 }
 
 /// A cell's key: one integer for (x, y, z), ordered by layer, then row, then column.
@@ -172,7 +418,10 @@ struct Candidate {
 struct Grid {
   cells: hash<Fill[key]>,
   doors: vector<integer>,
-  held: vector<integer>
+  held: vector<integer>,
+  /// The cells a blob scattered a terrain on, with the blob's own terrain: what a house's door
+  /// front is cleared back to.
+  bases: hash<Fill[key]> = []
 }
 
 fn set(g: Grid, x: integer, y: integer, z: integer, terrain: text) {
@@ -213,6 +462,16 @@ fn path(c: const Corridor) -> vector<(integer, integer)> {
   out
 }
 
+// The terrains a room's free floor is made of: walked on, nothing stopping a step.  Rails count,
+// so a track through a room does not cut its floor in two.
+const OPEN = "floor rail open_door grass path";
+// The terrains a doorway is drawn with: one in a room's outline is kept clear inside.
+const DOORWAYS = "open_door door house_door stone_door";
+
+fn open_ground(t: text) -> boolean {
+  OPEN.split(' ').contains(t)
+}
+
 // Is the room's free floor — its inside with no thing on it — one piece, reaching every doorway's
 // inner cell?
 fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boolean {
@@ -220,7 +479,7 @@ fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boole
   for y in r.y + 1..r.y + r.h - 1 {
     for x in r.x + 1..r.x + r.w - 1 {
       c = g.cells[key_of(x, y, r.z)];
-      if c && c.terrain == "floor" && c.thing == "" { free += [key_of(x, y, r.z)]; }
+      if c && open_ground(c.terrain) && c.thing == "" { free += [key_of(x, y, r.z)]; }
     }
   }
   if len(free) == 0 { return true; }
@@ -240,7 +499,7 @@ fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boole
       nk = key_of(nx, ny, r.z);
       if seen[nk] { continue; }
       n = g.cells[nk];
-      if !n || n.terrain != "floor" || n.thing != "" { continue; }
+      if !n || !open_ground(n.terrain) || n.thing != "" { continue; }
       seen += [Fill { key: nk, x: nx, y: ny, z: r.z, terrain: "", thing: "" }];
       todo += [nk];
       reached += 1;
@@ -255,7 +514,15 @@ fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boole
 fn scatter(g: Grid, r: const Room, words: const vector<Word>, seed: integer) {
   // The doorways in this room's outline, and the inside cell each opens onto: kept free.
   keep: vector<integer> = [];
-  for dk in g.doors {
+  doorways: vector<integer> = [];
+  for dk in g.doors { doorways += [dk]; }
+  for y in r.y..r.y + r.h {
+    for x in r.x..r.x + r.w {
+      if !on_outline(r, x, y) { continue; }
+      if DOORWAYS.split(' ').contains(terrain_at(g, x, y, r.z)) { doorways += [key_of(x, y, r.z)]; }
+    }
+  }
+  for dk in doorways {
     d = g.cells[dk]!;
     if d.z != r.z || !on_outline(r, d.x, d.y) { continue; }
     for o in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
@@ -294,11 +561,115 @@ fn scatter(g: Grid, r: const Room, words: const vector<Word>, seed: integer) {
   }
 }
 
+// A trail's cells, in order: each leg from one point to the next along x first, then along y.
+fn trail_path(t: const Trail) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  for i in 0..len(t.points) {
+    p = t.points[i] ?? continue;
+    if i == 0 { out += [(p.x, p.y)]; continue; }
+    q = t.points[i - 1] ?? continue;
+    for c in path(Corridor { x0: q.x, y0: q.y, x1: p.x, y1: p.y, z: t.z }) {
+      if c.0 != q.x || c.1 != q.y { out += [c]; }
+    }
+  }
+  out
+}
+
+// Is (x, y) inside blob b: within its ellipse, the edge band ragged by the seed?
+fn in_blob(b: const Blob, x: integer, y: integer, seed: integer) -> boolean {
+  if x < b.x || y < b.y || x >= b.x + b.w || y >= b.y + b.h { return false; }
+  ax = 2 * (x - b.x) - (b.w - 1);
+  ay = 2 * (y - b.y) - (b.h - 1);
+  d = ax * ax * b.h * b.h + ay * ay * b.w * b.w;
+  r = b.w * b.h;
+  edge = 78 + (mix(seed, x, y, b.z, 77) % 30)!;
+  d * 100 <= r * r * edge
+}
+
+fn add_blob(g: Grid, b: const Blob, seed: integer) {
+  cells: vector<(integer, integer)> = [];
+  for y in b.y..b.y + b.h {
+    for x in b.x..b.x + b.w {
+      if in_blob(b, x, y, seed) { cells += [(x, y)]; }
+    }
+  }
+  for c in cells { set(g, c.0, c.1, b.z, b.what); }
+  if b.rim != "" {
+    for c in cells {
+      for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        if terrain_at(g, c.0 + d.0, c.1 + d.1, b.z) == "" { set(g, c.0 + d.0, c.1 + d.1, b.z, b.rim); }
+      }
+    }
+  }
+  for si in 0..len(b.scatter) {
+    e = b.scatter[si] ?? continue;
+    for c in cells {
+      if (mix(seed, c.0, c.1, b.z, 200 + si) % 100)! < e.per_100 && terrain_at(g, c.0, c.1, b.z) == b.what {
+        set(g, c.0, c.1, b.z, e.what);
+        k = key_of(c.0, c.1, b.z);
+        if !g.bases[k] { g.bases += [Fill { key: k, x: c.0, y: c.1, z: b.z, terrain: b.what, thing: "" }]; }
+      }
+    }
+  }
+}
+
+fn add_trail(g: Grid, t: const Trail) {
+  w = if t.width < 1 { 1 } else { t.width };
+  cells: vector<(integer, integer)> = [];
+  for p in trail_path(t) {
+    for j in 0..w {
+      for i in 0..w { cells += [(p.0 + i, p.1 + j)]; }
+    }
+  }
+  for c in cells {
+    at = terrain_at(g, c.0, c.1, t.z);
+    if t.rim != "" && (at == "wall" || at == t.rim) { g.doors += [key_of(c.0, c.1, t.z)]; }
+    set(g, c.0, c.1, t.z, t.what);
+  }
+  if t.rim != "" {
+    for c in cells {
+      for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        if terrain_at(g, c.0 + d.0, c.1 + d.1, t.z) == "" { set(g, c.0 + d.0, c.1 + d.1, t.z, t.rim); }
+      }
+    }
+  }
+}
+
+fn add_house(g: Grid, h: const House) {
+  if h.w < 2 || h.h < 2 { return; }
+  for y in h.y..h.y + h.h {
+    for x in h.x..h.x + h.w { set(g, x, y, h.z, if y < h.y + h.h - 1 { h.roof } else { h.wall }); }
+  }
+  dx = if h.door_at >= 0 && h.door_at < h.w { h.door_at } else { h.w / 2 ?? 0 };
+  set(g, h.x + dx, h.y + h.h - 1, h.z, h.door);
+  // The cell in front of the door: back to the ground a blob scattered a tree on.
+  fk = key_of(h.x + dx, h.y + h.h, h.z);
+  b = g.bases[fk];
+  if b { set(g, h.x + dx, h.y + h.h, h.z, b.terrain); }
+}
+
+fn add_slope(g: Grid, sl: const Slope) {
+  for i in 0..3 {
+    x = sl.x + i * sl.dx;
+    y = sl.y + i * sl.dy;
+    at = terrain_at(g, x, y, sl.z);
+    set(g, x, y, sl.z, if at == "" { "floor" } else { at });
+    c = g.cells[key_of(x, y, sl.z)]!;
+    c.rise = i + 1;
+  }
+}
+
 /// Every cell intent `it` implies, ordered by layer, row and column.  `held` are cells set by
 /// hand, as they are: they stand where they are before anything is scattered, nothing is scattered
 /// on them, and the free floor that must stay one piece is counted with them in place.
 pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fill> = []) -> vector<Fill> {
   g = Grid { cells: [], doors: [], held: [] };
+  for gr in it.grounds {
+    for y in gr.y..gr.y + gr.h {
+      for x in gr.x..gr.x + gr.w { set(g, x, y, gr.z, gr.what); }
+    }
+  }
+  for b in it.blobs { add_blob(g, b, it.seed); }
   // Rooms: the outline wall, the inside floor; an inside wins over an earlier room's wall, so
   // rooms drawn against each other open into one.
   for r in it.rooms {
@@ -310,6 +681,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
       }
     }
   }
+  for t in it.trails { add_trail(g, t); }
   // Corridors: floor along the way, a wall beside it where there is nothing yet, and a doorway
   // where it crosses a wall.
   for c in it.corridors {
@@ -322,6 +694,15 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
         if terrain_at(g, p.0 + d.0, p.1 + d.1, c.z) == "" { set(g, p.0 + d.0, p.1 + d.1, c.z, "wall"); }
       }
     }
+  }
+  for hs in it.houses { add_house(g, hs); }
+  for sl in it.slopes { add_slope(g, sl); }
+  for im in it.items {
+    at = terrain_at(g, im.x, im.y, im.z);
+    set(g, im.x, im.y, im.z, if at == "" { "floor" } else { at });
+    c = g.cells[key_of(im.x, im.y, im.z)]!;
+    c.thing = im.stack[0] ?? "";
+    c.more = if len(im.stack) > 1 { im.stack[1..len(im.stack)] } else { [] };
   }
   for h in held {
     set(g, h.x, h.y, h.z, h.terrain);

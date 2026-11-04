@@ -1,0 +1,45 @@
+{
+  "name": "the armoury",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "#############",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "######d######"
+    ] }
+  ],
+  "things": [
+    { "at": [3, 2, 0], "stack": ["sword"] },
+    { "at": [6, 2, 0], "stack": ["axe"] },
+    { "at": [9, 2, 0], "stack": ["burning_torch"] },
+    { "at": [10, 6, 0], "stack": ["stick"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["bat", 4, 5, 0], ["bat", 8, 5, 0], ["rat", 11, 1, 0] ],
+  "intent": { "seed": 3, "rooms": [
+    { "x": 0, "y": 0, "w": 13, "h": 9, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[6, 8]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [3, 2], "z": 0, "stack": ["sword"] },
+    { "at": [6, 2], "z": 0, "stack": ["axe"] },
+    { "at": [9, 2], "z": 0, "stack": ["burning_torch"] },
+    { "at": [10, 6], "z": 0, "stack": ["stick"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [6, 8, 0], "to": "demo", "door": "the_armoury" }
+  ],
+  "labels": [
+    { "at": [6, 4, 0], "text": "SPACE SWING" }
+  ],
+  "start": [6, 7, 0],
+  "goal": { "type": "" }
+}

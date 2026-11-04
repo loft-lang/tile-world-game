@@ -157,7 +157,8 @@ is not.
   picture, the flotilla's wood.  More beams stand in the tunnels, some holding a tunnel up: taken
   out with a pick, they collapse it (owner), so which beams to take needs planning.  Most beams lie
   on the ground for the builder miners, but too few if the barricade is burned: then the standing
-  ones are needed (owner).
+  ones are needed (owner).  The risk is in the planning: a caved-in tunnel no longer gives ready
+  access (owner).
 - **Chests ◇:** behind rubble only a cart can clear; one at the far end of a track, reached by
   riding a cart there.  The fallen adventurer's body lies below a broken walkway (owner).
 

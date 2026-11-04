@@ -1,0 +1,124 @@
+// The drawing kit (intent.loft's shapes), filled in on the garden (levels/the_garden.json): the
+// cells each shape derives, and the place they make played by the rules — up the slope onto the
+// ledge, across the brook by the path's ford.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use editor;
+
+fn garden() -> levels::LevelFile { place("the_garden") }
+
+// A place drawn with the kit, loaded and filled in from its intent.
+fn place(name: text) -> levels::LevelFile {
+  theme = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme, k);
+  m = levels::load_with(file("../levels/{name}.json").content() ?? "", k, mats);
+  if !m { assert(false, "{name} loads"); }
+  lf = m ?? levels::LevelFile { name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+                                 goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } };
+  ed = editor::new_editor_with(lf, mats);
+  _ = editor::refill(ed, lf, intent::words_from(theme));
+  lf
+}
+
+fn kind_at(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> text {
+  rules::terrain_name(lf.level.k, tile_world::terrain(lf.level.w, x, y, z))
+}
+
+fn main() {
+  lf = garden();
+  assert(len(lf.intent.trails) == 2 && len(lf.intent.blobs) == 2 && len(lf.intent.houses) == 1, "the shapes load");
+}
+
+// A house: roof over its top rows, wall along its bottom row, its door in the middle of that row.
+fn test_a_house_is_roof_walls_and_a_door() {
+  lf = garden();
+  assert(kind_at(lf, 5, 9, 0) == "wall" && kind_at(lf, 8, 10, 0) == "wall", "roof and walls are walls");
+  assert(kind_at(lf, 7, 11, 0) == "open_door", "the door, in the middle of the bottom row: {kind_at(lf, 7, 11, 0)}");
+}
+
+// The slope: three cells rising 1, 2, 3 northward from (19, 8); the hero walks up them and on to
+// the ledge's grass on layer 1.
+fn test_the_slope_leads_onto_the_ledge() {
+  lf = garden();
+  w = lf.level;
+  r = "";
+  for y in [8, 7, 6] { r += "{tile_world::rise(w.w, 19, y, 0)} "; }
+  assert(r == "1 2 3 ", "rises: {r}");
+  rules::put_hero(w, 19, 9, 0);
+  for _ in 0..4 { _ = rules::walk(w, 0, -1); }
+  assert(w.hero_x == 19 && w.hero_y == 5 && w.hero_z == 1, "on the ledge: {w.hero_x},{w.hero_y},{w.hero_z}");
+}
+
+// The path crosses the brook as a ford: drawn after the water, its cells win, so the way along
+// it is walkable end to end.
+fn test_the_path_fords_the_brook() {
+  lf = garden();
+  w = lf.level;
+  assert(kind_at(lf, 4, 3, 0) == "water", "the brook");
+  assert(kind_at(lf, 9, 7, 0) == "floor", "the ford, path over the water: {kind_at(lf, 9, 7, 0)}");
+  rules::put_hero(w, 9, 12, 0);
+  for _ in 0..8 { _ = rules::walk(w, 0, -1); }
+  assert(w.hero_x == 9 && w.hero_y == 4, "along the path over the ford: {w.hero_x},{w.hero_y}");
+}
+
+// The grove scatters trees on its own grass only, and the same seed gives the same trees.
+fn test_a_grove_scatters_trees_the_same_every_time() {
+  a = garden();
+  b = garden();
+  trees = 0;
+  same = true;
+  for y in 0..16 {
+    for x in 0..24 {
+      ka = kind_at(a, x, y, 0);
+      if ka == "tree" { trees += 1; }
+      if ka != kind_at(b, x, y, 0) { same = false; }
+    }
+  }
+  assert(trees > 8 && same, "trees: {trees}, the same twice: {same}");
+}
+
+// The lift room's ramp: from the lower gallery up three steps onto the upper one, a layer up,
+// with open sky over the ramp so there is no ceiling to stop the climb.
+fn test_a_ramp_joins_the_two_galleries() {
+  lf = place("the_lift");
+  w = lf.level;
+  rules::put_hero(w, 3, 10, 0);
+  for _ in 0..4 { _ = rules::walk(w, 0, -1); }
+  assert(w.hero_x == 3 && w.hero_y == 6 && w.hero_z == 1, "on the upper gallery: {w.hero_x},{w.hero_y},{w.hero_z}");
+}
+
+// The items shape: the smithy's anvil on the floor, and a socket holding a burning torch on the
+// wall; the furnishing scattered round them leaves the door's way in free.
+fn test_items_stand_where_they_are_put() {
+  lf = place("the_smithy");
+  w = lf.level;
+  anvil = rules::thing_id(w.k, "anvil");
+  st = tile_world::things(w.w, 8, 0, 0);
+  assert(tile_world::top(w.w, 5, 3, 0) == anvil, "the anvil");
+  assert(len(st) == 2 && (st[0] ?? 0) == rules::thing_id(w.k, "socket"), "a socket and its torch: {len(st)}");
+  assert(tile_world::top(w.w, 5, 6, 0) == 0, "the way in from the door is free");
+}
+
+// A tunnel (a trail with a rim) opens a doorway where it meets a room's wall, and a word scatters
+// its rocks off the rails that run through the room.
+fn test_a_tunnel_opens_into_a_room_and_rubble_keeps_off_the_rails() {
+  lf = place("the_workings");
+  w = lf.level;
+  assert(kind_at(lf, 24, 9, 0) != "wall", "the doorway in the room's top wall: {kind_at(lf, 24, 9, 0)}");
+  rock = rules::thing_id(w.k, "rock");
+  rocks = 0;
+  on_rails = 0;
+  for y in 9..16 {
+    for x in 20..29 {
+      if tile_world::top(w.w, x, y, 0) == rock {
+        rocks += 1;
+        if kind_at(lf, x, y, 0) == "rail" { on_rails += 1; }
+      }
+    }
+  }
+  assert(rocks == 4 && on_rails == 0, "rocks: {rocks}, on the rails: {on_rails}");
+}
