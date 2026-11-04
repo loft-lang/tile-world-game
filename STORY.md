@@ -213,7 +213,8 @@ one who sent the wizard (@ST-Wizard).  His interest in the mine, which is adjace
 mostly just monetary.  His lands are mostly mountains, with little central control.  He is not
 aware of the wizard's personal interest, but was pleasantly surprised by how willing the grumpy
 mage was to go there (owner, 2026-11-04).  He is a party in the ownership dispute (@ST-Decree) with a
-good claim: only a small change of their borders would make him the owner (owner, 2026-11-04).
+good claim on paper: only a small change of their borders would make him the owner.  In practice it
+is weak, because he and his soldiers cannot travel there easily (owner, 2026-11-04).
 
 *Who each is follows from what the player is to do.*
 
