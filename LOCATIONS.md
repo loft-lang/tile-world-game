@@ -143,7 +143,9 @@ owner's outline fixes.
 
 **Aid** wins back the villagers' goodwill after snooping, and brings people behind the barricade
 (@ST-Climax).  From the start (owner): helping the farm directly; foraging food, meat and
-vegetables, for the villagers.  More, picked as logical ◇:
+vegetables, for the villagers.  Plants to forage, for food and for the alchemist's potions
+(@ST-Alchemist), come in variety in Tiny Farm's tiles (owner, 2026-11-04): carrots, turnips,
+corn, tomatoes, cabbages, wheat, herbs and flowers among them.  More, picked as logical ◇:
 
 - the village well's pump charged with Hollis's small crystals: water in the drought ◇;
 - the smithy working again, applauded (owner), and what it can make for others ◇;

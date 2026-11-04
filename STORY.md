@@ -441,7 +441,9 @@ the clock, read from the world.
 straight beams as for the flotilla, at the village entrance (owner, 2026-11-04).  The town can
 build its barricade itself; it takes time, and an axe (owner, 2026-11-04).  When the Wardens
 understand the danger they are in, and the right thing to do, the hands for the barricade more
-than double (owner, 2026-11-04; @ST-Warden); so the
+than double (owner, 2026-11-04; @ST-Warden).  With little aid given, the hero is needed to defend
+the town himself, and probably can only with enough potions lying around, whose ingredients he has
+to gather (owner, 2026-11-04; the alchemist brews them, @ST-Alchemist); so the
 Wardens have to move too, for they are in danger as well (owner, 2026-11-04; @ST-Warden).
 
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not

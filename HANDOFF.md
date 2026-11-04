@@ -123,7 +123,8 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   having several paths, partly out of sight: sneaking past nearly everything, harder near a group.
   Then the barricade: beams at the village entrance, built by the town itself with time and an axe,
   the hands more than doubled once the Wardens understand their danger; the ◇ picks in
-  LOCATIONS.md stand as the logical defaults (owner's leave).
+  LOCATIONS.md stand as the logical defaults (owner's leave); with little aid the hero defends the
+  town himself, with potions from ingredients he gathers (Tiny Farm's plants).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 
