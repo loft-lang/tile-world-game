@@ -11,6 +11,8 @@ is built until four things are known: the story to tell, the people in it, the m
 place in the world, and how the story can end (owner).  **Status** (owner, 2026-11-04): the outline
 below is enough; the questions still open (what "well defended" is made of, the other endings,
 the hero's outcome, the other adventurers' aims) are now ones to answer by building the game.
+Building keeps the story in sight (owner, 2026-11-04): the individual pieces have to be part of
+the overall plot.
 
 **An outline, not a world bible** (owner, 2026-11-04): this is foremost a game, and the world is
 the backdrop for it.  The sections below are an outline; their details come from what the player
@@ -29,34 +31,68 @@ The demo village (`levels/demo.json`, a house per mechanic) stays as it is, a wo
 beside the story's, startable on its own in a browser and on the Tanmatsu, for anyone curious and
 for our own tests (owner, 2026-11-04).
 
+## Story parts
+
+Every part of the story has a tag, the way loft's formal rules do, so what is built can say which
+part of the plot it serves: a place file, a talk, a piece of code or a doc cites it as
+`@ST-<Name>`, and the tag links to the part's paragraph here.  This index DEFINES the parts; each
+part's text is the paragraph that carries its anchor.  A piece that cannot name the part it
+serves is not built (the status above).  `loft tools/story.loft check` keeps the index, the
+paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
+
+| Part | What | § |
+|---|---|---|
+| [`@ST-Setting`](#st-setting) | the decrepit mining town | § 1 |
+| [`@ST-Farm`](#st-farm) | the farm that cannot feed the village | § 1 |
+| [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
+| [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
+| [`@ST-Guards`](#st-guards) | federal guards: no sides, no protection | § 1 |
+| [`@ST-Hero`](#st-hero) | the sergeant who failed as an officer | § 1 |
+| [`@ST-Play`](#st-play) | searching places, puzzles to progress | § 1 |
+| [`@ST-Hints`](#st-hints) | villagers aid a stuck player; not a tutorial | § 1 |
+| [`@ST-Stealth`](#st-stealth) | reaching places unnoticed; terrain knowledge | § 1 |
+| [`@ST-Order`](#st-order) | no fixed order; places presented logically | § 1 |
+| [`@ST-Outside`](#st-outside) | quests of the bigger world and the drought | § 1 |
+| [`@ST-Villagers`](#st-villagers) | close, dependent, disagreeing on everything | § 2 |
+| [`@ST-Newcomers`](#st-newcomers) | other adventurers, a mix of NPCs | § 2 |
+| [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
+| [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
+| [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
+| [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
+| [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
+| [`@ST-Cyclopes`](#st-cyclopes) | the tribe in the mine, planning to take the village | § 3 |
+| [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
+| [`@ST-Climax`](#st-climax) | the invasion; a well-defended village turns it back | § 4 |
+| [`@ST-BestEnding`](#st-bestending) | the cyclopes leave | § 4 |
+
 ## 1. The story to tell
 
-**The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
+<a id="st-setting"></a>**The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
 mining town.  The last remaining villagers struggle to make something of their lives.
 
-**The farm** (owner, 2026-11-04): there is a small farm at the village; it cannot provide enough
+<a id="st-farm"></a>**The farm** (owner, 2026-11-04): there is a small farm at the village; it cannot provide enough
 food for the villagers, small as their number now is.
 
-**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
+<a id="st-mine"></a>**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
 open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
 political circumstances from outside and a drought (below: a decree), so there are still
 valuable things to find.
 
-**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
+<a id="st-decree"></a>**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
 hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
 decree from outside: digging is made unlawful or worthless.  The local lord, who got a lot of their
 income from this mine, has fallen from grace, and that resulted in federal action.  The mine is
-not yet claimed by others: there is an ownership dispute, but the parties in it
-do not have a strong enough claim to really pull their weight.  The guards are part of the
-decree: they are from the federal government and take no sides.  They will not protect the town
-either; the local lord is blocked here.  The drought is a
-factor, but not everything.
+not yet claimed by others: there is an ownership dispute, but the parties in it do not have a
+strong enough claim to really pull their weight.  The drought is a factor, but not everything.
+
+<a id="st-guards"></a>**The guards** (owner, 2026-11-04) are part of the decree: they are from the federal government
+and take no sides.  They will not protect the town either; the local lord is blocked here.
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
 as the hero being a soldier).
 
-**The hero** (owner, 2026-11-04): a pre-defined hero, not a one-size-fits-all hero that tries to
+<a id="st-hero"></a>**The hero** (owner, 2026-11-04): a pre-defined hero, not a one-size-fits-all hero that tries to
 fit every gamer.  He is a veteran soldier, a sergeant, who tried to become an officer and failed
 spectacularly at it.  Because of that he is getting out of the army, for now: not really sacked,
 but certainly not welcome there at the moment.  For now he is just searching for a place to lay
@@ -65,20 +101,22 @@ Part of why he comes here is that he heard this place may offer opportunities fo
 him, with little official education.  Entering the village is a bit of a let-down for him: this is
 very much not the place he wants to be.  But it might become the place he needs.
 
-**What the player does** (owner, 2026-11-04): search the different interesting places and get
-into puzzle situations to progress.  The villagers sometimes act as hints for the puzzles, how to
-get down to the deeper tunnels for example.  This is not a tutorial: it is a system to aid
-players who get stuck on a puzzle.
+<a id="st-play"></a>**What the player does** (owner, 2026-11-04): search the different interesting places and get
+into puzzle situations to progress.
 
-**Unnoticed by the cyclopes** (owner, 2026-11-04): some of the puzzles are about getting places
+<a id="st-hints"></a>**Hints** (owner, 2026-11-04): the villagers sometimes act as hints for the puzzles, how to get
+down to the deeper tunnels for example.  This is not a tutorial: it is a system to aid players
+who get stuck on a puzzle.
+
+<a id="st-stealth"></a>**Unnoticed by the cyclopes** (owner, 2026-11-04): some of the puzzles are about getting places
 without the cyclopes noticing.  Otherwise places are hard to reach, and fighting them in the open
 is a bad idea, because they call for aid.  So terrain knowledge from careful exploration is part
 of the game.
 
-**No fixed order** (owner, 2026-11-04): there is no final order in which the player should do
+<a id="st-order"></a>**No fixed order** (owner, 2026-11-04): there is no final order in which the player should do
 things.  The world presents the different places in a logical order.
 
-**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
+<a id="st-outside"></a>**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
 quests related to the bigger world (the political circumstances outside) and the climate (the
 drought).
 
@@ -108,15 +146,17 @@ What the owner has already said that bounds it:
 
 ## 2. The people in it (NPCs)
 
-**The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
+<a id="st-villagers"></a>**The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
 depend on each other, but they have wildly different opinions on just about everything.
 
-**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
+<a id="st-newcomers"></a>**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
 adventurers beside him and the hunter.  This is a world with magic in it, which makes for a mix of
-NPCs.  It is a low-magic world: mages cannot do magic at will, but have to craft a lot to make it
-happen.  It can certainly exist as part of a puzzle.
+NPCs.
 
-**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
+<a id="st-magic"></a>**Magic** (owner, 2026-11-04): it is a low-magic world: mages cannot do magic at will, but have to
+craft a lot to make it happen.  It can certainly exist as part of a puzzle.
+
+<a id="st-alchemist"></a>**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.
 
 *Who each is follows from what the player is to do.*
@@ -133,24 +173,24 @@ What the owner has already said about NPCs:
 
 ## 3. The monsters and their place in this world
 
-**Killing is never the goal** (owner, 2026-11-04): in this world, killing everything that moves
+<a id="st-nokilling"></a>**Killing is never the goal** (owner, 2026-11-04): in this world, killing everything that moves
 (monsters included) is never the goal; that is why monsters often retreat when injured.  It is not
 a strict rule: the player may have reasons to hunt them anyway, for resources or for future
 safety, but that is never the presented goal of an area.
 
-**The other monsters** (owner, 2026-11-04): most of them are just living there.  The cyclopes hunt
+<a id="st-residents"></a>**The other monsters** (owner, 2026-11-04): most of them are just living there.  The cyclopes hunt
 them too, for food, but that is hardly enough to sustain their tribe.
 
-**The hunter** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
+<a id="st-hunter"></a>**The hunter** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He might be befriended, but he will
 never take the side of the village.  He already knows that the village's main income has dried up
 for now: nobody is working the mine.
 
-**The cyclopes** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
+<a id="st-cyclopes"></a>**The cyclopes** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
 have met them only a few times, and fled, using their knowledge of the terrain to get home.  The
 group plans to take over the village eventually, but for now the cyclopes are content in the mine.
 
-**The village's debate over them** (owner, 2026-11-04): the cyclopes are already a subject of
+<a id="st-debate"></a>**The village's debate over them** (owner, 2026-11-04): the cyclopes are already a subject of
 debate among the villagers.  Some want to blow up the mine with the cyclopes in it (not easy to
 do); some want to just abandon the town.  The debate is not settled.  Only a single family has
 fled because of it; they are missed, and might even return when the threat wanes.
@@ -169,12 +209,12 @@ What the owner has already said about monsters (DESIGN.md § Enemies):
 
 ## 4. How the story can end
 
-**The climax** (owner, 2026-11-04): the cyclops situation always comes to a climax: eventually they
+<a id="st-climax"></a>**The climax** (owner, 2026-11-04): the cyclops situation always comes to a climax: eventually they
 invade the village, and the hunter is not helping there.  The cyclopes know other places, but
 because of the shared situation the village is their best choice for the moment.  The cyclopes
 are not cold killers, they are tribal: presented with a well-defended village, they retreat.
 
-**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
+<a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
 it: a cave-in might kill some of them, but the group as a whole would be able to dig itself out
 and start an offensive.
 

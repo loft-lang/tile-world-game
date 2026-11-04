@@ -1,0 +1,180 @@
+// The story's parts (STORY.md § Story parts) and where the game cites them, as loft cites its
+// formal rules: a part is DEFINED by its row in STORY.md's index (a row starting with the tag,
+// `| [`@ST-<Name>`](#st-<name>) | … |`), and its text is the paragraph that carries the anchor
+// `<a id="st-<name>"></a>`.  Anything built for the story — a place file, a talk, a piece of
+// code, a doc — cites the part it serves as `@ST-<Name>`.  A citation is boundary-exact: the name
+// runs as far as letters, digits and `-` go, so a longer name is never read as a shorter one.
+//
+//   loft tools/story.loft list          every part: its tag, what it is, its section
+//   loft tools/story.loft check         every part has exactly one paragraph, every paragraph a
+//                                       part, every citation names a part; exit 1 when not
+//   loft tools/story.loft sites <tag>   where a part is cited (with or without `@ST-`)
+//
+// loft runs a script from its own directory, so the tool finds the game's root itself: here, or
+// one up.  It reads .loft, .md and .json files, leaving out the fetched libraries, build output,
+// caches and the pictures, and names a file by its path from the root.
+
+pub struct Part {
+  pub tag: text,
+  pub what: text,
+  pub section: text
+}
+
+pub struct Cite {
+  pub tag: text,
+  pub at: text
+}
+
+const SKIP = "libs build .loft .git native-auto assets target";
+
+// The characters of `s`, one text each.
+fn chars_of(s: text) -> vector<text> {
+  out: vector<text> = [];
+  for c in s { out += ["{c}"]; }
+  out
+}
+
+fn name_char(c: text) -> boolean {
+  c == "-" || c.is_alphanumeric()
+}
+
+/// The part names a line cites, `@ST-<Name>` each, in order: a name starts with a capital letter
+/// and runs as far as letters, digits and `-` go.
+pub fn tags_in(line: text) -> vector<text> {
+  out: vector<text> = [];
+  cs = chars_of(line);
+  n = len(cs);
+  i = 0;
+  while i + 4 < n {
+    if (cs[i] ?? "") == "@" && (cs[i + 1] ?? "") == "S" && (cs[i + 2] ?? "") == "T" && (cs[i + 3] ?? "") == "-"
+       && (cs[i + 4] ?? "").is_uppercase() {
+      j = i + 4;
+      name = "";
+      while j < n && name_char(cs[j] ?? "") {
+        name += cs[j] ?? "";
+        j += 1;
+      }
+      while name.ends_with("-") { name = name.char_slice(0, len(name) - 1); }
+      out += [name];
+      i = j;
+    } else {
+      i += 1;
+    }
+  }
+  out
+}
+
+/// The anchors `<a id="st-…">` a line holds, their ids.
+pub fn anchors_in(line: text) -> vector<text> {
+  out: vector<text> = [];
+  for piece in line.split_text("<a id=\"") {
+    if !piece.starts_with("st-") { continue; }
+    end = piece.find("\"") ?? -1;
+    if end > 0 { out += [piece.char_slice(0, end)]; }
+  }
+  out
+}
+
+/// The parts STORY.md's index defines: its rows that start with a part's tag.
+pub fn parts_of(story: text) -> vector<Part> {
+  out: vector<Part> = [];
+  for line in story.split('\n') {
+    if !line.starts_with("| [`@ST-") { continue; }
+    tags = tags_in(line);
+    cells = line.split('|');
+    if len(tags) == 0 || len(cells) < 4 { continue; }
+    out += [Part { tag: tags[0] ?? "", what: (cells[2] ?? "").trim(), section: (cells[3] ?? "").trim() }];
+  }
+  out
+}
+
+// Every file under `root`/`rel` the tool reads, by its path from `root`.
+fn files_under(root: text, rel: text, out: vector<text>) {
+  skip = SKIP.split(' ');
+  dir = if rel == "" { root } else { "{root}/{rel}" };
+  for name in list_dir(dir) ?? [] {
+    if skip.contains(name) { continue; }
+    path = if rel == "" { name } else { "{rel}/{name}" };
+    if is_dir("{root}/{path}") {
+      files_under(root, path, out);
+    } else if name.ends_with(".loft") || name.ends_with(".md") || name.ends_with(".json") {
+      out += [path];
+    }
+  }
+}
+
+/// Every citation under `root`, as `path:line` from it, leaving out STORY.md's own index rows
+/// (they define the parts).
+pub fn cites_under(root: text) -> vector<Cite> {
+  out: vector<Cite> = [];
+  paths: vector<text> = [];
+  files_under(root, "", paths);
+  for path in paths {
+    n = 0;
+    for line in (file("{root}/{path}").content() ?? "").split('\n') {
+      n += 1;
+      if path == "STORY.md" && line.starts_with("| [`@ST-") { continue; }
+      for t in tags_in(line) { out += [Cite { tag: t, at: "{path}:{n}" }]; }
+    }
+  }
+  out
+}
+
+// The game's root: the directory holding STORY.md, here or one up.
+fn root() -> text {
+  if (file("STORY.md").content() ?? "") != "" { "." } else { ".." }
+}
+
+fn anchor_of(tag: text) -> text {
+  "st-" + tag.to_lowercase()
+}
+
+/// What is wrong with the parts and their citations, one line each; empty when nothing is.
+pub fn problems(story: text, cites: const vector<Cite>) -> vector<text> {
+  out: vector<text> = [];
+  parts = parts_of(story);
+  ids: vector<text> = [];
+  for line in story.split('\n') { for a in anchors_in(line) { ids += [a]; } }
+  seen: vector<text> = [];
+  for p in parts {
+    if seen.contains(p.tag) { out += ["@ST-{p.tag} is defined twice"]; }
+    seen += [p.tag];
+    n = 0;
+    for a in ids { if a == anchor_of(p.tag) { n += 1; } }
+    if n == 0 { out += ["@ST-{p.tag} has no paragraph (<a id=\"{anchor_of(p.tag)}\"></a>)"]; }
+    if n > 1 { out += ["@ST-{p.tag} has {n} paragraphs"]; }
+  }
+  for a in ids {
+    found = false;
+    for p in parts { if anchor_of(p.tag) == a { found = true; } }
+    if !found { out += ["paragraph {a} has no row in the index"]; }
+  }
+  for c in cites {
+    if !seen.contains(c.tag) { out += ["{c.at}: @ST-{c.tag} names no part"]; }
+  }
+  out
+}
+
+fn main() {
+  args = arguments();
+  what = args[0] ?? "list";
+  r = root();
+  story = file("{r}/STORY.md").content() ?? "";
+  if story == "" {
+    println("story: no STORY.md here or one up");
+    exit(1);
+  }
+  if what == "list" {
+    for p in parts_of(story) { println("@ST-{p.tag}  {p.what}  ({p.section})"); }
+  } else if what == "check" {
+    ps = problems(story, cites_under(r));
+    for p in ps { println(p); }
+    if len(ps) > 0 { exit(1); }
+  } else if what == "sites" {
+    tag = (args[1] ?? "").replace("@ST-", "");
+    for c in cites_under(r) { if c.tag == tag { println(c.at); } }
+  } else {
+    println("usage: loft tools/story.loft list | check | sites <tag>");
+    exit(1);
+  }
+}

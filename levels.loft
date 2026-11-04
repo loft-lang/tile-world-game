@@ -94,7 +94,10 @@ pub struct LevelFile {
   pub doors: vector<Door> = [],
   pub labels: vector<Label> = [],
   /// What the figures that talk say, and the choices in it (talk.loft).
-  pub talks: vector<talk::Talk> = []
+  pub talks: vector<talk::Talk> = [],
+  /// The parts of the story the place serves, as STORY.md tags them (`@ST-Decree`); checked by
+  /// `loft tools/story.loft check`.
+  pub story: vector<text> = []
 }
 
 struct LegendChar {
@@ -253,8 +256,16 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   LevelFile {
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
     start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
-    adjusted: adjusted, doors: doors, labels: labels, talks: talk::from_json(v.field("talks"))
+    adjusted: adjusted, doors: doors, labels: labels, talks: talk::from_json(v.field("talks")),
+    story: story_of(v.field("story"))
   }
+}
+
+// A place file's `story`: the tags it lists.
+fn story_of(v: const JsonValue) -> vector<text> {
+  out: vector<text> = [];
+  for i in 0..v.len() { out += [v.item(i).as_text()]; }
+  out
 }
 
 /// The door on cell (x, y, z), by its index in `lf.doors`; -1 for none.
@@ -423,7 +434,18 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       first = false;
     }
   }
-  out = "{{\n  \"name\": {quoted(lf.name)},\n  \"camera\": {quoted(lf.camera)},\n  \"legend\": {{";
+  out = "{{\n  \"name\": {quoted(lf.name)},";
+  if len(lf.story) > 0 {
+    out += "\n  \"story\": [";
+    sf = true;
+    for t in lf.story {
+      out += if sf { " " } else { ", " };
+      out += quoted(t);
+      sf = false;
+    }
+    out += " ],";
+  }
+  out += "\n  \"camera\": {quoted(lf.camera)},\n  \"legend\": {{";
   first = true;
   for id in rules::terrain_ids(k) {
     for e in legend {
