@@ -76,10 +76,16 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   bump / walk away while a line is said; gifts, take/give, `then`.
 - loft defect met: an unwrapped vector element freeing its owner (`repro/loft-element-frees-owner`),
   worked around; not yet reduced without the game's libraries, not filed.
-- Next agreed: the rough full game as a story the hero walks through, taking in every puzzle idea
-  — DESIGN FIRST, no implementation until the story, its people, the monsters' place and the
-  endings are known.  The story is the OWNER's: STORY.md holds only what the owner said (§ 1–4),
-  facts about what exists (§ 5) and engine notes kept apart and not leading (§ 6).
+- The story game: DESIGN FIRST, no implementation yet.  The story is the OWNER's: STORY.md holds
+  only what the owner said (§ 1–4), facts about what exists (§ 5) and engine notes kept apart and
+  not leading (§ 6).  It is an outline (a game first, the world its backdrop; details follow from
+  what the player does).  Outlined 2026-11-04: the decrepit mining town and its mine, the decree
+  that stopped the mining, the hero (a sergeant who failed as an officer, lying low), villagers as
+  hints for a stuck player, no fixed order, the monsters as residents, the hunter (cast out,
+  befriendable, never the village's side), the cyclopes and the village's debate, the climax (an
+  invasion, which a well-defended village turns back) and the best ending (they leave).  Open
+  (owner): which form the decree takes, the other endings, what "well defended" is made of.
+  Story discussion edits STORY.md locally and commits once a part settles, never per sentence.
 
 ## Next steps, in the order agreed
 

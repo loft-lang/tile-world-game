@@ -32,6 +32,42 @@ for our own tests (owner, 2026-11-04).
 **The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
 mining town.  The last remaining villagers struggle to make something of their lives.
 
+**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
+open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
+political circumstances from outside and a drought (below: a decree), so there are still
+valuable things to find.
+
+**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
+hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
+decree from outside: digging is made unlawful or worthless, by a dispute between outside powers
+over who owns the mine or by a claim on its ore at a price that does not pay (which of the two
+is still open).  The drought is a factor, but not everything.
+
+Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
+(it stops the drive of the people and the hero); the workers conscripted (too much the same thing
+as the hero being a soldier).
+
+**The hero** (owner, 2026-11-04): a pre-defined hero, not a one-size-fits-all hero that tries to
+fit every gamer.  He is a veteran soldier, a sergeant, who tried to become an officer and failed
+spectacularly at it.  Because of that he is getting out of the army, for now: not really sacked,
+but certainly not welcome there at the moment.  For now he is just searching for a place to lay
+low for a while; but this adventure is also his way to grow into the person he wants to become.
+Part of why he comes here is that he heard this place may offer opportunities for someone like
+him, with little official education.  Entering the village is a bit of a let-down for him: this is
+very much not the place he wants to be.  But it might become the place he needs.
+
+**What the player does** (owner, 2026-11-04): search the different interesting places and get
+into puzzle situations to progress.  The villagers sometimes act as hints for the puzzles, how to
+get down to the deeper tunnels for example.  This is not a tutorial: it is a system to aid
+players who get stuck on a puzzle.
+
+**No fixed order** (owner, 2026-11-04): there is no final order in which the player should do
+things.  The world presents the different places in a logical order.
+
+**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
+quests related to the bigger world (the political circumstances outside) and the climate (the
+drought).
+
 What the owner has already said that bounds it:
 
 - **Familiar look, surprising world.**  Trope-familiar pictures (Kenney's Tiny packs, a few extras
@@ -72,7 +108,29 @@ What the owner has already said about NPCs:
 
 ## 3. The monsters and their place in this world
 
-*The owner's outline to come; details follow from what the player is to do.*
+**Killing is never the goal** (owner, 2026-11-04): in this world, killing everything that moves
+(monsters included) is never the goal; that is why monsters often retreat when injured.  It is not
+a strict rule: the player may have reasons to hunt them anyway, for resources or for future
+safety, but that is never the presented goal of an area.
+
+**The other monsters** (owner, 2026-11-04): most of them are just living there.  The cyclopes hunt
+them too, for food, but that is hardly enough to sustain their tribe.
+
+**The hunter** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
+out of the village in his youth, and has now returned to it.  He might be befriended, but he will
+never take the side of the village.  He already knows that the village's main income has dried up
+for now: nobody is working the mine.
+
+**The cyclopes** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
+have met them only a few times, and fled, using their knowledge of the terrain to get home.  The
+group plans to take over the village eventually, but for now the cyclopes are content in the mine.
+
+**The village's debate over them** (owner, 2026-11-04): the cyclopes are already a subject of
+debate among the villagers.  Some want to blow up the mine with the cyclopes in it (not easy to
+do); some want to just abandon the town.  The debate is not settled.  Only a single family has
+fled because of it; they are missed, and might even return when the threat wanes.
+
+*Further outline to come; details follow from what the player is to do.*
 
 What the owner has already said about monsters (DESIGN.md § Enemies):
 
@@ -86,7 +144,16 @@ What the owner has already said about monsters (DESIGN.md § Enemies):
 
 ## 4. How the story can end
 
-*The owner's outline to come.*
+**The climax** (owner, 2026-11-04): the cyclops situation always comes to a climax: eventually they
+invade the village, and the hunter is not helping there.  The cyclopes know other places, but
+because of the shared situation the village is their best choice for the moment.  The cyclopes
+are not cold killers, they are tribal: presented with a well-defended village, they retreat.
+
+**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
+it: a cave-in might kill some of them, but the group as a whole would be able to dig itself out
+and start an offensive.
+
+*Further outline to come.*
 
 ## 5. What exists: material the story can draw on
 
@@ -156,3 +223,16 @@ the cost of a choice is known when it is made; none proposes story content.
   across places, saves (WORLD.md steps 2 and 5).
 - **Outcomes are state.**  Endings that differ by what the player did need that state saved and
   read (facts, as above); endings by place reached need nothing new.
+- **The climax is a world event.**  The cyclopes invading, and retreating from a well-defended
+  village, asks for: an event that comes at a moment or on a condition; a measure of "well
+  defended" read at that moment from what the player has done; and the group marching from the
+  mine to the village through doors (monster bands, WORLD.md step 3, and things following through
+  a door).  The cyclopes' rules today are per place and per figure; a group decision to retreat is
+  new.
+- **Hints for a stuck player** need to know the player is stuck (time spent in a place, tries,
+  returns) and lines that depend on it: facts and conditions again, the same mechanism as gossip.
+- **Relations that last** (the hunter befriended, a family returning, the village's mood) are facts
+  too; one mechanism serves gossip, hints, relations and endings.
+- **No fixed order** keeps places gated by the world (a puzzle, a tool, a way down) rather than by
+  story flags where it can; the editor's checks (K, the way to a place) can then verify that every
+  order still reaches the climax.

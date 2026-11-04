@@ -22,7 +22,8 @@ This is what the game built on tile_world should be.
   no level teaches a rule, no hint explains one.  The player learns the world as in Spelunky: by
   watching it and by dying in it.  So every rule must hold everywhere, the same way every time —
   consistency is the teacher — and what is about to happen must be readable from the world itself
-  (a sound, a sight), never from a message.
+  (a sound, a sight), never from a message.  Villagers' hints are not a tutorial (owner,
+  2026-11-04): they are a system to aid a player who is stuck on a puzzle (STORY.md § 1).
 - **Hurt, rarely killed** (owner, 2026-10-30).  Because nothing is taught, the dungeon does not set
   up situations that easily kill: the hero gets hit, and then has to search for potions.  Damage
   is a cost to recover from, not an ending.  Proposed: a red health potion (Kenney's dungeon:115,
