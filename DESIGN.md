@@ -574,7 +574,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   other enemy it sees, shooting it in line or going after it at its chasing pace.  Its arrows
   fly as the hero's (30 ms a cell, real time): a point off the hero they meet, a point off an
   enemy, a bomb set off; a lever stops one unthrown.  Hurt it flees, a blast scares it.
-- **The hunter** (owner).  An evil hunter shoots arrows as the hero does, and follows the
+- **The hunter** (owner).  A hunter with a grudge against the village, not evil (owner,
+  2026-11-04; STORY.md @ST-Hunter), shoots arrows as the hero does, and follows the
   ordinary enemies' rules (fleeing hurt, healing at its nest, scared by blasts).  It throws no
   bombs: it does not want to lose its bow.  Its arrows are arrows: they set off a bomb they hit,
   and they hurt other enemies too, but throw no levers (owner).  While wandering it hunts other enemies, but it prefers

@@ -130,12 +130,19 @@ the outline's implication, not the owner's words):
   way down); its single flooded part, running in several directions, some into natural caves
   (@GM-Flooded); an underground lake (@GM-Flotilla); a lift for carts (@GM-CartLift).
 - **The new dig sites in the hills** (@ST-Mine).
-- **The mine the cyclopes settled in** (@ST-Cyclopes); *reading*: whether it is the same mine or
-  one of the dig sites is not said.
+- **The cyclopes settled in the main mine** (owner, @ST-Cyclopes), and so block the normal way to
+  the lift and the pump (@GM-CartLift, @GM-Flooded).  There are more ways into it, such as a
+  caved-in tunnel (@ST-Stealth).  So the cyclopes are a big part of the main puzzle (owner), and
+  that matters to the theme: they must not stay unknown to the player, only heard of from the
+  villagers.
 - **The hill-top** with the lightning installation and a local monster (@GM-Flooded).
 - *Reading*: where the federal guards stand (@ST-Guards), at the mine or on the way to it.
 - **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
   other adventurers arrive from (@ST-Newcomers).
+
+For a small game this is more than enough (owner, 2026-11-04); a few more small places may come,
+such as where the hunter settled (@ST-Hunter).  Each place holds a set of puzzles: a place is not
+one room (owner).
 
 What the owner has already said that bounds it:
 
@@ -204,7 +211,8 @@ safety, but that is never the presented goal of an area.
 them too, for food, but that is hardly enough to sustain their tribe.
 
 <a id="st-hunter"></a>**The hunter** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
-out of the village in his youth, and has now returned to it.  He might be befriended, but he will
+out of the village in his youth, and has now returned to it.  He has a grudge against the village;
+he is not evil (owner).  He might be befriended, but he will
 never take the side of the village.  He already knows that the village's main income has dried up
 for now: nobody is working the mine.
 
@@ -227,7 +235,7 @@ What the owner has already said about monsters (DESIGN.md § Enemies):
   (2026-11-03, WORLD.md).
 - Cyclopes make darkness a tool: hard to fight, in groups, passed by stealth, so a torch has a cost
   too (2026-10-30).
-- The hunter is an evil hunter: it shoots as the hero does, hunts other monsters, prefers the hero.
+- The hunter shoots as the hero does, hunts other monsters, prefers the hero.
 
 ## 4. How the story can end
 
