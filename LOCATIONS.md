@@ -9,8 +9,9 @@ Each place of the story game: what makes it unique, what can be found there, wha
 learns there, and what the player can look out for.  In almost every place there are several
 paths to take, with levels partly out of sight (owner, 2026-11-04).  So the hero can sneak past
 almost everything, but it gets harder near any group (owner).  Gathered from STORY.md and DESIGN.md
-(2026-11-04).  A placement marked ◇ is a proposal, to be validated and tweaked by the owner;
-everything else the outline already fixes.
+(2026-11-04).  A placement marked ◇ was picked as the logical one; the owner has let the open items
+be filled in that way (2026-11-04), so ◇ marks what is ours to change freely, everything else the
+owner's outline fixes.
 
 ## 1. Orbury, the village (@ST-Setting)
 
@@ -44,7 +45,10 @@ everything else the outline already fixes.
   villagers do not agree with the hero plundering the remains: not for what is taken (a rope, say),
   but because an outsider sneaking into houses is not done, so they get far less accommodating once
   they learn of it (owner); the smithy is the exception, its reopening applauded (owner);
-  the smithy's missing parts ◇; the material for a barricade and where it lies ◇ (@ST-Climax).
+  the smithy's missing parts ◇; the material for the barricade: straight beams, as for the
+  flotilla, so the beams that cross the lake also close the village entrance (owner, 2026-11-04;
+  @ST-Climax, @GM-Flotilla).  The barricade growing at the entrance shows how ready the village
+  is ◇.
 
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 

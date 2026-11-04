@@ -437,7 +437,8 @@ are not cold killers, they are tribal: presented with a well-defended village, t
 there are to hunt, and run out of food (@ST-Residents).  Between the start and the attack there is
 a phase where the cyclopes get nervous and start to scout outside the mine (owner, 2026-11-04):
 the clock, read from the world.
-**Well defended** is enough capable people together behind a barricade that has been built; so the
+**Well defended** is enough capable people together behind a barricade that has been built, of
+straight beams as for the flotilla, at the village entrance (owner, 2026-11-04); so the
 Wardens have to move too, for they are in danger as well (owner, 2026-11-04; @ST-Warden).
 
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
