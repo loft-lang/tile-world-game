@@ -83,8 +83,12 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   that stopped the mining, the hero (a sergeant who failed as an officer, lying low), villagers as
   hints for a stuck player, no fixed order, the monsters as residents, the hunter (cast out,
   befriendable, never the village's side), the cyclopes and the village's debate, the climax (an
-  invasion, which a well-defended village turns back) and the best ending (they leave).  Open
-  (owner): which form the decree takes, the other endings, what "well defended" is made of.
+  invasion, which a well-defended village turns back) and the best ending (they leave); then the
+  farm, the decree's form (the lord fallen, a weak ownership dispute, neutral federal guards), the
+  stealth puzzles, the other adventurers in a low-magic world, the alchemist.  Owner: the outline
+  is enough; what stays open (what "well defended" is made of, the other endings, the hero's
+  outcome, the adventurers' aims) is answered by building.  Waiting on the owner: whether the
+  hunter stays "evil" (DESIGN.md), what "the local lord is blocked here" means.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence.
 
 ## Next steps, in the order agreed

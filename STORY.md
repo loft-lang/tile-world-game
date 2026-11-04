@@ -8,7 +8,9 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 The rough full game is a story the hero walks through, which in time takes in every puzzle idea
 in some form (owner, 2026-11-04).  It is not about presenting everything at once.  Nothing of it
 is built until four things are known: the story to tell, the people in it, the monsters and their
-place in the world, and how the story can end (owner).
+place in the world, and how the story can end (owner).  **Status** (owner, 2026-11-04): the outline
+below is enough; the questions still open (what "well defended" is made of, the other endings,
+the hero's outcome, the other adventurers' aims) are now ones to answer by building the game.
 
 **An outline, not a world bible** (owner, 2026-11-04): this is foremost a game, and the world is
 the backdrop for it.  The sections below are an outline; their details come from what the player
@@ -32,6 +34,9 @@ for our own tests (owner, 2026-11-04).
 **The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
 mining town.  The last remaining villagers struggle to make something of their lives.
 
+**The farm** (owner, 2026-11-04): there is a small farm at the village; it cannot provide enough
+food for the villagers, small as their number now is.
+
 **The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
 open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
 political circumstances from outside and a drought (below: a decree), so there are still
@@ -39,9 +44,13 @@ valuable things to find.
 
 **Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
 hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
-decree from outside: digging is made unlawful or worthless, by a dispute between outside powers
-over who owns the mine or by a claim on its ore at a price that does not pay (which of the two
-is still open).  The drought is a factor, but not everything.
+decree from outside: digging is made unlawful or worthless.  The local lord, who got a lot of their
+income from this mine, has fallen from grace, and that resulted in federal action.  The mine is
+not yet claimed by others: there is an ownership dispute, but the parties in it
+do not have a strong enough claim to really pull their weight.  The guards are part of the
+decree: they are from the federal government and take no sides.  They will not protect the town
+either; the local lord is blocked here.  The drought is a
+factor, but not everything.
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
@@ -60,6 +69,11 @@ very much not the place he wants to be.  But it might become the place he needs.
 into puzzle situations to progress.  The villagers sometimes act as hints for the puzzles, how to
 get down to the deeper tunnels for example.  This is not a tutorial: it is a system to aid
 players who get stuck on a puzzle.
+
+**Unnoticed by the cyclopes** (owner, 2026-11-04): some of the puzzles are about getting places
+without the cyclopes noticing.  Otherwise places are hard to reach, and fighting them in the open
+is a bad idea, because they call for aid.  So terrain knowledge from careful exploration is part
+of the game.
 
 **No fixed order** (owner, 2026-11-04): there is no final order in which the player should do
 things.  The world presents the different places in a logical order.
@@ -84,6 +98,9 @@ What the owner has already said that bounds it:
   comes later and is never needed (DESIGN.md § The principle).
 - **Light is a bonus, never a wall**; the semi-dark is always playable (2026-10-30).
 - **Simple assets, a capable engine**: the engine carries the show, never richer art (2026-11-03).
+- **Tiny Battle and Tiny City are mostly out of scope** (2026-11-04): their tiles may be used, but
+  the story need not include them all.  Tiny City (Kenney's, online, not in the repo) has one
+  interesting tile, a street lamp.
 - **Scripted is enough.**  Scripted versus simulated is irrelevant to the player, who sees a scene
   and appreciates that it is not always exactly the same: variety from alternatives drawn from
   seed and day, no unwatched simulation; habits change only from the player's choices or authored
@@ -93,6 +110,14 @@ What the owner has already said that bounds it:
 
 **The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
 depend on each other, but they have wildly different opinions on just about everything.
+
+**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
+adventurers beside him and the hunter.  This is a world with magic in it, which makes for a mix of
+NPCs.  It is a low-magic world: mages cannot do magic at will, but have to craft a lot to make it
+happen.  It can certainly exist as part of a puzzle.
+
+**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
+miners with potions for small injuries, and other stimulants.
 
 *Who each is follows from what the player is to do.*
 

@@ -406,7 +406,12 @@ Each step is checked before the next starts; "checked" names what goes red.
    pending consequences, written and read back.  Checked by a save, a restart and the same state.
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
    decoded at a time.  Checked on the device with the timing log: frame time, the time a door
-   takes, the PSRAM a place takes.
+   takes, the PSRAM a place takes.  Only the tiles the game uses go onto the device, reshuffled
+   into sheets of their own (owner, 2026-11-04): measured 2026-11-04, theme.json uses 182 of the
+   798 tiles in its six sheets (dungeon 39 of 132, town 51 of 132, farm 2 of 132, battle 15 of
+   198, ski 36 of 132, the game's own 39 of 72).  A cell's tile number names a sheet's slot and
+   an index (`1 + slot * 256 + tile`, materials.loft), so a reshuffle must carry every place file's
+   numbers with it.
 7. **The browser.**  `screen`, `input`, `audio` and saves in a page (@PLN209 F2, F4, F7: library
    work), the game built as a page.  Checked by a scripted run giving the same frames in the page
    as on the desktop.
