@@ -37,7 +37,8 @@ everything else the outline already fixes.
 - **Learned:** the town's state and the court trouble (Agnes); the debate (Wick against Agnes,
   @ST-Debate); the mine in outline, out of date (Garth, @ST-Foreman); the drought and the hunger
   (the Dunns); at night, the founder's story and the lake that drowned him.
-- **Look out for:** who stands where, and when; locked houses that can still be entered — but the
+- **Look out for:** a blunt sword in the smithy, to be crafted whole again there (owner,
+  2026-11-04); who stands where, and when; locked houses that can still be entered — but the
   villagers do not agree with the hero plundering the remains: not for what is taken (a rope, say),
   but because an outsider sneaking into houses is not done, so they get far less accommodating once
   they learn of it (owner); the smithy is the exception, its reopening applauded (owner);
@@ -67,6 +68,12 @@ everything else the outline already fixes.
 - **Found:** the same cave-in entrance, the way others found it.
 - **Learned:** what the dark does; why a torch is a risk near the Kharn (@ST-Stealth).
 - **Look out for:** a landmark to steer by in the dark ◇.
+
+## The Old Seam, all levels
+
+- **A dead body:** a less fortunate adventurer who fell, explicitly not killed by the enemies there
+  (owner, 2026-11-04): a fall is the mine's danger that kills, readable from the body (DESIGN.md §
+  The principle: a deep fall stays deadly).  Which level ◇: the second, below a broken walkway.
 
 ## 5. The Old Seam, first level (@ST-Cyclopes)
 
@@ -122,6 +129,36 @@ everything else the outline already fixes.
   (@ST-Residents); a chest in bigfoot's den ◇.
 - **Learned:** how to catch the lightning; that Hollis can be brought up safely.
 - **Look out for:** the weather that is needed; bigfoot's habits; a safe way for Hollis.
+
+## Aid to the village, and the remainders
+
+**Aid** wins back the villagers' goodwill after snooping, and brings people behind the barricade
+(@ST-Climax).  From the start (owner): helping the farm directly; foraging food, meat and
+vegetables, for the villagers.  More, picked as logical ◇:
+
+- the village well's pump charged with Hollis's small crystals: water in the drought ◇;
+- the smithy working again, applauded (owner), and what it can make for others ◇;
+- tools for Garth's idle miners, found in the mine ◇;
+- word of the Fenns, or the Fenns themselves once the threat wanes (@ST-Debate) ◇.
+
+Meat comes from hunting, and every monster taken brings the Kharn's attack nearer, since their prey
+is the clock (@ST-Climax): feeding the village and buying time pull against each other ◇.
+
+**The remainders**, picked as logical ◇:
+
+- **No save point in the village:** it is the safe place, and the first fountain lies where danger
+  starts, at the cave-in entrance ◇ (@ST-Fountains).
+- **The grey rat's own way:** it forages by daylight and carries off food left lying, so it
+  competes with the hero's foraging ◇ (@ST-Residents).
+- **The bow:** in one of the inn's rooms, left by a previous traveller; Agnes had better not see
+  the hero taking it out of there, while the other villagers are less protective of travellers'
+  goods (owner, 2026-11-04; @ST-Innkeeper).  Rennick, befriended, may part with one too ◇.
+- **Money:** in this village ore stands for wealth, and its flow has dried up (owner, 2026-11-04).
+  So the game's money is ore here ◇: found in the mine and the chests, of value to the villagers
+  as the flow they lost, and to the contenders (Lord Garrick's interest is money).
+- **Rennick's home:** not in the open, but in a small clump of woodland on the hillside, drawn
+  with the tiles (owner, 2026-11-04); outside the village that cast him out.
+- **The Fenns' empty house:** one of the closed houses in the village, the one with rope ◇.
 
 ## What this shows
 

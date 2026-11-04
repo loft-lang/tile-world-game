@@ -94,6 +94,8 @@ Theobald (names, owner 2026-11-04).  The last remaining villagers struggle to ma
 around it are more given to farming, though desert has been creeping in lately (owner,
 2026-11-04; the drought, @ST-Outside).
 
+In the village, ore stands for wealth, and its flow has dried up (owner, 2026-11-04).
+
 <a id="st-farm"></a>**The farm: Thornfield** (owner, 2026-11-04): there is a small farm at the village, kept by the
 Dunns; it cannot provide enough food for the villagers, small as their number now is.
 
@@ -232,7 +234,8 @@ the outline's implication, not the owner's words):
   other adventurers arrive from (@ST-Newcomers).
 
 For a small game this is more than enough (owner, 2026-11-04); a few more small places may come,
-such as where the hunter settled (@ST-Hunter).  Each place holds a set of puzzles: a place is not
+such as where the hunter settled (@ST-Hunter): a small clump of woodland on the hillside (owner,
+2026-11-04).  Each place holds a set of puzzles: a place is not
 one room (owner).  Plenty of places have natural puzzles (owner, 2026-11-04): houses that are
 locked but still accessible, tunnels with enough debris, broken walkways; the rival's obstructions
 add to them (@ST-Rival).
@@ -269,7 +272,9 @@ not agree with the hero plundering the remains of the village; the smithy is the
 they applaud it being opened again (owner, 2026-11-04).  It is not the things taken they mind (a
 rope, say): an outsider sneaking into houses is not done, so they get far less accommodating once
 they learn of it (owner, 2026-11-04).  They are grumpy about snooping, but enough aid to the village
-makes them look past it (owner, 2026-11-04).
+makes them look past it (owner, 2026-11-04).  Aid the player can give from the start: helping the
+farm directly, and foraging food — meat and vegetables — for the villagers (owner, 2026-11-04);
+the rest comes with the detailed locations (LOCATIONS.md).
 
 <a id="st-newcomers"></a>**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
 adventurers beside him and the hunter.  This is a world with magic in it, which makes for a mix of

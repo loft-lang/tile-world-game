@@ -114,6 +114,9 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   unannounced tutorial (stones, a chest, a cart on the rails through the Wardens' camp, a switch,
   the slope back to town, a well pump with small crystals, climbing and pulling into houses, axes,
   trees, grey rats, a torch that gives the hero away).
+  Then the fountains as the save points, aid to the village (the farm, foraging; more picked ◇),
+  ore as the village's wealth, Rennick's woodland, the bow in the inn, the pick a worse weapon, the
+  blunt sword in the smithy, the fallen adventurer's body in the mine.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

@@ -126,7 +126,9 @@ Tiny Ski's 78–80); it also
     lift to get the cart there** (owner, 2026-11-04).  Holding a **pick**, with a cart beside him,
     the hero clears rocks away completely: the rubble goes into the cart.  The cart must then be
     emptied elsewhere before it can take more (owner).  Proposed: a pick is a held tool as the axe
-    is (the axe fells trees, the pick breaks rocks), its blows paced the same way.
+    is (the axe fells trees, the pick breaks rocks), its blows paced the same way.  As a weapon the
+    pick is worse than a sword (owner, 2026-11-04); proposed: a blow with it costs an enemy 1, as
+    bare hands do, where the sword and the axe cost 2.
   - **Unloading places** along the track have room to unload onto (owner, 2026-11-04): with the
     cart there, the hero bumps it from the side to empty it.  A full cart is heavier to push (owner,
     2026-11-04).  Proposed: it counts as two carts against push_strength and pull_strength, so a
