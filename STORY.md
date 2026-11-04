@@ -59,7 +59,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-Court`](#st-court) | the young lord's proposal to a princess, rejected | § 2 |
-| [`@ST-Lady`](#st-lady) | an older lady after the mine; magic and aides, not approved of | § 2 |
+| [`@ST-Lady`](#st-lady) | the witch, an elder lord after the mine; magic and aides, not approved of | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
@@ -189,12 +189,13 @@ miners with potions for small injuries, and other stimulants.
 in the mines for his own goals.  He has the energy for a lightning strike, which the alchemist
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
 swayed to chime in.  He certainly does not approve of a lord with magical knowledge who shields
-that knowledge from his own lord (owner, 2026-11-04).
+that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
-some magical skills, and aides.  That is not forbidden, but it is not generally approved of.
+some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
+is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).
 
 *Who each is follows from what the player is to do.*
 
