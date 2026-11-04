@@ -71,6 +71,10 @@
     "well": { "upright": true,
       "under": "floor",
       "tile": "farm:73"
+    },
+    "basin": { "upright": true,
+      "under": "floor",
+      "tile": "dungeon:31"
     }
   },
   "things": {
@@ -177,6 +181,8 @@
     "oak": { "kind": "tree", "tile": "town:16", "under": "grass", "glyph": "Q" },
     "pine": { "kind": "tree", "tile": "town:28", "under": "grass", "glyph": "P" },
     "village_well": { "kind": "well", "tile": "farm:73", "under": "grass", "glyph": "W" },
+    "fountain": { "kind": "well", "tile": "dungeon:32", "under": "floor", "glyph": "V" },
+    "spout": { "kind": "wall", "tile": "dungeon:8", "glyph": "Y" },
     "garden_fence": { "kind": "fence", "tile": "town:81", "under": "grass", "glyph": "G" },
     "roof": { "kind": "wall", "autotile": "roof", "glyph": "R" },
     "slate_roof": { "kind": "wall", "autotile": "slate_roof", "glyph": "S" },

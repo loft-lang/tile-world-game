@@ -28,7 +28,8 @@ fn main() {
   test_walking_up_to_the_elder();
   test_the_right_hand_acts();
   test_a_potion_is_carried_and_drunk_with_the_keys();
-  println("checks/game.loft: 15 passed");
+  test_a_fountain_saves_like_a_well();
+  println("checks/game.loft: 16 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -210,7 +211,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 17 && len(g.file.labels) == 18, "seventeen houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 18 && len(g.file.labels) == 19, "eighteen houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -395,4 +396,24 @@ fn test_a_potion_is_carried_and_drunk_with_the_keys() {
   _ = game::update(g, 1500, 4500);
   _ = game::update(g, 1500, 6000);
   assert(g.world.health == 5 && g.world.heal_due == 0, "4500 on: 5, done: {g.world.health}");
+}
+
+// The fountain (C6b): in the demo's fountain house, drunk from — SAVED, at a fountain.  Then into
+// the rats' chamber at the last health: a bite there, and the hero is back beside the fountain,
+// told so: BACK AT FOUNTAIN.
+fn test_a_fountain_saves_like_a_well() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_fountain"), "the fountain opens");
+  for _ in 0..5 { game::move(g, 0, -1, false); }
+  assert(g.has_save && g.note == "SAVED" && g.saved_at == "FOUNTAIN" && at(g) == "the_fountain 6,11,0", "saved at the fountain: {at(g)} {g.note}");
+  rules::put_hero(g.world, 4, 2, 0);
+  g.world.health = 1;
+  t = 0;
+  while t < 20000 && g.note != "BACK AT FOUNTAIN" {
+    _ = game::update(g, 100, t);
+    t += 100;
+  }
+  assert(g.note == "BACK AT FOUNTAIN" && at(g) == "the_fountain 6,11,0" && g.world.health == 6, "bitten to nothing, back: {at(g)} {g.note}");
 }

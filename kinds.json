@@ -27,7 +27,8 @@
     "open_door":   { "id": 8, "walk": true, "glyph": "d" },
     "stairs_up":   { "id": 9, "walk": true, "stairs": 1, "glyph": "<" },
     "stairs_down": { "id": 10, "walk": true, "stairs": -1, "glyph": ">" },
-    "well":  { "id": 11, "saves": true, "glyph": "w" }
+    "well":  { "id": 11, "saves": true, "glyph": "w" },
+    "basin": { "id": 12, "glyph": "u" }
   },
   "edges": {
     "wall":   { "id": 1, "opaque": true, "glyph": "|" },

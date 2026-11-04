@@ -72,6 +72,10 @@ pub struct Game {
   has_arrived: boolean,
   /// The places the save at the last well and the one before it were made in.
   saved_place: text,
+  /// What the save was made at, for the note on coming back: "WELL", or "FOUNTAIN" (the mines'
+  /// save points, a look of the well kind: STORY.md @ST-Fountains).
+  pub saved_at: text = "WELL",
+  previous_at: text = "WELL",
   previous_place: text,
   pub surface: integer,
   pub kinds: rules::Kinds,
@@ -728,11 +732,14 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     if g.has_save {
       g.previous = g.saved;
       g.previous_place = g.saved_place;
+      g.previous_at = g.saved_at;
       g.has_previous = true;
     }
     g.saved = g.world;
     g.saved_place = g.place;
     g.has_save = true;
+    mi = materials::at(g.mats, w.w, w.hero_x + dx, w.hero_y + dy, w.hero_z);
+    g.saved_at = if (g.mats.list[mi] ?? materials::none_material()).name == "fountain" { "FOUNTAIN" } else { "WELL" };
     g.note = "SAVED";
   }
   if step != rules::Step.Blocked { g.moves += 1; }
@@ -841,7 +848,7 @@ fn return_to_save(g: Game) {
   g.movers = [];
   g.asking_back = false;
   g.just_back = true;
-  g.note = "BACK AT WELL";
+  g.note = "BACK AT {g.saved_at}";
   sound(g, "restore");
   aim(g);
 }
@@ -862,6 +869,7 @@ fn back_to_place(g: Game, name: text) {
 fn return_to_previous(g: Game) {
   g.saved = g.previous;
   g.saved_place = g.previous_place;
+  g.saved_at = g.previous_at;
   g.has_previous = false;
   back_to_place(g, g.saved_place);
   g.world = g.saved;

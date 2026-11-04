@@ -29,28 +29,28 @@
       "PQPPPQPQPPPQPQPPPQPQPPPQPQPPPQPP"
     ] },
     { "cx": 1, "cy": 0, "z": 0, "rows": [
-      "PPPPPPPPPPPPPPPPPPPPP",
-      ",,,,,,,,,,,,,,,,,,,,P",
-      "RRR,,SSSS,,RRRR,SSSSP",
-      "RRR,,SSSS,,RRRR,SSSSP",
-      "HEH,,TTFT,,HHEH,TTFTP",
-      ",:,,,,,:,,,,,:,,,,:,P",
-      ",:,,,,,:,,,,,:,,,,:,P",
-      ":::::::::::::::::::,P",
-      ",,,,,,,,:,,,,,,,,,,,P",
-      ",,,,,,,,:,,,,,,,,,,,P",
-      "SSS,RRRR:,RRRR,SSSS,P",
-      "SSS,RRRR:,RRRR,SSSS,P",
-      "TFT,HHEH:,HHEH,TTFT,P",
-      ",:,,,,:,:,,,:,,,,:,,P",
-      ",:,,,,:,:,,,:,,,,:,,P",
-      ":::::::::::::::::::,P",
-      "RRR,SSSS:,RRRR,SSSS,P",
-      "RRR,SSSS:,RRRR,SSSS,P",
-      "HEH,TTFT:,HHEH,TTFT,P",
-      ",:,,,,:,:,,,:,,,,:,,P",
-      ":::::::::::::::::::,P",
-      "PPPPPPPPPPPPPPPPPPPPP"
+      "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+      ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,P",
+      "RRR,,SSSS,,RRRR,SSSS,,SSSS,,,,,P",
+      "RRR,,SSSS,,RRRR,SSSS,,SSSS,,,,,P",
+      "HEH,,TTFT,,HHEH,TTFT,,TTFT,,,,,P",
+      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,,,P",
+      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,,,P",
+      "::::::::::::::::::::::::::::::,P",
+      ",,,,,,,,:,,,,,,,,,,,,,,,,,,,,,,P",
+      ",,,,,,,,:,,,,,,,,,,,,,,,,,,,,,,P",
+      "SSS,RRRR:,RRRR,SSSS,,,,,,,,,,,,P",
+      "SSS,RRRR:,RRRR,SSSS,,,,,,,,,,,,P",
+      "TFT,HHEH:,HHEH,TTFT,,,,,,,,,,,,P",
+      ",:,,,,:,:,,,:,,,,:,,,,,,,,,,,,,P",
+      ",:,,,,:,:,,,:,,,,:,,,,,,,,,,,,,P",
+      "::::::::::::::::::::::::::::::,P",
+      "RRR,SSSS:,RRRR,SSSS,,,,,,,,,,,,P",
+      "RRR,SSSS:,RRRR,SSSS,,,,,,,,,,,,P",
+      "HEH,TTFT:,HHEH,TTFT,,,,,,,,,,,,P",
+      ",:,,,,:,:,,,:,,,,:,,,,,,,,,,,,,P",
+      "::::::::::::::::::::::::::::::,P",
+      "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP"
     ] }
   ],
   "things": [
@@ -59,15 +59,15 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
-  "enemies": [ ["elder", 10, 18, 0], ["villager", 19, 9, 0], ["maid", 22, 9, 0] ],
+  "enemies": [ ["villager", 19, 9, 0], ["maid", 22, 9, 0], ["elder", 10, 18, 0] ],
   "intent": { "seed": 17, "rooms": [ ], "corridors": [ ], "grounds": [
-    { "at": [30, 1], "size": [22, 20], "z": 0, "as": "grass" },
-    { "at": [30, 0], "size": [23, 1], "z": 0, "as": "pine" },
-    { "at": [30, 21], "size": [23, 1], "z": 0, "as": "pine" },
-    { "at": [52, 0], "size": [1, 22], "z": 0, "as": "pine" } ], "trails": [
-    { "points": [[29, 7], [50, 7]], "z": 0, "as": "path" },
+    { "at": [30, 1], "size": [33, 20], "z": 0, "as": "grass" },
+    { "at": [30, 0], "size": [34, 1], "z": 0, "as": "pine" },
+    { "at": [30, 21], "size": [34, 1], "z": 0, "as": "pine" },
+    { "at": [63, 0], "size": [1, 22], "z": 0, "as": "pine" } ], "trails": [
+    { "points": [[29, 7], [61, 7]], "z": 0, "as": "path" },
     { "points": [[40, 7], [40, 15], [31, 15]], "z": 0, "as": "path" },
-    { "points": [[40, 15], [50, 15]], "z": 0, "as": "path" },
+    { "points": [[40, 15], [61, 15]], "z": 0, "as": "path" },
     { "points": [[33, 5], [33, 7]], "z": 0, "as": "path" },
     { "points": [[39, 5], [39, 7]], "z": 0, "as": "path" },
     { "points": [[45, 5], [45, 7]], "z": 0, "as": "path" },
@@ -76,12 +76,13 @@
     { "points": [[38, 13], [38, 15]], "z": 0, "as": "path" },
     { "points": [[44, 13], [44, 15]], "z": 0, "as": "path" },
     { "points": [[40, 15], [40, 20], [31, 20]], "z": 0, "as": "path" },
-    { "points": [[40, 20], [50, 20]], "z": 0, "as": "path" },
+    { "points": [[40, 20], [61, 20]], "z": 0, "as": "path" },
     { "points": [[49, 13], [49, 15]], "z": 0, "as": "path" },
     { "points": [[33, 19], [33, 20]], "z": 0, "as": "path" },
     { "points": [[38, 19], [38, 20]], "z": 0, "as": "path" },
     { "points": [[44, 19], [44, 20]], "z": 0, "as": "path" },
-    { "points": [[49, 19], [49, 20]], "z": 0, "as": "path" } ], "houses": [
+    { "points": [[49, 19], [49, 20]], "z": 0, "as": "path" },
+    { "points": [[56, 5], [56, 7]], "z": 0, "as": "path" } ], "houses": [
     { "at": [31, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [37, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [43, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
@@ -93,7 +94,8 @@
     { "at": [31, 16], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [36, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [42, 16], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
-    { "at": [47, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ] },
+    { "at": [47, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
+    { "at": [54, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [4, 4, 0], "to": "first_climb", "door": "demo" },
@@ -112,7 +114,8 @@
     { "at": [33, 18, 0], "to": "the_bat_cave", "door": "demo" },
     { "at": [38, 18, 0], "to": "the_spider_hall", "door": "demo" },
     { "at": [44, 18, 0], "to": "the_cyclops_den", "door": "demo" },
-    { "at": [49, 18, 0], "to": "the_hunters_hall", "door": "demo" }
+    { "at": [49, 18, 0], "to": "the_hunters_hall", "door": "demo" },
+    { "at": [56, 4, 0], "to": "the_fountain", "door": "demo" }
   ],
   "labels": [
     { "at": [4, 6, 0], "text": "FIRST CLIMB" },
@@ -132,7 +135,8 @@
     { "at": [33, 19, 0], "text": "BAT CAVE" },
     { "at": [38, 19, 0], "text": "SPIDERS" },
     { "at": [44, 19, 0], "text": "CYCLOPS" },
-    { "at": [49, 19, 0], "text": "HUNTER" }
+    { "at": [49, 19, 0], "text": "HUNTER" },
+    { "at": [56, 6, 0], "text": "FOUNTAIN" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [
