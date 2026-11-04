@@ -40,6 +40,10 @@ part's text is the paragraph that carries its anchor.  A piece that cannot name 
 serves is not built (the status above).  `loft tools/tags.loft check` keeps the index, the
 paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 
+Names are working names (owner, 2026-11-04): easy to change if need be, but with them the people
+are easy to pinpoint and the game has something to work with.  The tags name the role, not the
+person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
+
 | Part | What | § |
 |---|---|---|
 | [`@ST-Setting`](#st-setting) | Orbury, the decrepit mining town, in Sunmarch, in the Kingdom of Aldmere | § 1 |
@@ -70,6 +74,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Neighbour`](#st-neighbour) | Lord Garrick of Highcrag, elderly lord of the mountains next door; sent the wizard | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
+| [`@ST-Founder`](#st-founder) | the ghost of the miner who founded the mine, in the cemetery at night | § 3 |
 | [`@ST-Hunter`](#st-hunter) | Rennick, the outcast returned with a grudge; befriendable, never the village's | § 3 |
 | [`@ST-Cyclopes`](#st-cyclopes) | the Kharn, the tribe in the mine, planning to take the village | § 3 |
 | [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
@@ -125,7 +130,11 @@ low for a while; but this adventure is also his way to grow into the person he w
 Part of why he comes here is that he heard this place may offer opportunities for someone like
 him, with little official education.  The army he served in was the local lord's (@ST-Court,
 owner 2026-11-04).  Entering the village is a bit of a let-down for him: this is
-very much not the place he wants to be.  But it might become the place he needs: he needs this
+very much not the place he wants to be: he arrives riding his horse (owner, 2026-11-04; the game's
+own sheet, tile 24), and cannot find a place to stay at the inn, which is abandoned (@ST-Innkeeper).
+He can stay in the barn at Thornfield, if he is willing to let the Dunns use his horse on the
+farm until he needs it again (owner, 2026-11-04; @ST-Farm).
+But it might become the place he needs: he needs this
 place to learn, perhaps to fetch useful artifacts, and to decide what to pursue in his life
 (owner, 2026-11-04; so he rides on at the end, @ST-Sunset).
 
@@ -152,22 +161,37 @@ presented in the game unless an ending scene is built for it (owner, 2026-11-04)
 **The places so far** (gathered from the owner's outline, 2026-11-04; a place marked *reading* is
 the outline's implication, not the owner's words):
 
-- **The village** (@ST-Setting): the town, the small farm (@ST-Farm), the alchemist's home
-  (@ST-Alchemist), the abandoned inn and Agnes's house nearby (@ST-Innkeeper); the family that fled is missed there (@ST-Debate).
-- **The main mine, the Old Seam** (@ST-Mine): mined out at the surface; deeper tunnels below
-  (@ST-Hints names the way down); the lower tunnels, flooded, running in several directions, some
-  into natural caves (@GM-Flooded; no special name, owner); an underground lake, the Still Lake
-  (@GM-Flotilla); a lift for carts (@GM-CartLift).
-- **The new dig sites in the hills, the High Diggings** (@ST-Mine), and a hidden path into the hills that a younger
-  villager can show the player (@ST-YoungVillager).
+- **The village** (@ST-Setting): the town, the small farm with the barn where the hero stays
+  (@ST-Farm), the alchemist's home
+  (@ST-Alchemist), the abandoned inn and Agnes's house nearby (@ST-Innkeeper); a small cemetery
+  near the village, where the founder's ghost appears at night (@ST-Founder); the family that fled is missed there (@ST-Debate).
+- **The main mine, the Old Seam** (@ST-Mine): mined out at the surface; roughly three levels of
+  tunnels below it, the flooded ones the deepest (owner, 2026-11-04; @ST-Hints names the way down);
+  more natural caves than the lake's, which is the biggest (owner); the lower tunnels, flooded, running in several directions, some
+  into natural caves (@GM-Flooded; no special name, owner), one of them leading towards an
+  underground lake, the Still Lake, without joining it once the pump has lowered the water
+  (@GM-Flotilla); a lift for carts that joins all the levels, though the lowest cannot be reached by
+  it until the pump has run several times (owner, 2026-11-04; @GM-CartLift).  Some places are
+  reached only with a cart to clear rubble out of the way, and a working lift to get the cart there
+  (owner).
+- **The new dig sites in the hills, the High Diggings** (@ST-Mine), with a main mine of their own,
+  where Sable has his spot, with his goods, rope among them (owner, 2026-11-04; @ST-Rival), and a hidden path into the hills that a younger
+  villager can show the player (@ST-YoungVillager), along a brook where crabs live (@ST-Residents).
+  The hidden path leads to a cave-in spot, a way into the main mine without being spotted by the
+  Wardens or the Kharn (owner, 2026-11-04; @ST-Stealth).  Others have found that entrance, but not
+  the hidden path: it can also be reached over the hillside itself, which is more exposed, so only
+  safe at night, and then with trouble finding the way (owner, 2026-11-04).
 - **The cyclopes settled in the main mine** (owner, @ST-Cyclopes), and so block the normal way to
   the lift and the pump (@GM-CartLift, @GM-Flooded).  There are more ways into it, such as a
-  caved-in tunnel (@ST-Stealth).  So the cyclopes are a big part of the main puzzle (owner), and
+  caved-in tunnel, reached by the hidden path (@ST-Stealth, @ST-YoungVillager).  So the cyclopes are a big part of the main puzzle (owner), and
   that matters to the theme: they must not stay unknown to the player, only heard of from the
   villagers.
-- **The hill-top, Stormcap,** with the lightning installation and a local monster (@GM-Flooded).
-- **The Wardens' small camp** (@ST-Warden): they keep the people out; *reading*: out of the mine,
-  so the camp stands at it or on the way to it.
+- **The hill-top, Stormcap,** with the lightning installation, where bigfoot lives (@GM-Flooded,
+  @ST-Residents).  Near the top of the hill is the start of a mine, where bigfoot sleeps at night
+  (owner, 2026-11-04).
+- **The Wardens' small camp on the main path to the mine** (@ST-Warden, owner): they guard that
+  path, the one the ore is carried out by.  It did not stop the Kharn.  Everybody else can get into
+  the mine too, but has found a way in of their own (owner, 2026-11-04).
 - **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
   other adventurers arrive from (@ST-Newcomers).
 
@@ -229,7 +253,9 @@ maintain.
 
 <a id="st-warden"></a>**The Wardens' sergeant: Sergeant Voss** (owner, 2026-11-04): a fellow sergeant for the hero to
 measure himself against (@ST-Guards).  The Wardens keep to themselves in a small camp, explicitly
-not mingling with the people: they are there to keep the people out.
+not mingling with the people: they are there to keep the people out.  They guard the main path to
+the mine; that is enough to stop it running, because the ore is carried out that way too.  It did
+not stop the Kharn (owner, 2026-11-04).
 
 <a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): of the Dunns of Thornfield (@ST-Farm); can be
 asked to show the player a hidden path into the hills (@ST-Hints, @ST-Stealth).
@@ -247,7 +273,9 @@ crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the e
 <a id="st-rival"></a>**The rival adventurer: Sable** (owner, 2026-11-04): another newcomer (@ST-Newcomers), after the same
 artifacts as the hero; he turns up in places as a contender.  He actively blocks walkways, so some
 places hold puzzles solely because of the obstructions he made.  What does not occur naturally,
-a runaway cart for one, he can have left behind as practical traps (owner, 2026-11-04).
+a runaway cart for one, he can have left behind as practical traps (owner, 2026-11-04).  His spot,
+with his goods and rope among them, is in the High Diggings' mine; during the day he is often in
+the main mine, and cannot get back home until dusk (owner, 2026-11-04).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord, Lord Edric of Sunmarch, proposed to a princess,
 Princess Isolde, and was rejected.
@@ -294,7 +322,18 @@ a strict rule: the player may have reasons to hunt them anyway, for resources or
 safety, but that is never the presented goal of an area.
 
 <a id="st-residents"></a>**The other monsters** (owner, 2026-11-04): most of them are just living there.  The cyclopes hunt
-them too, for food, but that is hardly enough to sustain their tribe.
+them too, for food, but that is hardly enough to sustain their tribe.  Green slimes live in the
+natural caves beside the Still Lake (owner, 2026-11-04; Tiny Dungeon's tile 108).  Crabs live along
+a brook beside the hidden path into the hills (owner, 2026-11-04; tile 110).  There can be several
+kinds of rat (the brown 123, the grey 124), but only if each finds a way of behaving of its own
+(owner, 2026-11-04).  Bigfoot lives on Stormcap, the storm hill (owner, 2026-11-04; Tiny Ski's
+tiles 78–80); unique ways to deal with him are defined when that terrain is built (owner).
+
+<a id="st-founder"></a>**The founder's ghost** (owner, 2026-11-04): at night a local, non-aggressive ghost haunts the small
+cemetery near the village: the original miner who founded the mine (@ST-Mine; Tiny Dungeon's
+tile 121).  With the help of others he dug the first main shaft, but drowned in the lake when
+they struck its water; his fellow miners retrieved his body (owner, 2026-11-04; the Still Lake,
+@GM-Flotilla).
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
@@ -302,7 +341,8 @@ he is not evil (owner).  He might be befriended, but he will
 never take the side of the village.  He already knows that the village's main income has dried up
 for now: nobody is working the mine.
 
-<a id="st-cyclopes"></a>**The cyclopes: the Kharn** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
+<a id="st-cyclopes"></a>**The cyclopes: the Kharn** (owner, 2026-11-04): a tribe that recently settled in a mine (the Old
+Seam, the main mine, @ST-Setting).  The villagers
 have met them only a few times, and fled, using their knowledge of the terrain to get home.  The
 group plans to take over the village eventually, but for now the cyclopes are content in the mine.
 They have their own language (owner, 2026-11-04).  The one who knows some broken words of the

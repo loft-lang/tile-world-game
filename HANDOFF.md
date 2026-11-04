@@ -99,6 +99,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   Greywood, Lord Garrick of Highcrag, Master Odran (the wizard), Hollis (the alchemist), Rennick
   (the hunter), Lark, the Fenns (fled), the Kharn (the cyclopes), the King's Wardens, the Old Seam
   (its flooded lower tunnels have no name), the Still Lake, Stormcap, the High Diggings.
+  Then the people of Orbury (the Dunns of Thornfield with Lark, Garth the old foreman, Wick the
+  blaster, Agnes, Sergeant Voss), Sable the rival, the Kharn's language and Urgha, the monsters'
+  homes (slimes, crabs, bigfoot on Stormcap, the founder's ghost), the places validated (the
+  Wardens on the main path; everyone else has a way in of their own; the hidden path to the cave-in;
+  three tunnel levels; the lift to all of them; the pick, the cart and the unloading places).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

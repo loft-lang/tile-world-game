@@ -81,7 +81,10 @@ flotilla to cross an underground lake.
   - Water stays the terrain it is: not walked, bats fly over it, things pushed or blown into it
     are lost, a bomb in it douses the torches it reaches.
   - **There is a single flooded part of the mine** (owner, 2026-11-04): its lower tunnels, with no
-    special name; it runs in several directions, some of which connect to natural caves.
+    special name; it runs in several directions, some of which connect to natural caves.  One of the
+    flooded tunnels leads towards the underground lake, but does not connect to it directly — at
+    least not any more once the pump has done its first lowering (owner, 2026-11-04): the lake is
+    water of its own, which the pump does not drain (@GM-Flotilla).
   - A **pump** is a fixed big thing standing beside the water.  Running, it drains the body of
     water it stands at — the water cells joined to the cell beside it — one cell at a time, each
     drained cell becoming the floor it covered.
@@ -90,7 +93,8 @@ flotilla to cross an underground lake.
     it charged (@ST-Magic: magic is crafted).  It needs a lightning strike, which the alchemist
     cannot produce himself; the wizard (@ST-Wizard) has enough energy, but is not easily swayed
     to chime in (owner, 2026-11-04).  The lightning can also be captured on the hill-top, by an
-    installation that is already there, where a local monster lives (to be decided); it also
+    installation that is already there, where a local monster lives: bigfoot (owner, 2026-11-04;
+Tiny Ski's 78–80); it also
     needs a bit of help from the weather (@ST-Outside: the climate), to be fitted in (owner).  The
     alchemist is needed to work the installation, so the way there must be safe for him; he comes
     on his own, but needs convincing (owner).  The drive is a crystal inside the pump (owner): an
@@ -115,6 +119,18 @@ flotilla to cross an underground lake.
   - Scenario: a room whose far half is water over a chest, the pump on the dry side; one room
     with a second pump that drains the water off a rail, opening a cart's way.
 - **The cart lift.**
+  - **In the Old Seam it joins all the levels** (owner, 2026-11-04), but the lowest are not reached
+    by it until the pump has run several times: its stop there is under water till then
+    (@GM-Flooded).
+  - **Some places are reached only with a cart at hand to clear rubble out of the way, and a working
+    lift to get the cart there** (owner, 2026-11-04).  Holding a **pick**, with a cart beside him,
+    the hero clears rocks away completely: the rubble goes into the cart.  The cart must then be
+    emptied elsewhere before it can take more (owner).  Proposed: a pick is a held tool as the axe
+    is (the axe fells trees, the pick breaks rocks), its blows paced the same way.
+  - **Unloading places** along the track have room to unload onto (owner, 2026-11-04): with the
+    cart there, the hero bumps it from the side to empty it.  A full cart is heavier to push (owner,
+    2026-11-04).  Proposed: it counts as two carts against push_strength and pull_strength, so a
+    full cart in a train makes the train as hard to move as one cart longer.
   - A **lift** is a platform cell with a shaft above or below it: a floor cell, rails on it or
     not, that moves between two layers, carrying its whole stack — a cart, what rests on the cart,
     the hero.  At each stop its rails join the track there, so a cart rolls on and off it as onto
@@ -483,7 +499,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## Enemies
 
-- **Kinds.** Rats, bats and spiders.
+- **Kinds.** Rats, bats and spiders.  A further kind that shares a look (a second rat) is added
+  only with a behaviour of its own (owner, 2026-11-04).
   - Walking into an enemy attacks it.
   - The hero has hearts, and losing them all returns the hero to the last safe point.
 - **They do not fight to the death.**
