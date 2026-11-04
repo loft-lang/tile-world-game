@@ -318,6 +318,14 @@ on water, and things pushed or blown into it are lost.
 
 ## What the hero holds
 
+- **The axe is a worse weapon than the sword** (owner, 2026-11-04): it does the same damage, but
+  its weight makes it take longer to ready again after a blow.  Proposed: the axe's recovery is
+  half again the sword's (600 ms against 400), a recovery per weapon where the game has one for all.
+- **A torch is a reasonable weapon against bats** (owner, 2026-11-04): it hurts them for 2, and
+  any other enemy for 1, as the pick does.  A weapon is a good idea in combat (owner).
+- **Reach** (owner, 2026-11-04): any item held in the hand reaches 3 tiles when swung, where bare
+  hands reach only the one tile faced.  *Reading*: the swing sweeps the cell faced and the two
+  beside it across the swing (the swing already turns from 70° behind the facing to 70° beyond).
 - **A blow takes its time** (owner; built, `tests/blows.loft`; 400 ms proposed).  Every blow —
   a swing, a walk into an enemy, an axe into a tree — is followed by a recovery.  A blow pressed
   within it is not struck then; one more blow lands when it is over, however often it was

@@ -215,7 +215,8 @@ the outline's implication, not the owner's words):
   where Sable has his spot, with his goods, rope among them (owner, 2026-11-04; @ST-Rival), and a hidden path into the hills that a younger
   villager can show the player (@ST-YoungVillager), along a brook where crabs live (@ST-Residents).
   The hidden path leads to a cave-in spot, a way into the main mine without being spotted by the
-  Wardens or the Kharn (owner, 2026-11-04; @ST-Stealth).  Others have found that entrance, but not
+  Wardens or the Kharn (owner, 2026-11-04; @ST-Stealth).  The cave-in entrance is not directly
+  connected to the Kharn's main tunnels: there is a walk before reaching them (owner).  Others have found that entrance, but not
   the hidden path: it can also be reached over the hillside itself, which is more exposed, so only
   safe at night, and then with trouble finding the way (owner, 2026-11-04).
 - **The cyclopes settled in the main mine** (owner, @ST-Cyclopes), and so block the normal way to
@@ -433,7 +434,9 @@ invade the village, and the hunter is not helping there.  The cyclopes know othe
 because of the shared situation the village is their best choice for the moment.  The cyclopes
 are not cold killers, they are tribal: presented with a well-defended village, they retreat.
 **When** (owner, 2026-11-04): the attack takes place when the cyclopes have hunted the monsters
-there are to hunt, and run out of food (@ST-Residents).
+there are to hunt, and run out of food (@ST-Residents).  Between the start and the attack there is
+a phase where the cyclopes get nervous and start to scout outside the mine (owner, 2026-11-04):
+the clock, read from the world.
 **Well defended** is enough capable people together behind a barricade that has been built; so the
 Wardens have to move too, for they are in danger as well (owner, 2026-11-04; @ST-Warden).
 

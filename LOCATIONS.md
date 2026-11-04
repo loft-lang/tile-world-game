@@ -6,7 +6,9 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The locations
 
 Each place of the story game: what makes it unique, what can be found there, what the hero
-learns there, and what the player can look out for.  Gathered from STORY.md and DESIGN.md
+learns there, and what the player can look out for.  In almost every place there are several
+paths to take, with levels partly out of sight (owner, 2026-11-04).  So the hero can sneak past
+almost everything, but it gets harder near any group (owner).  Gathered from STORY.md and DESIGN.md
 (2026-11-04).  A placement marked ◇ is a proposal, to be validated and tweaked by the owner;
 everything else the outline already fixes.
 
@@ -85,7 +87,8 @@ everything else the outline already fixes.
 - **Learned:** that the Kharn are people, with a language and a hunger; how near the attack is,
   read from how little prey is left (@ST-Climax).
 - **Look out for:** the routes between the Kharn's points; what Urgha can understand; the first
-  chest ◇.
+  chest ◇.  The cave-in entrance is not directly connected to the Kharn's main tunnels: there is a
+  walk before reaching them (owner, 2026-11-04), a quieter stretch first.
 
 ## 6. The Old Seam, second level (@GM-CartLift)
 
