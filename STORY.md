@@ -51,7 +51,10 @@ What the owner has already said that bounds it:
 
 ## 2. The people in it (NPCs)
 
-*The owner's to write: who they are, where they live and work, what they want.*
+**The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
+depend on each other, but they have wildly different opinions on just about everything.
+
+*Still the owner's to write: who each of them is, where they live and work, what they want.*
 
 What the owner has already said about NPCs:
 
