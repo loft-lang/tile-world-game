@@ -80,8 +80,8 @@ flotilla to cross an underground lake.
 - **The flooded part.**
   - Water stays the terrain it is: not walked, bats fly over it, things pushed or blown into it
     are lost, a bomb in it douses the torches it reaches.
-  - **There is a single flooded part of the mine** (owner, 2026-11-04), but it runs in several
-    directions, some of which connect to natural caves.
+  - **There is a single flooded part of the mine** (owner, 2026-11-04): its lower tunnels, with no
+    special name; it runs in several directions, some of which connect to natural caves.
   - A **pump** is a fixed big thing standing beside the water.  Running, it drains the body of
     water it stands at — the water cells joined to the cell beside it — one cell at a time, each
     drained cell becoming the floor it covered.

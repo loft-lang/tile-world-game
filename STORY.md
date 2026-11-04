@@ -42,13 +42,13 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 
 | Part | What | § |
 |---|---|---|
-| [`@ST-Setting`](#st-setting) | the decrepit mining town | § 1 |
+| [`@ST-Setting`](#st-setting) | Orbury, the decrepit mining town, in Sunmarch, in the Kingdom of Aldmere | § 1 |
 | [`@ST-Farm`](#st-farm) | the farm that cannot feed the village | § 1 |
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
-| [`@ST-Guards`](#st-guards) | federal guards: no sides, no protection | § 1 |
+| [`@ST-Guards`](#st-guards) | the King's Wardens: federal guards, no sides, no protection | § 1 |
 | [`@ST-Future`](#st-future) | the village will be rebuilt anyway; the villagers may not live to see it | § 1 |
-| [`@ST-Hero`](#st-hero) | the sergeant who failed as an officer | § 1 |
+| [`@ST-Hero`](#st-hero) | Bram Holt, the sergeant who failed as an officer | § 1 |
 | [`@ST-Play`](#st-play) | searching places, puzzles to progress | § 1 |
 | [`@ST-Hints`](#st-hints) | villagers aid a stuck player; not a tutorial | § 1 |
 | [`@ST-Stealth`](#st-stealth) | reaching places unnoticed; terrain knowledge | § 1 |
@@ -57,16 +57,16 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Villagers`](#st-villagers) | close, dependent, disagreeing on everything | § 2 |
 | [`@ST-Newcomers`](#st-newcomers) | other adventurers, a mix of NPCs | § 2 |
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
-| [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
-| [`@ST-YoungVillager`](#st-youngvillager) | can show the player a hidden path into the hills | § 2 |
-| [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
-| [`@ST-Court`](#st-court) | the young local lord's proposal to a princess, rejected | § 2 |
-| [`@ST-Lady`](#st-lady) | Lady Brigid, the witch: an elderly lord of far forest lands, after the mine | § 2 |
-| [`@ST-Neighbour`](#st-neighbour) | the elderly lord of the mountains next to the mine, who sent the wizard; money | § 2 |
+| [`@ST-Alchemist`](#st-alchemist) | Hollis, potions and stimulants for the miners | § 2 |
+| [`@ST-YoungVillager`](#st-youngvillager) | Lark, who can show the player a hidden path into the hills | § 2 |
+| [`@ST-Wizard`](#st-wizard) | Master Odran, a newcomer after the mines for his own goals; not easily swayed | § 2 |
+| [`@ST-Court`](#st-court) | Lord Edric of Sunmarch, the young local lord, rejected by Princess Isolde | § 2 |
+| [`@ST-Lady`](#st-lady) | Lady Brigid of Greywood, the witch: elderly, far forest lands, after the mine | § 2 |
+| [`@ST-Neighbour`](#st-neighbour) | Lord Garrick of Highcrag, elderly lord of the mountains next door; sent the wizard | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
-| [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
-| [`@ST-Cyclopes`](#st-cyclopes) | the tribe in the mine, planning to take the village | § 3 |
+| [`@ST-Hunter`](#st-hunter) | Rennick, the outcast returned with a grudge; befriendable, never the village's | § 3 |
+| [`@ST-Cyclopes`](#st-cyclopes) | the Kharn, the tribe in the mine, planning to take the village | § 3 |
 | [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
 | [`@ST-Climax`](#st-climax) | the invasion; a well-defended village turns it back | § 4 |
 | [`@ST-BestEnding`](#st-bestending) | the cyclopes leave | § 4 |
@@ -75,7 +75,8 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 ## 1. The story to tell
 
 <a id="st-setting"></a>**The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
-mining town.  The last remaining villagers struggle to make something of their lives.  The lands
+mining town, Orbury, in the region of Sunmarch, in the Kingdom of Aldmere, whose king is King
+Theobald (names, owner 2026-11-04).  The last remaining villagers struggle to make something of their lives.  The lands
 around it are more given to farming, though desert has been creeping in lately (owner,
 2026-11-04; the drought, @ST-Outside).
 
@@ -98,7 +99,7 @@ Two lords want the ownership, the witch (@ST-Lady) and the elder lord next door 
 who has the wizard as an adviser (@ST-Wizard); and the favour of the local lord, the young lord
 (@ST-Court), might be restored (owner, 2026-11-04).
 
-<a id="st-guards"></a>**The guards** (owner, 2026-11-04) are part of the decree: they are from the federal government
+<a id="st-guards"></a>**The guards: the King's Wardens** (owner, 2026-11-04) are part of the decree: they are from the federal government
 and take no sides.  They will not protect the town either; the local lord is blocked here: he
 cannot benefit from the mine, and the local miners are blocked from working it (owner).
 
@@ -111,7 +112,7 @@ Weighed and set aside, and why (owner): no blasting powder (it would block gamep
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
 as the hero being a soldier).
 
-<a id="st-hero"></a>**The hero** (owner, 2026-11-04): a pre-defined hero, not a one-size-fits-all hero that tries to
+<a id="st-hero"></a>**The hero: Bram Holt, Sergeant Holt** (owner, 2026-11-04): a pre-defined hero, not a one-size-fits-all hero that tries to
 fit every gamer.  He is a veteran soldier, a sergeant, who tried to become an officer and failed
 spectacularly at it.  Because of that he is getting out of the army, for now: not really sacked,
 but certainly not welcome there at the moment.  For now he is just searching for a place to lay
@@ -148,17 +149,18 @@ the outline's implication, not the owner's words):
 
 - **The village** (@ST-Setting): the town, the small farm (@ST-Farm), the alchemist's home
   (@ST-Alchemist); the family that fled is missed there (@ST-Debate).
-- **The mine** (@ST-Mine): mined out at the surface; deeper tunnels below (@ST-Hints names the
-  way down); its single flooded part, running in several directions, some into natural caves
-  (@GM-Flooded); an underground lake (@GM-Flotilla); a lift for carts (@GM-CartLift).
-- **The new dig sites in the hills** (@ST-Mine), and a hidden path into the hills that a younger
+- **The main mine, the Old Seam** (@ST-Mine): mined out at the surface; deeper tunnels below
+  (@ST-Hints names the way down); the lower tunnels, flooded, running in several directions, some
+  into natural caves (@GM-Flooded; no special name, owner); an underground lake, the Still Lake
+  (@GM-Flotilla); a lift for carts (@GM-CartLift).
+- **The new dig sites in the hills, the High Diggings** (@ST-Mine), and a hidden path into the hills that a younger
   villager can show the player (@ST-YoungVillager).
 - **The cyclopes settled in the main mine** (owner, @ST-Cyclopes), and so block the normal way to
   the lift and the pump (@GM-CartLift, @GM-Flooded).  There are more ways into it, such as a
   caved-in tunnel (@ST-Stealth).  So the cyclopes are a big part of the main puzzle (owner), and
   that matters to the theme: they must not stay unknown to the player, only heard of from the
   villagers.
-- **The hill-top** with the lightning installation and a local monster (@GM-Flooded).
+- **The hill-top, Stormcap,** with the lightning installation and a local monster (@GM-Flooded).
 - *Reading*: where the federal guards stand (@ST-Guards), at the mine or on the way to it.
 - **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
   other adventurers arrive from (@ST-Newcomers).
@@ -203,13 +205,13 @@ NPCs.
 <a id="st-magic"></a>**Magic** (owner, 2026-11-04): it is a low-magic world: mages cannot do magic at will, but have to
 craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 
-<a id="st-alchemist"></a>**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
+<a id="st-alchemist"></a>**The alchemist: Hollis** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.
 
-<a id="st-youngvillager"></a>**A younger villager** (owner, 2026-11-04): can be asked to show the player a
+<a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): can be asked to show the player a
 hidden path into the hills (@ST-Hints, @ST-Stealth).
 
-<a id="st-wizard"></a>**The wizard** (owner, 2026-11-04): not a villager; one of the newcomers, interested
+<a id="st-wizard"></a>**The wizard: Master Odran** (owner, 2026-11-04): not a villager; one of the newcomers, interested
 in the mines for his own goals: he is an adviser to one of the two lords who want the mine, the
 elder lord next door (@ST-Neighbour), but certainly has goals of his own too.  He has the energy for a lightning strike, which the alchemist
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
@@ -219,7 +221,8 @@ her advisers (owner, 2026-11-04).  His goals in the mine are the same as hers: t
 crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the elder lord next door
 (@ST-Neighbour, owner 2026-11-04).
 
-<a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
+<a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord, Lord Edric of Sunmarch, proposed to a princess,
+Princess Isolde, and was rejected.
 The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
 army (@ST-Hero).  He has a claim on the mine, but it is actively blocked (owner, 2026-11-04; the
 guards block him, @ST-Guards).  The princess is the reason he fell from grace (owner, 2026-11-04).
@@ -227,7 +230,7 @@ The hero can influence this, indirectly: by giving the young lord unique treasur
 a bit of spine (owner, 2026-11-04).  They reach him when the hero rides off to him at the end, one
 of the directions he can take (@ST-Sunset, owner 2026-11-04).
 
-<a id="st-lady"></a>**The lady: Lady Brigid** (owner, 2026-11-04; her lands' name, Greywood, proposed): another one interested in the mine is an older lady with quite
+<a id="st-lady"></a>**The lady: Lady Brigid of Greywood** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
 is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is not the
 lord of the mountains next door; both are elderly, but her lands lie further away and are mostly
@@ -235,7 +238,7 @@ forest (owner, 2026-11-04).  She is a party
 in the ownership dispute (@ST-Decree), and her interest is the magical crafting materials deep in
 the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
 
-<a id="st-neighbour"></a>**The elder lord next door** (owner, 2026-11-04): the last of the lords, an elder male lord, and the
+<a id="st-neighbour"></a>**The elder lord next door: Lord Garrick of Highcrag** (owner, 2026-11-04): the last of the lords, an elder male lord, and the
 one who sent the wizard (@ST-Wizard).  His interest in the mine, which is adjacent to his lands, is
 mostly just monetary.  His lands are mostly mountains, with little central control.  He is not
 aware of the wizard's personal interest, but was pleasantly surprised by how willing the grumpy
@@ -265,20 +268,20 @@ safety, but that is never the presented goal of an area.
 <a id="st-residents"></a>**The other monsters** (owner, 2026-11-04): most of them are just living there.  The cyclopes hunt
 them too, for food, but that is hardly enough to sustain their tribe.
 
-<a id="st-hunter"></a>**The hunter** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
+<a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
 he is not evil (owner).  He might be befriended, but he will
 never take the side of the village.  He already knows that the village's main income has dried up
 for now: nobody is working the mine.
 
-<a id="st-cyclopes"></a>**The cyclopes** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
+<a id="st-cyclopes"></a>**The cyclopes: the Kharn** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
 have met them only a few times, and fled, using their knowledge of the terrain to get home.  The
 group plans to take over the village eventually, but for now the cyclopes are content in the mine.
 
 <a id="st-debate"></a>**The village's debate over them** (owner, 2026-11-04): the cyclopes are already a subject of
 debate among the villagers.  Some want to blow up the mine with the cyclopes in it (not easy to
 do); some want to just abandon the town.  The debate is not settled.  Only a single family has
-fled because of it; they are missed, and might even return when the threat wanes.
+fled because of it, the Fenns; they are missed, and might even return when the threat wanes.
 
 *Further outline to come; details follow from what the player is to do.*
 

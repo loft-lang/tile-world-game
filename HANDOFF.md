@@ -94,8 +94,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   the hero served in his army), Lady Brigid the witch (far forest lands), the elderly lord of the
   mountains next door (sent the wizard, his adviser) — the magical materials deep in the mine, three
   ownership endings, the hero riding on at the end (a hidden ending where he settles), the younger
-  villager's hidden path.  Names proposed, not yet chosen: Lord Edric, Lord Garrick of Highcrag,
-  Princess Isolde, Greywood.
+  villager's hidden path.  Names chosen (owner): Bram Holt (the hero), King Theobald of Aldmere,
+  the region Sunmarch, the village Orbury, Lord Edric of Sunmarch, Princess Isolde, Lady Brigid of
+  Greywood, Lord Garrick of Highcrag, Master Odran (the wizard), Hollis (the alchemist), Rennick
+  (the hunter), Lark, the Fenns (fled), the Kharn (the cyclopes), the King's Wardens, the Old Seam
+  (its flooded lower tunnels have no name), the Still Lake, Stormcap, the High Diggings.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 
