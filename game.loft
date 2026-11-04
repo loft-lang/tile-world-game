@@ -50,6 +50,9 @@ const THEY_SAY = 52857;
 const KEY_SHIFT = 132;
 const KEY_CTRL = 133;
 
+/// How long the swing key is held for a heavy swing (@GM-Combat; proposed, to tune in play).
+pub const HEAVY_HOLD_MS = 500;
+
 pub struct Game {
   pub world: rules::Level,
   /// The level being played, as its file holds it (name, start, goal).
@@ -129,7 +132,10 @@ pub struct Game {
   /// How far up the layer being drawn is drawn, in pixels: a tile for each layer above layer 0 —
   /// the height of a wall in the pictures (a raised block is a row of wall tops over one row of
   /// wall face).  Fixed per layer, so the world stays still when the hero changes layer.
-  lift: integer
+  lift: integer,
+  /// When the swing key went down (-1: it is up): let go after HEAVY_HOLD_MS it is a heavy swing,
+  /// sooner a light one (@GM-Combat).
+  swing_down_at: integer = -1
 }
 
 /// A place the hero has left, as it left it.
@@ -753,6 +759,17 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   aim(g);
 }
 
+/// A heavy swing (rules::heavy, @GM-Combat): seen and heard as a swing, counted as a move.
+pub fn heavy_swing(g: Game) {
+  if g.won { return; }
+  step = rules::heavy(g.world);
+  if step == rules::Step.Attacked || step == rules::Step.Swung || step == rules::Step.Chopped {
+    g.moves += 1;
+    motion::swing(g.motion, g.world.now);
+    sound(g, if step == rules::Step.Attacked { "hit_enemy" } else { "sword" }, 0.9);
+  }
+}
+
 /// The hero swings what it holds at the cell it faces (rules::swing): a blow or a swing through
 /// the air is seen and heard, and counts as a move; without a weapon nothing happens.
 pub fn swing(g: Game) {
@@ -1066,8 +1083,17 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   health = g.world.health + g.world.spirit;
   hx = g.world.hero_x;
   hy = g.world.hero_y;
+  winds = g.world.winds;
+  parries = g.world.parries;
+  misses = g.world.misses;
   rules::tick(g.world, ms);
   if step_talks(g) { changed = true; }
+  // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
+  // is a swish.  While any enemy winds up, the picture moves.
+  if g.world.winds != winds { sound(g, "grab", 0.35); }
+  if g.world.parries != parries { sound(g, "sword", 1.0); }
+  if g.world.misses != misses { sound(g, "bump", 0.4); }
+  for e in g.world.enemies { if e.wind_until > g.world.now { changed = true; } }
   // A rolling cart is heard before it is seen: every cell it rolls rumbles; a hit hurts.
   if g.world.rolled != rolled {
     sound(g, "cart", 0.5);
@@ -1134,10 +1160,29 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     if rules::aim_next(g.world) { sound(g, "point", 0.3); }
     return true;
   }
+  // The swing (@GM-Combat): a bow shoots and a bomb is thrown on the press; a weapon swings when the
+  // key is let go — held HEAVY_HOLD_MS or more, a heavy swing.
   if !g.won && g.keys.is_action_just_pressed("swing") {
-    swing(g);
+    if rules::armed_with_bow(g.world) || rules::is_bomb_held(g.world) {
+      swing(g);
+      return true;
+    }
+    g.swing_down_at = now;
     return true;
   }
+  if !g.won && g.swing_down_at >= 0 && !g.keys.is_action_pressed("swing") {
+    held = now - g.swing_down_at;
+    g.swing_down_at = -1;
+    if held >= HEAVY_HOLD_MS { heavy_swing(g); } else { swing(g); }
+    return true;
+  }
+  if g.swing_down_at >= 0 { changed = true; }
+  // Block and parry (@GM-Combat): the brace key (Shift, the pull key) with no way pressed — held, a
+  // block; the moment it goes down, a parry.
+  still = !g.keys.is_action_pressed("left") && !g.keys.is_action_pressed("right")
+          && !g.keys.is_action_pressed("up") && !g.keys.is_action_pressed("down");
+  g.world.blocking = still && g.keys.is_action_pressed("pull");
+  if !g.won && still && g.keys.is_action_just_pressed("pull") { rules::parry(g.world); }
   if !g.won && g.keys.is_action_just_pressed("drop") {
     if rules::drop(g.world) == rules::Step.Placed {
       g.moves += 1;
@@ -1451,10 +1496,20 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     if e.z != z { continue; }
     m = motion::still();
     for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
+    pose = motion::pose(m, e.face_x, e.face_y, w.now);
+    fine = motion::fine_pose(m, e.face_x, e.face_y, w.now);
+    // Winding up a blow (@GM-Combat), it draws back, further as the moment nears: the tell.
+    if e.wind_until > w.now {
+      span = enemy_windup(w, e.kind);
+      left = e.wind_until - w.now;
+      back = 1 + ((span - left) * 3 / (if span > 0 { span } else { 1 }) ?? 0);
+      pose.x -= e.face_x * back;
+      pose.y -= e.face_y * back;
+      fine.x -= (e.face_x * back) as float;
+      fine.y -= (e.face_y * back) as float;
+    }
     out += [Figure { x: e.x, y: e.y, h: tile_world::rise(w.w, e.x, e.y, z), sprite: theme::enemy_sprite(g.look, e.kind),
-                     item: e.item, low: false, face_x: e.face_x, face_y: e.face_y,
-                     pose: motion::pose(m, e.face_x, e.face_y, w.now),
-                     fine: motion::fine_pose(m, e.face_x, e.face_y, w.now) }];
+                     item: e.item, low: false, face_x: e.face_x, face_y: e.face_y, pose: pose, fine: fine }];
   }
   if w.hero_z == z {
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
@@ -1463,6 +1518,11 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
                      fine: motion::fine_pose(g.motion, w.face_x, w.face_y, w.now) }];
   }
   out
+}
+
+// An enemy kind's wind-up, for drawing it.
+fn enemy_windup(w: const rules::Level, kind: text) -> integer {
+  rules::windup_of(w, kind)
 }
 
 // The view row a figure's feet stand at, which sets what hides it: drawn after that row's things,

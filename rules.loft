@@ -57,6 +57,16 @@ use tile_world;
 /// Void: a cell nobody set.
 pub const VOID = 0;
 
+/// Combat's timings (@GM-Combat; proposed, to tune in play): a parry turns aside a blow landing
+/// within PARRY_MS after it; a lunge is a swing within LUNGE_MS of a step the same way; a heavy
+/// swing is ready again after HEAVY_RECOVER_MS; a light blow following the last within its
+/// recovery and CHAIN_GAP_MS more is the chain's next, and the third ends it with CHAIN_RECOVER_MS.
+pub const PARRY_MS = 150;
+pub const LUNGE_MS = 150;
+pub const HEAVY_RECOVER_MS = 800;
+pub const CHAIN_GAP_MS = 200;
+pub const CHAIN_RECOVER_MS = 800;
+
 struct TerrainProps {
   const id: integer,
   name: text,
@@ -119,7 +129,14 @@ struct EnemyProps {
   /// enemy it sees, which it hunts.
   shoots: boolean,
   /// It talks (a villager): walked into, it is spoken to, not struck (talk.loft).
-  talks: boolean = false
+  talks: boolean = false,
+  /// Its blow's wind-up (@GM-Combat): drawn back this long before the strike, which lands on the
+  /// cells it aimed at when the wind-up began.  A `sweep` aims at three cells (a cyclops's axe, as
+  /// the hero's reach) and cannot be parried, only dodged.  `poise`: a light blow does not break its
+  /// wind-up.
+  windup_ms: integer = 300,
+  sweep: boolean = false,
+  poise: boolean = false
 }
 
 struct EdgeProps {
@@ -324,7 +341,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       climbs: flag(e, "climbs"), shuns_light: flag(e, "shuns_light"), likes_light: flag(e, "likes_light"),
       guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
       calls: num(e, "calls", 0), brave: flag(e, "brave"), holds: word(e, "holds", ""),
-      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks")
+      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks"),
+      windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise")
     }];
   }
   th = v.field("things");
@@ -560,6 +578,22 @@ pub struct Level {
   pub aim_x: integer,
   pub aim_y: integer,
   pub shots: vector<Shot>,
+  /// Combat (@GM-Combat): blocking (the game sets it while the brace key is held with no
+  /// direction); the moment a parry was pressed; what a blocked blow left over (half a point,
+  /// paid on the next); the light chain's count and its last blow; the hero's last step and its
+  /// way (a lunge is a swing right after a step forward).
+  pub blocking: boolean = false,
+  pub parry_at: integer = -1000000,
+  pub block_carry: integer = 0,
+  pub chain: integer = 0,
+  pub last_blow_at: integer = -1000000,
+  pub stepped_at: integer = -1000000,
+  pub step_x: integer = 0,
+  pub step_y: integer = 0,
+  /// How many blows enemies have wound up, struck, missed and had parried (the game plays them).
+  pub winds: integer = 0,
+  pub misses: integer = 0,
+  pub parries: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -625,7 +659,14 @@ pub struct Enemy {
   pub bark_line: integer = -1,
   pub bark_until: integer = 0,
   pub barked: boolean = false,
-  pub barks_said: integer = 0
+  pub barks_said: integer = 0,
+  /// Combat (@GM-Combat): winding up a blow until this moment (0: not), aimed at the cell (aim_x,
+  /// aim_y), a sweep the cells beside it too; open after a parry until this moment (a blow on it
+  /// then is a riposte).
+  pub wind_until: integer = 0,
+  pub aim_x: integer = 0,
+  pub aim_y: integer = 0,
+  pub open_until: integer = 0
 }
 
 // No enemy: what a missing index reads as.
@@ -957,28 +998,103 @@ fn hero_blow(l: Level, dx: integer, dy: integer, swinging: boolean) -> Step {
 // The blow lands: on an enemy there (Attacked), else — the axe held — a tree or fence there
 // (Chopped), else on nothing (Swung).  The hero recovers for blow_ms.
 fn land_blow(l: Level, dx: integer, dy: integer) -> Step {
+  land(l, dx, dy, false)
+}
+
+/// A heavy swing (@GM-Combat; the game: the swing key held, then let go): +1, it breaks any
+/// enemy's wind-up and knocks it back a cell where there is room, and the hero is ready again only
+/// after HEAVY_RECOVER_MS.  Blocked with nothing to swing; readying while it recovers.
+pub fn heavy(l: Level) -> Step {
+  l.queued = false;
+  if !alive(l) || !armed(l) { return Step.Blocked; }
+  if l.now < l.blow_until { return Step.Readying; }
+  land(l, l.face_x, l.face_y, true)
+}
+
+// A blow lands the way (dx, dy) (@GM-Combat): light or `heavy`.  What it costs each enemy struck:
+// the weapon's (blow_on), +1 for a heavy swing, a lunge (a swing right after a step the same way)
+// or a blow on its side while it winds up a blow (the hero dodged it and struck back: it faces
+// neither the hero nor away), doubled on an open enemy (a riposte, after a parry).  A heavy swing,
+// a riposte, and for an enemy without poise a lunge or a blow on its side, break its wind-up.  A
+// light blow that strikes an enemy following the last that did within its recovery is the chain's
+// next; the third leaves the hero open for CHAIN_RECOVER_MS.
+fn land(l: Level, dx: integer, dy: integer, heavy: boolean) -> Step {
   l.face_x = dx;
   l.face_y = dy;
-  l.blow_until = l.now + recovery(l);
+  lunge = !heavy && l.now - l.stepped_at <= LUNGE_MS && l.step_x == dx && l.step_y == dy;
+  l.blow_until = l.now + (if heavy { HEAVY_RECOVER_MS } else { recovery(l) });
   l.struck += 1;
   z = l.hero_z;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
   // Reach (owner): bare hands strike the cell faced; anything held strikes it and the two cells
-  // beside it across the swing — through the cell faced, so not past a wall there.
+  // beside it across the swing — through the cell faced, so not past a wall there.  A lunge is a
+  // thrust: the cell faced only.
   cells: vector<(integer, integer)> = [(tx, ty)];
   faced = tile_world::terrain(l.w, tx, ty, z);
-  if l.hero_item != 0 && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && !opaque_terrain(l, faced) {
+  if l.hero_item != 0 && !lunge && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && !opaque_terrain(l, faced) {
     cells += [(tx - dy, ty + dx), (tx + dy, ty - dx)];
   }
   hit = false;
   for c in cells {
     foe = enemy_at(l, c.0, c.1, z);
     if foe < 0 || !reachable_foe(l, foe, dx, dy) { continue; }
-    strike_enemy(l, foe, blow_on(l, foe));
+    e = l.enemies[foe] ?? continue;
+    ep = enemy_props(l, e.kind);
+    // Its facing against the way to the hero: 0 is a side.
+    side = e.wind_until > 0 && e.face_x * (l.hero_x - e.x) + e.face_y * (l.hero_y - e.y) == 0;
+    riposte = e.open_until > l.now;
+    n = blow_on(l, foe);
+    if heavy || lunge || side { n += 1; }
+    if riposte { n *= 2; }
+    if e.wind_until > 0 && (heavy || riposte || (!ep.poise && (lunge || side))) {
+      l.enemies[foe].wind_until = 0;
+      l.enemies[foe].due = l.now + ep.bite_ms;
+    }
+    if riposte { l.enemies[foe].open_until = 0; }
+    id = e.id;
+    strike_enemy(l, foe, n);
     hit = true;
+    // A heavy swing knocks it back a cell, where there is room.
+    if heavy {
+      k = enemy_index(l, id);
+      if k >= 0 {
+        kk = l.enemies[k] ?? continue;
+        if enemy_can(l, enemy_props(l, kk.kind), kk.x, kk.y, kk.z, dx, dy) {
+          l.enemies[k].x = kk.x + dx;
+          l.enemies[k].y = kk.y + dy;
+        }
+      }
+    }
+  }
+  // The light chain: a blow striking an enemy within the last one's recovery and CHAIN_GAP_MS more
+  // is the next of it; the third leaves the hero open longer.
+  if hit && !heavy {
+    if l.now - l.last_blow_at <= recovery(l) + CHAIN_GAP_MS { l.chain += 1; } else { l.chain = 1; }
+    l.last_blow_at = l.now;
+    if l.chain >= 3 {
+      l.blow_until = l.now + CHAIN_RECOVER_MS;
+      l.chain = 0;
+    }
+  } else if !hit {
+    l.chain = 0;
   }
   if hit { return Step.Attacked; }
+  // Swung too early (owner): an enemy coming on, two cells ahead, backs away from the blade.
+  if l.hero_item != 0 {
+    for c in [(tx + dx, ty + dy), (tx + dx - dy, ty + dy + dx), (tx + dx + dy, ty + dy - dx)] {
+      foe = enemy_at(l, c.0, c.1, z);
+      if foe < 0 { continue; }
+      e = l.enemies[foe] ?? continue;
+      ep = enemy_props(l, e.kind);
+      if e.wind_until > 0 || ep.guard || ep.talks { continue; }
+      if enemy_can(l, ep, e.x, e.y, e.z, dx, dy) {
+        l.enemies[foe].x = e.x + dx;
+        l.enemies[foe].y = e.y + dy;
+      }
+      l.enemies[foe].due = l.now + ep.chase_ms;
+    }
+  }
   kind = tile_world::terrain(l.w, tx, ty, z);
   felled = chopped_to(l, kind);
   if felled != 0 && holds_chopper(l) && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
@@ -2046,8 +2162,18 @@ pub fn alive(l: const Level) -> boolean {
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   l.queued = false;
   if !alive(l) { return Step.Blocked; }
-  l.face_x = dx;
-  l.face_y = dy;
+  // Stance (@GM-Combat): fighting, a step that is not into an enemy keeps the hero facing the
+  // fight — a side-step or a step back, not a turn.
+  into_foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z) >= 0;
+  if !into_foe {
+    l.stepped_at = l.now;
+    l.step_x = dx;
+    l.step_y = dy;
+  }
+  if into_foe || !in_stance(l) {
+    l.face_x = dx;
+    l.face_y = dy;
+  }
   // Riding a rolling cart the hero does not walk: it leans, and the next junction takes it.
   if riding(l) >= 0 {
     l.lean_x = dx;
@@ -3319,6 +3445,67 @@ fn enemy_props(l: const Level, kind: text) -> EnemyProps {
                      pulls: false, shoots: false }
 }
 
+/// A place's enemies are a set: put them in one order — by where each nests (layer, row, column),
+/// then kind — and number the ids they were given in that order, so the order a level file lists
+/// them in cannot change what happens.  Who acts first at one moment is `acts_before` (where they
+/// stand against the hero); what still reads the list or an id — a wander's seed, a hunter's
+/// choice between prey equally near — then follows the enemies themselves.
+pub fn order_enemies(l: Level) {
+  n = len(l.enemies);
+  ids: vector<integer> = [];
+  taken: vector<boolean> = [];
+  for e in l.enemies {
+    ids += [e.id];
+    taken += [false];
+  }
+  // The ids, smallest first: the k-th enemy in order takes the k-th.
+  ids.sort();
+  out: vector<Enemy> = [];
+  for k in 0..n {
+    best = -1;
+    for i in 0..n {
+      if taken[i] ?? true { continue; }
+      if best < 0 || nests_before(l.enemies[i] ?? no_enemy(), l.enemies[best] ?? no_enemy()) { best = i; }
+    }
+    taken[best] = true;
+    e = l.enemies[best] ?? no_enemy();
+    e.id = ids[k] ?? e.id;
+    out += [e];
+  }
+  l.enemies = out;
+}
+
+/// Of two enemies due at one moment, does `a` go first (owner: by where they stand against the
+/// hero now)?  Nearer the hero first; then further in front of it (the way it faces); then on its
+/// right before its left; another layer after the hero's, nearer first; then by kind and id.  Two
+/// enemies on one layer never share a cell, so there the place alone decides.
+pub fn acts_before(l: const Level, a: const Enemy, b: const Enemy) -> boolean {
+  za = if a.z > l.hero_z { a.z - l.hero_z } else { l.hero_z - a.z };
+  zb = if b.z > l.hero_z { b.z - l.hero_z } else { l.hero_z - b.z };
+  if za != zb { return za < zb; }
+  da = steps_apart(a.x, a.y, l.hero_x, l.hero_y);
+  db = steps_apart(b.x, b.y, l.hero_x, l.hero_y);
+  if da != db { return da < db; }
+  // In front: along the facing; on the right: (-face_y, face_x), with y growing down.
+  fa = (a.x - l.hero_x) * l.face_x + (a.y - l.hero_y) * l.face_y;
+  fb = (b.x - l.hero_x) * l.face_x + (b.y - l.hero_y) * l.face_y;
+  if fa != fb { return fa > fb; }
+  ra = (a.x - l.hero_x) * -l.face_y + (a.y - l.hero_y) * l.face_x;
+  rb = (b.x - l.hero_x) * -l.face_y + (b.y - l.hero_y) * l.face_x;
+  if ra != rb { return ra > rb; }
+  if a.z != b.z { return a.z < b.z; }
+  if a.kind != b.kind { return a.kind < b.kind; }
+  a.id < b.id
+}
+
+// Does a nest before b: by layer, row, column, then kind?
+fn nests_before(a: const Enemy, b: const Enemy) -> boolean {
+  if a.nest_z != b.nest_z { return a.nest_z < b.nest_z; }
+  if a.nest_y != b.nest_y { return a.nest_y < b.nest_y; }
+  if a.nest_x != b.nest_x { return a.nest_x < b.nest_x; }
+  a.kind < b.kind
+}
+
 /// Put an enemy of `kind` on (x, y, z), its nest there; it first acts a wander's step from now.
 /// Answers its id.
 pub fn add_enemy(l: Level, kind: text, x: integer, y: integer, z: integer) -> integer {
@@ -3775,7 +3962,9 @@ fn enemies_due(l: Level) {
     at = 0;
     for i in 0..len(l.enemies) {
       d = l.enemies[i].due ?? 0;
-      if d <= l.now && (first < 0 || d < at) {
+      if d > l.now { continue; }
+      // Due at one moment, they go in `acts_before`'s order, never the list's.
+      if first < 0 || d < at || d == at && acts_before(l, l.enemies[i] ?? no_enemy(), l.enemies[first] ?? no_enemy()) {
         first = i;
         at = d;
       }
@@ -3795,12 +3984,106 @@ fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
   l.enemies[i].due = (l.enemies[i].due ?? l.now) + wait;
 }
 
-// Enemy i bites the hero beside it.
+// Enemy i, beside the hero, winds up a blow (@GM-Combat): it faces the hero and draws back for its
+// windup_ms, aimed at the hero's cell as it is now; the blow lands then (`strike`).
 fn bite(l: Level, i: integer, p: const EnemyProps) {
+  e = l.enemies[i] ?? return;
+  l.enemies[i].face_x = l.hero_x - e.x;
+  l.enemies[i].face_y = l.hero_y - e.y;
+  l.enemies[i].aim_x = l.hero_x;
+  l.enemies[i].aim_y = l.hero_y;
+  start = if e.due > l.now { e.due } else { l.now };
+  l.enemies[i].wind_until = start + p.windup_ms;
+  l.enemies[i].due = start + p.windup_ms;
+  l.winds += 1;
+}
+
+/// The cells enemy i's wound-up blow will land on: the cell aimed at, and for a sweep the two beside
+/// it across the blow.
+pub fn aimed(l: const Level, i: integer) -> vector<(integer, integer)> {
+  e = l.enemies[i];
+  if !e || e.wind_until == 0 { return []; }
+  out: vector<(integer, integer)> = [(e.aim_x, e.aim_y)];
+  if enemy_props(l, e.kind).sweep { out += [(e.aim_x - e.face_y, e.aim_y + e.face_x), (e.aim_x + e.face_y, e.aim_y - e.face_x)]; }
+  out
+}
+
+// Is the hero facing enemy e (it stands in the cell the hero faces)?
+fn faces(l: const Level, e: const Enemy) -> boolean {
+  e.x == l.hero_x + l.face_x && e.y == l.hero_y + l.face_y && e.z == l.hero_z
+}
+
+// Enemy i's wound-up blow lands: on the cells it aimed at.  The hero gone from them is missed (a
+// dodge).  Facing it, the hero who pressed parry within the last PARRY_MS of the wind-up turns it
+// aside — no damage, and the enemy is open (a blow on it is a riposte) — unless it is a sweep;
+// blocking, the hero takes half (a point of a 1 every other time).  Then it recovers for bite_ms.
+fn strike(l: Level, i: integer, p: const EnemyProps) {
+  e = l.enemies[i] ?? return;
+  cells = aimed(l, i);
+  // `e` reads the list: the wind-up's moment is kept before it is cleared.
+  landed = e.wind_until;
+  l.enemies[i].wind_until = 0;
+  l.enemies[i].due = l.now + p.bite_ms;
+  hit = false;
+  for c in cells { if c.0 == l.hero_x && c.1 == l.hero_y && e.z == l.hero_z { hit = true; } }
+  if !hit {
+    l.misses += 1;
+    return;
+  }
+  if !p.sweep && faces(l, e) && l.parry_at >= landed - PARRY_MS && l.parry_at <= landed {
+    l.parries += 1;
+    l.enemies[i].open_until = l.now + p.bite_ms;
+    return;
+  }
+  if l.blocking && faces(l, e) {
+    total = p.bite + l.block_carry;
+    l.block_carry = total % 2 ?? 0;
+    harm(l, total / 2 ?? 0);
+    return;
+  }
   harm(l, p.bite);
-  l.enemies[i].face_x = l.hero_x - (l.enemies[i].x ?? 0);
-  l.enemies[i].face_y = l.hero_y - (l.enemies[i].y ?? 0);
-  l.enemies[i].due = (l.enemies[i].due ?? l.now) + p.bite_ms;
+}
+
+/// An enemy kind's wind-up, in ms (@GM-Combat).
+pub fn windup_of(l: const Level, kind: text) -> integer {
+  enemy_props(l, kind).windup_ms
+}
+
+/// Does the hero hold a bomb (thrown, not swung)?
+pub fn is_bomb_held(l: const Level) -> boolean {
+  l.hero_item != 0 && is_bomb(l, l.hero_item)
+}
+
+/// The hero presses parry (@GM-Combat): turned to the enemy beside it whose wind-up lands first (of
+/// two landing together, the one `acts_before` puts first: in front before the right, the left), a
+/// blow landing within PARRY_MS after it, from the enemy the hero faces, is turned aside.  A second
+/// enemy's blow is not.
+pub fn parry(l: Level) {
+  l.parry_at = l.now;
+  // A parry answers a blow: the hero turns to the enemy beside it whose wind-up lands first.
+  best = -1;
+  soonest = 0;
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i] ?? continue;
+    if e.wind_until <= 0 || !beside_hero(l, e) { continue; }
+    if best < 0 || e.wind_until < soonest
+        || e.wind_until == soonest && acts_before(l, e, l.enemies[best] ?? no_enemy()) {
+      best = i;
+      soonest = e.wind_until;
+    }
+  }
+  b = l.enemies[best] ?? return;
+  l.face_x = b.x - l.hero_x;
+  l.face_y = b.y - l.hero_y;
+}
+
+// Is the hero fighting: recovering from a blow, or beside an enemy winding one up?
+fn in_stance(l: const Level) -> boolean {
+  if l.now < l.blow_until { return true; }
+  for e in l.enemies {
+    if e.wind_until > 0 && e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1 { return true; }
+  }
+  false
 }
 
 // A guard: it stands, blocking; with the hero beside it and the area clear it steps aside — to the
@@ -3823,6 +4106,11 @@ fn guard_act(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 fn enemy_act(l: Level, i: integer) {
   e = l.enemies[i] ?? no_enemy();
   p = enemy_props(l, e.kind);
+  // A wound-up blow lands at its moment, whatever else it would do (a hurt rat still strikes).
+  if e.wind_until > 0 && e.due >= e.wind_until {
+    strike(l, i, p);
+    return;
+  }
   if p.guard {
     guard_act(l, i, e, p);
     return;

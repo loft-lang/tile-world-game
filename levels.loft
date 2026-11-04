@@ -217,6 +217,8 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     // A fifth: what it holds, when not what its kind holds ("none": nothing).
     if e.len() > 4 { rules::arm_enemy(l, len(l.enemies) - 1, e.item(4).as_text()); }
   }
+  // The file's list is a set: its order does not matter.
+  rules::order_enemies(l);
   st = v.field("start");
   sx = num(st.item(0), 0);
   sy = num(st.item(1), 0);

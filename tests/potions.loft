@@ -52,13 +52,13 @@ fn test_temporary_health_is_lost_first_and_never_fades() {
   assert(w.spirit == 0 && w.health == 4, "a blast: the last spirit, then health: {w.spirit} + {w.health}");
 }
 
-// A rat's bite takes the spirit first, too: the hero 6 + 2 beside a rat; at its bite (900 ms after
-// it first acts at 600: it is beside the hero at once, so it bites at 600) the spirit is 1.
+// A rat's bite takes the spirit first, too: the hero 6 + 2 beside a rat; it first acts at 600,
+// beside the hero at once, so it winds up then and bites at 900 (@GM-Combat): the spirit is 1.
 fn test_a_bite_takes_the_spirit_first() {
   w = row(4);
   w.spirit = 2;
   _ = rules::add_enemy(w, "rat", 1, 0, 0);
-  rules::tick(w, 600);
+  rules::tick(w, 900);
   assert(w.spirit == 1 && w.health == 6, "bitten: {w.spirit} + {w.health}");
 }
 

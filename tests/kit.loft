@@ -137,8 +137,11 @@ fn fight(name: text, kind: text, weapon: text, blow: integer) {
   rules::put_hero(w, 3, 16, 0);
   _ = rules::walk(w, 0, -1);
   assert(w.hero_item == rules::thing_id(w.k, weapon), "{name}: the hero takes the {weapon}");
-  w.enemies[0].due = 1000000;
+  // Every enemy still: only the hero's blow counts.
+  for i in 0..len(w.enemies) { w.enemies[i].due = 1000000; }
   w.enemies[0].hp = 9;
+  // Time passes first, so the blow is a plain one, not a lunge off the step that took the weapon.
+  rules::tick(w, 1000);
   rules::put_hero(w, 3, 3, 0);
   _ = rules::walk(w, 0, -1);
   assert((w.enemies[0]!.hp) == 9 - blow, "{name}: a blow costs the {kind} {blow}: {w.enemies[0]!.hp}");

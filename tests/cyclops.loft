@@ -40,12 +40,13 @@ fn at(w: const rules::Level, i: integer) -> text {
 fn main() {
   w = hall(4, 1, true);
   _ = rules::add_enemy(w, "cyclops", 2, 0, 0);
-  assert(at(w, 0) == "x2 y0 hp5", "a cyclops: {at(w, 0)}");
+  assert(at(w, 0) == "x2 y0 hp8", "a cyclops: {at(w, 0)}");
 }
 
 // The dark hides the hero: on x 0, unlit, from a cyclops nesting on x 6 that roams x 3 .. 9 — it
 // never comes within 2, so never sees it, in 20 s.  With a torch the hero is seen from x 6 at 800:
-// it shouts and comes, x 5 .. 1 by 2600, and its blow at 3050 costs 2.  In daylight the same.
+// it shouts and comes, x 5 .. 1 by 2600, winds up its blow at 3050 (700 ms, @GM-Combat), which
+// lands at 3750 and costs 2.  In daylight the same.
 fn test_a_cyclops_sees_the_hero_only_in_light() {
   w = hall(10, 1, true);
   rules::put_hero(w, 0, 0, 0);
@@ -59,24 +60,24 @@ fn test_a_cyclops_sees_the_hero_only_in_light() {
     _ = rules::add_enemy(v, "cyclops", 6, 0, 0);
     assert(rules::hero_lit(v), "lit");
     until(v, 800);
-    assert(at(v, 0) == "x5 y0 hp5" && v.spotted == 1, "800: seen, it shouts and comes: {at(v, 0)}");
-    until(v, 3049);
-    assert(at(v, 0) == "x1 y0 hp5" && v.health == 6, "3049: beside, not yet");
-    until(v, 3050);
-    assert(v.health == 4 && v.spotted == 1, "3050: a blow of 2, one shout: {v.health}");
+    assert(at(v, 0) == "x5 y0 hp8" && v.spotted == 1, "800: seen, it shouts and comes: {at(v, 0)}");
+    until(v, 3749);
+    assert(at(v, 0) == "x1 y0 hp8" && v.health == 6, "3749: beside, winding up, not yet");
+    until(v, 3750);
+    assert(v.health == 4 && v.spotted == 1, "3750: a blow of 2, one shout: {v.health}");
   }
 }
 
-// Within 2 the dark does not hide the hero: the cyclops on x 2 sees it at 800, steps to x 1, and
-// strikes at 1250.
+// Within 2 the dark does not hide the hero: the cyclops on x 2 sees it at 800, steps to x 1, winds
+// up at 1250 and strikes at 1950.
 fn test_close_by_the_dark_does_not_hide() {
   w = hall(10, 1, true);
   rules::put_hero(w, 0, 0, 0);
   _ = rules::add_enemy(w, "cyclops", 2, 0, 0);
-  until(w, 1249);
-  assert(at(w, 0) == "x1 y0 hp5" && w.health == 6, "1249: beside");
-  until(w, 1250);
-  assert(w.health == 4, "1250: struck: {w.health}");
+  until(w, 1949);
+  assert(at(w, 0) == "x1 y0 hp8" && w.health == 6, "1949: beside, winding up");
+  until(w, 1950);
+  assert(w.health == 4, "1950: struck: {w.health}");
 }
 
 // Losing the hero it searches where it saw it.  A corridor along y 0 and a passage down x 0 to
@@ -90,17 +91,17 @@ fn test_a_cyclops_searches_where_it_last_saw_the_hero() {
   torch(w);
   _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
   until(w, 800);
-  assert(at(w, 0) == "x5 y0 hp5", "800: seen");
+  assert(at(w, 0) == "x5 y0 hp8", "800: seen");
   w.hero_item = 0;
   rules::put_hero(w, 0, 4, 0);
   until(w, 3049);
-  assert(at(w, 0) == "x1 y0 hp5", "3049: x 1: {at(w, 0)}");
+  assert(at(w, 0) == "x1 y0 hp8", "3049: x 1: {at(w, 0)}");
   until(w, 3050);
-  assert(at(w, 0) == "x0 y0 hp5", "3050: where it saw the hero: {at(w, 0)}");
+  assert(at(w, 0) == "x0 y0 hp8", "3050: where it saw the hero: {at(w, 0)}");
   until(w, 7499);
-  assert(at(w, 0) == "x0 y0 hp5" && w.health == 6 && w.spotted == 1, "7499: still looking, the hero unseen: {at(w, 0)}");
+  assert(at(w, 0) == "x0 y0 hp8" && w.health == 6 && w.spotted == 1, "7499: still looking, the hero unseen: {at(w, 0)}");
   until(w, 7500);
-  assert(at(w, 0) == "x1 y0 hp5", "7500: home it goes: {at(w, 0)}");
+  assert(at(w, 0) == "x1 y0 hp8", "7500: home it goes: {at(w, 0)}");
 }
 
 // Seeing the hero it calls the others within 6: a hall y 0 .. 1 and a corridor y 3, a wall
@@ -117,7 +118,7 @@ fn test_a_cyclops_calls_the_others() {
   _ = rules::add_enemy(w, "cyclops", 6, 3, 0);
   until(w, 800);
   b = w.enemies[1];
-  assert(at(w, 1) == "x7 y3 hp5" && b.search_x == 0 && b.search_y == 0 && b.search_until == 6800,
+  assert(at(w, 1) == "x7 y3 hp8" && b.search_x == 0 && b.search_y == 0 && b.search_until == 6800,
          "called, round by x 9: {at(w, 1)} {b.search_until}");
   assert(w.spotted == 1, "one shout: the called one has not seen the hero");
   v = hall(10, 9, true);
@@ -143,11 +144,11 @@ fn test_a_blast_draws_a_cyclops() {
   w.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
   _ = rules::add_enemy(w, "cyclops", 6, 0, 0);
   until(w, 100);
-  assert(w.blasted == 1 && at(w, 0) == "x6 y0 hp5", "the blast; untouched");
+  assert(w.blasted == 1 && at(w, 0) == "x6 y0 hp8", "the blast; untouched");
   until(w, 2149);
-  assert(at(w, 0) == "x3 y0 hp5", "2149: x 3: {at(w, 0)}");
+  assert(at(w, 0) == "x3 y0 hp8", "2149: x 3: {at(w, 0)}");
   until(w, 2150);
-  assert(at(w, 0) == "x2 y0 hp5", "2150: at the blast's place: {at(w, 0)}");
+  assert(at(w, 0) == "x2 y0 hp8", "2150: at the blast's place: {at(w, 0)}");
   u = hall(10, 1, true);
   rules::put_hero(u, 0, 0, 2);
   tile_world::place(u.w, 2, 0, 0, rules::th(u, "bomb"));
@@ -155,7 +156,7 @@ fn test_a_blast_draws_a_cyclops() {
   _ = rules::add_enemy(u, "cyclops", 6, 0, 0);
   _ = rules::add_enemy(u, "cyclops", 7, 0, 0);
   until(u, 5000);
-  assert(at(u, 0) == "x2 y0 hp5" && at(u, 1) == "x3 y0 hp5", "the place taken, the second beside it: {at(u, 1)}");
+  assert(at(u, 0) == "x2 y0 hp8" && at(u, 1) == "x3 y0 hp8", "the place taken, the second beside it: {at(u, 1)}");
   v = hall(10, 1, true);
   rules::put_hero(v, 0, 0, 2);
   tile_world::place(v.w, 2, 0, 0, rules::th(v, "bomb"));
@@ -165,27 +166,28 @@ fn test_a_blast_draws_a_cyclops() {
   assert(at(v, 0) == "x7 y0 hp3", "a rat flees it: {at(v, 0)}");
 }
 
-// Hurt, it fights on: struck to 3 beside the hero, it strikes back at 800 (a rat would step away).
-// The hero gone (up on layer 2), it searches (0, 0) — there at 2000 — till 6800, walks home to
-// x 1 at 7250, settles at 8050 and heals a point at 12050 and at 16050.
+// Hurt, it fights on: struck to 6 beside the hero, it winds up at 800 and strikes back at 1500 (a
+// rat would step away).  The hero gone (up on layer 2), it searches (0, 0) — there at 2700 — till
+// 6800, walks home to x 1 at 7150, settles at 7950 and heals a point at 11950 and at 15950 (traced
+// to the millisecond on the build with wind-ups, @GM-Combat).
 fn test_a_hurt_cyclops_fights_on_and_heals_at_home() {
   w = hall(10, 1, true);
   rules::put_hero(w, 0, 0, 0);
   _ = rules::add_enemy(w, "cyclops", 1, 0, 0);
   rules::strike_enemy(w, 0, 2);
-  until(w, 800);
-  assert(w.health == 4 && at(w, 0) == "x1 y0 hp3", "800: it strikes back: {w.health} {at(w, 0)}");
+  until(w, 1500);
+  assert(w.health == 4 && at(w, 0) == "x1 y0 hp6", "1500: it strikes back: {w.health} {at(w, 0)}");
   rules::put_hero(w, 0, 0, 2);
-  until(w, 2000);
-  assert(at(w, 0) == "x0 y0 hp3", "2000: searching where the hero was: {at(w, 0)}");
-  until(w, 7250);
-  assert(at(w, 0) == "x1 y0 hp3", "7250: home: {at(w, 0)}");
-  until(w, 12049);
-  assert(at(w, 0) == "x1 y0 hp3", "12049: settled, not yet");
-  until(w, 12050);
-  assert(at(w, 0) == "x1 y0 hp4", "12050: a point back: {at(w, 0)}");
-  until(w, 16050);
-  assert(at(w, 0) == "x1 y0 hp5" && w.health == 4, "16050: whole: {at(w, 0)}");
+  until(w, 2700);
+  assert(at(w, 0) == "x0 y0 hp6", "2700: searching where the hero was: {at(w, 0)}");
+  until(w, 7150);
+  assert(at(w, 0) == "x1 y0 hp6", "7150: home: {at(w, 0)}");
+  until(w, 11949);
+  assert(at(w, 0) == "x1 y0 hp6", "11949: settled, not yet");
+  until(w, 11950);
+  assert(at(w, 0) == "x1 y0 hp7", "11950: a point back: {at(w, 0)}");
+  until(w, 15950);
+  assert(at(w, 0) == "x1 y0 hp8" && w.health == 4, "15950: whole: {at(w, 0)}");
 }
 
 // --- Step 2: what a cyclops holds ---
@@ -206,9 +208,9 @@ fn test_an_unarmed_cyclops_pulls_the_hero_home() {
   until(w, 3849);
   assert(w.hero_x == 0, "3849: not yet pulled");
   until(w, 3850);
-  assert(w.hero_x == 1 && at(w, 0) == "x2 y0 hp5", "3850: pulled a cell: {w.hero_x} {at(w, 0)}");
+  assert(w.hero_x == 1 && at(w, 0) == "x2 y0 hp8", "3850: pulled a cell: {w.hero_x} {at(w, 0)}");
   until(w, 7050);
-  assert(w.hero_x == 5 && at(w, 0) == "x6 y0 hp5", "7050: at its nest: {w.hero_x} {at(w, 0)}");
+  assert(w.hero_x == 5 && at(w, 0) == "x6 y0 hp8", "7050: at its nest: {w.hero_x} {at(w, 0)}");
   until(w, 12000);
   assert(w.hero_x == 5 && w.held_by == e.id && w.health == 6, "held there, unhurt");
 }
@@ -234,7 +236,7 @@ fn test_the_hero_breaks_free() {
   _ = rules::add_enemy(v, "cyclops", 6, 0, 0);
   rules::arm_enemy(v, 0, "none");
   until(v, 3850);
-  assert(rules::walk(v, 1, 0) == rules::Step.Attacked && at(v, 0) == "x2 y0 hp4" && v.held_by != 0,
+  assert(rules::walk(v, 1, 0) == rules::Step.Attacked && at(v, 0) == "x2 y0 hp7" && v.held_by != 0,
          "walking into it strikes it, still held: {at(v, 0)}");
 }
 
@@ -254,7 +256,7 @@ fn test_a_cyclops_throws_a_bomb() {
   until(w, 1999);
   assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "bomb") && w.health == 6, "1999: x 1, beside the hero");
   until(w, 2000);
-  assert(w.blasted == 1 && w.health == 3 && at(w, 0) == "x8 y0 hp5", "2000: the blast: health {w.health}, {at(w, 0)}");
+  assert(w.blasted == 1 && w.health == 3 && at(w, 0) == "x8 y0 hp8", "2000: the blast: health {w.health}, {at(w, 0)}");
   v = hall(12, 1, true);
   rules::put_hero(v, 0, 0, 0);
   torch(v);
@@ -276,7 +278,7 @@ fn test_a_cyclops_does_not_throw_near_or_blocked() {
   _ = rules::add_enemy(w, "cyclops", 4, 0, 0);
   rules::arm_enemy(w, 0, "bomb");
   until(w, 800);
-  assert(w.hurled == 0 && at(w, 0) == "x3 y0 hp5", "4 away: it comes: {at(w, 0)}");
+  assert(w.hurled == 0 && at(w, 0) == "x3 y0 hp8", "4 away: it comes: {at(w, 0)}");
   until(w, 2150);
   e = w.enemies[0];
   assert(w.held_by == e.id && w.hurled == 0 && w.health == 6, "beside, bombs in hand: it grabs");
@@ -287,7 +289,7 @@ fn test_a_cyclops_does_not_throw_near_or_blocked() {
   _ = rules::add_enemy(v, "cyclops", 8, 0, 0);
   rules::arm_enemy(v, 0, "bomb");
   until(v, 800);
-  assert(v.hurled == 0 && at(v, 0) == "x7 y0 hp5", "a stick in the way: it comes: {at(v, 0)}");
+  assert(v.hurled == 0 && at(v, 0) == "x7 y0 hp8", "a stick in the way: it comes: {at(v, 0)}");
 }
 
 // --- What a bested enemy leaves: what it held in sight (owner) ---
@@ -333,7 +335,7 @@ fn test_a_blast_besting_a_bomber_sets_its_bomb_off() {
   w.fuses += [rules::Fuse { x: 2, y: 0, z: 0, held: false, at: 100 }];
   _ = rules::add_enemy(w, "cyclops", 3, 0, 0);
   rules::arm_enemy(w, 0, "bomb");
-  rules::strike_enemy(w, 0, 3);
+  rules::strike_enemy(w, 0, 6);
   until(w, 249);
   assert(w.blasted == 1 && len(w.enemies) == 0 && top_is(w, 3, 0, "bomb"), "249: bested, its bomb lying, lit");
   until(w, 250);

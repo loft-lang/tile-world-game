@@ -1,0 +1,199 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The fight rooms played (@GM-Combat; the owner: a pure attacker is not left unscratched, a
+// defensive player takes a while to land a blow).  Three players, each a rule followed every 10 ms
+// of the world's clock, so every run is the same: the ATTACKER strikes whenever its blow is ready;
+// the PARRIER parries a wind-up just before it lands and ripostes the open enemy; the DODGER steps
+// back out of a wind-up's reach and strikes while the enemy recovers.  Each walks in, takes the
+// weapon by the door, and walks up the hall at walking pace (a step every 150 ms) until beside the
+// enemy — it is dark, and the enemy sees the hero only close by.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use editor;
+
+fn place(name: text) -> rules::Level {
+  place_from(name, file("../levels/{name}.json").content() ?? "")
+}
+
+// The place as the level file `raw` has it.
+fn place_from(name: text, raw: text) -> rules::Level {
+  theme = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme, k);
+  m = levels::load_with(raw, k, mats);
+  if !m { assert(false, "{name} loads"); }
+  lf = m ?? levels::LevelFile { name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+                                 goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } };
+  ed = editor::new_editor_with(lf, mats);
+  _ = editor::refill(ed, lf, intent::words_from(theme));
+  w = lf.level;
+  rules::put_hero(w, 3, 16, 0);
+  _ = rules::walk(w, 0, -1);
+  w
+}
+
+/// What a fight came to: the hero's health, whether every enemy is gone, how many were ended, when
+/// the hero's first blow struck (-1 never) and when the fight was over.
+struct Outcome {
+  health: integer,
+  ended: boolean,
+  killed: integer,
+  first_blow: integer,
+  took: integer
+}
+
+fn dist(w: const rules::Level, i: integer) -> integer {
+  e = w.enemies[i];
+  if !e { return 1000; }
+  dx = e.x - w.hero_x;
+  dy = e.y - w.hero_y;
+  (if dx < 0 { -dx } else { dx }) + (if dy < 0 { -dy } else { dy })
+}
+
+// The enemy the player turns to: the nearest, and of equals the one the rules let act first (in
+// front, then on the right, then the left: rules::acts_before).
+fn nearest(w: const rules::Level) -> integer {
+  best = -1;
+  for i in 0..len(w.enemies) {
+    if best < 0 || rules::acts_before(w, w.enemies[i]!, w.enemies[best]!) { best = i; }
+  }
+  best
+}
+
+fn toward(w: const rules::Level, i: integer) -> (integer, integer) {
+  e = w.enemies[i];
+  if !e { return (0, 0); }
+  ((e.x - w.hero_x), (e.y - w.hero_y))
+}
+
+fn strike(w: rules::Level, i: integer, first: integer) -> integer {
+  d = toward(w, i);
+  if rules::walk(w, d.0, d.1) == rules::Step.Attacked && first < 0 { return w.now; }
+  first
+}
+
+fn sign(n: integer) -> integer {
+  if n > 0 { 1 } else if n < 0 { -1 } else { 0 }
+}
+
+// Play `who` for `ms` of the clock in room `name`, against the nearest enemy each moment; `trace`
+// prints every change.
+fn play(name: text, who: text, ms: integer, trace: boolean) -> Outcome {
+  play_in(place(name), who, ms, trace)
+}
+
+fn play_in(w: rules::Level, who: text, ms: integer, trace: boolean) -> Outcome {
+  last = "";
+  first = -1;
+  parried_for = -1;
+  dodged_for = -1;
+  next_step = 0;
+  t = 0;
+  while t < ms && len(w.enemies) > 0 && rules::alive(w) {
+    i = nearest(w);
+    e = w.enemies[i]!;
+    ready = w.now >= w.blow_until;
+    if dist(w, i) == 1 {
+      if who == "attacker" {
+        if ready { first = strike(w, i, first); }
+      } else if who == "parrier" {
+        if e.open_until > w.now && ready {
+          first = strike(w, i, first);
+        } else if e.wind_until > 0 && e.wind_until - w.now <= 100 && parried_for != e.wind_until {
+          parried_for = e.wind_until;
+          rules::parry(w);
+        }
+      } else if who == "dodger" {
+        if e.wind_until > 0 && dodged_for != e.wind_until {
+          // Out of the wind-up's reach: a step straight back, away from the enemy.
+          dodged_for = e.wind_until;
+          d = toward(w, i);
+          _ = rules::walk(w, -d.0, -d.1);
+        } else if e.wind_until == 0 && ready {
+          first = strike(w, i, first);
+        }
+      }
+    } else if (who != "dodger" || e.wind_until == 0) && w.now >= next_step {
+      // Not beside it: a step towards it, at walking pace — for the dodger, once the blow it stepped
+      // out of has missed.
+      next_step = w.now + 150;
+      d = toward(w, i);
+      if d.1 != 0 { _ = rules::walk(w, 0, sign(d.1)); } else { _ = rules::walk(w, sign(d.0), 0); }
+    }
+    if trace {
+      now = "hero {w.hero_x},{w.hero_y} h{w.health}";
+      for f in w.enemies { now += " | {f.kind} {f.x},{f.y} hp{f.hp} w{f.wind_until} o{f.open_until}"; }
+      if now != last { println("{w.now} {now}"); last = now; }
+    }
+    rules::tick(w, 10);
+    t += 10;
+  }
+  Outcome { health: w.health + w.spirit, ended: len(w.enemies) == 0, killed: w.killed, first_blow: first, took: w.now }
+}
+
+fn main() {
+  o = play("the_rat_run", "attacker", 100, false);
+  assert(o.health == 6 && o.first_blow < 0, "nothing happens in the first 100 ms: {o.health}");
+}
+
+// The rat run, three rats.  The attacker's first blow is a lunge that ends a rat, but the next two
+// close in and one bites: it ends them hurt.  The parrier waits for a wind-up — its first blow comes
+// later — and its riposte (the sword's 2 doubled) ends a rat in one blow; but waiting, it faces two
+// rats winding up at once, and the one it did not turn to bites (how often depends on which rats
+// wind up together: twice, as the room stands).  The dodger steps out of each
+// bite and strikes back as the rat recovers: unhurt.
+fn test_the_rat_run() {
+  a = play("the_rat_run", "attacker", 20000, false);
+  p = play("the_rat_run", "parrier", 20000, false);
+  d = play("the_rat_run", "dodger", 20000, false);
+  assert(a.ended && a.killed == 3 && a.health == 5, "the attacker ends them, bitten: health {a.health}, killed {a.killed}");
+  assert(p.ended && p.health == 4 && p.first_blow > a.first_blow,
+    "the parrier ends them, later to start, bitten by the rats it did not turn to: health {p.health}, first {p.first_blow} after {a.first_blow}");
+  assert(d.ended && d.health == 6, "the dodger is unhurt: health {d.health}");
+}
+
+// The cyclops den: its sweep cannot be parried.  The attacker trades blows — its light blows do not
+// break the sweep (poise) — and is struck for 2; the parrier, parrying only, is struck down without
+// a blow; the dodger steps out of every sweep and lunges back in while the cyclops recovers: unhurt.
+fn test_the_cyclops_den() {
+  a = play("the_cyclops_den", "attacker", 20000, false);
+  p = play("the_cyclops_den", "parrier", 20000, false);
+  d = play("the_cyclops_den", "dodger", 20000, false);
+  assert(a.ended && a.health == 4, "the attacker ends it, struck for 2: health {a.health}");
+  assert(!p.ended && p.health == 0 && p.first_blow < 0, "a parry does not turn a sweep: health {p.health}");
+  assert(d.ended && d.health == 6, "the dodger is unhurt: health {d.health}");
+}
+
+// A bat and a spider fall to one blow; the parrier, waiting for a wind-up, lands it later.
+fn test_a_defensive_player_strikes_later() {
+  for room in ["the_bat_cave", "the_spider_hall"] {
+    a = play(room, "attacker", 20000, false);
+    p = play(room, "parrier", 20000, false);
+    assert(a.ended && p.ended && a.health == 6 && p.health == 6, "{room}: both end it unhurt");
+    assert(p.first_blow > a.first_blow, "{room}: the parrier strikes later: {p.first_blow} after {a.first_blow}");
+  }
+}
+
+// The order a level file lists its enemies in does not matter: the rat run's three rats in each of
+// their six orders play out the same for every player — health, rats ended, the first blow's moment
+// and the fight's end.
+fn test_the_order_of_the_enemies_does_not_matter() {
+  raw = file("../levels/the_rat_run.json").content() ?? "";
+  rats = ["[\"rat\", 3, 2, 0]", "[\"rat\", 1, 3, 0]", "[\"rat\", 5, 3, 0]"];
+  listed = "\"enemies\": [ {rats[0]}, {rats[1]}, {rats[2]} ]";
+  assert(raw.contains(listed), "the rat run lists its three rats");
+  orders = [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)];
+  for who in ["attacker", "parrier", "dodger"] {
+    base = play("the_rat_run", who, 20000, false);
+    for o in orders {
+      text = raw.replace(listed, "\"enemies\": [ {rats[o.0]}, {rats[o.1]}, {rats[o.2]} ]");
+      r = play_in(place_from("the_rat_run", text), who, 20000, false);
+      assert(r.health == base.health && r.killed == base.killed && r.first_blow == base.first_blow && r.took == base.took,
+        "{who}, order {o.0}{o.1}{o.2}: health {r.health} killed {r.killed} first {r.first_blow} took {r.took}, against {base.health} {base.killed} {base.first_blow} {base.took}");
+    }
+  }
+}

@@ -61,7 +61,9 @@ its tests on both backends.
   hands 1).  Room: *the armoury*, a sword, an axe, a torch and bats.  Ruled first: the axe's
   recovery, what the 3 tiles are.  Red: `tests/blows.loft` extended, a blow by each weapon timed and
   counted by hand.
-- **B1b. Combat moves** (@GM-Combat), in the fight rooms, one move a step: (1) enemies' wind-ups
+- **B1b. Combat moves** (@GM-Combat) — **built** (`tests/combat.loft`, `tests/fights.loft`); in the
+  game Space let go is a light swing, held 500 ms a heavy one, Shift pressed with no direction a
+  parry and held a block.  Planned in the fight rooms, one move a step: (1) enemies' wind-ups
   and the dodge (the blow lands on the cells aimed at); (2) the stance and the side-step; (3) the
   light chain and the heavy swing; (4) the lunge; (5) the parry and the riposte; (6) each enemy's
   own wind-ups, poise and moves.  Red: a test per move, every time by hand, both ways (the hero's

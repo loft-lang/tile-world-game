@@ -186,19 +186,29 @@ and a swing does against a side-step and a swing, or a side-step without one.  C
 inputs do different things — a step and a swing with a follow-up swing is not a swing standing
 still.  Think of combat as in Dark Souls: parries, dodges, and light and heavy swings.  Each enemy
 is tried in a fight room of the test world, a weapon by the door and the enemy at the far end
-(owner).
+(owner).  Combat is dynamic in place (owner, 2026-11-04): the hero can stand still and swing, but
+that is never the best way — standing still is how two opponents trade blows, where parrying,
+blocking and dodging are what comes naturally in a fight.
 
-*Proposed, to be tuned in play (owner: numbers are found by playing):*
+*Built (BUILD.md B1b); the numbers proposed, to be tuned in play (owner: numbers are found by
+playing).  `tests/combat.loft` times each move by hand; `tests/fights.loft` plays the fight rooms
+with three scripted players — an attacker (strikes when ready), a parrier, a dodger — and holds
+the owner's two claims: the attacker is hurt in the rat run (three rats) and the cyclops den (a
+cyclops now 8 health, so a sword needs three or four blows), and the defensive players land their
+first blow later.*
 
 - **Every attack has a tell, both ways.**  An enemy's blow is a wind-up, seen and heard (it draws
   back), then the strike, which lands on the cells it aimed at when the wind-up began: the hero
   who is no longer there is missed.  Proposed wind-ups: a rat 300 ms, a bat 250, a spider 350, a
-  cyclops 700 (a sweep over three cells, as the hero's reach), the hunter's draw 500.  The hero's
-  swings have their wind-ups too, so an enemy can be read and beaten to the blow.
+  cyclops 700 (a sweep over three cells, as the hero's reach), the hunter 300.  The hero's light
+  blow lands at once; its heavy swing is the key held (500 ms) — the hero's tell.
+- **Standing still trades blows.**  A swing from where the hero stands lands, but the enemy's
+  next blow lands too: an exchange, hit for hit.  Every better outcome comes from moving or
+  defending — a dodge, a block, a parry, a strike from the side.
 - **Light swing** — Space, standing: the held weapon's damage, its reach (three cells), its
-  recovery.  A second light swing pressed during the recovery follows through faster (proposed:
-  the recovery halved for the second), and a third ends the chain with a long recovery: two quick
-  blows, then the hero is open.
+  recovery.  Blows that strike one after another (within a recovery and 200 ms) are a chain, and
+  the third ends it with a long recovery (800 ms): the hero is open.  No faster second blow — that
+  made pure aggression win unscratched.
 - **Heavy swing** — Space held, released after a wind-up (proposed 500 ms, drawn back): +1 damage,
   it staggers what it hits (its wind-up broken, pushed back a cell where there is room), and a long
   recovery after (proposed 800 ms).
@@ -207,14 +217,26 @@ is tried in a fight room of the test world, a weapon by the door and the enemy a
 - **Stance and side-step** — while the hero recovers from a blow, or an enemy beside it winds up, a
   step does not turn the hero: it keeps facing the fight.  A side-step (across the facing) or a
   step back taken during an enemy's wind-up leaves the cell its blow aimed at: a **dodge**, no
-  damage.  A side-step and a swing hits the enemy from its side: +1, and it must turn before it can
-  strike again.
+  damage.  A blow on an enemy's side while it winds up (it faces neither the hero nor away: the
+  hero dodged and struck back) is +1 and breaks its wind-up.
+- **Block** — Shift held without a direction, facing the blow: its damage halved (proposed: a
+  blow of 1 blocked costs nothing every other time), the hero not moving while blocking.  Steady,
+  never the best: it costs the time a dodge or a parry would turn into an opening.
 - **Parry** — Shift pressed without a direction in the last 150 ms of an enemy's wind-up: its blow
   is turned aside, no damage, and it is open (staggered, its next act a blow's time later); a blow
   on an open enemy is a **riposte**: double damage.  Pressed too early or late, the hero takes the
   blow.  Not every blow can be parried: a cyclops's sweep cannot, only dodged.
-- **Poise** — a light blow does not break a big enemy's wind-up (a cyclops); a heavy one, a lunge
-  from the side or a riposte does.
+- **Poise** — a light blow breaks no enemy's wind-up (so standing still trades blows); a heavy
+  swing or a riposte breaks any, a lunge or a blow on its side any without poise (a cyclops has it).
+- **Swung too early** (owner) — a swing with nothing in reach makes an enemy coming on two cells
+  ahead back away from the blade a cell, and hesitate (its next act a chase step later).
+- **Groups** — a parry turns the hero to the blow landing first and turns only that one aside: two
+  rats winding up together get a bite through.  The defensive player, slower to land a blow, meets
+  more enemies at once (owner).
+- **Order** (owner) — what happens never depends on the order a level lists its enemies in.  Of
+  two acting at one moment, or two blows landing together, the one nearer the hero goes first, then
+  the one further in front of it, then the one on its right before its left (`rules::acts_before`);
+  a place's list is put in one order on loading (by nest), which numbers the ids a wander is seeded by.
 - **Fair and readable** (DESIGN.md § The principle): every wind-up is drawn and heard, every timing
   is fixed (deterministic, the same each time), and hurt stays rarely killing: the windows are
   generous at first and the fight rooms are where they are tuned.

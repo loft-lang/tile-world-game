@@ -36,8 +36,9 @@ fn main() {
 }
 
 // The rat on x 6 first acts at 600: it sees the hero on x 1 (5 away) and comes, a cell every
-// 350 ms: x 5 at 600, x 4 at 950, x 3 at 1300, x 2 at 1650 — beside the hero.  It bites at 2000
-// and again at 2900.
+// 350 ms: x 5 at 600, x 4 at 950, x 3 at 1300, x 2 at 1650 — beside the hero.  At 2000 it winds
+// up its bite (300 ms, @GM-Combat), which lands at 2300; 900 ms on it winds up again (3200) and
+// bites at 3500.
 fn test_a_rat_comes_at_the_hero_and_bites() {
   w = room(8, 1);
   rules::put_hero(w, 1, 0, 0);
@@ -50,12 +51,14 @@ fn test_a_rat_comes_at_the_hero_and_bites() {
   assert(rat(w) == "x3 y0 hp3", "1649: {rat(w)}");
   until(w, 1650);
   assert(rat(w) == "x2 y0 hp3", "1650: {rat(w)}");
-  until(w, 1999);
-  assert(w.health == 6, "1999: not yet bitten");
-  until(w, 2000);
-  assert(w.health == 5, "2000: bitten: {w.health}");
-  until(w, 2900);
-  assert(w.health == 4, "2900: bitten again: {w.health}");
+  until(w, 2299);
+  assert(w.health == 6, "2299: winding up, not yet bitten");
+  until(w, 2300);
+  assert(w.health == 5, "2300: bitten: {w.health}");
+  until(w, 3499);
+  assert(w.health == 5, "3499: not yet again: {w.health}");
+  until(w, 3500);
+  assert(w.health == 4, "3500: bitten again: {w.health}");
 }
 
 // Walking into a rat strikes it: bare-handed 1, with a sword 2 — and at no health it is gone.
@@ -109,7 +112,8 @@ fn test_a_hurt_rat_goes_home_and_heals() {
 }
 
 // Cornered — no way home that avoids the hero, no step away — a hurt rat fights: in a dead end on
-// x 0, its nest on x 3, the hero on x 1, it bites at 100 and 1000.  Then the hero's sword ends it.
+// x 0, its nest on x 3, the hero on x 1, it winds up at 100 and bites at 400, and again at 1600
+// (900 ms on, 300 to wind up).  Then the hero's sword ends it.
 fn test_a_cornered_rat_fights() {
   w = room(4, 1);
   rules::put_hero(w, 1, 0, 0);
@@ -117,10 +121,12 @@ fn test_a_cornered_rat_fights() {
   w.enemies[0].x = 0;
   w.enemies[0].hp = 1;
   w.enemies[0].due = 100;
-  until(w, 100);
-  assert(w.health == 5 && rat(w) == "x0 y0 hp1", "100: it bites: {w.health}");
-  until(w, 1000);
-  assert(w.health == 4, "1000: again: {w.health}");
+  until(w, 399);
+  assert(w.health == 6, "399: winding up: {w.health}");
+  until(w, 400);
+  assert(w.health == 5 && rat(w) == "x0 y0 hp1", "400: it bites: {w.health}");
+  until(w, 1600);
+  assert(w.health == 4, "1600: again: {w.health}");
   w.hero_item = rules::th(w, "sword");
   assert(rules::walk(w, -1, 0) == rules::Step.Attacked && rat(w) == "none" && w.killed == 1, "ended");
 }

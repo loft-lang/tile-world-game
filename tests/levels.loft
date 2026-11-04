@@ -176,8 +176,8 @@ fn test_enemies_load_and_save() {
 // The old mine: the hero takes the burning torch from the plateau's socket, goes down the ramp
 // into the dark hall at a walking pace — the world running: the rats see the hero but keep out of
 // the torch's light, while the bat, drawn to it, flies out over the water and meets the hero on the
-// rails at (10, 3): it bites once, and the next step into it is a blow that ends it — and opens
-// the chest.
+// rails at (10, 3): it winds up a bite (250 ms, @GM-Combat), and the next step into it is a blow
+// that ends it before the bite lands — and opens the chest, unhurt.
 fn test_the_old_mine_plays_to_its_goal() {
   lf = level("the_old_mine");
   l = lf.level;
@@ -189,7 +189,7 @@ fn test_the_old_mine_plays_to_its_goal() {
   assert(l.hero_z == 0 && l.hero_x == 8 && l.hero_y == 3, "down the ramp: {l.hero_x},{l.hero_y},{l.hero_z}\n{rules::view(l, -1, -1, 16, 8, 0)}");
   rules::play(l, "~150 d ~150 d ~150 d ~150 d ~150 d ~150 w ~150 d ~150 d ~150 w");
   assert(len(l.enemies) == 2 && l.killed == 1, "the bat ended, the rats kept off");
-  assert(levels::solved(lf, l) && l.health == 5, "the chest, bitten once (the bat): {l.hero_x},{l.hero_y} health {l.health}\n{rules::view(l, -1, -1, 16, 8, 0)}");
+  assert(levels::solved(lf, l) && l.health == 6, "the chest, the bat ended inside its wind-up: {l.hero_x},{l.hero_y} health {l.health}\n{rules::view(l, -1, -1, 16, 8, 0)}");
 }
 
 // What a cyclops holds rides on its entry: a fifth word when not its kind's axe — "bomb" (its 3),

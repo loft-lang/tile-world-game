@@ -141,7 +141,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   rooms (rat run, bat cave, spider hall, cyclops den, hunter's hall: a weapon by the door, the enemy
   at the far end) in the demo street (17 houses).  Combat designed (DESIGN.md @GM-Combat, proposed,
   owner: as in Dark Souls — tells, light and heavy, lunge, stance and dodge, parry and riposte);
-  BUILD.md B1b is its steps, not built.
+  BUILD.md B1b is its steps — then built: wind-ups aimed at cells (dodge by leaving them), block,
+  parry and riposte, heavy swing, lunge, side blow, poise, the light chain, the early-swing back-off;
+  a parry turns to the soonest blow; ties follow the place against the hero, never the list's order.
+  The rat run has three rats and a cyclops 8 health, so an attacker is hurt (`tests/fights.loft`).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 
