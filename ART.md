@@ -31,7 +31,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 2 | travel | 24: the horse |
 | 3–4 | tracks | 36–51: junctions; 52, 53: the lever |
 | 5 | bombs, the bow | 60–62: the bomb, lying and lit; 63–65: the blast; 66: the bow; 67: an arrow |
-| 6– | later additions (monsters, …) | |
+| 6 | the mine's work | 72: a loaded cart; 73, 74: a lit tar barrel; 75, 76: a burning barricade; 77: a coiled rope |
+| 7– | later additions (monsters, …) | |
 
 ### The tiles
 
@@ -57,6 +58,10 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 63, 64, 65 | blast: flash, fireball, smoke | the three frames of a blast, spread over its 300 ms flash on the cell it went off in; the flash also lights the room (a light that fades three shades) |
 | 66 | bow | drawn shooting up, as everything carried is drawn pointing up: lying across, its curve up, the string below, the grip in the middle (held by its grip, 7, 6) |
 | 67 | arrow | flying up: an iron head, a wooden shaft, red and white fletching; turned the way it flies |
+| 72 | loaded cart | Kenney's cart (town:57) with the rock (farm:89) heaped in it, reduced: a cart full of rubble |
+| 73, 74 | lit tar barrel, frames A and B | the tar barrel (5) with the burning torch's flame (2, 3) on its lid |
+| 75, 76 | burning barricade, frames A and B | Kenney's boarded planks (dungeon:63) with two of the torch's flames, swapped between the frames |
+| 77 | rope | a coil of hemp, two turns, lit from the top left; also what the shoulders carry |
 
 ## The style, measured from `tiny-dungeon.png`
 

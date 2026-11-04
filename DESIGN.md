@@ -173,7 +173,8 @@ Tiny Ski's 78–80); it also
     them would make impossible.
   - **The sack** (owner, 2026-11-04): carried in the same shoulder slot as the rope, so never beside
     it, and solely for foraging: it holds what is foraged (plants, meat, ingredients), where the
-    hand holds one item at a time.  Felled trees
+    hand holds one item at a time.  **Built** (BUILD.md B7b; the demo's herbs house): it carries
+    6 (proposed), and a talk's gift is met from it.  Felled trees
     may still be a source too; the eventual layout of the place decides (owner).
   - Proposed: wood (a new big thing) floats: pushed or pulled into water it stays, a cell of
     floating wood, where any other thing is lost.  Proposed: beams fastened with rope are well
@@ -539,7 +540,8 @@ on water, and things pushed or blown into it are lost.
   to take and a beam standing in its place holds something up: the difference is on screen.  The
   risk is in the planning (owner, 2026-11-04): a caved-in tunnel no longer gives ready access to
   where it led.  Proposed: the collapse fills it with rubble (rocks touching), so the way can still
-  be cleared with the pick and a cart, at a cost in time, never a dead end.
+  be cleared with the pick and a cart, at a cost in time, never a dead end.  **Built** with the
+  pick, rubble and the cart's load (BUILD.md B2, B2b; the demo's cave-in house).
 
 The player lights the dungeon.  Built (`tests/torches.loft`, and `the torch room`, the third
 level, played to its goal in `tests/levels.loft`) except the enemies' part, which waits for the

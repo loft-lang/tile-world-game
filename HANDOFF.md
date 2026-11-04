@@ -82,6 +82,17 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   scripted players (the hunter keeps its distance and shoots); the dodger's first blow is no later
   than the attacker's (both open with a lunge on an enemy not yet winding up) — only the
   parrier's is.
+- **Five new houses** in the demo village's east block (BUILD.md B2, B2b, B7b, C2b, C3b, C6b; the
+  open questions answered as proposals there), each to try by hand:
+  - FOUNTAIN: walk into the green basin — SAVED; the rats beyond bite to nothing — BACK AT FOUNTAIN.
+  - CAVE-IN: take the pick, strike the rock with the cart behind; push the full cart to the niche
+    and bump it from above (BUMP); the two full carts are too heavy until one is tipped; take the
+    standing beam out; take the barricade apart, or light the barrel with the far torch and push it.
+  - HERBS: wear the sack, forage (SACK n/6), bump the alchemist for a potion; the rope stays lying.
+  - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
+  - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
+    held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  `tests/places.loft` plays each; `checks/game.loft` through the game.
 - **Potions** (owner): picked up empty-handed, drunk walked over with full hands or with J; heal
   over time, a point every 1500 ms (health to 6, spirit above), carried through doors; strength
   stays instant.  A health potion by the cyclops den's door.  `tests/potions.loft`,

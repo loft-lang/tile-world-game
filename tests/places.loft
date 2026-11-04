@@ -223,3 +223,61 @@ fn test_a_torch_at_night_gives_the_hero_away() {
   d = levels::door_named(lf, "the_night_house");
   assert(d >= 0 && (lf.doors[d]!.home), "the house is someone's home");
 }
+
+// Sable's gallery (C3b): his day — the clock puts him at his dig (17, 3) from 0 and home (2, 3)
+// from 30000, a cycle of 60000; he walks there at his pace (a cell every 500 ms) by the gallery.
+// By 15000 he stands at the dig; by 45000 at home; at 60000 he sets off for the dig again.
+fn test_sable_keeps_to_his_day() {
+  lf = place("the_rival_gallery");
+  w = lf.level;
+  s = -1;
+  for i in 0..len(w.enemies) { if w.enemies[i].kind == "rival" { s = i; } }
+  assert(s >= 0 && rules::route_point(w, 0) == (17, 3, 0), "at 0 the clock says: the dig");
+  rules::put_hero(w, 8, 11, 0);
+  rules::tick(w, 15000);
+  e = w.enemies[s]!;
+  assert(e.x == 17 && e.y == 3, "15000: at the dig: {e.x},{e.y}");
+  rules::tick(w, 15000);
+  assert(rules::route_point(w, 0) == (2, 3, 0), "30000: home");
+  rules::tick(w, 15000);
+  e = w.enemies[s]!;
+  assert(e.x == 2 && e.y == 3, "45000: home: {e.x},{e.y}");
+  rules::tick(w, 15000);
+  rules::tick(w, 1000);
+  e = w.enemies[s]!;
+  assert(e.y != 3 || e.x != 2, "61000: off to the dig again: {e.x},{e.y}");
+}
+
+// His walkway (C3b): two rocks in a row in the short corridor from the door; the first will not
+// go on — the second is behind it — and is too high to climb: the long way round it is.
+fn test_sable_blocks_the_short_way() {
+  lf = place("the_rival_gallery");
+  w = lf.level;
+  rules::put_hero(w, 8, 10, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Blocked && top_name(w, 8, 9) == "rock", "blocked: the long way round");
+}
+
+// His trap (C3b): on the terrace (layer 1) a cart on a rail one step up (13, 11), held by a rock on
+// the rail below it (13, 10), the terrace's edge: past it the rails run down the ramp to the
+// gallery.  Pushed off the rails from (14, 10), the rock goes west and the hero is on the track;
+// the cart starts down a cell every 600 ms (speed 1).  Standing there, the hero is struck; stepping
+// back off at once (a step is quicker than 600 ms), the cart rolls past, down the ramp to the
+// gallery's end (13, 6), harmless.
+fn test_sables_cart_waits_for_whoever_clears_its_rock() {
+  lf = place("the_rival_gallery");
+  w = lf.level;
+  rules::tick(w, 0);
+  rules::put_hero(w, 14, 10, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && w.hero_x == 13 && rules::thing_name(w.k, tile_world::top(w.w, 12, 10, 1)) == "rock",
+    "pushed off the rails, the hero on them");
+  rules::tick(w, 2000);
+  assert(w.health < 6, "standing there: struck: {w.health}");
+  v = place("the_rival_gallery").level;
+  rules::tick(v, 0);
+  rules::put_hero(v, 14, 10, 1);
+  _ = rules::walk(v, -1, 0);
+  rules::tick(v, 150);
+  assert(rules::walk(v, 1, 0) == rules::Step.Walked && v.hero_x == 14, "stepped back off at once");
+  rules::tick(v, 8000);
+  assert(v.health == 6 && tile_world::top(v.w, 13, 11, 1) == 0 && top_name(v, 13, 6) == "cart", "the cart rolled past into the gallery: {v.health} {top_name(v, 13, 6)}");
+}

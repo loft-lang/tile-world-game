@@ -251,6 +251,20 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
       home: d.field("home").as_bool() ?? false
     }];
   }
+  // The people's days (C3): each by where they nest, its cycle and its points.
+  rv = v.field("routes");
+  for i in 0..rv.len() {
+    r = rv.item(i);
+    at = r.field("at");
+    pts: vector<rules::RoutePoint> = [];
+    pv = r.field("points");
+    for j in 0..pv.len() {
+      q = pv.item(j);
+      pts += [rules::RoutePoint { x: num(q.item(0), 0), y: num(q.item(1), 0), z: num(q.item(2), 0), from: num(q.item(3), 0) }];
+    }
+    l.routes += [rules::Route { x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0),
+                                cycle: num(r.field("cycle"), 0), points: pts }];
+  }
   labels: vector<Label> = [];
   lv = v.field("labels");
   for i in 0..lv.len() {
@@ -562,6 +576,23 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     out += "\n  ],";
   }
   if len(lf.talks) > 0 { out += "\n  \"talks\": {talk::json(lf.talks)},"; }
+  if len(lf.level.routes) > 0 {
+    out += "\n  \"routes\": [";
+    first = true;
+    for r in lf.level.routes {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{r.x}, {r.y}, {r.z}], \"cycle\": {r.cycle}, \"points\": [";
+      pf = true;
+      for q in r.points {
+        out += if pf { " " } else { ", " };
+        out += "[{q.x}, {q.y}, {q.z}, {q.from}]";
+        pf = false;
+      }
+      out += " ] }}";
+      first = false;
+    }
+    out += "\n  ],";
+  }
   out += "\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
   g = lf.goal;
   if g.kind == "layer" {

@@ -501,6 +501,23 @@ pub fn terrain_name(k: const Kinds, kind: integer) -> text {
 
 /// A flame set down in the world — on the floor or in a socket — and when it burns out, in the
 /// level's clock.  One a cell: a flame is an item, and a cell holds one item.
+/// A person's day (BUILD.md C3, C3b): the points they keep to by the place's clock, each from its
+/// `from` ms into every `cycle` (proposed for the demo: a day of 60 s), keyed by where they nest.
+pub struct RoutePoint {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub from: integer
+}
+
+pub struct Route {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub cycle: integer,
+  pub points: vector<RoutePoint>
+}
+
 pub struct Flame {
   pub x: integer,
   pub y: integer,
@@ -644,6 +661,8 @@ pub struct Level {
   /// What is known (BUILD.md C2, C2b): facts the hero's doings set — `snooped`, seen going into
   /// someone's home — read by the people's talks; they go along through doors.
   pub facts: vector<text> = [],
+  /// The people's days: who keeps to which points when (C3).
+  pub routes: vector<Route> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -1847,6 +1866,40 @@ pub fn take_from_sack(l: Level, name: text) -> integer {
   }
   l.sack = kept;
   n
+}
+
+// The route of the one nesting where enemy `e` does: -1 for none.
+fn route_of(l: const Level, e: const Enemy) -> integer {
+  for k in 0..len(l.routes) {
+    r = l.routes[k]!;
+    if r.x == e.nest_x && r.y == e.nest_y && r.z == e.nest_z { return k; }
+  }
+  -1
+}
+
+/// Where the clock puts the one with route `k` now: the last point whose moment in the cycle has
+/// come — before the first, the cycle's last (the night before).
+pub fn route_point(l: const Level, k: integer) -> (integer, integer, integer) {
+  r = l.routes[k] ?? return (0, 0, 0);
+  n = len(r.points);
+  if n == 0 { return (r.x, r.y, r.z); }
+  t = if r.cycle > 0 { l.now % r.cycle ?? 0 } else { l.now };
+  at = r.points[n - 1]!;
+  for q in r.points { if q.from <= t { at = q; } }
+  (at.x, at.y, at.z)
+}
+
+// Enemy i keeps to its route: a step towards where the clock puts it, at its own pace, or it waits.
+fn follow_route(l: Level, i: integer, e: const Enemy, p: const EnemyProps, k: integer) {
+  to = route_point(l, k);
+  if to.2 == e.z && (to.0 != e.x || to.1 != e.y) {
+    w = enemy_way(l, p, e.x, e.y, e.z, to.0, to.1, false, no_shades());
+    if w.2 > 0 {
+      enemy_step(l, i, w.0, w.1, p.move_ms);
+      return;
+    }
+  }
+  l.enemies[i].due = e.due + p.move_ms;
 }
 
 /// Is fact `f` known?
@@ -4468,6 +4521,12 @@ fn enemy_act(l: Level, i: integer) {
   }
   if l.held_by == e.id {
     pull_hero(l, i, e, p);
+    return;
+  }
+  // A person with a day goes to where the clock says, and waits there (C3).
+  r = route_of(l, e);
+  if r >= 0 {
+    follow_route(l, i, e, p, r);
     return;
   }
   // Hurt or scared with the hero on its layer, a climber flees to another layer when it can

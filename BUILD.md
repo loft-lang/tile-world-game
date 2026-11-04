@@ -68,18 +68,23 @@ its tests on both backends.
   light chain and the heavy swing; (4) the lunge; (5) the parry and the riposte; (6) each enemy's
   own wind-ups, poise and moves.  Red: a test per move, every time by hand, both ways (the hero's
   and an enemy's), and the fight rooms played.
-- **B2. The pick, rubble and the cart's load.**  A rock cleared into a cart beside the hero; the cart
-  full until bumped from the side at an unloading place; a full cart heavier.  Room: *the
-  workings*.  Ruled first: a full cart's weight (proposed: two carts).  Red: a new
-  `tests/rubble.loft`.
+- **B2. The pick, rubble and the cart's load — built** (the demo's *cave-in* house;
+  `tests/places.loft`).  A rock cleared into a cart beside the hero; the cart full until bumped
+  from the side at an unloading place; a full cart heavier.  Answered (proposed, to tune in play):
+  a full cart weighs two carts, pushed and pulled; the cart beside the hero is looked for on its
+  left, its right, then behind; a cart holds one rock; an unloading place is any free floor beside
+  the track, the bump coming across it; with no cart beside, the pick leaves the rock as it is.
 - **B2b. Beams and cave-ins** (owner; DESIGN.md § Torches and light).  A beam lying loose is an
   item carried in the hand; a beam standing in its place holds a tunnel up, and taken out with a
   pick it collapses the tunnel — the difference on screen.  The accidental barricade (the village
   barricade's picture) taken apart with a pick gives 2 beams, or burned away by a lit tar barrel
   opens the way and gives none.  Proposed: the collapse fills the tunnel with rubble (rocks
   touching), cleared again with the pick and a cart (B2) — a cost in time, never a dead end.
-  Room: *the workings*, a loose beam, a standing one, a barricade.  Ruled first: what a collapse
-  leaves; how a tar barrel is lit and brought to the barricade.  Red: a new `tests/beams.loft`.
+  **Built** (the *cave-in* house).  Answered (proposed): a standing beam (`prop`) stands across a
+  tunnel; taken out, a beam lies on its cell and rubble falls on up to 3 free cells beyond it, the
+  hero's side untouched; a held flame lights a tar barrel (it burns as a torch does, then is gone);
+  the lit barrel pushed against the barricade sets it burning, gone in 3 s; taken apart, its second
+  beam goes beside it, else at the hero's feet.
 - **B3. The cart lift.**  A platform between layers carrying its stack, sent by a lever (or an
   arrow), moving only with its shaft clear, its rails joining the track at each stop.  Room: *the
   lift*.  Ruled first: its speed; riding it with no cart.  Red: a new `tests/lift.loft`.
@@ -104,8 +109,11 @@ its tests on both backends.
   *the garden*.  Red: a talk test, ingredients in, a potion out.
 - **B7b. The sack** (owner).  Carried on the shoulders in the rope's slot, so never beside the
   rope, and solely for foraging: it holds what is foraged (plants, meat, ingredients) while the hand
-  holds its one item.  Room: *the garden*.  Ruled first: how much it holds; how it is emptied (to
-  the alchemist through a talk's `take`, B7).  Red: a sack filled, given, and refused beside a rope.
+  holds its one item.  **Built** (the *herbs* house).  Answered (proposed): it carries 6; a herb or
+  a mushroom walked over goes into it, whatever the hand holds; a talk's gift is met from it too,
+  every one of that kind taken (the hand left as it is); with the sack worn, the rope walked over
+  stays lying, and the other way round; L with empty hands puts the shoulder thing down, the sack
+  keeping what it holds; both go through doors.
 - **B8. The new creatures, one a step.**  The grey rat (out by day, carrying off food left lying),
   the slime, the crab, the ghost (at night, after C1), bigfoot (with Stormcap's terrain).  A room
   each.  Ruled first: each one's habits.  Red: a test per creature in `tests/enemies.loft`'s manner,
@@ -126,8 +134,11 @@ share, so each is built once and shown in the test world first.
 - **C2b. A torch at night gives the hero away** (owner).  Light is seen, by the villagers as by
   the Kharn: a hero carrying a lit torch into a home at night is suspect, a fact (C2) that costs
   goodwill; the dark keeps it unseen.  Needs C1 (night) and C2.  Room: a house at night, a villager
-  beside it.  Ruled first: who sees a lit window, and from how far.  Red: the same entry with and
-  without the torch, the fact set only with it.
+  beside it.  **Built** (the *night* house), with the part of C2 it needs: facts known, carried
+  through doors, a talk starting where a known fact says.  Answered (proposed): people see the
+  hero, not a window — within 6 cells in sight when the hero is lit, within 2 in the dark, as the
+  Kharn do; a door marked `home` gone through while seen sets `snooped`.  Night before C1: the
+  street is covered (a wall layer over it), so only flames light it; the rule is light alone.
 - **C3. People following points.**  Creatures and people at their points at their hours, walking
   between places by the doors; a person brought to a place (the alchemist to Stormcap, the people
   to the barricade).  WORLD.md step 3.  Room: a villager going to work and home.  Red: a scripted
@@ -135,8 +146,13 @@ share, so each is built once and shown in the test world first.
 - **C3b. Sable in the way** (owner; STORY.md @ST-Rival).  The rival adventurer on his points: in
   the main mine by day, home by dusk; walkways he blocks so others go the long way, and his
   practical traps built from what exists — a runaway cart waiting at a lever on a slope, a bomb
-  left beside the rails.  Room: a gallery with his cart and lever.  Ruled first: whether he moves
-  his obstructions once the hero has passed them.  Red: his day scripted, a trap sprung by hand.
+  left beside the rails.  **Built** (the *Sable* house), with the part of C3 it needs: a route, its
+  points by the place's clock (`routes`, a cycle and each point's moment).  Answered (proposed): he
+  does not move his obstructions — two rocks in a row left in the short corridor stay, so the
+  long way it is; a demo day is 60 s, the dig from 0, home from 30 s.  The trap, from what exists
+  (a lever cannot hold a cart, which starts down any branch that leads downhill): a cart waiting at
+  the terrace's edge, held by a rock on the rails; whoever pushes the rock off stands on the track,
+  and the cart, starting a cell every 600 ms, strikes them unless they step off at once.
 - **C4. A group acting together.**  The Kharn as a tribe: prey counted down by the clock and by
   what has happened to the monsters; nervous scouting outside the mine; the attack; turned back
   by a defended place, they leave.  Room: a small tribe, a small village, a barricade.  Red: the
@@ -150,8 +166,10 @@ share, so each is built once and shown in the test world first.
   in the mines and the hills save the whole situation as a well does today; their liquid cannot be
   taken (it turns to mud).  Tiny Dungeon's wall fountains (green 8, 20, 32, 44; dry 7, 19, 31, 43):
   a fountain kind using the wells' rule.  None in the village (LOCATIONS.md).  Room: a gallery with
-  a fountain.  Ruled first: whether a dry fountain is ever filled.  Red: a save at a fountain and
-  the way back to it, as `checks/game.loft`'s wells.
+  a fountain.  **Built** (the *fountain* house): a look of the well kind (dungeon:32), the dry
+  basin a terrain of its own (`basin`, dungeon:31), the pouring spout a wall's look.  Answered
+  (proposed): a dry fountain is never filled — it only stands in the way, a sign that one was
+  there; coming back the game says BACK AT FOUNTAIN.
 - **C7. The epilogue.**  The player walks away; stills of what follows, chosen by the facts.  Red:
   the stills for a set of facts.
 
