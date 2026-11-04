@@ -64,6 +64,21 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 - **Design docs:** `DESIGN.md` (the game: principle, rules agreed, slices) and `EDITOR.md` (the
   in-game editor: model, file format, places, keys, checks, platforms, order of work).
 
+## State 2026-11-04
+
+- **Places and doors** (WORLD.md step 1, mostly): the game starts in the demo village
+  (`levels/demo.json`), a house per mechanic room, doors both ways, every place kept as left,
+  floor text (`labels`), R = the place as entered.  `TW_WORLD` picks the start place; the demo
+  stays its own world beside the story game to come (owner).  Not yet: what follows the hero
+  through a door (a pulled cart, an enemy close behind), one clock across places (each keeps its
+  own), doors in the editor.
+- **Talk** (`talk.loft`, WORLD.md § Talking is moving): beside = talk, passing = bark; stay /
+  bump / walk away while a line is said; gifts, take/give, `then`.
+- loft defect met: an unwrapped vector element freeing its owner (`repro/loft-element-frees-owner`),
+  worked around; not yet reduced without the game's libraries, not filed.
+- Next agreed: design the rough full game as a story the hero walks through, taking in every
+  puzzle idea.
+
 ## Next steps, in the order agreed
 
 **State 2026-10-31** (200 tests on both backends; levels: first_climb, the_cellar, the_torch_room,
