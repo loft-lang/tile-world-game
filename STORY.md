@@ -61,8 +61,8 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-YoungVillager`](#st-youngvillager) | can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-Court`](#st-court) | the young local lord's proposal to a princess, rejected | § 2 |
-| [`@ST-Lady`](#st-lady) | the witch, an elder lord after the mine; magic and aides, not approved of | § 2 |
-| [`@ST-Neighbour`](#st-neighbour) | the elder lord next to the mine who sent the wizard; money | § 2 |
+| [`@ST-Lady`](#st-lady) | Lady Brigid, the witch: an elderly lord of far forest lands, after the mine | § 2 |
+| [`@ST-Neighbour`](#st-neighbour) | the elderly lord of the mountains next to the mine, who sent the wizard; money | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
@@ -75,7 +75,9 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 ## 1. The story to tell
 
 <a id="st-setting"></a>**The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
-mining town.  The last remaining villagers struggle to make something of their lives.
+mining town.  The last remaining villagers struggle to make something of their lives.  The lands
+around it are more given to farming, though desert has been creeping in lately (owner,
+2026-11-04; the drought, @ST-Outside).
 
 <a id="st-farm"></a>**The farm** (owner, 2026-11-04): there is a small farm at the village; it cannot provide enough
 food for the villagers, small as their number now is.
@@ -117,7 +119,9 @@ low for a while; but this adventure is also his way to grow into the person he w
 Part of why he comes here is that he heard this place may offer opportunities for someone like
 him, with little official education.  The army he served in was the local lord's (@ST-Court,
 owner 2026-11-04).  Entering the village is a bit of a let-down for him: this is
-very much not the place he wants to be.  But it might become the place he needs.
+very much not the place he wants to be.  But it might become the place he needs: he needs this
+place to learn, perhaps to fetch useful artifacts, and to decide what to pursue in his life
+(owner, 2026-11-04; so he rides on at the end, @ST-Sunset).
 
 <a id="st-play"></a>**What the player does** (owner, 2026-11-04): search the different interesting places and get
 into puzzle situations to progress.
@@ -223,9 +227,11 @@ The hero can influence this, indirectly: by giving the young lord unique treasur
 a bit of spine (owner, 2026-11-04).  They reach him when the hero rides off to him at the end, one
 of the directions he can take (@ST-Sunset, owner 2026-11-04).
 
-<a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
+<a id="st-lady"></a>**The lady: Lady Brigid** (owner, 2026-11-04; her lands' name, Greywood, proposed): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
-is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is a party
+is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is not the
+lord of the mountains next door; both are elderly, but her lands lie further away and are mostly
+forest (owner, 2026-11-04).  She is a party
 in the ownership dispute (@ST-Decree), and her interest is the magical crafting materials deep in
 the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
 
@@ -301,7 +307,8 @@ want it gets it, or the local lord's favour is restored (owner).
 
 <a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
 a different world behind.  Riding off to the young lord is one of the directions he can take
-(@ST-Court, owner 2026-11-04).
+(@ST-Court, owner 2026-11-04).  Perhaps there is an ending where he settles in the village, but that
+would be quite a special, hidden ending (owner, 2026-11-04).
 
 *Further outline to come.*
 

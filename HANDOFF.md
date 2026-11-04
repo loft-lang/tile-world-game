@@ -89,7 +89,15 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   is enough; what stays open (what "well defended" is made of, the other endings, the hero's
   outcome, the adventurers' aims) is answered by building.  Nothing waiting on the owner in the
   outline itself.
-  Story discussion edits STORY.md locally and commits once a part settles, never per sentence.
+  Later the same day (some of it from the owner's cloud session, branch ccr-0cdce633-v9vy6v,
+  joined into main as aaa55be): the court — the young local lord (fell from grace over a princess;
+  the hero served in his army), Lady Brigid the witch (far forest lands), the elderly lord of the
+  mountains next door (sent the wizard, his adviser) — the magical materials deep in the mine, three
+  ownership endings, the hero riding on at the end (a hidden ending where he settles), the younger
+  villager's hidden path.  Names proposed, not yet chosen: Lord Edric, Lord Garrick of Highcrag,
+  Princess Isolde, Greywood.
+  Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
+  the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 
 ## Next steps, in the order agreed
 
