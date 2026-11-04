@@ -1,0 +1,45 @@
+{
+  "name": "the rat run",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "#######",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "#.....#",
+      "###d###"
+    ] }
+  ],
+  "things": [
+    { "at": [3, 15, 0], "stack": ["sword"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["rat", 3, 2, 0] ],
+  "intent": { "seed": 19, "rooms": [
+    { "x": 0, "y": 0, "w": 7, "h": 18, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[3, 17]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [3, 15], "z": 0, "stack": ["sword"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [3, 17, 0], "to": "demo", "door": "the_rat_run" }
+  ],
+  "start": [3, 16, 0],
+  "goal": { "type": "" }
+}

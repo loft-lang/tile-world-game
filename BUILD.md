@@ -56,11 +56,16 @@ Talks stay written by hand in the place files for now; they read as a script alr
 In an order where each needs only what comes before it.  Each: its rules (DESIGN.md), its room,
 its tests on both backends.
 
-- **B1. The weapons.**  Damage by weapon (sword and axe 2, torch 2 against bats and 1 otherwise,
+- **B1. The weapons — built (2026-11-04)** with the proposed numbers, to tune in play.  Damage by weapon (sword and axe 2, torch 2 against bats and 1 otherwise,
   pick and bare hands 1), recovery by weapon (the axe slower), and reach (a held item 3 tiles, bare
   hands 1).  Room: *the armoury*, a sword, an axe, a torch and bats.  Ruled first: the axe's
   recovery, what the 3 tiles are.  Red: `tests/blows.loft` extended, a blow by each weapon timed and
   counted by hand.
+- **B1b. Combat moves** (@GM-Combat), in the fight rooms, one move a step: (1) enemies' wind-ups
+  and the dodge (the blow lands on the cells aimed at); (2) the stance and the side-step; (3) the
+  light chain and the heavy swing; (4) the lunge; (5) the parry and the riposte; (6) each enemy's
+  own wind-ups, poise and moves.  Red: a test per move, every time by hand, both ways (the hero's
+  and an enemy's), and the fight rooms played.
 - **B2. The pick, rubble and the cart's load.**  A rock cleared into a cart beside the hero; the cart
   full until bumped from the side at an unloading place; a full cart heavier.  Room: *the
   workings*.  Ruled first: a full cart's weight (proposed: two carts).  Red: a new

@@ -25,7 +25,9 @@
     ] }
   ],
   "things": [
-    { "at": [22, 10, 0], "stack": ["rock"] },
+    { "at": [26, 10, 0], "stack": ["rock"] },
+    { "at": [21, 11, 0], "stack": ["bomb"] },
+    { "at": [26, 11, 0], "stack": ["bomb"] },
     { "at": [25, 13, 0], "stack": ["rock"] },
     { "at": [23, 14, 0], "stack": ["rock"] },
     { "at": [27, 14, 0], "stack": ["rock"] }
@@ -39,7 +41,9 @@
     { "points": [[6, 5], [24, 5], [24, 12]], "z": 0, "as": "rail" },
     { "points": [[5, 9], [5, 12]], "z": 0, "as": "floor", "rim": "wall" },
     { "points": [[5, 13]], "z": 0, "as": "open_door", "rim": "wall" } ], "blobs": [
-    { "at": [1, 1], "size": [11, 9], "z": 0, "as": "floor", "rim": "wall" } ] },
+    { "at": [1, 1], "size": [11, 9], "z": 0, "as": "floor", "rim": "wall" } ], "items": [
+    { "at": [21, 11], "z": 0, "stack": ["bomb"] },
+    { "at": [26, 11], "z": 0, "stack": ["bomb"] } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [5, 13, 0], "to": "demo", "door": "the_workings" }

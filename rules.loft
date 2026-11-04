@@ -169,6 +169,10 @@ struct ThingProps {
   rerails_to: text,
   /// What a blow with it costs an enemy (a weapon); 0: a blow with it costs 1, as with bare hands.
   damage: integer,
+  /// What a blow with it costs an enemy that flies (a torch against bats); 0: its `damage`.
+  flier_damage: integer = 0,
+  /// How long the hero takes to ready it again after a blow (an axe, heavy); 0: the rules' blow_ms.
+  recover_ms: integer = 0,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -336,7 +340,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       lit_to: word(e, "lit_to", ""), flame: flag(e, "flame"), burns_to: word(e, "burns_to", ""),
       derails_to: word(e, "derails_to", ""), switches_to: word(e, "switches_to", ""),
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
-      rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0), shoots: flag(e, "shoots"),
+      rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0), flier_damage: num(e, "flier_damage", 0),
+      recover_ms: num(e, "recover_ms", 0), shoots: flag(e, "shoots"),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -954,16 +959,26 @@ fn hero_blow(l: Level, dx: integer, dy: integer, swinging: boolean) -> Step {
 fn land_blow(l: Level, dx: integer, dy: integer) -> Step {
   l.face_x = dx;
   l.face_y = dy;
-  l.blow_until = l.now + l.k.blow_ms;
+  l.blow_until = l.now + recovery(l);
   l.struck += 1;
   z = l.hero_z;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
-  foe = enemy_at(l, tx, ty, z);
-  if foe >= 0 && reachable_foe(l, foe, dx, dy) {
-    strike_enemy(l, foe, blow(l));
-    return Step.Attacked;
+  // Reach (owner): bare hands strike the cell faced; anything held strikes it and the two cells
+  // beside it across the swing — through the cell faced, so not past a wall there.
+  cells: vector<(integer, integer)> = [(tx, ty)];
+  faced = tile_world::terrain(l.w, tx, ty, z);
+  if l.hero_item != 0 && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && !opaque_terrain(l, faced) {
+    cells += [(tx - dy, ty + dx), (tx + dy, ty - dx)];
   }
+  hit = false;
+  for c in cells {
+    foe = enemy_at(l, c.0, c.1, z);
+    if foe < 0 || !reachable_foe(l, foe, dx, dy) { continue; }
+    strike_enemy(l, foe, blow_on(l, foe));
+    hit = true;
+  }
+  if hit { return Step.Attacked; }
   kind = tile_world::terrain(l.w, tx, ty, z);
   felled = chopped_to(l, kind);
   if felled != 0 && holds_chopper(l) && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) {
@@ -4061,6 +4076,28 @@ fn blow(l: const Level) -> integer {
   p = l.k.things[l.hero_item]?;
   if p.damage > 0 { return p.damage; }
   1
+}
+
+// What the hero's blow costs enemy `foe`: what it holds costs a flier its `flier_damage` when it has
+// one (a torch against a bat), else its `damage`; bare hands 1 (DESIGN.md § What the hero holds).
+fn blow_on(l: const Level, foe: integer) -> integer {
+  e = l.enemies[foe];
+  p = l.k.things[l.hero_item]?;
+  if e && p.flier_damage > 0 && enemy_props(l, e.kind).flies { return p.flier_damage; }
+  blow(l)
+}
+
+// Does terrain `kind` stop sight and a swing (a wall)?
+fn opaque_terrain(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if !p { return false; }
+  p.opaque
+}
+
+// How long the hero takes to ready what it holds again after a blow: its `recover_ms`, else blow_ms.
+fn recovery(l: const Level) -> integer {
+  p = l.k.things[l.hero_item]?;
+  if p.recover_ms > 0 { p.recover_ms } else { l.k.blow_ms }
 }
 
 // Can the hero strike enemy `foe` beside it (dx, dy): across an edge it crosses, not a guard, not up

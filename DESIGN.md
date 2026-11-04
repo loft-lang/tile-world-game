@@ -66,6 +66,7 @@ already designed and built (owner, 2026-11-04).
 | [`@GM-Flooded`](#gm-flooded) | part of a mine flooded; machines needed to enter |
 | [`@GM-CartLift`](#gm-cartlift) | a lift that can carry mine carts |
 | [`@GM-Flotilla`](#gm-flotilla) | wood pulled together to cross an underground lake |
+| [`@GM-Combat`](#gm-combat) | moves and swings of both sides, combined: light and heavy, dodge, parry |
 
 <a id="gm-flooded"></a>**The flooded part** (owner, 2026-11-04): part of a mine is flooded and needs
 machines to be entered.
@@ -178,6 +179,45 @@ Tiny Ski's 78–80); it also
     rule of carts, on water.  It can also be pulled from the shore while the hero stands beside it.
   - Scenario: an underground lake with logs at its shore; two pulled together carry the hero across
     to an island with a chest, the way back pushed off the island's rock.
+
+<a id="gm-combat"></a>**Combat** (owner, 2026-11-04): fighting is one of the hardest things to get right.  A
+huge part of it is movement and the swings of both opponents and how they interact: what a step
+and a swing does against a side-step and a swing, or a side-step without one.  Combinations of
+inputs do different things — a step and a swing with a follow-up swing is not a swing standing
+still.  Think of combat as in Dark Souls: parries, dodges, and light and heavy swings.  Each enemy
+is tried in a fight room of the test world, a weapon by the door and the enemy at the far end
+(owner).
+
+*Proposed, to be tuned in play (owner: numbers are found by playing):*
+
+- **Every attack has a tell, both ways.**  An enemy's blow is a wind-up, seen and heard (it draws
+  back), then the strike, which lands on the cells it aimed at when the wind-up began: the hero
+  who is no longer there is missed.  Proposed wind-ups: a rat 300 ms, a bat 250, a spider 350, a
+  cyclops 700 (a sweep over three cells, as the hero's reach), the hunter's draw 500.  The hero's
+  swings have their wind-ups too, so an enemy can be read and beaten to the blow.
+- **Light swing** — Space, standing: the held weapon's damage, its reach (three cells), its
+  recovery.  A second light swing pressed during the recovery follows through faster (proposed:
+  the recovery halved for the second), and a third ends the chain with a long recovery: two quick
+  blows, then the hero is open.
+- **Heavy swing** — Space held, released after a wind-up (proposed 500 ms, drawn back): +1 damage,
+  it staggers what it hits (its wind-up broken, pushed back a cell where there is room), and a long
+  recovery after (proposed 800 ms).
+- **Lunge** — a step towards the enemy and a swing within 150 ms of it: a thrust at the cell faced
+  only, +1 damage, the hero's step carrying it; it leaves the hero beside the enemy.
+- **Stance and side-step** — while the hero recovers from a blow, or an enemy beside it winds up, a
+  step does not turn the hero: it keeps facing the fight.  A side-step (across the facing) or a
+  step back taken during an enemy's wind-up leaves the cell its blow aimed at: a **dodge**, no
+  damage.  A side-step and a swing hits the enemy from its side: +1, and it must turn before it can
+  strike again.
+- **Parry** — Shift pressed without a direction in the last 150 ms of an enemy's wind-up: its blow
+  is turned aside, no damage, and it is open (staggered, its next act a blow's time later); a blow
+  on an open enemy is a **riposte**: double damage.  Pressed too early or late, the hero takes the
+  blow.  Not every blow can be parried: a cyclops's sweep cannot, only dodged.
+- **Poise** — a light blow does not break a big enemy's wind-up (a cyclops); a heavy one, a lunge
+  from the side or a riposte does.
+- **Fair and readable** (DESIGN.md § The principle): every wind-up is drawn and heard, every timing
+  is fixed (deterministic, the same each time), and hurt stays rarely killing: the windows are
+  generous at first and the fight rooms are where they are tuned.
 
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water

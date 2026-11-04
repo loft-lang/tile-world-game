@@ -1,0 +1,113 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The weapons (DESIGN.md § What the hero holds, BUILD.md B1; the owner took the proposed numbers,
+// to tune in play): a sword and an axe cost an enemy 2, a torch costs a flier 2 and anything else
+// 1, bare hands 1.  The axe is heavy: 600 ms to ready again, where the sword takes the rules'
+// blow_ms, 400.  Reach: bare hands strike the cell faced; anything held strikes it and the two cells
+// beside it across the swing, but not past a wall in the cell faced.  Every enemy sleeps (it never
+// acts), so only the hero's blows count; every number below is worked by hand.
+use tile_world;
+use rules;
+
+// An open room x 0 .. 6, y 0 .. 4, walled; the hero on (2, 2) facing east, holding `held` ("" for
+// nothing).
+fn room(held: text) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 7, 5, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 6, 4, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, 2, 2, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  if held != "" { w.hero_item = rules::th(w, held); }
+  w
+}
+
+// A sleeping enemy of `kind` on (x, y); its index.
+fn foe(w: rules::Level, kind: text, x: integer, y: integer) -> integer {
+  _ = rules::add_enemy(w, kind, x, y, 0);
+  i = len(w.enemies) - 1;
+  w.enemies[i].due = 1000000;
+  i
+}
+
+fn hp(w: const rules::Level, i: integer) -> integer {
+  e = w.enemies[i];
+  if !e { return 0; }
+  e.hp
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn main() {
+  w = room("sword");
+  assert(w.hero_item != 0, "the hero holds a sword");
+}
+
+// A sword costs a rat (health 3) 2; bare hands 1.
+fn test_a_sword_costs_two_bare_hands_one() {
+  w = room("sword");
+  r = foe(w, "rat", 3, 2);
+  assert(rules::swing(w) == rules::Step.Attacked && hp(w, r) == 1, "the sword: {hp(w, r)}");
+  v = room("");
+  s = foe(v, "rat", 3, 2);
+  assert(rules::walk(v, 1, 0) == rules::Step.Attacked && hp(v, s) == 2, "bare hands: {hp(v, s)}");
+}
+
+// The axe does the sword's 2, but is ready again only after 600 ms: a swing pressed at 400 waits
+// (the sword would land then), and lands at 600.
+fn test_the_axe_is_slower_to_ready() {
+  w = room("axe");
+  r = foe(w, "rat", 3, 2);
+  w.enemies[r].hp = 5;
+  assert(rules::swing(w) == rules::Step.Attacked && hp(w, r) == 3, "the first blow, 2: {hp(w, r)}");
+  until(w, 400);
+  assert(rules::swing(w) == rules::Step.Readying && hp(w, r) == 3, "at 400 still readying");
+  until(w, 600);
+  assert(hp(w, r) == 1, "it lands at 600: {hp(w, r)}");
+  v = room("sword");
+  s = foe(v, "rat", 3, 2);
+  v.enemies[s].hp = 5;
+  _ = rules::swing(v);
+  until(v, 400);
+  assert(rules::swing(v) == rules::Step.Attacked && hp(v, s) == 1, "the sword lands again at 400: {hp(v, s)}");
+}
+
+// A burning torch costs a bat 2 (given health 3 here, so the 2 shows) and a rat 1.
+fn test_a_torch_costs_a_bat_two_and_a_rat_one() {
+  w = room("burning_torch");
+  b = foe(w, "bat", 3, 2);
+  w.enemies[b].hp = 3;
+  assert(rules::swing(w) == rules::Step.Attacked && hp(w, b) == 1, "the bat: {hp(w, b)}");
+  v = room("burning_torch");
+  r = foe(v, "rat", 3, 2);
+  assert(rules::swing(v) == rules::Step.Attacked && hp(v, r) == 2, "the rat: {hp(v, r)}");
+}
+
+// Reach: holding a sword, one blow east strikes the rats on (3, 1), (3, 2) and (3, 3); bare-handed,
+// only the one on (3, 2).
+fn test_a_held_item_reaches_three_cells() {
+  w = room("sword");
+  a = foe(w, "rat", 3, 1);
+  b = foe(w, "rat", 3, 2);
+  c = foe(w, "rat", 3, 3);
+  _ = rules::swing(w);
+  assert(hp(w, a) == 1 && hp(w, b) == 1 && hp(w, c) == 1, "all three: {hp(w, a)} {hp(w, b)} {hp(w, c)}");
+  v = room("");
+  d = foe(v, "rat", 3, 1);
+  e = foe(v, "rat", 3, 2);
+  f = foe(v, "rat", 3, 3);
+  _ = rules::walk(v, 1, 0);
+  assert(hp(v, d) == 3 && hp(v, e) == 2 && hp(v, f) == 3, "bare hands, one: {hp(v, d)} {hp(v, e)} {hp(v, f)}");
+}
+
+// Not past a wall: with a wall in the cell faced, the rats beside it are out of reach.
+fn test_no_reach_past_a_wall() {
+  w = room("sword");
+  tile_world::set_terrain(w.w, 3, 2, 0, rules::tr(w, "wall"));
+  a = foe(w, "rat", 3, 1);
+  b = foe(w, "rat", 3, 3);
+  assert(rules::swing(w) != rules::Step.Attacked && hp(w, a) == 3 && hp(w, b) == 3, "behind the wall's corners: {hp(w, a)} {hp(w, b)}");
+}

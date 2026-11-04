@@ -122,3 +122,42 @@ fn test_a_tunnel_opens_into_a_room_and_rubble_keeps_off_the_rails() {
   }
   assert(rocks == 4 && on_rails == 0, "rocks: {rocks}, on the rails: {on_rails}");
 }
+
+// The fight rooms (BUILD.md B1): each a hall, the door at its south end, a weapon two steps in,
+// the enemy at the far end.  The hero walks in, takes the weapon by walking over it, and — the
+// enemy kept asleep so only the hero acts — a blow costs it what that weapon costs: the sword and
+// the axe 2, the torch a bat 2, the bow's walk-in blow 1.
+fn fight(name: text, kind: text, weapon: text, blow: integer) {
+  lf = place(name);
+  w = lf.level;
+  assert(kind_at(lf, 3, 17, 0) == "open_door", "{name}: its door");
+  assert(tile_world::top(w.w, 3, 15, 0) == rules::thing_id(w.k, weapon), "{name}: the {weapon} by the door");
+  e = w.enemies[0];
+  assert(e && e.kind == kind && e.x == 3 && e.y == 2, "{name}: the {kind} at the far end");
+  rules::put_hero(w, 3, 16, 0);
+  _ = rules::walk(w, 0, -1);
+  assert(w.hero_item == rules::thing_id(w.k, weapon), "{name}: the hero takes the {weapon}");
+  w.enemies[0].due = 1000000;
+  w.enemies[0].hp = 9;
+  rules::put_hero(w, 3, 3, 0);
+  _ = rules::walk(w, 0, -1);
+  assert((w.enemies[0]!.hp) == 9 - blow, "{name}: a blow costs the {kind} {blow}: {w.enemies[0]!.hp}");
+}
+
+fn test_the_fight_rooms() {
+  fight("the_rat_run", "rat", "sword", 2);
+  fight("the_bat_cave", "bat", "burning_torch", 2);
+  fight("the_spider_hall", "spider", "bow", 1);
+  fight("the_cyclops_den", "cyclops", "axe", 2);
+  fight("the_hunters_hall", "hunter", "bow", 1);
+}
+
+// The hunter's hall has rubble for cover, and still a way from the door to the far end: the
+// scattering never cuts the floor in two.
+fn test_the_hunters_hall_has_cover_and_a_way_through() {
+  lf = place("the_hunters_hall");
+  w = lf.level;
+  rocks = 0;
+  for y in 1..17 { for x in 1..6 { if tile_world::top(w.w, x, y, 0) == rules::thing_id(w.k, "rock") { rocks += 1; } } }
+  assert(rocks >= 5, "cover: {rocks} rocks");
+}

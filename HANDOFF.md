@@ -136,6 +136,12 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   village (12 houses).  Kit bugs found by drawing them and fixed: rails split a room's free floor
   (no rubble placed), a door drawn into a wall was not kept clear, trails before rooms walled a
   tunnel's mouth.
+  Then B1, the weapons (owner took the proposed numbers, to tune in play): sword and axe 2, the
+  axe 600 ms to ready, a torch swings and costs a flier 2, a held thing reaches 3 cells; five fight
+  rooms (rat run, bat cave, spider hall, cyclops den, hunter's hall: a weapon by the door, the enemy
+  at the far end) in the demo street (17 houses).  Combat designed (DESIGN.md @GM-Combat, proposed,
+  owner: as in Dark Souls — tells, light and heavy, lunge, stance and dodge, parry and riposte);
+  BUILD.md B1b is its steps, not built.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

@@ -23,15 +23,18 @@ fn show(w: const rules::Level, n: integer) -> text {
   rules::view(w, -1, -1, n, 1, w.hero_z)
 }
 
-// A blow takes blow_ms to recover from (DESIGN.md § What the hero holds): each move here waits it
-// out first, so every blow lands.
+// A blow takes time to recover from (DESIGN.md § What the hero holds): each move here first waits
+// READY_MS, the longest a held thing takes to ready again (the axe, 600 ms; the sword the rules'
+// blow_ms, 400), so every blow lands, whatever the hero holds.
+const READY_MS = 600;
+
 fn hit(w: rules::Level, dx: integer, dy: integer) -> rules::Step {
-  rules::tick(w, w.k.blow_ms);
+  rules::tick(w, READY_MS);
   rules::walk(w, dx, dy)
 }
 
 fn swung(w: rules::Level) -> rules::Step {
-  rules::tick(w, w.k.blow_ms);
+  rules::tick(w, READY_MS);
   rules::swing(w)
 }
 
@@ -646,16 +649,16 @@ fn test_a_tree_without_room_drops_nothing() {
 fn test_each_tree_counts_its_blows() {
   w = grove();
   tile_world::set_terrain(w.w, 0, 1, 0, rules::tr(w, "tree"));
-  rules::play(w, "a ~400 a ~400");
+  rules::play(w, "a ~600 a ~600");
   saved = w;
-  rules::play(w, "d ~400 d ~400 d ~400 d ~400");
+  rules::play(w, "d ~600 d ~600 d ~600 d ~600");
   assert(tile_world::terrain(w.w, 2, 1, 0) == rules::tr(w, "floor"), "the east tree, four blows: felled");
   assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "tree"), "the west tree, two: standing");
-  rules::play(w, "a ~400 a ~400");
+  rules::play(w, "a ~600 a ~600");
   assert(tile_world::terrain(w.w, 0, 1, 0) == rules::tr(w, "floor"), "two more: felled");
-  rules::play(saved, "a ~400");
+  rules::play(saved, "a ~600");
   assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "tree"), "saved: three blows, standing");
-  rules::play(saved, "a ~400");
+  rules::play(saved, "a ~600");
   assert(tile_world::terrain(saved.w, 0, 1, 0) == rules::tr(saved, "floor"), "saved: the fourth fells it");
 }
 
@@ -758,5 +761,6 @@ fn test_a_swing_strikes_what_the_hero_faces() {
   assert(swung(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
          "a sword does not chop");
   v.hero_item = rules::th(v, "torch");
-  assert(swung(v) == rules::Step.Blocked, "a torch is no weapon");
+  assert(swung(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
+         "a torch swings (owner: a reasonable weapon against bats), and does not chop");
 }
