@@ -1,0 +1,71 @@
+{
+  "name": "the cave-in",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "=": "rail", "d": "open_door", "I": "prop" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "##################",
+      "##################",
+      "########.#########",
+      "####.###.###.#####",
+      "####.###.###.#####",
+      "####.###I###.#####",
+      "#................#",
+      "#================#",
+      "##d#######.###.###",
+      "##################",
+      "##################"
+    ] }
+  ],
+  "things": [
+    { "at": [8, 2, 0], "stack": ["beam"] },
+    { "at": [4, 3, 0], "stack": ["chest"] },
+    { "at": [12, 3, 0], "stack": ["chest"] },
+    { "at": [4, 5, 0], "stack": ["rock"] },
+    { "at": [12, 5, 0], "stack": ["barricade"] },
+    { "at": [2, 6, 0], "stack": ["pick"] },
+    { "at": [6, 6, 0], "stack": ["beam"] },
+    { "at": [12, 6, 0], "stack": ["tar_barrel"] },
+    { "at": [16, 6, 0], "stack": ["burning_torch"] },
+    { "at": [4, 7, 0], "stack": ["cart"] },
+    { "at": [14, 7, 0], "stack": ["full_cart"] },
+    { "at": [15, 7, 0], "stack": ["full_cart"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "intent": { "seed": 29, "rooms": [ ], "corridors": [ ], "grounds": [
+    { "at": [0, 0], "size": [18, 11], "z": 0, "as": "wall" } ], "trails": [
+    { "points": [[1, 6], [16, 6]], "z": 0, "as": "floor" },
+    { "points": [[1, 7], [16, 7]], "z": 0, "as": "rail" },
+    { "points": [[4, 3], [4, 5]], "z": 0, "as": "floor" },
+    { "points": [[8, 2], [8, 4]], "z": 0, "as": "floor" },
+    { "points": [[8, 5]], "z": 0, "as": "prop" },
+    { "points": [[12, 3], [12, 5]], "z": 0, "as": "floor" },
+    { "points": [[10, 8]], "z": 0, "as": "floor" },
+    { "points": [[14, 8]], "z": 0, "as": "floor" },
+    { "points": [[2, 8]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [2, 6], "z": 0, "stack": ["pick"] },
+    { "at": [4, 7], "z": 0, "stack": ["cart"] },
+    { "at": [4, 5], "z": 0, "stack": ["rock"] },
+    { "at": [4, 3], "z": 0, "stack": ["chest"] },
+    { "at": [6, 6], "z": 0, "stack": ["beam"] },
+    { "at": [8, 2], "z": 0, "stack": ["beam"] },
+    { "at": [12, 5], "z": 0, "stack": ["barricade"] },
+    { "at": [12, 3], "z": 0, "stack": ["chest"] },
+    { "at": [12, 6], "z": 0, "stack": ["tar_barrel"] },
+    { "at": [16, 6], "z": 0, "stack": ["burning_torch"] },
+    { "at": [14, 7], "z": 0, "stack": ["full_cart"] },
+    { "at": [15, 7], "z": 0, "stack": ["full_cart"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [2, 8, 0], "to": "demo", "door": "the_cave_in" }
+  ],
+  "labels": [
+    { "at": [10, 6, 0], "text": "BUMP" },
+    { "at": [14, 6, 0], "text": "BUMP" }
+  ],
+  "start": [2, 7, 0],
+  "goal": { "type": "" }
+}

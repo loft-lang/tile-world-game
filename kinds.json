@@ -28,7 +28,8 @@
     "stairs_up":   { "id": 9, "walk": true, "stairs": 1, "glyph": "<" },
     "stairs_down": { "id": 10, "walk": true, "stairs": -1, "glyph": ">" },
     "well":  { "id": 11, "saves": true, "glyph": "w" },
-    "basin": { "id": 12, "glyph": "u" }
+    "basin": { "id": 12, "glyph": "u" },
+    "prop":  { "id": 13, "props": true, "glyph": "I" }
   },
   "edges": {
     "wall":   { "id": 1, "opaque": true, "glyph": "|" },
@@ -37,10 +38,11 @@
     "fence":  { "id": 4, "climb": true, "glyph": "-" }
   },
   "things": {
-    "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "stand": true, "rest": true, "derails_to": "derailed_cart", "glyph": "c" },
+    "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "stand": true, "rest": true, "derails_to": "derailed_cart", "loads_to": "full_cart", "glyph": "c" },
+    "full_cart": { "id": 26, "height": 1, "move": "push_pull", "rails": true, "train": true, "stand": true, "rest": true, "derails_to": "derailed_cart", "unloads_to": "cart", "weight": 2, "glyph": "K" },
     "chair":  { "id": 2, "height": 1, "move": "push_pull", "stand": true, "lift": true, "glyph": "h", "fragile": true },
     "table":  { "id": 3, "height": 2, "stand": true, "surface": true, "rest": true, "glyph": "T" },
-    "rock":   { "id": 4, "height": 2, "move": "push", "stand": true, "rest": true, "glyph": "o" },
+    "rock":   { "id": 4, "height": 2, "move": "push", "stand": true, "rest": true, "rubble": true, "glyph": "o" },
     "anvil":  { "id": 5, "height": 1, "move": "push", "glyph": "a" },
     "potion": { "id": 6, "height": 0, "walk_on": "boost", "glyph": "g" },
     "health_potion": { "id": 23, "height": 0, "walk_on": "heal", "heals": 3, "glyph": "+" },
@@ -56,7 +58,16 @@
     "stick":  { "id": 13, "height": 0, "walk_on": "take", "mount": true, "dipped_to": "torch", "glyph": "/" },
     "torch":  { "id": 14, "height": 0, "walk_on": "take", "mount": true, "lit_to": "burning_torch", "glyph": "j", "swings": true, "flier_damage": 2 },
     "burning_torch": { "id": 15, "height": 0, "walk_on": "take", "mount": true, "light": true, "flame": true, "burns_to": "stick", "glyph": "f", "doused_to": "torch", "swings": true, "flier_damage": 2 },
-    "tar_barrel": { "id": 16, "height": 2, "move": "push", "stand": true, "rest": true, "dips": true, "glyph": "b" },
+    "tar_barrel": { "id": 16, "height": 2, "move": "push", "stand": true, "rest": true, "dips": true, "lit_to": "lit_barrel", "glyph": "b" },
+    "lit_barrel": { "id": 29, "height": 2, "move": "push", "stand": true, "light": true, "flame": true, "glyph": "L" },
+    "pick":   { "id": 25, "height": 0, "walk_on": "take", "glyph": "p", "swings": true, "picks": true, "damage": 1, "recover_ms": 600 },
+    "beam":   { "id": 27, "height": 0, "walk_on": "take", "glyph": "m" },
+    "barricade": { "id": 28, "height": 2, "apart_to": "beam", "burns_away": true, "burns_to": "burning_barricade", "glyph": "X" },
+    "burning_barricade": { "id": 30, "height": 2, "light": true, "flame": true, "glyph": "Z" },
+    "sack":   { "id": 31, "height": 0, "walk_on": "shoulder", "carries": 6, "glyph": "q" },
+    "rope":   { "id": 32, "height": 0, "walk_on": "shoulder", "glyph": "e" },
+    "herb":   { "id": 33, "height": 0, "walk_on": "take", "forage": true, "glyph": "n" },
+    "mushroom": { "id": 34, "height": 0, "walk_on": "take", "forage": true, "glyph": "v" },
     "socket": { "id": 17, "height": 0, "holds": true, "glyph": "y" },
     "derailed_cart": { "id": 18, "height": 1, "stand": true, "rest": true, "glyph": "k", "rerails_to": "cart" },
     "lever_straight": { "id": 19, "height": 1, "switches_to": "lever_turn", "glyph": "l" },

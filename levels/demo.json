@@ -31,19 +31,19 @@
     { "cx": 1, "cy": 0, "z": 0, "rows": [
       "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
       ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,P",
-      "RRR,,SSSS,,RRRR,SSSS,,SSSS,,,,,P",
-      "RRR,,SSSS,,RRRR,SSSS,,SSSS,,,,,P",
-      "HEH,,TTFT,,HHEH,TTFT,,TTFT,,,,,P",
-      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,,,P",
-      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,,,P",
+      "RRR,,SSSS,,RRRR,SSSS,,SSSS,RRRRP",
+      "RRR,,SSSS,,RRRR,SSSS,,SSSS,RRRRP",
+      "HEH,,TTFT,,HHEH,TTFT,,TTFT,HHEHP",
+      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,:,P",
+      ",:,,,,,:,,,,,:,,,,:,,,,,:,,,,:,P",
       "::::::::::::::::::::::::::::::,P",
       ",,,,,,,,:,,,,,,,,,,,,,,,,,,,,,,P",
       ",,,,,,,,:,,,,,,,,,,,,,,,,,,,,,,P",
-      "SSS,RRRR:,RRRR,SSSS,,,,,,,,,,,,P",
-      "SSS,RRRR:,RRRR,SSSS,,,,,,,,,,,,P",
-      "TFT,HHEH:,HHEH,TTFT,,,,,,,,,,,,P",
-      ",:,,,,:,:,,,:,,,,:,,,,,,,,,,,,,P",
-      ",:,,,,:,:,,,:,,,,:,,,,,,,,,,,,,P",
+      "SSS,RRRR:,RRRR,SSSS,,,RRRR,,,,,P",
+      "SSS,RRRR:,RRRR,SSSS,,,RRRR,,,,,P",
+      "TFT,HHEH:,HHEH,TTFT,,,HHEH,,,,,P",
+      ",:,,,,:,:,,,:,,,,:,,,,,,:,,,,,,P",
+      ",:,,,,:,:,,,:,,,,:,,,,,,:,,,,,,P",
       "::::::::::::::::::::::::::::::,P",
       "RRR,SSSS:,RRRR,SSSS,,,,,,,,,,,,P",
       "RRR,SSSS:,RRRR,SSSS,,,,,,,,,,,,P",
@@ -82,7 +82,9 @@
     { "points": [[38, 19], [38, 20]], "z": 0, "as": "path" },
     { "points": [[44, 19], [44, 20]], "z": 0, "as": "path" },
     { "points": [[49, 19], [49, 20]], "z": 0, "as": "path" },
-    { "points": [[56, 5], [56, 7]], "z": 0, "as": "path" } ], "houses": [
+    { "points": [[56, 5], [56, 7]], "z": 0, "as": "path" },
+    { "points": [[61, 5], [61, 7]], "z": 0, "as": "path" },
+    { "points": [[56, 13], [56, 15]], "z": 0, "as": "path" } ], "houses": [
     { "at": [31, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [37, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [43, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
@@ -95,7 +97,9 @@
     { "at": [36, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [42, 16], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [47, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
-    { "at": [54, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ] },
+    { "at": [54, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
+    { "at": [59, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
+    { "at": [54, 10], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [4, 4, 0], "to": "first_climb", "door": "demo" },
@@ -115,7 +119,9 @@
     { "at": [38, 18, 0], "to": "the_spider_hall", "door": "demo" },
     { "at": [44, 18, 0], "to": "the_cyclops_den", "door": "demo" },
     { "at": [49, 18, 0], "to": "the_hunters_hall", "door": "demo" },
-    { "at": [56, 4, 0], "to": "the_fountain", "door": "demo" }
+    { "at": [56, 4, 0], "to": "the_fountain", "door": "demo" },
+    { "at": [61, 4, 0], "to": "the_cave_in", "door": "demo" },
+    { "at": [56, 12, 0], "to": "the_herb_patch", "door": "demo" }
   ],
   "labels": [
     { "at": [4, 6, 0], "text": "FIRST CLIMB" },
@@ -136,7 +142,9 @@
     { "at": [38, 19, 0], "text": "SPIDERS" },
     { "at": [44, 19, 0], "text": "CYCLOPS" },
     { "at": [49, 19, 0], "text": "HUNTER" },
-    { "at": [56, 6, 0], "text": "FOUNTAIN" }
+    { "at": [56, 6, 0], "text": "FOUNTAIN" },
+    { "at": [61, 6, 0], "text": "CAVE-IN" },
+    { "at": [56, 14, 0], "text": "HERBS" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [

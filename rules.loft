@@ -66,6 +66,12 @@ pub const PARRY_MS = 150;
 /// A potion heals over time (owner: no instant effect on a fight): a point every POTION_MS
 /// (proposed, to tune in play) — a health potion's 3 over 4.5 s.
 pub const POTION_MS = 1500;
+
+/// The mine's work (BUILD.md B2b; proposed, to tune in play): a standing beam taken out brings
+/// down the tunnel beyond it for COLLAPSE_CELLS cells; a barricade beside a lit barrel burns for
+/// BARRICADE_BURN_MS and is gone.
+pub const COLLAPSE_CELLS = 3;
+pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
 pub const CHAIN_GAP_MS = 200;
@@ -90,6 +96,9 @@ struct TerrainProps {
   water: boolean,
   /// Rough: a climbing enemy (a spider) goes over it.
   rough: boolean,
+  /// A standing beam (BUILD.md B2b): it holds the tunnel beyond it up; a pick takes it out — a
+  /// beam left on its cell, the tunnel beyond collapsing into rubble.
+  props: boolean = false,
   glyph: text
 }
 
@@ -194,6 +203,22 @@ struct ThingProps {
   flier_damage: integer = 0,
   /// How long the hero takes to ready it again after a blow (an axe, heavy); 0: the rules' blow_ms.
   recover_ms: integer = 0,
+  /// The mine's work (BUILD.md B2, B2b): a pick clears rubble into a cart beside the hero, takes a
+  /// standing beam out and a barricade apart; rubble (a rock) is what it clears; an empty cart
+  /// `loads_to` its full form, which `unloads_to` the empty one, bumped from the side where there
+  /// is room; a cart's `weight` against the strength (a full one 2); a barricade comes `apart_to`
+  /// beams under a pick, and `burns_away` beside a lit barrel.
+  picks: boolean = false,
+  rubble: boolean = false,
+  loads_to: text = "",
+  unloads_to: text = "",
+  weight: integer = 1,
+  apart_to: text = "",
+  burns_away: boolean = false,
+  /// Foraging (BUILD.md B7b): a thing foraged (a herb, a mushroom) goes into a sack worn rather
+  /// than the hand; a sack `carries` that many.
+  forage: boolean = false,
+  carries: integer = 0,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -323,7 +348,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
       stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
       hits: num(e, "hits", 1), drops: word(e, "drops", ""),
-      saves: flag(e, "saves"), water: flag(e, "water"), rough: flag(e, "rough"), glyph: word(e, "glyph", "?")
+      saves: flag(e, "saves"), water: flag(e, "water"), rough: flag(e, "rough"), props: flag(e, "props"),
+      glyph: word(e, "glyph", "?")
     }];
   }
   ed = v.field("edges");
@@ -364,6 +390,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       bomb: flag(e, "bomb"), fragile: flag(e, "fragile"), doused_to: word(e, "doused_to", ""),
       rerails_to: word(e, "rerails_to", ""), damage: num(e, "damage", 0), flier_damage: num(e, "flier_damage", 0),
       recover_ms: num(e, "recover_ms", 0), shoots: flag(e, "shoots"),
+      picks: flag(e, "picks"), rubble: flag(e, "rubble"), loads_to: word(e, "loads_to", ""),
+      unloads_to: word(e, "unloads_to", ""), weight: num(e, "weight", 1), apart_to: word(e, "apart_to", ""),
+      burns_away: flag(e, "burns_away"), forage: flag(e, "forage"), carries: num(e, "carries", 0),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -604,6 +633,10 @@ pub struct Level {
   pub spirit_left: integer = 0,
   pub heal_due: integer = 0,
   pub drunk: integer = 0,
+  /// The shoulders (owner): one thing worn there beside what the hand holds — the rope or the
+  /// sack, never both (0: none); what the sack holds, foraged (it keeps it when put down).
+  pub shoulder: integer = 0,
+  pub sack: vector<integer> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -754,6 +787,10 @@ pub enum Step {
   Thrown,
   /// The hero drank a potion: the one it held, or one walked over with its hands full.
   Drank,
+  /// The hero's pick did the mine's work: rubble into a cart, a beam out, a barricade apart.
+  Picked,
+  /// A full cart bumped from the side tipped its load out.
+  Unloaded,
   /// The hero struck an enemy (walking into it, or swinging at it).
   Attacked,
   /// The hero walked into one that talks (`talk_to`, its id): the game says what it says.
@@ -1236,7 +1273,16 @@ fn move_base_to(l: Level, x: integer, y: integer, z: integer, nx: integer, ny: i
   if base(l, x, y, z) != tile_world::top(l.w, x, y, z) { on = tile_world::take(l.w, x, y, z); }
   t = tile_world::take(l.w, x, y, z);
   tile_world::place(l.w, nx, ny, nz, t);
-  if on == 0 { return; }
+  if on == 0 {
+    // A burning big thing (a lit barrel) takes its flame along.
+    j = if is_flame(l, t) { flame_at(l, x, y, z) } else { -1 };
+    if j >= 0 {
+      l.flames[j].x = nx;
+      l.flames[j].y = ny;
+      l.flames[j].z = nz;
+    }
+    return;
+  }
   tile_world::place(l.w, nx, ny, nz, on);
   i = flame_at(l, x, y, z);
   if i >= 0 {
@@ -1356,7 +1402,8 @@ fn burnt(l: Level, x: integer, y: integer, z: integer) {
     above += [t];
     t = tile_world::take(l.w, x, y, z);
   }
-  if t != 0 { tile_world::place(l.w, x, y, z, burns_to(l, t)); }
+  // What burns away to nothing (a lit barrel, a barricade) leaves its cell empty.
+  if t != 0 && burns_to(l, t) != 0 { tile_world::place(l.w, x, y, z, burns_to(l, t)); }
   i = len(above) - 1;
   while i >= 0 {
     tile_world::place(l.w, x, y, z, above[i] ?? 0);
@@ -1530,7 +1577,10 @@ pub struct Carried {
   /// A potion's healing still to come: health, spirit, and the next point's time left (0: none).
   pub heal_left: integer = 0,
   pub spirit_left: integer = 0,
-  pub heal_in: integer = 0
+  pub heal_in: integer = 0,
+  /// What is on the shoulders, and what the sack holds.
+  pub shoulder: integer = 0,
+  pub sack: vector<integer> = []
 }
 
 /// What the hero of `l` takes through a door.
@@ -1542,7 +1592,8 @@ pub fn carried(l: const Level) -> Carried {
     boost_left: if l.boost_until > l.now { l.boost_until - l.now } else { 0 },
     blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 },
     heal_left: l.heal_left, spirit_left: l.spirit_left,
-    heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 }
+    heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 },
+    shoulder: l.shoulder, sack: l.sack
   }
 }
 
@@ -1563,6 +1614,8 @@ pub fn carry_in(l: Level, c: const Carried) {
   l.heal_left = c.heal_left;
   l.spirit_left = c.spirit_left;
   l.heal_due = if c.heal_in > 0 { l.now + c.heal_in } else { 0 };
+  l.shoulder = c.shoulder;
+  l.sack = c.sack;
   l.queued = false;
   l.held_by = 0;
   l.struggles = 0;
@@ -1738,6 +1791,17 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
     } else {
       drink(l, t);
     }
+  } else if effect == "shoulder" {
+    // The rope or the sack (owner): onto the shoulders when they are free; with the other worn,
+    // it stays where it lies — the two are never worn together.
+    if l.shoulder == 0 {
+      _ = tile_world::take(l.w, x, y, z);
+      l.shoulder = t;
+    }
+  } else if effect == "take" && forages(l, t) {
+    // Foraged into the sack worn, while it has room, whatever the hand holds.
+    _ = tile_world::take(l.w, x, y, z);
+    l.sack += [t];
   } else if effect == "take" {
     held = l.hero_item;
     held_until = l.hero_until;
@@ -1749,6 +1813,31 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
       set_down(l, held, x, y, z, held_until);
     }
   }
+}
+
+// Does thing `t` go into the sack worn: a thing foraged, the sack on the shoulders, room in it?
+fn forages(l: const Level, t: integer) -> boolean {
+  p = l.k.things[t];
+  s = l.k.things[l.shoulder];
+  p && p.forage && s && s.carries > len(l.sack)
+}
+
+/// How many the sack worn holds, and how many it carries (0, 0 without one).
+pub fn sack_room(l: const Level) -> (integer, integer) {
+  s = l.k.things[l.shoulder];
+  if !s || s.carries == 0 { return (0, 0); }
+  (len(l.sack), s.carries)
+}
+
+/// Take every `name` out of the sack (a talk's gift taken from it): how many there were.
+pub fn take_from_sack(l: Level, name: text) -> integer {
+  kept: vector<integer> = [];
+  n = 0;
+  for t in l.sack {
+    if thing_name(l.k, t) == name { n += 1; } else { kept += [t]; }
+  }
+  l.sack = kept;
+  n
 }
 
 /// Is this thing a potion: strength (boost), health (heal) or spirit?
@@ -1800,6 +1889,124 @@ fn heal_due(l: Level) {
   }
 }
 
+// --- The mine's work (BUILD.md B2, B2b) ---
+
+/// Does the hero hold a pick?
+pub fn holds_pick(l: const Level) -> boolean {
+  p = l.k.things[l.hero_item];
+  if p { p.picks } else { false }
+}
+
+// Is terrain `kind` a standing beam?
+fn props_up(l: const Level, kind: integer) -> boolean {
+  p = l.k.terrain[kind];
+  if p { p.props } else { false }
+}
+
+// Is (x, y, z) free floor at the ground: walkable, not rail, nothing on it, no enemy, not the hero?
+fn free_floor(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  k = tile_world::terrain(l.w, x, y, z);
+  walkable(l, k) && !rail(l, k) && tile_world::top(l.w, x, y, z) == 0 && enemy_at(l, x, y, z) < 0
+    && !(l.hero_x == x && l.hero_y == y && l.hero_z == z)
+}
+
+// The cell beside the hero, across the way it moves (dx, dy) or behind it, that holds an empty cart
+// with nothing on it: on its left first, then its right, then behind (proposed).  (0, 0) for none.
+fn empty_cart_beside(l: const Level, dx: integer, dy: integer) -> (integer, integer) {
+  for o in [(dy, -dx), (-dy, dx), (-dx, -dy)] {
+    x = l.hero_x + o.0;
+    y = l.hero_y + o.1;
+    t = base(l, x, y, l.hero_z);
+    cp = l.k.things[t];
+    if t != 0 && cp && cp.loads_to != "" && tile_world::top(l.w, x, y, l.hero_z) == t
+        && rolling_at(l, x, y, l.hero_z) < 0 {
+      return o;
+    }
+  }
+  (0, 0)
+}
+
+// Walking into `thing` on (tx, ty, z) the way (dx, dy): the mine's work, or Blocked for none.
+fn mine_work(l: Level, thing: integer, tx: integer, ty: integer, z: integer, dx: integer, dy: integer) -> Step {
+  p = l.k.things[thing];
+  if thing == 0 || !p { return Step.Blocked; }
+  alone = tile_world::top(l.w, tx, ty, z) == thing;
+  // Rubble, the pick held, an empty cart beside the hero: cleared into the cart (owner).
+  if p.rubble && holds_pick(l) && alone {
+    o = empty_cart_beside(l, dx, dy);
+    if o.0 == 0 && o.1 == 0 { return Step.Blocked; }
+    cx = l.hero_x + o.0;
+    cy = l.hero_y + o.1;
+    _ = tile_world::take(l.w, tx, ty, z);
+    cp = l.k.things[base(l, cx, cy, z)];
+    replace_base(l, cx, cy, z, thing_id(l.k, if cp { cp.loads_to } else { "" }));
+    return Step.Picked;
+  }
+  // A barricade, the pick held: two beams (owner) — on its cell, and on a free cell beside it
+  // across the hero's way (its left, else its right), else where the hero stands, nothing lying
+  // there (proposed); with no room at all, one.
+  if p.apart_to != "" && holds_pick(l) && alone {
+    beam = thing_id(l.k, p.apart_to);
+    _ = tile_world::take(l.w, tx, ty, z);
+    tile_world::place(l.w, tx, ty, z, beam);
+    placed = false;
+    for o in [(dy, -dx), (-dy, dx)] {
+      if !placed && free_floor(l, tx + o.0, ty + o.1, z) {
+        tile_world::place(l.w, tx + o.0, ty + o.1, z, beam);
+        placed = true;
+      }
+    }
+    if !placed && tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z) == 0 {
+      tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, beam);
+    }
+    return Step.Picked;
+  }
+  // A held flame lights a tar barrel (proposed): it burns as a torch does, then is gone.
+  if is_flame(l, l.hero_item) && !item(l, thing) && p.lit_to != "" && alone {
+    replace_base(l, tx, ty, z, thing_id(l.k, p.lit_to));
+    l.flames += [Flame { x: tx, y: ty, z: z, until: l.now + l.k.burn_ms }];
+    return Step.Lit;
+  }
+  // A lit barrel pushed against a barricade: the barricade burns, BARRICADE_BURN_MS, and is gone
+  // (owner: the way opens, no beams); the barrel stays where it is.
+  if p.flame && !item(l, thing) && !hands_busy(l) {
+    b = base(l, tx + dx, ty + dy, z);
+    bp = l.k.things[b];
+    if b != 0 && bp && bp.burns_away && tile_world::crossable(l.w, tx, ty, z, dx, dy) {
+      replace_base(l, tx + dx, ty + dy, z, thing_id(l.k, bp.burns_to));
+      l.flames += [Flame { x: tx + dx, y: ty + dy, z: z, until: l.now + BARRICADE_BURN_MS }];
+      return Step.Lit;
+    }
+  }
+  // A full cart bumped from the side — across its track — where there is free floor beyond it (an
+  // unloading place, owner): its load tips out there, the cart empty again.
+  if p.unloads_to != "" && alone && rolling_at(l, tx, ty, z) < 0
+      && (joins(l, tx, ty, z) & (side_bit(dx, dy) | side_bit(-dx, -dy))) == 0
+      && free_floor(l, tx + dx, ty + dy, z) && tile_world::crossable(l.w, tx, ty, z, dx, dy) {
+    replace_base(l, tx, ty, z, thing_id(l.k, p.unloads_to));
+    tile_world::place(l.w, tx + dx, ty + dy, z, th(l, "rock"));
+    return Step.Unloaded;
+  }
+  Step.Blocked
+}
+
+// A standing beam on (tx, ty, z) taken out with the pick, the hero moving (dx, dy): its cell
+// becomes floor with the beam lying there (owner: taken out, a beam), and the tunnel beyond it — up
+// to COLLAPSE_CELLS cells on the way, while there is floor — comes down: rubble on every free cell
+// (proposed: cleared again with the pick and a cart, never a dead end).
+fn take_out_beam(l: Level, tx: integer, ty: integer, z: integer, dx: integer, dy: integer) -> Step {
+  tile_world::set_terrain(l.w, tx, ty, z, tr(l, "floor"));
+  tile_world::place(l.w, tx, ty, z, th(l, "beam"));
+  rock = th(l, "rock");
+  for k in 1..=COLLAPSE_CELLS {
+    x = tx + dx * k;
+    y = ty + dy * k;
+    if !walkable(l, tile_world::terrain(l.w, x, y, z)) { break; }
+    if free_floor(l, x, y, z) { tile_world::place(l.w, x, y, z, rock); }
+  }
+  Step.Picked
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -1808,6 +2015,16 @@ fn heal_due(l: Level) {
 /// anything else (an item already: one a cell; a chair).
 pub fn drop(l: Level) -> Step {
   l.queued = false;
+  // Hands empty, the put-down key puts down what is on the shoulders (the sack keeps what it holds).
+  if l.hero_item == 0 && l.shoulder != 0 {
+    if tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z) != 0
+        || l.hero_h != tile_world::rise(l.w, l.hero_x, l.hero_y, l.hero_z) {
+      return Step.Blocked;
+    }
+    tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, l.shoulder);
+    l.shoulder = 0;
+    return Step.Placed;
+  }
   if l.hero_item == 0 { return Step.Blocked; }
   under = tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z);
   if under != 0 && !rests(l, under) { return Step.Blocked; }
@@ -2073,6 +2290,16 @@ fn train_way(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
   out
 }
 
+// What the carts on `cells` weigh against the strength: each its kind's weight (a full cart 2).
+fn cars_weight(l: const Level, cells: const vector<(integer, integer, integer)>) -> integer {
+  n = 0;
+  for c in cells {
+    p = l.k.things[base(l, c.0, c.1, c.2)];
+    n += if p { p.weight } else { 1 };
+  }
+  n
+}
+
 /// How many carts a push (dx, dy) at (x, y, z) moves: the train, counted along the track.
 pub fn train(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
   len(train_way(l, x, y, z, dx, dy).cells)
@@ -2092,9 +2319,10 @@ fn push_train(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: int
   fy = last.1 + tw.way.1;
   fz = if tw.how == ALONG { rail_next(l, last.0, last.1, lz, tw.way.0, tw.way.1) } else { lz };
   if fz == NOWHERE { return false; }
-  // Up a step every cart counts twice against the strength.
+  // Up a step every cart counts twice against the strength; a full cart weighs two.
   up = level_h(l, fx, fy, fz) > level_h(l, last.0, last.1, lz);
-  if (if up { 2 * n } else { n }) > push_strength(l) { return false; }
+  heavy = cars_weight(l, tw.cells);
+  if (if up { 2 * heavy } else { heavy }) > push_strength(l) { return false; }
   front = base(l, last.0, last.1, lz);
   if tw.how == ALONG {
     if !rail_room(l, last.0, last.1, lz, fx, fy, fz) || !way_clear(l, fx, fy, fz, tw.way.0, tw.way.1) { return false; }
@@ -2336,9 +2564,16 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     tile_world::set_terrain(l.w, tx, ty, z, open);
     return Step.Opened;
   }
+  // Holding a pick, a standing beam is taken out (B2b): the tunnel beyond it comes down.
+  if props_up(l, kind) && holds_pick(l) { return take_out_beam(l, tx, ty, z, dx, dy); }
   if !walkable(l, kind) { return Step.Blocked; }
   // What stands there: an item resting on a big thing is met through the big thing.
   thing = base(l, tx, ty, z);
+  // The mine's work (B2, B2b): the pick clears rubble into an empty cart beside the hero and
+  // takes a barricade apart; a held flame lights a tar barrel; a lit barrel pushed against a
+  // barricade sets it burning; a full cart bumped from the side tips its load out.
+  mine = mine_work(l, thing, tx, ty, z, dx, dy);
+  if mine != Step.Blocked { return mine; }
   // A lever is thrown: every junction beside it is set the other way (its twin picture), and the
   // handle goes over; the hero stays where it is.
   if throw_lever(l, tx, ty, z) { return Step.Switched; }
@@ -2474,7 +2709,7 @@ pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
       cz = nz;
       d = (w.0, w.1);
     }
-    n = len(cars);
+    n = cars_weight(l, cars);
     under = tile_world::top(l.w, fx, fy, z);
     pulled_way = (fx - bx, fy - by);
     rf = tile_world::rise(l.w, fx, fy, z);

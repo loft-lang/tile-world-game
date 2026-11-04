@@ -674,8 +674,10 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
     sound(g, "bump", 0.5);
   } else if step == rules::Step.Took {
     sound(g, "pickup");
-  } else if step == rules::Step.Chopped {
+  } else if step == rules::Step.Chopped || step == rules::Step.Picked {
     sound(g, "chop");
+  } else if step == rules::Step.Unloaded {
+    sound(g, "push_rock");
   } else if step == rules::Step.Dipped {
     sound(g, "potion");
   } else if step == rules::Step.Lit {
@@ -1502,7 +1504,9 @@ struct Figure {
   face_x: integer,
   face_y: integer,
   pose: motion::Pose,
-  fine: motion::FinePose
+  fine: motion::FinePose,
+  /// What is worn on the shoulders (the hero's rope or sack; 0: none), drawn behind the body.
+  shoulder: integer = 0
 }
 
 // The figures on layer z: the hero and the enemies.
@@ -1531,7 +1535,7 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
                      pose: motion::pose(g.motion, w.face_x, w.face_y, w.now),
-                     fine: motion::fine_pose(g.motion, w.face_x, w.face_y, w.now) }];
+                     fine: motion::fine_pose(g.motion, w.face_x, w.face_y, w.now), shoulder: w.shoulder }];
   }
   out
 }
@@ -1564,6 +1568,12 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   hx = bx + (hd.0 as float);
   hy = by + (hd.1 as float);
   behind = f.face_y < 0 && f.face_x == 0;
+  // What is on the shoulders hangs at the back, away from the way the figure faces.
+  if f.shoulder != 0 {
+    sx = bx - ((f.face_x * 4) as float);
+    sy = by - ((f.face_y * 3 + 2) as float);
+    theme::put_fine(g.surface, theme::thing_sprite(g.look, f.shoulder), sx, sy, p.tilt, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade);
+  }
   if f.item != 0 && behind {
     theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
@@ -1803,6 +1813,9 @@ fn status(g: Game, left: text) {
   ts = g.look.tile_size;
   y = (ROWS - 1) * ts;
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
+  // The sack worn: what it holds of what it carries.
+  held = rules::sack_room(w);
+  if held.1 > 0 { right = "SACK {held.0}/{held.1} " + right; }
   // Health, and the temporary health above it ("6+2").
   hearts = if w.spirit > 0 { "{w.health}+{w.spirit}" } else { "{w.health}" };
   cells = len(right) + 1 + len(hearts);

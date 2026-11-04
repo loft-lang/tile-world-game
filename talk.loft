@@ -338,7 +338,7 @@ pub fn current(l: const rules::Level, i: integer) -> integer {
 // Line `n` of `t` begins between the hero and enemy `i`: shown until its time is up; it takes
 // what the hero holds, gives what it gives, and sets where the next talk starts.  The figure
 // stands still, facing the hero, while it lasts.  A line that does not exist ends the talk.
-fn begin(t: const Talk, l: rules::Level, i: integer, n: integer) {
+fn begin(t: const Talk, l: rules::Level, i: integer, n: integer, taking: boolean = true) {
   line = t.lines[n];
   if !line {
     l.enemies[i].talk_line = -1;
@@ -349,7 +349,8 @@ fn begin(t: const Talk, l: rules::Level, i: integer, n: integer) {
   l.enemies[i].talk_until = l.now + duration(line);
   l.enemies[i].talk_away = false;
   if line.then >= 0 { l.enemies[i].talk_start = line.then; }
-  if line.take && l.hero_item != 0 {
+  // `taking`: the gift was met from the hand (one from the sack leaves the hand as it is).
+  if line.take && taking && l.hero_item != 0 {
     l.enemies[i].item = l.hero_item;
     l.hero_item = 0;
     l.hero_until = 0;
@@ -410,6 +411,13 @@ pub fn bump(t: const Talk, l: rules::Level, i: integer, b: integer) {
   e = l.enemies[i] ?? return;
   g = gift_for(t, l);
   if g >= 0 { begin(t, l, i, g); return; }
+  // A gift in the sack worn (BUILD.md B7b): every one of its kind is taken out, the line said.
+  for gf in t.gifts {
+    if gf.go >= 0 && rules::take_from_sack(l, gf.item) > 0 {
+      begin(t, l, i, gf.go, false);
+      return;
+    }
+  }
   who = name_of(t, l, i, b);
   if e.talk_line < 0 {
     for q in t.bumps {

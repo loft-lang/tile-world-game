@@ -51,3 +51,159 @@ fn test_the_fountain_saves_and_the_dry_one_does_not() {
   w.enemies[len(w.enemies) - 1].due = 1000000;
   assert(rules::walk(w, 0, -1) == rules::Step.Watched, "a rat in sight: watched, no save");
 }
+
+fn top_name(w: const rules::Level, x: integer, y: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, 0))
+}
+
+// The cave-in (B2): the pick taken by the door; on (4, 6) facing the rubble on (4, 5), the empty
+// cart behind on (4, 7): the rock goes into the cart, the way to the chest opens.  Without a cart
+// beside, the pick does nothing to it.
+fn test_the_pick_clears_rubble_into_a_cart() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  _ = rules::walk(w, 0, -1);
+  assert(top_name(w, 2, 6) == "" && w.hero_item == rules::th(w, "pick"), "the pick taken");
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Picked, "struck with the cart behind");
+  assert(top_name(w, 4, 5) == "" && top_name(w, 4, 7) == "full_cart", "the rock in the cart: {top_name(w, 4, 7)}");
+  _ = rules::walk(w, 0, -1);
+  _ = rules::walk(w, 0, -1);
+  assert(rules::walk(w, 0, -1) == rules::Step.Opened && w.points == 1, "the chest beyond");
+  v = place("the_cave_in").level;
+  _ = tile_world::take(v.w, 4, 7, 0);
+  rules::put_hero(v, 4, 6, 0);
+  v.hero_item = rules::th(v, "pick");
+  assert(rules::walk(v, 0, -1) == rules::Step.Blocked && top_name(v, 4, 5) == "rock", "no cart beside: the rock stays");
+}
+
+// Unloading (B2): the full cart pushed east along the track — the pick put down first, any held
+// thing keeps the hands from pushing — to (10, 7), free floor beside the track on (10, 8); bumped
+// from the side there, from (10, 6), the rock tips out onto (10, 8) and the cart is empty.  A full
+// cart bumped along its track is pushed, not tipped.
+fn test_a_full_cart_tips_out_at_an_unloading_place() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  _ = tile_world::take(w.w, 4, 7, 0);
+  tile_world::place(w.w, 4, 7, 0, rules::th(w, "full_cart"));
+  rules::put_hero(w, 3, 7, 0);
+  for _ in 0..6 { assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed at {w.hero_x}"); }
+  assert(top_name(w, 10, 7) == "full_cart" && w.hero_x == 9, "at the unloading place");
+  rules::put_hero(w, 10, 6, 0);
+  assert(rules::walk(w, 0, 1) == rules::Step.Unloaded, "bumped from the side");
+  assert(top_name(w, 10, 7) == "cart" && top_name(w, 10, 8) == "rock" && w.hero_y == 6, "tipped out, the hero where it was");
+}
+
+// A full cart weighs two (B2): the two full carts at the east end are 4 against the strength's 3 —
+// pushed from (16, 7) they do not move, and the hero climbs onto the first; one tipped out at
+// (14, 8), the two weigh 3 and go.
+fn test_a_full_cart_is_heavier() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  rules::put_hero(w, 16, 7, 0);
+  _ = rules::walk(w, -1, 0);
+  assert(top_name(w, 14, 7) == "full_cart" && top_name(w, 15, 7) == "full_cart" && w.hero_x == 15 && w.hero_h == 1,
+    "too heavy: climbed onto, not pushed: {w.hero_x} h{w.hero_h}");
+  rules::put_hero(w, 14, 6, 0);
+  assert(rules::walk(w, 0, 1) == rules::Step.Unloaded && top_name(w, 14, 8) == "rock", "one tipped out");
+  rules::put_hero(w, 16, 7, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed, "now they go");
+  assert(top_name(w, 13, 7) == "cart" && top_name(w, 14, 7) == "full_cart" && w.hero_x == 15, "a cell west");
+}
+
+// Beams (B2b): the loose one in the gallery is taken as any item; the standing one across the side
+// tunnel on (8, 5), taken out with the pick, leaves a beam on its cell and brings the tunnel beyond
+// down — rubble on (8, 4) and (8, 3); (8, 2), where a beam lies, stays as it is.
+fn test_a_standing_beam_taken_out_brings_the_tunnel_down() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  rules::put_hero(w, 5, 6, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(w.hero_item == rules::th(w, "beam"), "the loose beam taken");
+  rules::put_hero(w, 8, 6, 0);
+  w.hero_item = rules::th(w, "pick");
+  assert(kind_at(lf, 8, 5, 0) == "prop", "a standing beam");
+  assert(rules::walk(w, 0, -1) == rules::Step.Picked, "taken out");
+  assert(kind_at(lf, 8, 5, 0) == "floor" && top_name(w, 8, 5) == "beam", "a beam where it stood");
+  assert(top_name(w, 8, 4) == "rock" && top_name(w, 8, 3) == "rock" && top_name(w, 8, 2) == "beam", "the tunnel beyond came down");
+}
+
+// The barricade taken apart (B2b): the tar barrel pushed aside first; the pick on the barricade
+// leaves two beams — one on its cell, one where the hero stands (no room beside it in the tunnel).
+fn test_a_barricade_comes_apart_into_two_beams() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  rules::put_hero(w, 11, 6, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && top_name(w, 13, 6) == "tar_barrel", "the barrel aside");
+  w.hero_item = rules::th(w, "pick");
+  assert(rules::walk(w, 0, -1) == rules::Step.Picked, "taken apart");
+  assert(top_name(w, 12, 5) == "beam" && top_name(w, 12, 6) == "beam", "two beams: {top_name(w, 12, 5)} {top_name(w, 12, 6)}");
+}
+
+// The barricade burned (B2b): the burning torch taken at the far end lights the tar barrel; the
+// torch put down, the lit barrel pushed against the barricade from the rails sets it burning — gone
+// at 3000, no beams.  The barrel's flame goes with it when pushed on: it burns out where it is.
+fn test_a_lit_barrel_burns_the_barricade() {
+  lf = place("the_cave_in");
+  w = lf.level;
+  rules::tick(w, 0);
+  rules::put_hero(w, 15, 6, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(w.hero_item == rules::th(w, "burning_torch"), "the burning torch");
+  rules::put_hero(w, 13, 6, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Lit && top_name(w, 12, 6) == "lit_barrel", "the barrel lit");
+  assert(rules::drop(w) == rules::Step.Placed, "the torch put down");
+  rules::put_hero(w, 12, 7, 0);
+  lit = w.now;
+  assert(rules::walk(w, 0, -1) == rules::Step.Lit && top_name(w, 12, 5) == "burning_barricade", "the barricade burning");
+  rules::tick(w, 2999);
+  assert(top_name(w, 12, 5) == "burning_barricade", "2999: still");
+  rules::tick(w, 1);
+  assert(top_name(w, 12, 5) == "", "3000: gone, no beams");
+  assert(rules::walk(w, 0, -1) == rules::Step.Pushed && top_name(w, 12, 5) == "lit_barrel", "the barrel pushed on");
+  rules::tick(w, lit + w.k.burn_ms - w.now);
+  assert(top_name(w, 12, 5) == "", "burnt out where it was pushed: {top_name(w, 12, 5)}");
+}
+
+// The herb patch (B7b): the sack by the door, walked over, goes onto the shoulders; the herbs and
+// mushrooms walked over go into it — whatever the hand holds, here the pick — up to its 6; the rope,
+// walked over with the sack worn, stays where it lies.  The put-down key with empty hands puts
+// the sack down, and it keeps what it holds.
+fn test_the_sack_holds_what_is_foraged() {
+  lf = place("the_herb_patch");
+  w = lf.level;
+  rules::put_hero(w, 7, 10, 0);
+  _ = rules::walk(w, -1, 0);
+  assert(w.shoulder == rules::th(w, "sack") && top_name(w, 6, 10) == "", "the sack worn");
+  w.hero_item = rules::th(w, "pick");
+  for c in [(3, 3), (5, 2), (12, 3), (13, 6), (4, 7), (11, 8)] {
+    rules::put_hero(w, c.0, c.1 + 1, 0);
+    _ = rules::walk(w, 0, -1);
+  }
+  assert(rules::sack_room(w) == (6, 6) && w.hero_item == rules::th(w, "pick"), "six in the sack, the pick still held: {rules::sack_room(w).0}");
+  tile_world::place(w.w, 2, 2, 0, rules::th(w, "herb"));
+  rules::put_hero(w, 2, 3, 0);
+  _ = rules::walk(w, 0, -1);
+  assert(rules::sack_room(w).0 == 6 && w.hero_item == rules::th(w, "herb"), "full: the seventh taken in the hand, the pick left lying");
+  rules::put_hero(w, 9, 10, 0);
+  _ = rules::walk(w, 1, 0);
+  assert(w.shoulder == rules::th(w, "sack") && top_name(w, 10, 10) == "rope", "the rope stays: never worn beside the sack");
+  w.hero_item = 0;
+  rules::put_hero(w, 9, 9, 0);
+  assert(rules::drop(w) == rules::Step.Placed && w.shoulder == 0 && top_name(w, 9, 9) == "sack", "the sack put down");
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, -1, 0);
+  assert(w.shoulder == rules::th(w, "sack") && rules::sack_room(w).0 == 6, "worn again, still holding six");
+}
+
+// Through a door the shoulders go along: the sack worn, two herbs in it, carried into another
+// place — still worn, still holding two.
+fn test_the_sack_goes_through_a_door() {
+  w = place("the_herb_patch").level;
+  w.shoulder = rules::th(w, "sack");
+  w.sack = [rules::th(w, "herb"), rules::th(w, "herb")];
+  v = place("the_fountain").level;
+  rules::carry_in(v, rules::carried(w));
+  assert(v.shoulder == rules::th(v, "sack") && rules::sack_room(v) == (2, 6), "worn, holding two");
+}

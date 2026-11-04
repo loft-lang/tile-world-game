@@ -75,6 +75,10 @@
     "basin": { "upright": true,
       "under": "floor",
       "tile": "dungeon:31"
+    },
+    "prop": { "upright": true,
+      "under": "floor",
+      "tile": "town:47"
     }
   },
   "things": {
@@ -88,6 +92,19 @@
       "tile": "farm:89",
       "sound": "push_rock"
     },
+    "full_cart": {
+      "tile": "world:72",
+      "sound": "cart"
+    },
+    "pick": "town:115",
+    "sack": "farm:74",
+    "rope": "world:77",
+    "herb": "farm:80",
+    "mushroom": "town:29",
+    "beam": "town:106",
+    "barricade": "dungeon:63",
+    "lit_barrel": { "frames": ["world:73", "world:74"] },
+    "burning_barricade": { "frames": ["world:75", "world:76"] },
     "anvil": {
       "tile": "dungeon:74",
       "sound": "push_anvil"
@@ -153,8 +170,8 @@
     "Water": ["lake", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door"],
-    "Dungeon": ["floor", "wall", "rail", "well"],
-    "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
+    "Dungeon": ["floor", "wall", "rail", "well", "basin", "prop"],
+    "Things": ["cart", "full_cart", "pick", "beam", "barricade", "sack", "rope", "herb", "mushroom", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
     "Tracks": ["rail", "cart", "lever_straight", "lever_turn", "junction 1", "junction 2", "junction 3", "junction 4", "junction 5", "junction 6", "junction 7", "junction 8"]
   },
