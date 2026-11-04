@@ -190,11 +190,13 @@ miners with potions for small injuries, and other stimulants.
 in the mines for his own goals.  He has the energy for a lightning strike, which the alchemist
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
 swayed to chime in.  He certainly does not approve of a lord with magical knowledge who shields
-that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).
+that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).  He is not one of
+her advisers (owner, 2026-11-04).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
 The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
-army (@ST-Hero).
+army (@ST-Hero).  He has a claim on the mine, but it is actively blocked (owner, 2026-11-04; the
+guards block him, @ST-Guards).
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
