@@ -109,6 +109,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   smithy); the foreign mage behind the rumours; the attack when the Kharn's prey runs out; well
   defended = capable people behind a built barricade; the ending given after the player walks
   away, with stills of what follows; nothing withheld, only not delivered in a cutscene.
+  Then LOCATIONS.md (ten places: unique, found, learned, look out for; proposals marked ◇), the
+  bombs' meaning and places, the villagers' view on sneaking into houses, and the village as the
+  unannounced tutorial (stones, a chest, a cart on the rails through the Wardens' camp, a switch,
+  the slope back to town, a well pump with small crystals, climbing and pulling into houses, axes,
+  trees, grey rats, a torch that gives the hero away).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

@@ -115,7 +115,10 @@ location outside the direct area (owner, 2026-11-04).  This is how the game allu
 game with a bigger scope; that scope is not brought into this one (owner, 2026-11-04).  That war
 was long before the mine; their leader deemed the place
 inaccessible to people.  A force in the land influences people to gather the pieces again
-(@ST-Force).  The
+(@ST-Force).  The bombs stand for the explosives that made the mine possible in the first place:
+the one thing the old leaders after the war could not prepare for (owner, 2026-11-04).  They are
+found throughout the mine: wherever there was work to do and extensions to build, some are left
+(owner).  Modern alchemy made them easy to fabricate (owner, 2026-11-04; @ST-Alchemist).  The
 demon lord is dead by now, but is still a source of power for mages (owner, 2026-11-04;
 @ST-Magic, @ST-Lady, @ST-Wizard).
 
@@ -167,7 +170,9 @@ place to learn, perhaps to fetch useful artifacts, and to decide what to pursue 
 (owner, 2026-11-04; so he rides on at the end, @ST-Sunset).
 
 <a id="st-play"></a>**What the player does** (owner, 2026-11-04): search the different interesting places and get
-into puzzle situations to progress.
+into puzzle situations to progress.  The village is the tutorial, though never presented that way:
+it holds the world's main mechanics on a smaller scale, and less interconnected (owner,
+2026-11-04; LOCATIONS.md § 1).
 
 <a id="st-hints"></a>**Hints** (owner, 2026-11-04): the villagers sometimes act as hints for the puzzles, how to get
 down to the deeper tunnels for example.  This is not a tutorial: it is a system to aid players
@@ -219,7 +224,8 @@ the outline's implication, not the owner's words):
   @ST-Residents).  Near the top of the hill is the start of a mine, where bigfoot sleeps at night
   (owner, 2026-11-04).
 - **The Wardens' small camp on the main path to the mine** (@ST-Warden, owner): they guard that
-  path, the one the ore is carried out by.  It did not stop the Kharn.  Everybody else can get into
+  path, the one the ore is carried out by; the mine's rails run along it, through the camp, all the
+  way to the village (owner, 2026-11-04).  It did not stop the Kharn.  Everybody else can get into
   the mine too, but has found a way in of their own (owner, 2026-11-04).
 - **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
   other adventurers arrive from (@ST-Newcomers).
@@ -257,7 +263,11 @@ What the owner has already said that bounds it:
 ## 2. The people in it (NPCs)
 
 <a id="st-villagers"></a>**The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
-depend on each other, but they have wildly different opinions on just about everything.
+depend on each other, but they have wildly different opinions on just about everything.  They do
+not agree with the hero plundering the remains of the village; the smithy is the exception, and
+they applaud it being opened again (owner, 2026-11-04).  It is not the things taken they mind (a
+rope, say): an outsider sneaking into houses is not done, so they get far less accommodating once
+they learn of it (owner, 2026-11-04).
 
 <a id="st-newcomers"></a>**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
 adventurers beside him and the hunter.  This is a world with magic in it, which makes for a mix of
