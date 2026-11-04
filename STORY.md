@@ -10,7 +10,7 @@ in some form (owner, 2026-11-04).  It is not about presenting everything at once
 is built until four things are known: the story to tell, the people in it, the monsters and their
 place in the world, and how the story can end (owner).  **Status** (owner, 2026-11-04): the outline
 below is enough; the questions still open (what "well defended" is made of, the other endings,
-the hero's outcome, the other adventurers' aims) are now ones to answer by building the game.
+the other adventurers' aims) are now ones to answer by building the game.
 Building keeps the story in sight (owner, 2026-11-04): the individual pieces have to be part of
 the overall plot.
 
@@ -47,6 +47,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
 | [`@ST-Guards`](#st-guards) | federal guards: no sides, no protection | § 1 |
+| [`@ST-Future`](#st-future) | the village will be rebuilt anyway; the villagers may not live to see it | § 1 |
 | [`@ST-Hero`](#st-hero) | the sergeant who failed as an officer | § 1 |
 | [`@ST-Play`](#st-play) | searching places, puzzles to progress | § 1 |
 | [`@ST-Hints`](#st-hints) | villagers aid a stuck player; not a tutorial | § 1 |
@@ -59,6 +60,9 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
 | [`@ST-YoungVillager`](#st-youngvillager) | can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
+| [`@ST-Court`](#st-court) | the young local lord's proposal to a princess, rejected | § 2 |
+| [`@ST-Lady`](#st-lady) | the witch, an elder lord after the mine; magic and aides, not approved of | § 2 |
+| [`@ST-Neighbour`](#st-neighbour) | the elder lord next to the mine who sent the wizard; money | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
@@ -66,6 +70,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
 | [`@ST-Climax`](#st-climax) | the invasion; a well-defended village turns it back | § 4 |
 | [`@ST-BestEnding`](#st-bestending) | the cyclopes leave | § 4 |
+| [`@ST-Sunset`](#st-sunset) | the hero rides into the sunset in every ending | § 4 |
 
 ## 1. The story to tell
 
@@ -78,20 +83,27 @@ food for the villagers, small as their number now is.
 <a id="st-mine"></a>**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
 open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
 political circumstances from outside and a drought (below: a decree), so there are still
-valuable things to find.
+valuable things to find.  Deep in the mine there are magical crafting materials, unknown to most
+(owner, 2026-11-04; the witch and the wizard are after them, @ST-Lady, @ST-Wizard).
 
 <a id="st-decree"></a>**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
 hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
-decree from outside: digging is made unlawful or worthless.  The local lord, who got a lot of their
+decree from outside: digging is made unlawful or worthless.  The local lord, who got a lot of his
 income from this mine, has fallen from grace, and that resulted in federal action.  The mine is
 not yet claimed by others: there is an ownership dispute, but the parties in it do not have a
 strong enough claim to really pull their weight.  The drought is a factor, but not everything.
-Two lords want the ownership, one of whom has the wizard as an adviser (@ST-Wizard); and the
-favour of the local lord might be restored (owner, 2026-11-04).
+Two lords want the ownership, the witch (@ST-Lady) and the elder lord next door (@ST-Neighbour),
+who has the wizard as an adviser (@ST-Wizard); and the favour of the local lord, the young lord
+(@ST-Court), might be restored (owner, 2026-11-04).
 
 <a id="st-guards"></a>**The guards** (owner, 2026-11-04) are part of the decree: they are from the federal government
-and take no sides.  They will not protect the town either; the local lord is blocked here: they
+and take no sides.  They will not protect the town either; the local lord is blocked here: he
 cannot benefit from the mine, and the local miners are blocked from working it (owner).
+
+<a id="st-future"></a>**The village's future** (owner, 2026-11-04): the village has a future in all scenarios; eventually it
+will be rebuilt anyway.  But that is not a very helpful future for the current villagers, who might
+not survive until then.  Any of the lords in the ownership dispute (@ST-Court, @ST-Lady,
+@ST-Neighbour) can eventually drive the cyclopes away (owner, 2026-11-04).
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
@@ -103,7 +115,8 @@ spectacularly at it.  Because of that he is getting out of the army, for now: no
 but certainly not welcome there at the moment.  For now he is just searching for a place to lay
 low for a while; but this adventure is also his way to grow into the person he wants to become.
 Part of why he comes here is that he heard this place may offer opportunities for someone like
-him, with little official education.  Entering the village is a bit of a let-down for him: this is
+him, with little official education.  The army he served in was the local lord's (@ST-Court,
+owner 2026-11-04).  Entering the village is a bit of a let-down for him: this is
 very much not the place he wants to be.  But it might become the place he needs.
 
 <a id="st-play"></a>**What the player does** (owner, 2026-11-04): search the different interesting places and get
@@ -123,7 +136,8 @@ things.  The world presents the different places in a logical order.
 
 <a id="st-outside"></a>**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
 quests related to the bigger world (the political circumstances outside) and the climate (the
-drought).
+drought).  The outside contenders for the mine (@ST-Court, @ST-Lady, @ST-Neighbour) are not
+presented in the game unless an ending scene is built for it (owner, 2026-11-04).
 
 **The places so far** (gathered from the owner's outline, 2026-11-04; a place marked *reading* is
 the outline's implication, not the owner's words):
@@ -192,10 +206,36 @@ miners with potions for small injuries, and other stimulants.
 hidden path into the hills (@ST-Hints, @ST-Stealth).
 
 <a id="st-wizard"></a>**The wizard** (owner, 2026-11-04): not a villager; one of the newcomers, interested
-in the mines for his own goals: he is an adviser to one of the two lords who want the mine
-(@ST-Decree), but certainly has goals of his own too.  He has the energy for a lightning strike, which the alchemist
+in the mines for his own goals: he is an adviser to one of the two lords who want the mine, the
+elder lord next door (@ST-Neighbour), but certainly has goals of his own too.  He has the energy for a lightning strike, which the alchemist
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
-swayed to chime in.
+swayed to chime in.  He certainly does not approve of a lord with magical knowledge who shields
+that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).  He is not one of
+her advisers (owner, 2026-11-04).  His goals in the mine are the same as hers: the magical
+crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the elder lord next door
+(@ST-Neighbour, owner 2026-11-04).
+
+<a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
+The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
+army (@ST-Hero).  He has a claim on the mine, but it is actively blocked (owner, 2026-11-04; the
+guards block him, @ST-Guards).  The princess is the reason he fell from grace (owner, 2026-11-04).
+The hero can influence this, indirectly: by giving the young lord unique treasures, and ways to show
+a bit of spine (owner, 2026-11-04).  They reach him when the hero rides off to him at the end, one
+of the directions he can take (@ST-Sunset, owner 2026-11-04).
+
+<a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
+some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
+is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is a party
+in the ownership dispute (@ST-Decree), and her interest is the magical crafting materials deep in
+the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
+
+<a id="st-neighbour"></a>**The elder lord next door** (owner, 2026-11-04): the last of the lords, an elder male lord, and the
+one who sent the wizard (@ST-Wizard).  His interest in the mine, which is adjacent to his lands, is
+mostly just monetary.  His lands are mostly mountains, with little central control.  He is not
+aware of the wizard's personal interest, but was pleasantly surprised by how willing the grumpy
+mage was to go there (owner, 2026-11-04).  He is a party in the ownership dispute (@ST-Decree) with a
+good claim on paper: only a small change of their borders would make him the owner.  In practice it
+is weak, because he and his soldiers cannot travel there easily (owner, 2026-11-04).
 
 *Who each is follows from what the player is to do.*
 
@@ -258,6 +298,10 @@ it: a cave-in might kill some of them, but the group as a whole would be able to
 and start an offensive.  A good ending also resolves the miners' block: they can work the mine
 again (owner, 2026-11-04).  So the mine's ownership has three scenarios: one of the two lords who
 want it gets it, or the local lord's favour is restored (owner).
+
+<a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
+a different world behind.  Riding off to the young lord is one of the directions he can take
+(@ST-Court, owner 2026-11-04).
 
 *Further outline to come.*
 
