@@ -58,7 +58,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
 | [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
-| [`@ST-Court`](#st-court) | the young lord's proposal to a princess, rejected | § 2 |
+| [`@ST-Court`](#st-court) | the young local lord's proposal to a princess, rejected | § 2 |
 | [`@ST-Lady`](#st-lady) | the witch, an elder lord after the mine; magic and aides, not approved of | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
@@ -101,7 +101,8 @@ spectacularly at it.  Because of that he is getting out of the army, for now: no
 but certainly not welcome there at the moment.  For now he is just searching for a place to lay
 low for a while; but this adventure is also his way to grow into the person he wants to become.
 Part of why he comes here is that he heard this place may offer opportunities for someone like
-him, with little official education.  Entering the village is a bit of a let-down for him: this is
+him, with little official education.  The army he served in was the local lord's (@ST-Court,
+owner 2026-11-04).  Entering the village is a bit of a let-down for him: this is
 very much not the place he wants to be.  But it might become the place he needs.
 
 <a id="st-play"></a>**What the player does** (owner, 2026-11-04): search the different interesting places and get
@@ -192,6 +193,8 @@ swayed to chime in.  He certainly does not approve of a lord with magical knowle
 that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
+The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
+army (@ST-Hero).
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
