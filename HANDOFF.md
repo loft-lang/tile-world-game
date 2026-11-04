@@ -87,8 +87,8 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   farm, the decree's form (the lord fallen, a weak ownership dispute, neutral federal guards), the
   stealth puzzles, the other adventurers in a low-magic world, the alchemist.  Owner: the outline
   is enough; what stays open (what "well defended" is made of, the other endings, the hero's
-  outcome, the adventurers' aims) is answered by building.  Waiting on the owner: what "the
-  local lord is blocked here" means.
+  outcome, the adventurers' aims) is answered by building.  Nothing waiting on the owner in the
+  outline itself.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence.
 
 ## Next steps, in the order agreed

@@ -57,6 +57,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Newcomers`](#st-newcomers) | other adventurers, a mix of NPCs | § 2 |
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
 | [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
+| [`@ST-YoungVillager`](#st-youngvillager) | can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
@@ -85,9 +86,12 @@ decree from outside: digging is made unlawful or worthless.  The local lord, who
 income from this mine, has fallen from grace, and that resulted in federal action.  The mine is
 not yet claimed by others: there is an ownership dispute, but the parties in it do not have a
 strong enough claim to really pull their weight.  The drought is a factor, but not everything.
+Two lords want the ownership, one of whom has the wizard as an adviser (@ST-Wizard); and the
+favour of the local lord might be restored (owner, 2026-11-04).
 
 <a id="st-guards"></a>**The guards** (owner, 2026-11-04) are part of the decree: they are from the federal government
-and take no sides.  They will not protect the town either; the local lord is blocked here.
+and take no sides.  They will not protect the town either; the local lord is blocked here: they
+cannot benefit from the mine, and the local miners are blocked from working it (owner).
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
@@ -129,7 +133,8 @@ the outline's implication, not the owner's words):
 - **The mine** (@ST-Mine): mined out at the surface; deeper tunnels below (@ST-Hints names the
   way down); its single flooded part, running in several directions, some into natural caves
   (@GM-Flooded); an underground lake (@GM-Flotilla); a lift for carts (@GM-CartLift).
-- **The new dig sites in the hills** (@ST-Mine).
+- **The new dig sites in the hills** (@ST-Mine), and a hidden path into the hills that a younger
+  villager can show the player (@ST-YoungVillager).
 - **The cyclopes settled in the main mine** (owner, @ST-Cyclopes), and so block the normal way to
   the lift and the pump (@GM-CartLift, @GM-Flooded).  There are more ways into it, such as a
   caved-in tunnel (@ST-Stealth).  So the cyclopes are a big part of the main puzzle (owner), and
@@ -183,8 +188,12 @@ craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 <a id="st-alchemist"></a>**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.
 
+<a id="st-youngvillager"></a>**A younger villager** (owner, 2026-11-04): can be asked to show the player a
+hidden path into the hills (@ST-Hints, @ST-Stealth).
+
 <a id="st-wizard"></a>**The wizard** (owner, 2026-11-04): not a villager; one of the newcomers, interested
-in the mines for his own goals.  He has the energy for a lightning strike, which the alchemist
+in the mines for his own goals: he is an adviser to one of the two lords who want the mine
+(@ST-Decree), but certainly has goals of his own too.  He has the energy for a lightning strike, which the alchemist
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
 swayed to chime in.
 
@@ -246,7 +255,9 @@ are not cold killers, they are tribal: presented with a well-defended village, t
 
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
 it: a cave-in might kill some of them, but the group as a whole would be able to dig itself out
-and start an offensive.
+and start an offensive.  A good ending also resolves the miners' block: they can work the mine
+again (owner, 2026-11-04).  So the mine's ownership has three scenarios: one of the two lords who
+want it gets it, or the local lord's favour is restored (owner).
 
 *Further outline to come.*
 
