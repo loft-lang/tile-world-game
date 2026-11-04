@@ -10,7 +10,7 @@ in some form (owner, 2026-11-04).  It is not about presenting everything at once
 is built until four things are known: the story to tell, the people in it, the monsters and their
 place in the world, and how the story can end (owner).  **Status** (owner, 2026-11-04): the outline
 below is enough; the questions still open (what "well defended" is made of, the other endings,
-the hero's outcome, the other adventurers' aims) are now ones to answer by building the game.
+the other adventurers' aims) are now ones to answer by building the game.
 Building keeps the story in sight (owner, 2026-11-04): the individual pieces have to be part of
 the overall plot.
 
@@ -69,6 +69,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
 | [`@ST-Climax`](#st-climax) | the invasion; a well-defended village turns it back | § 4 |
 | [`@ST-BestEnding`](#st-bestending) | the cyclopes leave | § 4 |
+| [`@ST-Sunset`](#st-sunset) | the hero rides into the sunset in every ending | § 4 |
 
 ## 1. The story to tell
 
@@ -281,6 +282,9 @@ are not cold killers, they are tribal: presented with a well-defended village, t
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
 it: a cave-in might kill some of them, but the group as a whole would be able to dig itself out
 and start an offensive.
+
+<a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
+a different world behind.
 
 *Further outline to come.*
 
