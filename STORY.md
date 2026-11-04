@@ -60,6 +60,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-Court`](#st-court) | the young local lord's proposal to a princess, rejected | § 2 |
 | [`@ST-Lady`](#st-lady) | the witch, an elder lord after the mine; magic and aides, not approved of | § 2 |
+| [`@ST-Neighbour`](#st-neighbour) | the elder lord next to the mine who sent the wizard; money | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
@@ -193,7 +194,8 @@ cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but
 swayed to chime in.  He certainly does not approve of a lord with magical knowledge who shields
 that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).  He is not one of
 her advisers (owner, 2026-11-04).  His goals in the mine are the same as hers: the magical
-crafting materials deep in it, unknown to most (@ST-Mine).
+crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the elder lord next door
+(@ST-Neighbour, owner 2026-11-04).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
 The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
@@ -205,6 +207,10 @@ some magical skills, and aides.  That is not forbidden, but it is not generally 
 is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is a party
 in the ownership dispute (@ST-Decree), and her interest is the magical crafting materials deep in
 the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
+
+<a id="st-neighbour"></a>**The elder lord next door** (owner, 2026-11-04): the last of the lords, an elder male lord, and the
+one who sent the wizard (@ST-Wizard).  His interest in the mine, which is adjacent to his lands, is
+mostly just monetary.  His lands are mostly mountains, with little central control.
 
 *Who each is follows from what the player is to do.*
 
