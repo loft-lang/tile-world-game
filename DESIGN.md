@@ -128,12 +128,19 @@ flotilla to cross an underground lake.
   - Scenario: an upper track with a cart and a chest at the end of a lower track; the cart is sent
     down on the lift and pushed on to the chest, which it carries back up.
 - **The flotilla.**
-  - **The wood is in the mine** (owner, 2026-11-04), but it is hard to transport, and hard to craft
-    into something usable.  Wood not well crafted the hero just does not step on.  Felled trees
+  - **The wood is in the mine** (owner, 2026-11-04).  The flotilla is not hard to craft: the hard
+    part is getting enough straight beams to the lake, and rope to fasten them, which can be found
+    in several places (another mine, an abandoned house).  Wood not well crafted the hero just does
+    not step on.
+  - **Rope is carried beside what the hero holds** (owner, 2026-11-04): around the shoulders, an
+    exception to holding one item at a time, drawn as a picture of its own (the hero with the rope
+    over the shoulders).  Rope on the shoulders does not block pushing and pulling (owner): that is
+    why it is carried apart, since the way to the flotilla's lake has puzzles that rope blocking
+    them would make impossible.  Felled trees
     may still be a source too; the eventual layout of the place decides (owner).
   - Proposed: wood (a new big thing) floats: pushed or pulled into water it stays, a cell of
-    floating wood, where any other thing is lost.  Open: what crafting it is, and what makes
-    it hard to transport.
+    floating wood, where any other thing is lost.  Proposed: beams fastened with rope are well
+    crafted; a beam on its own is not stepped on.
   - Floating logs that touch **link into a flotilla**, as carts link into a train: it moves as one.
   - Proposed: a flotilla of well-crafted wood carries the hero and what rests on it (it is stood
     on, as a derailed cart is); wood not well crafted is not stood on, the hero's step is blocked

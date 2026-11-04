@@ -43,7 +43,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | Part | What | § |
 |---|---|---|
 | [`@ST-Setting`](#st-setting) | Orbury, the decrepit mining town, in Sunmarch, in the Kingdom of Aldmere | § 1 |
-| [`@ST-Farm`](#st-farm) | the farm that cannot feed the village | § 1 |
+| [`@ST-Farm`](#st-farm) | Thornfield, the Dunns' farm, which cannot feed the village | § 1 |
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
 | [`@ST-Guards`](#st-guards) | the King's Wardens: federal guards, no sides, no protection | § 1 |
@@ -58,8 +58,13 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Newcomers`](#st-newcomers) | other adventurers, a mix of NPCs | § 2 |
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
 | [`@ST-Alchemist`](#st-alchemist) | Hollis, potions and stimulants for the miners | § 2 |
+| [`@ST-Foreman`](#st-foreman) | Garth Mabley, the retired foreman: the gist of the mine, not its latest state | § 2 |
+| [`@ST-Blaster`](#st-blaster) | Wick, the blaster: for blowing up the mine; an outsider, few social skills | § 2 |
+| [`@ST-Innkeeper`](#st-innkeeper) | Agnes, the innkeeper of an abandoned inn: for abandoning the town | § 2 |
+| [`@ST-Warden`](#st-warden) | Sergeant Voss of the King's Wardens, in their own camp, keeping the people out | § 2 |
 | [`@ST-YoungVillager`](#st-youngvillager) | Lark, who can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | Master Odran, a newcomer after the mines for his own goals; not easily swayed | § 2 |
+| [`@ST-Rival`](#st-rival) | Sable, the rival adventurer: a contender who blocks walkways | § 2 |
 | [`@ST-Court`](#st-court) | Lord Edric of Sunmarch, the young local lord, rejected by Princess Isolde | § 2 |
 | [`@ST-Lady`](#st-lady) | Lady Brigid of Greywood, the witch: elderly, far forest lands, after the mine | § 2 |
 | [`@ST-Neighbour`](#st-neighbour) | Lord Garrick of Highcrag, elderly lord of the mountains next door; sent the wizard | § 2 |
@@ -80,8 +85,8 @@ Theobald (names, owner 2026-11-04).  The last remaining villagers struggle to ma
 around it are more given to farming, though desert has been creeping in lately (owner,
 2026-11-04; the drought, @ST-Outside).
 
-<a id="st-farm"></a>**The farm** (owner, 2026-11-04): there is a small farm at the village; it cannot provide enough
-food for the villagers, small as their number now is.
+<a id="st-farm"></a>**The farm: Thornfield** (owner, 2026-11-04): there is a small farm at the village, kept by the
+Dunns; it cannot provide enough food for the villagers, small as their number now is.
 
 <a id="st-mine"></a>**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
 open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
@@ -148,7 +153,7 @@ presented in the game unless an ending scene is built for it (owner, 2026-11-04)
 the outline's implication, not the owner's words):
 
 - **The village** (@ST-Setting): the town, the small farm (@ST-Farm), the alchemist's home
-  (@ST-Alchemist); the family that fled is missed there (@ST-Debate).
+  (@ST-Alchemist), the abandoned inn and Agnes's house nearby (@ST-Innkeeper); the family that fled is missed there (@ST-Debate).
 - **The main mine, the Old Seam** (@ST-Mine): mined out at the surface; deeper tunnels below
   (@ST-Hints names the way down); the lower tunnels, flooded, running in several directions, some
   into natural caves (@GM-Flooded; no special name, owner); an underground lake, the Still Lake
@@ -161,13 +166,16 @@ the outline's implication, not the owner's words):
   that matters to the theme: they must not stay unknown to the player, only heard of from the
   villagers.
 - **The hill-top, Stormcap,** with the lightning installation and a local monster (@GM-Flooded).
-- *Reading*: where the federal guards stand (@ST-Guards), at the mine or on the way to it.
+- **The Wardens' small camp** (@ST-Warden): they keep the people out; *reading*: out of the mine,
+  so the camp stands at it or on the way to it.
 - **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
   other adventurers arrive from (@ST-Newcomers).
 
 For a small game this is more than enough (owner, 2026-11-04); a few more small places may come,
 such as where the hunter settled (@ST-Hunter).  Each place holds a set of puzzles: a place is not
-one room (owner).
+one room (owner).  Plenty of places have natural puzzles (owner, 2026-11-04): houses that are
+locked but still accessible, tunnels with enough debris, broken walkways; the rival's obstructions
+add to them (@ST-Rival).
 
 What the owner has already said that bounds it:
 
@@ -208,8 +216,23 @@ craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 <a id="st-alchemist"></a>**The alchemist: Hollis** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.
 
-<a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): can be asked to show the player a
-hidden path into the hills (@ST-Hints, @ST-Stealth).
+<a id="st-foreman"></a>**The old foreman: Garth Mabley** (owner, 2026-11-04): the retired foreman; the active one left.  He
+knows the gist of the mine, but not its latest state (@ST-Mine, @ST-Hints).
+
+<a id="st-blaster"></a>**The blaster: Wick** (owner, 2026-11-04): knows explosives, and is sure the mine can be blown up
+with the cyclopes in it (@ST-Debate).  He was already a bit of an outsider among the miners:
+keeping to himself, with few social skills.
+
+<a id="st-innkeeper"></a>**The innkeeper: Agnes** (owner, 2026-11-04): has seen too many leave, and is for abandoning the
+town (@ST-Debate).  The inn itself is abandoned; she lives in a house nearby that was easier to
+maintain.
+
+<a id="st-warden"></a>**The Wardens' sergeant: Sergeant Voss** (owner, 2026-11-04): a fellow sergeant for the hero to
+measure himself against (@ST-Guards).  The Wardens keep to themselves in a small camp, explicitly
+not mingling with the people: they are there to keep the people out.
+
+<a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): of the Dunns of Thornfield (@ST-Farm); can be
+asked to show the player a hidden path into the hills (@ST-Hints, @ST-Stealth).
 
 <a id="st-wizard"></a>**The wizard: Master Odran** (owner, 2026-11-04): not a villager; one of the newcomers, interested
 in the mines for his own goals: he is an adviser to one of the two lords who want the mine, the
@@ -220,6 +243,11 @@ that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).  He 
 her advisers (owner, 2026-11-04).  His goals in the mine are the same as hers: the magical
 crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the elder lord next door
 (@ST-Neighbour, owner 2026-11-04).
+
+<a id="st-rival"></a>**The rival adventurer: Sable** (owner, 2026-11-04): another newcomer (@ST-Newcomers), after the same
+artifacts as the hero; he turns up in places as a contender.  He actively blocks walkways, so some
+places hold puzzles solely because of the obstructions he made.  What does not occur naturally,
+a runaway cart for one, he can have left behind as practical traps (owner, 2026-11-04).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord, Lord Edric of Sunmarch, proposed to a princess,
 Princess Isolde, and was rejected.
@@ -277,6 +305,9 @@ for now: nobody is working the mine.
 <a id="st-cyclopes"></a>**The cyclopes: the Kharn** (owner, 2026-11-04): a tribe that recently settled in a mine.  The villagers
 have met them only a few times, and fled, using their knowledge of the terrain to get home.  The
 group plans to take over the village eventually, but for now the cyclopes are content in the mine.
+They have their own language (owner, 2026-11-04).  The one who knows some broken words of the
+hero's, and is difficult to communicate with, is the chief's second-in-command, Urgha, not the
+chief himself: better for the tension (owner, 2026-11-04).
 
 <a id="st-debate"></a>**The village's debate over them** (owner, 2026-11-04): the cyclopes are already a subject of
 debate among the villagers.  Some want to blow up the mine with the cyclopes in it (not easy to
