@@ -76,8 +76,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   bump / walk away while a line is said; gifts, take/give, `then`.
 - loft defect met: an unwrapped vector element freeing its owner (`repro/loft-element-frees-owner`),
   worked around; not yet reduced without the game's libraries, not filed.
-- Next agreed: design the rough full game as a story the hero walks through, taking in every
-  puzzle idea.
+- Next agreed: the rough full game as a story the hero walks through, taking in every puzzle idea
+  — DESIGN FIRST, no implementation until the story, its people, the monsters' place and the
+  endings are known.  The story is the OWNER's: STORY.md holds only what the owner said (§ 1–4),
+  facts about what exists (§ 5) and engine notes kept apart and not leading (§ 6).
 
 ## Next steps, in the order agreed
 
