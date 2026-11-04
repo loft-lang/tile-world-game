@@ -210,7 +210,8 @@ The young lord is the local lord, the one who fell from grace (@ST-Decree), and 
 army (@ST-Hero).  He has a claim on the mine, but it is actively blocked (owner, 2026-11-04; the
 guards block him, @ST-Guards).  The princess is the reason he fell from grace (owner, 2026-11-04).
 The hero can influence this, indirectly: by giving the young lord unique treasures, and ways to show
-a bit of spine (owner, 2026-11-04).
+a bit of spine (owner, 2026-11-04).  They reach him when the hero rides off to him at the end, one
+of the directions he can take (@ST-Sunset, owner 2026-11-04).
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
@@ -287,7 +288,8 @@ it: a cave-in might kill some of them, but the group as a whole would be able to
 and start an offensive.
 
 <a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
-a different world behind.
+a different world behind.  Riding off to the young lord is one of the directions he can take
+(@ST-Court, owner 2026-11-04).
 
 *Further outline to come.*
 
