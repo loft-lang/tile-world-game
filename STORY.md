@@ -25,7 +25,8 @@ for our own tests (owner, 2026-11-04).
 
 ## 1. The story to tell
 
-*The owner's to write.*
+**The setting** (owner, 2026-11-04): the story centres on a decrepit, but not totally abandoned,
+mining town.  The last remaining villagers struggle to make something of their lives.
 
 What the owner has already said that bounds it:
 
