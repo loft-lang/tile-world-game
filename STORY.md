@@ -109,7 +109,8 @@ valuable things to find.  Deep in the mine there are magical crafting materials,
 value only when crafted together again, with the help of magical materials from around the Still
 Lake (@ST-Mine, @GM-Flotilla).  Given to Tamsin for Lady Brigid, or taken to the local lord, it
 pushes the story (@ST-BestEnding).  For now (owner, 2026-11-04): the chests are how its pieces are
-found.  The pieces were put in the chests on purpose after the war, and the chests hidden, though
+found, and the pieces are just a number the game shows, not things held or drawn one by one
+(owner, 2026-11-04).  The pieces were put in the chests on purpose after the war, and the chests hidden, though
 not well enough against the changes time brought (owner, 2026-11-04).  The hero crafts it
 himself, after learning how from the alchemist (owner, 2026-11-04; @ST-Alchemist), at an abandoned
 smithy that can be made to work again for it (owner, 2026-11-04).  It was shattered in an old demon war, to prevent a portal being opened to the place where
@@ -310,7 +311,8 @@ can talk to him about it (owner, 2026-11-04).
 liquid.  The alchemist talks about them: he cannot take the liquid from them, because it turns to
 mud, and he cannot find what makes the water special, or any use for it.  They are the game's save
 points (owner, 2026-11-04; DESIGN.md § Guards, doors and wells: drinking saves the whole situation),
-explained in the world as a mystery nobody has solved.
+explained in the world as a mystery nobody has solved.  Tiny Dungeon has them already: wall
+fountains with a green liquid (tiles 8, 20, 32, 44), and dry ones beside them (7, 19, 31, 43).
 
 <a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): of the Dunns of Thornfield (@ST-Farm); can be
 asked to show the player a hidden path into the hills (@ST-Hints, @ST-Stealth).

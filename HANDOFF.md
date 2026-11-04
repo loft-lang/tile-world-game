@@ -125,6 +125,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   the hands more than doubled once the Wardens understand their danger; the ◇ picks in
   LOCATIONS.md stand as the logical defaults (owner's leave); with little aid the hero defends the
   town himself, with potions from ingredients he gathers (Tiny Farm's plants).
+  Then BUILD.md (the build in small safe steps: A tools, B mechanics each in a test room, C the
+  world's systems, D the places); LOCATIONS.md's puzzles, traps and chests in sight but hard to
+  reach; the item rulings (the open shaft, the sack in the rope's slot, rubble as touching rocks,
+  crystal sizes that do not mix, no fire spreading but a tar barrel and the accidental barricade
+  that a pick turns into 2 beams, standing beams that collapse a tunnel).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

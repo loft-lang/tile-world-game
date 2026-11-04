@@ -104,7 +104,8 @@ Tiny Ski's 78–80); it also
     already inside the pump, depleted; there is probably a spare one somewhere too.  The spare is
     for the same pump, and holds a bit of power, enough for the first step: an alternative way to
     start (owner).  A crystal cannot be harmed: a blast only flings it away, as it flings any
-    item (owner).  A charge
+    item (owner).  Small and large crystals do not mix (owner, 2026-11-04): a large crystal in the
+    village's well pump makes it explode like a bomb, and the mine's pump ignores a small one.  A charge
     normally lasts two days, but with the amount of water to be pumped now it is spent much
     quicker.
   - Proposed: charged, the pump runs by itself, a cell every so many seconds, heard while it runs,
@@ -124,7 +125,9 @@ Tiny Ski's 78–80); it also
     (@GM-Flooded).
   - **Some places are reached only with a cart at hand to clear rubble out of the way, and a working
     lift to get the cart there** (owner, 2026-11-04).  Holding a **pick**, with a cart beside him,
-    the hero clears rocks away completely: the rubble goes into the cart.  The cart must then be
+    the hero clears rocks away completely: the rubble goes into the cart.  Rubble and rocks are the
+    same thing (owner, 2026-11-04): rubble is mostly rocks touching each other, which pushing cannot
+    move (a rock is not pushed into another), so the pick and the cart clear it.  The cart must then be
     emptied elsewhere before it can take more (owner).  Proposed: a pick is a held tool as the axe
     is (the axe fells trees, the pick breaks rocks), its blows paced the same way.  As a weapon the
     pick is worse than a sword (owner, 2026-11-04); proposed: a blow with it costs an enemy 1, as
@@ -141,6 +144,10 @@ Tiny Ski's 78–80); it also
     throw levers) — and takes a time to travel, heard and seen, a layer every second.
   - It moves only with its way clear: nothing standing in the shaft, nothing half on and half off
     (a train longer than the platform stops it).
+  - **The open shaft can be fallen into** (owner, 2026-11-04): the hero is not protected too much,
+    so with the platform at another level there is a way to drop into the shaft — a fall by the
+    usual rules — though not from all sides.  Proposed: the shaft is open on its track's sides and
+    fenced or walled on the others.
   - A cart rolling onto it at speed stops at its far end when the track does not go on there, as
     at a track's open end with a fixed thing after it.
   - Scenario: an upper track with a cart and a chest at the end of a lower track; the cart is sent
@@ -154,7 +161,10 @@ Tiny Ski's 78–80); it also
     exception to holding one item at a time, drawn as a picture of its own (the hero with the rope
     over the shoulders).  Rope on the shoulders does not block pushing and pulling (owner): that is
     why it is carried apart, since the way to the flotilla's lake has puzzles that rope blocking
-    them would make impossible.  Felled trees
+    them would make impossible.
+  - **The sack** (owner, 2026-11-04): carried in the same shoulder slot as the rope, so never beside
+    it, and solely for foraging: it holds what is foraged (plants, meat, ingredients), where the
+    hand holds one item at a time.  Felled trees
     may still be a source too; the eventual layout of the place decides (owner).
   - Proposed: wood (a new big thing) floats: pushed or pulled into water it stays, a cell of
     floating wood, where any other thing is lost.  Proposed: beams fastened with rope are well
@@ -443,6 +453,18 @@ on water, and things pushed or blown into it are lost.
     is stopped by something — a way to send a blast down a track.
 
 ## Torches and light
+
+- **No general fire spreading** (owner, 2026-11-04; INTERACTIONS.md 21): fire does not spread from
+  wood to wood in the mine.  A possible puzzle: a tar barrel set alight to burn away an accidental
+  barricade (fallen wood) blocking a walkway.  The accidental barricade looks as the village's
+  barricade does (one picture for both), and can also be taken apart with a pick, into 2 beams
+  that can be carried all the way down to the lake (owner, 2026-11-04; @GM-Flotilla): burning it
+  opens the way, taking it apart opens the way and gives beams.  There are more beams in the mine,
+  but some hold a tunnel up: taken out with a pick, they collapse it (owner, 2026-11-04), so the
+  player plans with care which beams to take.  Most beams just lie on the ground, put there for the
+  builder miners; but there are too few of those if the accidental barricade is burned, and then
+  the ones with an active function are needed (owner, 2026-11-04).  So a beam lying loose is safe
+  to take and a beam standing in its place holds something up: the difference is on screen.
 
 The player lights the dungeon.  Built (`tests/torches.loft`, and `the torch room`, the third
 level, played to its goal in `tests/levels.loft`) except the enemies' part, which waits for the

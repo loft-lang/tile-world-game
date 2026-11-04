@@ -11,7 +11,9 @@ paths to take, with levels partly out of sight (owner, 2026-11-04).  So the hero
 almost everything, but it gets harder near any group (owner).  Gathered from STORY.md and DESIGN.md
 (2026-11-04).  A placement marked ◇ was picked as the logical one; the owner has let the open items
 be filled in that way (2026-11-04), so ◇ marks what is ours to change freely, everything else the
-owner's outline fixes.
+owner's outline fixes.  Every chest is in sight from somewhere the hero can stand, never hidden
+(the editor's checks, K, mark a chest nothing walkable sees); hard to reach is fine, invisible
+is not.
 
 ## 1. Orbury, the village (@ST-Setting)
 
@@ -36,7 +38,7 @@ owner's outline fixes.
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons (@ST-Alchemist); Agnes's house beside the empty
   inn (@ST-Innkeeper); the abandoned smithy, made to work, where the artefact is crafted
-  (@ST-Artefact); abandoned houses, one with rope (@GM-Flotilla); the cemetery (@ST-Founder).
+  (@ST-Artefact); abandoned houses, one with rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 and 65).
 - **Learned:** the town's state and the court trouble (Agnes); the debate (Wick against Agnes,
   @ST-Debate); the mine in outline, out of date (Garth, @ST-Foreman); the drought and the hunger
   (the Dunns); at night, the founder's story and the lake that drowned him.
@@ -50,6 +52,16 @@ owner's outline fixes.
   @ST-Climax, @GM-Flotilla).  The town can build the barricade itself; it takes time, and an axe
   (owner, 2026-11-04).  The barricade growing at the entrance shows how ready the village is ◇.
 
+- **Puzzles ◇:** a closed house entered by its upper floor, a chair on a table to reach the
+  ledge; one whose way in needs a crate pulled out of a corner first (pulling, owner); stones to
+  push off a cellar hatch; the well's pump, run on a small crystal Hollis fills; the smithy made
+  to work again (its anvil pushed back into place, its fire lit from a torch).
+- **Traps ◇:** none set; the village's danger is being seen, and a cart rolling back from the
+  camp's slope.
+- **Chests ◇ (in sight, hard to reach):** the one in the inn's basement (owner), behind a grey rat
+  and a stack to climb over; one on a roof ledge, seen from the street, reached from the house
+  beside it.
+
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 
 - **Unique:** the line nobody crosses.  No fighting: the guards block, and the only way past them
@@ -62,6 +74,12 @@ owner's outline fixes.
   Wardens understand the danger they are in and the right thing to do, the hands for the barricade
   more than double (owner, 2026-11-04).
 
+- **Puzzles ◇:** getting a cart up the slope to the camp (it rolls back to town unless something
+  holds it: a rock behind it, the switch set to a siding); the Wardens step aside only with the
+  area clear, as guards do.
+- **Traps ◇:** none set: the danger is a cart rolling back down at speed onto whoever is below.
+- **Chest ◇:** none; the Wardens keep nothing worth hiding.
+
 ## 3. The hidden path and the brook (@ST-YoungVillager)
 
 - **Unique:** the daylight way in.  Water in a drought, crabs, quiet.
@@ -70,6 +88,12 @@ owner's outline fixes.
   (the brook as a thread of the climate quests, @ST-Outside).
 - **Look out for:** Lark's trust, earned at Thornfield ◇.
 
+- **Puzzles ◇:** stepping stones in the brook, pushed in where the water is shallow (a rock in
+  water fills the cell, INTERACTIONS.md 18, to be ruled); the crabs' ground to cross without being
+  pinched; a fallen tree to fell or climb.
+- **Traps ◇:** none set; Sable does not know this path.
+- **Chest ◇:** on a ledge across the brook, seen from the path, reached by the stepping stones.
+
 ## 4. The open hillside
 
 - **Unique:** the night way in.  Exposed, dark, the way hard to find: light is a cost.
@@ -77,11 +101,19 @@ owner's outline fixes.
 - **Learned:** what the dark does; why a torch is a risk near the Kharn (@ST-Stealth).
 - **Look out for:** a landmark to steer by in the dark ◇.
 
+- **Puzzles ◇:** finding the way in the dark, by the few things that catch the light; Rennick's
+  woodland to pass or to visit.
+- **Traps ◇:** Rennick's snares in his woodland ◇, a hunter's habit, readable once seen.
+- **Chest ◇:** none; the hillside is a crossing.
+
 ## The Old Seam, all levels
 
 - **A dead body:** a less fortunate adventurer who fell, explicitly not killed by the enemies there
   (owner, 2026-11-04): a fall is the mine's danger that kills, readable from the body (DESIGN.md §
   The principle: a deep fall stays deadly).  Which level ◇: the second, below a broken walkway.
+
+- **Traps everywhere Sable works ◇:** runaway carts on a slope, waiting for a lever; a bomb left
+  beside the rails; a walkway blocked to send others the long way (@ST-Rival: practical traps).
 
 ## 5. The Old Seam, first level (@ST-Cyclopes)
 
@@ -96,6 +128,14 @@ owner's outline fixes.
   chest ◇.  The cave-in entrance is not directly connected to the Kharn's main tunnels: there is a
   walk before reaching them (owner, 2026-11-04), a quieter stretch first.
 
+- **Puzzles ◇:** the quiet stretch from the cave-in, learning the dark; past the Kharn's points
+  in the gaps of their routes, torch out; a blast set off far away (an arrow into a bomb) to draw
+  them off while the hero slips by (INTERACTIONS.md 28).
+- **Traps ◇:** the Kharn's own: a cyclops bomb thrown in a row with a clear line; being grabbed and
+  pulled home.
+- **Chest ◇:** in sight across the Kharn's hall, on a ledge above it, reached from the tunnel
+  behind — in the dark, past their sight.
+
 ## 6. The Old Seam, second level (@GM-CartLift)
 
 - **Unique:** the working mine.  Carts, rails, the lift, the pick, rubble, unloading places.
@@ -104,6 +144,22 @@ owner's outline fixes.
   rubble ◇.
 - **Learned:** how the mine worked: Garth's knowledge made current.
 - **Look out for:** the unloading places; a full cart's weight.
+
+- **Puzzles ◇:** the rubble cleared with the pick into a cart, the cart rolled to an unloading
+  place, tipped, and brought back (owner's rules); junctions set so a cart reaches the lift; a
+  derailed cart as a step up to a ledge (INTERACTIONS.md 12); the track hop, a bomb beside a
+  cart throwing it onto the next track (4).
+- **Traps ◇:** Sable's runaway cart down a sloped gallery; coupled junctions that set one route
+  wrong while another goes right (8).
+- **Burning a way ◇:** fallen props across a walkway, an accidental barricade, burnt away with a
+  lit tar barrel (owner's possible puzzle; no general fire spreading, INTERACTIONS.md 21), or
+  taken apart with a pick into 2 beams to carry down to the lake (owner): the village barricade's
+  picture, the flotilla's wood.  More beams stand in the tunnels, some holding a tunnel up: taken
+  out with a pick, they collapse it (owner), so which beams to take needs planning.  Most beams lie
+  on the ground for the builder miners, but too few if the barricade is burned: then the standing
+  ones are needed (owner).
+- **Chests ◇:** behind rubble only a cart can clear; one at the far end of a track, reached by
+  riding a cart there.  The fallen adventurer's body lies below a broken walkway (owner).
 
 ## 7. The Old Seam, the flooded lower tunnels (@GM-Flooded)
 
@@ -114,6 +170,14 @@ owner's outline fixes.
 - **Look out for:** the spare crystal, in the mine's old stores, which Garth remembers in the wrong
   place ◇.
 
+- **Puzzles ◇:** which tunnel the next charge opens, and what to do there before the water seeps
+  back by the day; rails under the water, opened for a cart; the lift's lowest stop, out of the
+  water after several charges.
+- **Traps ◇:** a bomb fallen into water goes off and douses the torches around (27): the dark
+  comes back with a bang.
+- **Chest ◇:** seen under the water's edge from the dry tunnel, reached only once the water is
+  gone.
+
 ## 8. The Still Lake and its caves (@GM-Flotilla)
 
 - **Unique:** the oldest water.  The flotilla, the slimes, the place the founder drowned.
@@ -121,6 +185,11 @@ owner's outline fixes.
   an island chest ◇.
 - **Learned:** what the materials are for (Odran, Tamsin); where the mine began (@ST-Founder).
 - **Look out for:** enough straight beams and rope; the slimes' habits.
+
+- **Puzzles ◇:** beams carried down and fastened with rope into a flotilla; pushing off to cross,
+  the drift stopped by a rock or a shore; the slimes' caves around the lake.
+- **Traps ◇:** none set; the lake's danger is drifting where the flotilla cannot be stopped.
+- **Chest ◇:** on the island, seen from the shore across the water.
 
 ## 9. The High Diggings and their mine (@ST-Rival)
 
@@ -131,6 +200,12 @@ owner's outline fixes.
 - **Learned:** what Sable is after; that he cannot get home before dusk.
 - **Look out for:** the hours he is away; what taking from him costs in talk afterwards.
 
+- **Puzzles ◇:** Sable's blocked walkways, cleared or gone round; his spot entered while he is
+  away by day; a lever thrown by an arrow from across a gap to set the way (20).
+- **Traps ◇:** the most of Sable's: a cart waiting at the top of a slope for whoever throws the
+  lever below it; a bomb by the track for a passing cart to set off.
+- **Chest ◇:** one Sable has not reached, in sight beyond his own obstruction.
+
 ## 10. Stormcap (@GM-Flooded)
 
 - **Unique:** the open sky.  Weather, the lightning installation, bigfoot.
@@ -138,6 +213,12 @@ owner's outline fixes.
   (@ST-Residents); a chest in bigfoot's den ◇.
 - **Learned:** how to catch the lightning; that Hollis can be brought up safely.
 - **Look out for:** the weather that is needed; bigfoot's habits; a safe way for Hollis.
+
+- **Puzzles ◇:** the way up made safe for Hollis (bigfoot kept off it, by his habits ◇); the
+  installation brought to work with the weather's help.
+- **Traps ◇:** none set; bigfoot is the danger, and the storm.
+- **Chest ◇:** in the start of a mine near the top, where bigfoot sleeps at night: in sight from
+  the entrance, reached only while he is out by day ◇.
 
 ## Aid to the village, and the remainders
 
@@ -175,7 +256,7 @@ is the clock (@ST-Climax): feeding the village and buying time pull against each
 
 - **The artefact gives the player something to look out for everywhere:** one chest per major
   place ◇ (the Old Seam's three levels, the lake, the High Diggings, Stormcap): six pieces, each
-  behind that place's own mechanic.
+  behind that place's own mechanic, counted as a number the game shows (owner).
 - **Bombs belong to the working mine:** the Old Seam's levels and the High Diggings' extensions,
   not the village or the hills.
 - **Save points:** the strange fountains, in the mines and the hills (@ST-Fountains); the village's

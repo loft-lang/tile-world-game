@@ -83,9 +83,10 @@ waits for the hero.
 
 ## Light, fire and enemies
 
-21. **Ruling — fire spreading.**  A tar barrel bursts into fire (proposed); a burning torch flung
-    against a barrel, a table, a tree: does fire spread to wood?  A strong system (a fuse of
-    barrels, a burning bridge), and a large one — decide its edges before building any of it.
+21. **Settled: no general fire spreading** (owner, 2026-11-04).  Fire spreading is a neat
+    mechanic, but not needed in the mine.  One use of it may come as a puzzle: a tar barrel
+    needed to set alight an accidental barricade blocking a walkway (DESIGN.md § Torches and
+    light).
 22. **Puzzle — a light on a cart.**  A burning torch rests on a cart (items rest on carts): a
     moving light.  Sent down the track, it lights the far room; with enemies, it sweeps rats aside
     and draws bats along — a lure on rails.
