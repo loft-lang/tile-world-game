@@ -10,6 +10,10 @@ in some form (owner, 2026-11-04).  It is not about presenting everything at once
 is built until four things are known: the story to tell, the people in it, the monsters and their
 place in the world, and how the story can end (owner).
 
+**An outline, not a world bible** (owner, 2026-11-04): this is foremost a game, and the world is
+the backdrop for it.  The sections below are an outline; their details come from what the player
+is meant to do in the story, not from working each subject out on its own.
+
 **Whose ideas lead.**  The story is the owner's.  This file keeps three kinds of content apart:
 
 1. **The owner's design** (§ 1–4): only what the owner has said or written.  A section with nothing
@@ -54,7 +58,7 @@ What the owner has already said that bounds it:
 **The villagers together** (owner, 2026-11-04): the villagers of the town know each other well and
 depend on each other, but they have wildly different opinions on just about everything.
 
-*Still the owner's to write: who each of them is, where they live and work, what they want.*
+*Who each is follows from what the player is to do.*
 
 What the owner has already said about NPCs:
 
@@ -68,7 +72,7 @@ What the owner has already said about NPCs:
 
 ## 3. The monsters and their place in this world
 
-*The owner's to write: why each kind is where it is, and what it means to the people.*
+*The owner's outline to come; details follow from what the player is to do.*
 
 What the owner has already said about monsters (DESIGN.md § Enemies):
 
@@ -82,7 +86,7 @@ What the owner has already said about monsters (DESIGN.md § Enemies):
 
 ## 4. How the story can end
 
-*The owner's to write.*
+*The owner's outline to come.*
 
 ## 5. What exists: material the story can draw on
 
