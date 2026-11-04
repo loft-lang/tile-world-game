@@ -131,7 +131,8 @@ things.  The world presents the different places in a logical order.
 
 <a id="st-outside"></a>**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
 quests related to the bigger world (the political circumstances outside) and the climate (the
-drought).
+drought).  The outside contenders for the mine (@ST-Court, @ST-Lady, @ST-Neighbour) are not
+presented in the game unless an ending scene is built for it (owner, 2026-11-04).
 
 **The places so far** (gathered from the owner's outline, 2026-11-04; a place marked *reading* is
 the outline's implication, not the owner's words):
