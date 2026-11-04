@@ -79,7 +79,8 @@ food for the villagers, small as their number now is.
 <a id="st-mine"></a>**The mine** (owner, 2026-11-04): it is mined out at the surface, which made them dig deeper and
 open new dig sites in the hills to reach the valuable ore.  They had to stop, because of
 political circumstances from outside and a drought (below: a decree), so there are still
-valuable things to find.
+valuable things to find.  Deep in the mine there are magical crafting materials, unknown to most
+(owner, 2026-11-04; the witch and the wizard are after them, @ST-Lady, @ST-Wizard).
 
 <a id="st-decree"></a>**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
 hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
@@ -191,7 +192,8 @@ in the mines for his own goals.  He has the energy for a lightning strike, which
 cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
 swayed to chime in.  He certainly does not approve of a lord with magical knowledge who shields
 that knowledge from his own lord (owner, 2026-11-04): the witch (@ST-Lady).  He is not one of
-her advisers (owner, 2026-11-04).
+her advisers (owner, 2026-11-04).  His goals in the mine are the same as hers: the magical
+crafting materials deep in it, unknown to most (@ST-Mine).
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
 The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
@@ -200,7 +202,9 @@ guards block him, @ST-Guards).
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
-is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).
+is the witch, an elder lord, and she has the magical knowledge (owner, 2026-11-04).  She is a party
+in the ownership dispute (@ST-Decree), and her interest is the magical crafting materials deep in
+the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
 
 *Who each is follows from what the player is to do.*
 
