@@ -164,7 +164,7 @@ fn test_materials_survive_a_round_trip() {
 // (3, 1, 0) and one on (6, 2, 0) written in; it loads two rats there, and saves to the same text.
 fn test_enemies_load_and_save() {
   raw = read("first_climb");
-  with = raw.replace("  \"start\":", "  \"enemies\": [ [\"rat\", 3, 1, 0], [\"rat\", 6, 2, 0] ],\n  \"start\":");
+  with = raw.replace("  \"doors\":", "  \"enemies\": [ [\"rat\", 3, 1, 0], [\"rat\", 6, 2, 0] ],\n  \"doors\":");
   m = levels::load(with, rules::kinds());
   if !m { assert(false, "it loads"); return; }
   lf = m ?? level("first_climb");
@@ -229,4 +229,31 @@ fn test_the_cyclops_hall_plays_to_its_goal() {
   assert(l.blasted == 1 && l.spotted == 0, "the bomb set off, the hero unseen");
   rules::play(l, "w ~100 d ~100 d ~100 w ~100 w ~100 w ~100 w ~100 w ~100 d ~100 d ~100 d ~100 d ~100 d");
   assert(levels::solved(lf, l) && l.spotted == 0 && l.health == 6, "the chest, unseen: ({l.hero_x}, {l.hero_y})");
+}
+
+// Doors and text on the map load and save; a door's name is its place unless set, and the side
+// the hero comes out on is derived from the ground beside it unless set by hand.
+fn test_doors_and_labels_load_and_save() {
+  raw = "{{ \"legend\": {{ \".\": \"floor\", \"#\": \"wall\", \"d\": \"open_door\" }},"
+      + " \"chunks\": [ {{ \"cx\": 0, \"cy\": 0, \"z\": 0, \"rows\": [\"#####\", \"#...#\", \"#d#d#\"] }} ],"
+      + " \"doors\": [ {{ \"at\": [1, 2, 0], \"to\": \"yard\", \"door\": \"front\" }},"
+      + " {{ \"at\": [3, 2, 0], \"to\": \"yard\", \"door\": \"back\", \"name\": \"side\", \"out\": \"W\" }} ],"
+      + " \"labels\": [ {{ \"at\": [2, 1, 0], \"text\": \"HALL\" }} ], \"start\": [2, 1, 0] }}";
+  m = levels::load(raw, rules::kinds());
+  if !m { assert(false, "loads"); return; }
+  lf = m ?? level("first_climb");
+  assert(len(lf.doors) == 2 && lf.doors[0]!.name == "yard" && lf.doors[1]!.name == "side", "named: {lf.doors[0]!.name}");
+  assert(levels::door_at(lf, 3, 2, 0) == 1 && levels::door_at(lf, 2, 2, 0) == -1, "found by cell");
+  assert(levels::door_named(lf, "side") == 1, "found by name");
+  o = levels::out_of(lf, lf.level, 0);
+  assert(o.0 == 0 && o.1 == -1, "derived: north, the only floor beside it: {o.0},{o.1}");
+  o2 = levels::out_of(lf, lf.level, 1);
+  assert(o2.0 == -1 && o2.1 == 0, "set by hand: west");
+  assert(len(lf.labels) == 1 && lf.labels[0]!.says == "HALL" && lf.labels[0]!.x == 2, "the text");
+  again = levels::load(levels::save(lf), rules::kinds());
+  if !again { assert(false, "saved, it loads"); return; }
+  la = again ?? lf;
+  assert(levels::save(la) == levels::save(lf), "and saves the same");
+  assert(len(la.doors) == 2 && la.doors[1]!.out == "W" && la.doors[1]!.door == "back" && la.labels[0]!.says == "HALL",
+         "doors and text kept");
 }

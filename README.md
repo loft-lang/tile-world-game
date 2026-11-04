@@ -13,11 +13,20 @@ A traversal-puzzle game on the `tile_world` library.  Run it:
 loft --native --lib libs main.loft
 ```
 
+The game starts in **the demo village** (`levels/demo.json`): a house for each room that shows
+a mechanic, its name written on the ground in front of it.  Walk onto a house's door to go in,
+onto the room's door to come back out; every place stays as you left it, and what the hero
+holds, its health and its money go with it.  A room that needs a key of its own has it written
+on its floor.  A world is the places reached from a start place through doors: `TW_WORLD=<place>`
+starts another one (order.json's `start` is the default), and `TW_LEVEL=<n>` plays one level of
+`order.json` on its own, as before.
+
 Arrows or WASD move.  Hold Shift (or P) while moving to pull; X puts down what the hero holds.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
 Walking into a well saves the situation; losing all health brings the hero back there, and B
-(twice, to confirm) goes back by choice.  R restarts the level, N (or
-Enter) goes to the next one when this one is solved, Esc or Q quits.
+(twice, to confirm) goes back by choice.  R restarts the place as it
+was when the hero came in (a level on its own: from its start; N or Enter then goes to the next
+one when it is solved), Esc or Q quits.
 
 **E opens the editor** (EDITOR.md § 4) on the level being played:
 
@@ -47,7 +56,7 @@ Enter) goes to the next one when this one is solved, Esc or Q quits.
 | `theme.json` | what each kind LOOKS like and sounds like: the sheets, tile size, font, a sprite per kind by name; the MATERIALS the editor paints with and their autotile sets |
 | `materials.loft` | materials: a kind with a look; tile numbers, variants by position, nine-slice autotiling |
 | `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff |
-| `levels/` | the levels, one JSON file each (EDITOR.md § 2), and `order.json`, the order they are played in |
+| `levels/` | the places, one JSON file each (EDITOR.md § 2) — with their doors to other places and the text on their ground — and `order.json`: the start place and the editor's list |
 | `levels.loft` | reads and writes level files; a level's goal decides when it is solved |
 | `theme.loft` | reads theme.json and draws a kind, a stack, the hero and text |
 | `editor.loft` | the editor's core: cursor, palette, paint, stack, erase, the markers, undo and redo — no picture, no keys |

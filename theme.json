@@ -145,10 +145,10 @@
     { "straight": "ew", "turn": "sw", "set_straight": "world:50", "set_turn": "world:51" }
   ],
   "categories": {
-    "Outdoor": ["grass", "path", "tree", "fence"],
+    "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "garden_fence", "village_well"],
     "Water": ["lake", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
-    "House": ["door", "open_door", "wall"],
+    "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door"],
     "Dungeon": ["floor", "wall", "rail", "well"],
     "Things": ["cart", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
@@ -174,6 +174,16 @@
       "autotile": "shore",
       "glyph": "*"
     },
+    "oak": { "kind": "tree", "tile": "town:16", "under": "grass", "glyph": "Q" },
+    "pine": { "kind": "tree", "tile": "town:28", "under": "grass", "glyph": "P" },
+    "village_well": { "kind": "well", "tile": "farm:73", "under": "grass", "glyph": "W" },
+    "garden_fence": { "kind": "fence", "tile": "town:81", "under": "grass", "glyph": "G" },
+    "roof": { "kind": "wall", "autotile": "roof", "glyph": "R" },
+    "slate_roof": { "kind": "wall", "autotile": "slate_roof", "glyph": "S" },
+    "wood_wall": { "kind": "wall", "autotile": "wood_wall", "glyph": "H" },
+    "stone_wall": { "kind": "wall", "autotile": "stone_wall", "glyph": "T" },
+    "house_door": { "kind": "open_door", "tile": "town:74", "glyph": "E" },
+    "stone_door": { "kind": "open_door", "tile": "town:78", "glyph": "F" },
     "castle_wall": {
       "kind": "wall",
       "autotile": "castle",
@@ -192,6 +202,26 @@
       "w": "battle:36", "c": "battle:37", "e": "battle:38",
       "sw": "battle:54", "s": "battle:55", "se": "battle:56",
       "inner_nw": "battle:90", "inner_ne": "battle:91", "inner_sw": "battle:93", "inner_se": "battle:92"
+    },
+    "roof": {
+      "nw": "town:52", "n": "town:53", "ne": "town:54",
+      "w": "town:64", "c": "town:65", "e": "town:66",
+      "sw": "town:64", "s": "town:65", "se": "town:66"
+    },
+    "slate_roof": {
+      "nw": "town:48", "n": "town:49", "ne": "town:50",
+      "w": "town:60", "c": "town:61", "e": "town:62",
+      "sw": "town:60", "s": "town:61", "se": "town:62"
+    },
+    "wood_wall": {
+      "nw": "town:72", "n": "town:73", "ne": "town:75",
+      "w": "town:72", "c": "town:73", "e": "town:75",
+      "sw": "town:72", "s": "town:73", "se": "town:75"
+    },
+    "stone_wall": {
+      "nw": "town:76", "n": "town:77", "ne": "town:79",
+      "w": "town:76", "c": "town:77", "e": "town:79",
+      "sw": "town:76", "s": "town:77", "se": "town:79"
     },
     "castle": {
       "nw": "town:96", "n": "town:97", "ne": "town:98",

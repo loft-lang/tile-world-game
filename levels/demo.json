@@ -1,0 +1,53 @@
+{
+  "name": "the demo village",
+  "camera": "follow",
+  "legend": { ",": "grass", ":": "path", "*": "lake", "Q": "oak", "P": "pine", "G": "garden_fence", "R": "roof", "S": "slate_roof", "H": "wood_wall", "T": "stone_wall", "E": "house_door", "F": "stone_door", "W": "village_well" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "PQPPPQPQPPPQPQPPPQPQPPPQPQPPPQ",
+      "Q,,,,,,,,,,,,,,,,,,,,,,,,,,,,P",
+      "Q,,RRRR,,,,,,SSSS,,P,,,RRRR,,Q",
+      "P,,RRRR,,,Q,,SSSS,,,,,,RRRR,,Q",
+      "Q,,HEHH,,,,,,TFTT,,,,,,HEHH,,P",
+      "QP,,:,,,,,,,,,:,,,,,,,,,:,,,,Q",
+      "P,,,:,,,,,,,,,:,,,,,,,,,:,,,,Q",
+      "Q,,,:::::::::::::::::::::,,,,P",
+      "Q,,,,,,,,,,,,,:,,,,,,,,,,,,Q,Q",
+      "P,,,,,,,,P,,,,:,,Q,,,,,,,,,,,Q",
+      "Q,P,,,,,,,,,,,:,,,,,,,,,,,,,,P",
+      "Q,,,,,SSSS,,,,:,,,,RRRR,GGGG,Q",
+      "P,,,,,SSSS,,,,:,,,,RRRR,G,,G,Q",
+      "Q,,,,,TFTT,,,,:,,,,HEHH,G,,G,P",
+      "Q,,,,,,:,,,,,,:,,,,,:,,,GGGG,Q",
+      "P,,,,,,:,,,,,,:,,,,,:,,,,,,,,Q",
+      "Q,****,::::::::::::::,,,,,,,,P",
+      "Q,****,,,,,,,,:,,,,,,,,,,,,,,Q",
+      "P,****,,Q,,,,,:,W,,,,,,,,,Q,,Q",
+      "Q,****,,,,,P,,:,,,,,,Q,,,,,,,P",
+      "Q,,,,,,,,,,,,,,,,,,,,,,,,,,,,Q",
+      "PQPPPQPQPPPQPQPPPQPQPPPQPQPPPQ"
+    ] }
+  ],
+  "things": [ ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "doors": [
+    { "at": [4, 4, 0], "to": "first_climb", "door": "demo" },
+    { "at": [14, 4, 0], "to": "the_cellar", "door": "demo" },
+    { "at": [24, 4, 0], "to": "the_torch_room", "door": "demo" },
+    { "at": [7, 13, 0], "to": "the_old_mine", "door": "demo" },
+    { "at": [20, 13, 0], "to": "the_cyclops_hall", "door": "demo" }
+  ],
+  "labels": [
+    { "at": [4, 6, 0], "text": "FIRST CLIMB" },
+    { "at": [14, 6, 0], "text": "THE CELLAR" },
+    { "at": [24, 6, 0], "text": "TORCH ROOM" },
+    { "at": [7, 15, 0], "text": "OLD MINE" },
+    { "at": [20, 15, 0], "text": "CYCLOPS HALL" },
+    { "at": [14, 20, 0], "text": "THE VILLAGE" }
+  ],
+  "start": [14, 19, 0],
+  "goal": { "type": "" }
+}

@@ -1339,6 +1339,55 @@ pub fn put_hero(l: Level, x: integer, y: integer, z: integer) {
   l.hero_h = height(l, x, y, z);
 }
 
+/// What passes through a door with the hero (WORLD.md § The world): what it holds, its health,
+/// money and points, the way it faces, and what is timed as the time it has left — each place
+/// keeps its own clock, so a held torch burning down, a boost and a blow's recovery go on from
+/// there.
+pub struct Carried {
+  pub item: integer,
+  pub health: integer,
+  pub spirit: integer,
+  pub money: integer,
+  pub points: integer,
+  pub face_x: integer,
+  pub face_y: integer,
+  /// The held flame's time left (-1: none held), a boost's and a blow's recovery's (0: none).
+  pub flame_left: integer,
+  pub boost_left: integer,
+  pub blow_left: integer
+}
+
+/// What the hero of `l` takes through a door.
+pub fn carried(l: const Level) -> Carried {
+  Carried {
+    item: l.hero_item, health: l.health, spirit: l.spirit, money: l.money, points: l.points,
+    face_x: l.face_x, face_y: l.face_y,
+    flame_left: if l.hero_until == 0 { -1 } else { l.hero_until - l.now },
+    boost_left: if l.boost_until > l.now { l.boost_until - l.now } else { 0 },
+    blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 }
+  }
+}
+
+/// The hero comes into `l` through a door with `c`.  Anything that held it or was pending
+/// (a cyclops's grip, a remembered blow, the bow's aim) stays behind.
+pub fn carry_in(l: Level, c: const Carried) {
+  l.hero_item = c.item;
+  l.health = c.health;
+  l.spirit = c.spirit;
+  l.money = c.money;
+  l.points = c.points;
+  l.face_x = c.face_x;
+  l.face_y = c.face_y;
+  // A held flame's moment stays above 0, which would read as "not yet met by the clock".
+  l.hero_until = if c.flame_left < 0 { 0 } else if l.now + c.flame_left > 0 { l.now + c.flame_left } else { 1 };
+  l.boost_until = if c.boost_left > 0 { l.now + c.boost_left } else { 0 };
+  l.blow_until = if c.blow_left > 0 { l.now + c.blow_left } else { 0 };
+  l.queued = false;
+  l.held_by = 0;
+  l.struggles = 0;
+  l.aiming = false;
+}
+
 /// The light the hero carries, for `tile_world::shades`: its cell when it holds a light.
 pub fn carried_lights(l: const Level) -> vector<(integer, integer)> {
   out: vector<(integer, integer)> = [];

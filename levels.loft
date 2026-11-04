@@ -15,6 +15,8 @@
 //     "edges": [ [2, 1, 0, "N", "wall"], [3, 1, 0, "W", "door"] ],
 //     "rises": [ [5, 5, 0, 2] ],
 //     "enemies": [ ["rat", 7, 3, 0] ],
+//     "doors": [ { "at": [1, 8, 0], "to": "world", "door": "first_climb" } ],
+//     "labels": [ { "at": [6, 3, 0], "text": "THE CELLAR" } ],
 //     "start": [1, 1, 0],
 //     "goal": { "type": "layer", "z": 1 }
 //   }
@@ -25,6 +27,13 @@
 // `edges` each cell's north and west edge that is not empty (an E or S side reads as the
 // neighbour's W or N); `rises` the cells that rise.  Saving writes the world in a fixed order,
 // so the same level always writes the same file.
+//
+// A DOOR joins this place to another (WORLD.md § The world): walking onto its cell takes the
+// hero to door `door` of place `to` (a file in levels/), standing just outside it.  A door's
+// name is the place it leads to unless the file names it (`"name"`, for a second door to the
+// same place).  Which side the hero comes out on is derived — the first of south, north, east
+// and west with ground to stand on — and `"out": "N"` sets it by hand.  A LABEL is text written
+// on the map at a cell: what a house holds, where a road goes.
 use tile_world;
 use rules;
 use materials;
@@ -44,6 +53,26 @@ pub struct Goal {
   pub z: integer
 }
 
+/// A door to another place: its name here, its cell, the place it leads to and the door there;
+/// `out` the side the hero comes out on when set by hand ("N", "E", "S", "W"), "" derived.
+pub struct Door {
+  pub name: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub to: text,
+  pub door: text,
+  pub out: text
+}
+
+/// Text written on the map, centred on cell (x, y) of layer z.
+pub struct Label {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub says: text
+}
+
 /// A level as its file holds it: the level itself, its name, where the hero starts, what solves
 /// it, and how the view follows the hero: "follow" (it scrolls when the hero nears the edge) or
 /// "rooms" (it flips a screen at a time).
@@ -59,7 +88,10 @@ pub struct LevelFile {
   /// cells set by hand that filling it in again keeps (intent::key_of each).  The cells above are
   /// the place as it is; these are what `editor::refill` works from.
   pub intent: intent::Intent = intent::no_intent(),
-  pub adjusted: vector<integer> = []
+  pub adjusted: vector<integer> = [],
+  /// The doors to other places, and the text written on the map.
+  pub doors: vector<Door> = [],
+  pub labels: vector<Label> = []
 }
 
 struct LegendChar {
@@ -197,11 +229,66 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     a = av.item(i);
     adjusted += [intent::key_of(num(a.item(0), 0), num(a.item(1), 0), num(a.item(2), 0))];
   }
+  doors: vector<Door> = [];
+  dv = v.field("doors");
+  for i in 0..dv.len() {
+    d = dv.item(i);
+    at = d.field("at");
+    to = str(d.field("to"), "");
+    doors += [Door {
+      name: str(d.field("name"), to), x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0),
+      to: to, door: str(d.field("door"), ""), out: str(d.field("out"), "")
+    }];
+  }
+  labels: vector<Label> = [];
+  lv = v.field("labels");
+  for i in 0..lv.len() {
+    b = lv.item(i);
+    at = b.field("at");
+    labels += [Label { x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0), says: str(b.field("text"), "") }];
+  }
   LevelFile {
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
     start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
-    adjusted: adjusted
+    adjusted: adjusted, doors: doors, labels: labels
   }
+}
+
+/// The door on cell (x, y, z), by its index in `lf.doors`; -1 for none.
+pub fn door_at(lf: const LevelFile, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(lf.doors) {
+    d = lf.doors[i];
+    if d.x == x && d.y == y && d.z == z { return i; }
+  }
+  -1
+}
+
+/// The door named `name`, by its index in `lf.doors`; -1 for none.
+pub fn door_named(lf: const LevelFile, name: text) -> integer {
+  for i in 0..len(lf.doors) { if lf.doors[i].name == name { return i; } }
+  -1
+}
+
+/// The side (dx, dy) of door `i` the hero comes out on, in place `l`: the one the file sets, or
+/// the first of south, north, east and west whose cell is set ground the hero can stand on and
+/// cross to.  (0, 0) when there is none: the hero then stands on the door itself.
+pub fn out_of(lf: const LevelFile, l: const rules::Level, i: integer) -> (integer, integer) {
+  d = lf.doors[i];
+  if !d { return (0, 0); }
+  if d.out != "" {
+    s = side_of(d.out);
+    return if s == tile_world::NORTH { (0, -1) } else if s == tile_world::EAST { (1, 0) }
+           else if s == tile_world::SOUTH { (0, 1) } else { (-1, 0) };
+  }
+  for side in [(0, 1), (0, -1), (1, 0), (-1, 0)] {
+    x = d.x + side.0;
+    y = d.y + side.1;
+    if tile_world::is_set(l.w, x, y, d.z) && rules::walkable(l, tile_world::terrain(l.w, x, y, d.z))
+       && rules::hero_crosses(l, d.x, d.y, d.z, side.0, side.1) && door_at(lf, x, y, d.z) < 0 {
+      return side;
+    }
+  }
+  (0, 0)
 }
 
 /// The level in file `path`, or null when it does not read or parse.
@@ -419,6 +506,29 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       first = false;
     }
     out += " ],";
+  }
+  if len(lf.doors) > 0 {
+    out += "\n  \"doors\": [";
+    first = true;
+    for d in lf.doors {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{d.x}, {d.y}, {d.z}], \"to\": {quoted(d.to)}, \"door\": {quoted(d.door)}";
+      if d.name != d.to { out += ", \"name\": {quoted(d.name)}"; }
+      if d.out != "" { out += ", \"out\": {quoted(d.out)}"; }
+      out += " }}";
+      first = false;
+    }
+    out += "\n  ],";
+  }
+  if len(lf.labels) > 0 {
+    out += "\n  \"labels\": [";
+    first = true;
+    for b in lf.labels {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{b.x}, {b.y}, {b.z}], \"text\": {quoted(b.says)} }}";
+      first = false;
+    }
+    out += "\n  ],";
   }
   out += "\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
   g = lf.goal;

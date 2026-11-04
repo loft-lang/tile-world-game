@@ -309,8 +309,8 @@ fn test_pick_under() {
 // The checks on the first climb (start (1, 1)).  The east half is cut off: the river runs down
 // x 6, and the rails across it at y 4 are blocked by the cart (6, 4) and the rock (8, 4).
 // A cell goal at (5, 7) has a path ending there; one at (11, 1) has none.  Chests: (3, 6) is
-// fine; (10, 6) is cut off; (1, 7), walled in at (1, 6), (2, 6) and (2, 7) beside the border,
-// is cut off and hidden — no walkable cell sees it.
+// fine; (10, 6) is cut off; (1, 7), walled in at (1, 6), (2, 6) and (2, 7) beside the border —
+// its door at (1, 8) walled up too — is cut off and hidden: no walkable cell sees it.
 fn test_the_checks() {
   lf = first_climb();
   ed = editor::new_editor(lf);
@@ -329,7 +329,7 @@ fn test_the_checks() {
   tile_world::place(w, 3, 6, 0, chest);
   tile_world::place(w, 10, 6, 0, chest);
   tile_world::place(w, 1, 7, 0, chest);
-  for p in [(1, 6), (2, 6), (2, 7)] { tile_world::set_terrain(w, p.0, p.1, 0, wall); }
+  for p in [(1, 6), (2, 6), (2, 7), (1, 8)] { tile_world::set_terrain(w, p.0, p.1, 0, wall); }
   r = editor::check(lf);
   cut = "";
   for c in r.cut_off { cut += "{c.0},{c.1} "; }

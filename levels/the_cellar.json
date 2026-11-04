@@ -1,14 +1,14 @@
 {
   "name": "the cellar",
   "camera": "follow",
-  "legend": { ".": "floor", "#": "wall" },
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
   "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [
       "#############",
       "#....#.......",
       "#............",
-      "#############"
+      "#d###########"
     ] },
     { "cx": 0, "cy": 0, "z": 1, "rows": [
       "............",
@@ -24,6 +24,9 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "doors": [
+    { "at": [1, 3, 0], "to": "demo", "door": "the_cellar" }
+  ],
   "start": [1, 1, 0],
   "goal": { "type": "daylight" }
 }

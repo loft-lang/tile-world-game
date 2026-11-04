@@ -17,7 +17,14 @@ fn main() {
   test_a_doomed_save_rolls_back_once();
   test_a_wall_in_front_of_the_hero_is_cut_away();
   test_only_walls_hide_what_the_hero_does_not_see();
-  println("checks/game.loft: 5 passed");
+  test_the_world_starts_in_the_village();
+  test_a_house_door_leads_in_and_back_out();
+  test_a_place_left_keeps_its_state();
+  test_every_house_has_a_way_back();
+  test_what_the_hero_holds_goes_through();
+  test_r_in_a_room_is_the_room_as_entered();
+  test_floor_text_is_walked_over();
+  println("checks/game.loft: 12 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -173,4 +180,131 @@ fn test_only_walls_hide_what_the_hero_does_not_see() {
   assert(rat_past("wall") == 0, "past a wall: not drawn ({rat_past("wall")})");
   assert(rat_past("door") > 0 && rat_past("tree") > 0, "past a door, a tree: drawn");
   assert(chest_past("wall") == 0 && chest_past("door") > 0, "a chest the same: {chest_past("wall")}, {chest_past("door")}");
+}
+
+// --- The world (WORLD.md § The world): the village, a house per room, doors both ways ---
+
+fn world() -> game::Game? {
+  m = game::new_game("..");
+  if !m { return null; }
+  g = m ?? return null;
+  if !game::start_world(g, "demo") { return null; }
+  g
+}
+
+fn at(g: const game::Game) -> text {
+  w = g.world;
+  "{g.place} {w.hero_x},{w.hero_y},{w.hero_z}"
+}
+
+fn walk(g: game::Game, dx: integer, dy: integer, n: integer) {
+  for _ in 0..n { game::move(g, dx, dy, false); }
+}
+
+fn test_the_world_starts_in_the_village() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
+  assert(len(g.file.doors) == 5 && len(g.file.labels) == 6, "five houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+}
+
+// Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
+// facing into the room; down onto that door: back outside the house, facing away from it.
+fn test_a_house_door_leads_in_and_back_out() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  walk(g, 0, -1, 14);
+  assert(at(g) == "demo 14,5,0", "before the door: {at(g)}");
+  game::move(g, 0, -1, false);
+  assert(at(g) == "the_cellar 1,2,0", "in the cellar: {at(g)}");
+  assert(g.world.face_x == 0 && g.world.face_y == -1, "facing into it: {g.world.face_x},{g.world.face_y}");
+  game::move(g, 0, 1, false);
+  assert(at(g) == "demo 14,5,0", "out again: {at(g)}");
+  assert(g.world.face_y == 1, "facing away from the house");
+}
+
+// The rock pushed in the cellar is where it was left, after going out and coming back in.
+fn test_a_place_left_keeps_its_state() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  rock = rules::thing_id(g.kinds, "rock");
+  walk(g, 0, -1, 15);
+  assert(tile_world::top(g.world.w, 5, 2, 0) == rock, "the rock at (5, 2)");
+  walk(g, 1, 0, 4);
+  assert(at(g) == "the_cellar 5,2,0" && tile_world::top(g.world.w, 6, 2, 0) == rock, "pushed to (6, 2): {at(g)}");
+  walk(g, -1, 0, 4);
+  game::move(g, 0, 1, false);
+  assert(g.place == "demo", "out: {at(g)}");
+  game::move(g, 0, -1, false);
+  assert(at(g) == "the_cellar 1,2,0", "back in: {at(g)}");
+  assert(tile_world::top(g.world.w, 6, 2, 0) == rock && tile_world::top(g.world.w, 5, 2, 0) == 0,
+         "the rock where it was left");
+}
+
+// Every door of the village leads into a place with a door back to it, and that door brings the
+// hero out in front of the house it went into.
+fn test_every_house_has_a_way_back() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  n = len(g.file.doors);
+  for i in 0..n {
+    to = g.file.doors[i]!.to;
+    x = g.file.doors[i]!.x;
+    y = g.file.doors[i]!.y;
+    assert(game::go_through(g, i), "door {i} leads somewhere");
+    assert(g.place == to, "door {i} into {to}: {g.place}");
+    back = levels::door_named(g.file, "demo");
+    assert(back >= 0, "{to} has a door to the village");
+    assert(game::go_through(g, back), "{to}'s door back");
+    assert(at(g) == "demo {x},{y + 1},0", "out in front of {to}'s house: {at(g)}");
+  }
+}
+
+// What the hero holds, its health and money pass through a door.
+fn test_what_the_hero_holds_goes_through() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  sword = rules::thing_id(g.kinds, "sword");
+  g.world.hero_item = sword;
+  g.world.health = 3;
+  g.world.money = 12;
+  walk(g, 0, -1, 15);
+  assert(g.place == "the_cellar", "in: {at(g)}");
+  assert(g.world.hero_item == sword && g.world.health == 3 && g.world.money == 12,
+         "carried: {g.world.hero_item} {g.world.health} {g.world.money}");
+}
+
+// R in a room is the room as the hero came into it, the hero at the door, still in the world.
+fn test_r_in_a_room_is_the_room_as_entered() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  walk(g, 0, -1, 15);
+  walk(g, 1, 0, 4);
+  game::restart(g);
+  assert(at(g) == "the_cellar 1,2,0" && g.in_world, "back at the door: {at(g)}");
+  assert(tile_world::top(g.world.w, 5, 2, 0) == rules::thing_id(g.kinds, "rock"), "the rock as it was");
+}
+
+// The village's text is written on the ground: it shows, and the hero standing on it is drawn
+// over it.
+fn test_floor_text_is_walked_over() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  walk(g, 0, -1, 13);
+  assert(at(g) == "demo 14,6,0", "on THE CELLAR's text: {at(g)}");
+  with = frame(g);
+  labels = g.file.labels;
+  g.file.labels = [];
+  bare = frame(g);
+  g.file.labels = labels;
+  assert(changed(with, bare) > 0, "the text shows");
+  g.look.hero = -1;
+  assert(changed(with, frame(g)) > 0, "the hero is drawn over it");
 }

@@ -1,7 +1,7 @@
 {
   "name": "the cyclops hall",
   "camera": "follow",
-  "legend": {
+  "legend": { "d": "open_door",
     ".": "floor",
     "#": "wall"
   },
@@ -20,7 +20,7 @@
         "#.......#......#",
         "#..............#",
         "#..............#",
-        "################"
+        "##d#############"
       ]
     },
     {
@@ -99,6 +99,13 @@
       3,
       0
     ]
+  ],
+  "doors": [
+    { "at": [2, 8, 0], "to": "demo", "door": "the_cyclops_hall" }
+  ],
+  "labels": [
+    { "at": [4, 1, 0], "text": "T AIM" },
+    { "at": [4, 2, 0], "text": "SPACE SHOOT" }
   ],
   "start": [
     2,

@@ -37,7 +37,10 @@ pub struct Material {
   pub variants: vector<integer>,
   /// The thirteen autotile pieces in PIECES order; empty for a material that is not autotiled.
   pub pieces: vector<integer>,
-  pub glyph: text
+  pub glyph: text,
+  /// The material drawn under it, by name: what an upright one (a tree, a well) stands on —
+  /// grass outdoors, where the kind's own `under` is a dungeon floor.  "" for the kind's own.
+  pub under: text = ""
 }
 
 struct Owner {
@@ -137,7 +140,8 @@ pub fn load(raw: text, k: const rules::Kinds) -> Materials {
     owned: vector<integer> = [tile];
     owned += vs;
     owned += pieces;
-    m.list += [Material { name: name, kind: kind, tile: tile, variants: vs, pieces: pieces, glyph: word(e, "glyph") }];
+    m.list += [Material { name: name, kind: kind, tile: tile, variants: vs, pieces: pieces, glyph: word(e, "glyph"),
+                          under: word(e, "under") }];
     for t in owned {
       if t != 0 && !m.owners[t] { m.owners += [Owner { tile: t, material: index }]; }
     }
@@ -227,6 +231,19 @@ fn tile_for(m: const Materials, i: integer, w: const tile_world::World, x: integ
 }
 
 // Give cell (x, y, z) the tile its material shows there; nothing for a cell of no material.
+/// The tile drawn under cell (x, y, z): its material's `under` material, a variant by position
+/// as that material would show there; 0 when the cell's material names none.
+pub fn under_tile(m: const Materials, w: const tile_world::World, x: integer, y: integer, z: integer) -> integer {
+  i = at(m, w, x, y, z);
+  if i < 0 { return 0; }
+  u = named(m, (m.list[i] ?? none_material()).under);
+  if u < 0 { return 0; }
+  mat = m.list[u] ?? none_material();
+  // The variant rule of tile_for, so the grass under a tree is the grass that would be there.
+  h = (x * 7 + y * 13) % 11 ?? 0;
+  if h < len(mat.variants) { mat.variants[h] ?? mat.tile } else { mat.tile }
+}
+
 fn retile_cell(m: const Materials, w: tile_world::World, x: integer, y: integer, z: integer) {
   i = at(m, w, x, y, z);
   if i < 0 { return; }

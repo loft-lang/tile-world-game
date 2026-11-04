@@ -49,6 +49,20 @@ pub struct Game {
   pub file: levels::LevelFile,
   /// The level files to play, in order (levels/order.json).
   pub order: vector<text>,
+  /// Playing the world (WORLD.md): places joined by doors, from order.json's `start` place.  The
+  /// place the hero is in (its file name), the door it came in by, each place left as the hero
+  /// left it, the places whose goal the hero has met, and the place as it was when the hero
+  /// came in (R goes back to it).
+  pub in_world: boolean,
+  pub place: text,
+  pub entered_by: text,
+  places: vector<Visited>,
+  solved_places: vector<text>,
+  arrived: rules::Level,
+  has_arrived: boolean,
+  /// The places the save at the last well and the one before it were made in.
+  saved_place: text,
+  previous_place: text,
   pub surface: integer,
   pub kinds: rules::Kinds,
   /// What the editor paints with, and what level files' legends may name (theme.json's).
@@ -109,6 +123,12 @@ pub struct Game {
   /// the height of a wall in the pictures (a raised block is a row of wall tops over one row of
   /// wall face).  Fixed per layer, so the world stays still when the hero changes layer.
   lift: integer
+}
+
+/// A place the hero has left, as it left it.
+struct Visited {
+  place: text,
+  level: rules::Level
 }
 
 /// An enemy as last drawn: its id, its motion, its cell and its health.
@@ -200,6 +220,8 @@ pub fn new_game(dir: text) -> Game? {
     world: rules::level(k),
     file: blank,
     order: level_order(dir),
+    in_world: false, place: "", entered_by: "", places: [], solved_places: [], arrived: rules::level(k),
+    has_arrived: false, saved_place: "", previous_place: "",
     surface: s ?? 0, kinds: k, mats: mats, look: th ?? return null,
     sounds: [],
     keys: input::input_new(bindings()),
@@ -252,12 +274,110 @@ fn level_path(g: const Game, level: integer) -> text {
 // Load level number `level` of the order into `g`, with a fresh editor on it; false when its
 // file does not load.
 fn load_level(g: Game, level: integer) -> boolean {
-  m = levels::load_with(file(level_path(g, level)).content() ?? "", g.kinds, g.mats);
+  open_place(g, g.order[level] ?? "")
+}
+
+// Load the file of place `name` (levels/<name>.json) into `g`, with a fresh editor on it — the
+// file only: what is played, `g.world`, is left as it is.  False when it does not load.
+fn open_place(g: Game, name: text) -> boolean {
+  m = levels::load_with(file("{g.dir}/levels/{name}.json").content() ?? "", g.kinds, g.mats);
   if !m { return false; }
   g.file = m;
-  g.level = level;
+  g.place = name;
+  g.level = -1;
+  for i in 0..len(g.order) { if g.order[i] == name { g.level = i; } }
   g.ed = editor::new_editor_with(g.file, g.mats);
-  g.name_field = g.order[level] ?? "";
+  g.name_field = name;
+  true
+}
+
+/// The place the game starts in: order.json's `start`, "demo" when it names none.  A world is
+/// the places reached from its start place through doors, so another start is another world:
+/// the demo village, with a house for each mechanic's room, stays one beside the game's own.
+pub fn start_place(dir: text) -> text {
+  v = json_parse(file("{dir}/levels/order.json").content() ?? "").field("start");
+  if v.kind() == "JString" { v.as_text() } else { "demo" }
+}
+
+// Where place `name` is in the places the hero has left, -1 when it has not been there.
+fn visited(g: const Game, name: text) -> integer {
+  for i in 0..len(g.places) { if g.places[i].place == name { return i; } }
+  -1
+}
+
+// Keep the place being played as it is now, for when the hero comes back.
+fn stash(g: Game) {
+  i = visited(g, g.place);
+  if i >= 0 {
+    g.places[i].level = g.world;
+  } else {
+    g.places += [Visited { place: g.place, level: g.world }];
+  }
+}
+
+/// Play the world that starts at place `place` (a file in levels/), from that place's start
+/// cell.  False when the place does not load.
+pub fn start_world(g: Game, place: text) -> boolean {
+  if !open_place(g, place) { return false; }
+  g.in_world = true;
+  g.places = [];
+  g.solved_places = [];
+  g.entered_by = "";
+  g.has_arrived = false;
+  restart(g);
+  g.arrived = g.world;
+  g.has_arrived = true;
+  true
+}
+
+/// The hero steps through door `i` of the place it is in: into the place the door leads to, as
+/// the hero left it when it was there before, standing just outside the door there and facing
+/// away from it, with what it holds, its health and its money.  False (and nothing changed)
+/// when that place does not load; a door there that does not exist puts the hero at the
+/// place's start.
+pub fn go_through(g: Game, i: integer) -> boolean {
+  if i < 0 || i >= len(g.file.doors) { return false; }
+  to = g.file.doors[i]!.to;
+  there = g.file.doors[i]!.door;
+  m = levels::load_with(file("{g.dir}/levels/{to}.json").content() ?? "", g.kinds, g.mats);
+  if !m { return false; }
+  c = rules::carried(g.world);
+  stash(g);
+  _ = open_place(g, to);
+  j = visited(g, to);
+  if j >= 0 {
+    for v in g.places { if v.place == to { g.world = v.level; } }
+  } else {
+    g.world = g.file.level;
+  }
+  rules::carry_in(g.world, c);
+  k = levels::door_named(g.file, there);
+  if k >= 0 {
+    dx = g.file.doors[k]!.x;
+    dy = g.file.doors[k]!.y;
+    dz = g.file.doors[k]!.z;
+    side = levels::out_of(g.file, g.world, k);
+    rules::put_hero(g.world, dx + side.0, dy + side.1, dz);
+    if side.0 != 0 || side.1 != 0 {
+      g.world.face_x = side.0;
+      g.world.face_y = side.1;
+    }
+  } else {
+    rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
+  }
+  g.entered_by = there;
+  g.arrived = g.world;
+  g.has_arrived = true;
+  g.motion = motion::still();
+  g.movers = [];
+  g.asking_back = false;
+  g.just_back = false;
+  g.note = "";
+  g.area = camera::bounds(g.world.w);
+  g.cam_x = g.area.0;
+  g.cam_y = g.area.1;
+  aim(g);
+  sound(g, "door_open");
   true
 }
 
@@ -489,22 +609,29 @@ fn solved(g: const Game) -> boolean {
 
 /// Play level number `level` of the order from its start, as its file holds it.
 pub fn start_level(g: Game, level: integer) {
+  g.in_world = false;
+  g.has_arrived = false;
   _ = load_level(g, level);
   restart(g);
 }
 
 /// Start the level again, as the file in memory holds it: the editor's edits included, and
 /// the played copy dropped.  (`g.world = g.file.level` copies: an assignment into a field.)
+/// In the world, the place as it was when the hero came in, the hero as it came.
 pub fn restart(g: Game) {
   g.note = "";
   g.has_save = false;
   g.asking_back = false;
   g.has_previous = false;
   g.just_back = false;
-  g.world = g.file.level;
   g.motion = motion::still();
   g.movers = [];
-  rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
+  if g.in_world && g.has_arrived {
+    g.world = g.arrived;
+  } else {
+    g.world = g.file.level;
+    rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
+  }
   g.area = camera::bounds(g.world.w);
   g.cam_x = g.area.0;
   g.cam_y = g.area.1;
@@ -578,9 +705,11 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   if step == rules::Step.Saved {
     if g.has_save {
       g.previous = g.saved;
+      g.previous_place = g.saved_place;
       g.has_previous = true;
     }
     g.saved = g.world;
+    g.saved_place = g.place;
     g.has_save = true;
     g.note = "SAVED";
   }
@@ -591,11 +720,22 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     sound(g, "strong");
   }
   if solved(g) {
-    g.won = true;
-    sound(g, "win", 1.0);
+    // In the world a place's goal is met once and play goes on; a level on its own is done.
+    if !g.in_world {
+      g.won = true;
+      sound(g, "win", 1.0);
+    } else if !g.solved_places.contains(g.place) {
+      g.solved_places += [g.place];
+      g.note = "SOLVED!";
+      sound(g, "win", 1.0);
+    }
   }
   // With no health left, the hero is back at the last well — when it drank from one.
   if !rules::alive(g.world) && g.has_save { return_to_save(g); }
+  // A step onto a door takes the hero through it, to the place it leads to.
+  moved = g.world.hero_x != ox || g.world.hero_y != oy || g.world.hero_z != oz;
+  door = levels::door_at(g.file, g.world.hero_x, g.world.hero_y, g.world.hero_z);
+  if moved && door >= 0 && rules::alive(g.world) && go_through(g, door) { return; }
   aim(g);
 }
 
@@ -656,6 +796,7 @@ fn animate(g: Game, step: rules::Step, ox: integer, oy: integer, oz: integer, oh
 
 // The situation saved at the last well, back: the world, the hero, its health.
 fn return_to_save(g: Game) {
+  back_to_place(g, g.saved_place);
   g.world = g.saved;
   g.motion = motion::still();
   g.movers = [];
@@ -666,11 +807,24 @@ fn return_to_save(g: Game) {
   aim(g);
 }
 
+// Back to a save made in place `name`: when the hero is elsewhere in the world, the place it is
+// in is kept as it is now and that place's file is opened.
+fn back_to_place(g: Game, name: text) {
+  if !g.in_world || name == g.place || name == "" { return; }
+  stash(g);
+  _ = open_place(g, name);
+  g.area = camera::bounds(g.saved.w);
+  g.cam_x = g.area.0;
+  g.cam_y = g.area.1;
+}
+
 // Just sent back to a save that may be doomed: one well further back, which becomes the save —
 // there is none before it.
 fn return_to_previous(g: Game) {
   g.saved = g.previous;
+  g.saved_place = g.previous_place;
   g.has_previous = false;
+  back_to_place(g, g.saved_place);
   g.world = g.saved;
   g.motion = motion::still();
   g.movers = [];
@@ -741,6 +895,17 @@ fn direction(g: Game, now: integer) -> (integer, integer) {
 pub fn toggle_editor(g: Game) {
   if g.editing {
     g.editing = false;
+    // In the world the place as edited, from its start; the other places stay as they were.
+    if g.in_world {
+      kept: vector<Visited> = [];
+      for v in g.places { if v.place != g.place { kept += [v]; } }
+      g.places = kept;
+      g.has_arrived = false;
+      restart(g);
+      g.arrived = g.world;
+      g.has_arrived = true;
+      return;
+    }
     restart(g);
     return;
   }
@@ -1117,8 +1282,10 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
   away = (tl.0 - br.0) * 4;
   away = if away < 0 { 0 } else if away > 32 { 32 } else { away };
   dark = (tl.1 + away, tr.1 + away, bl.1 + away, br.1 + away);
+  // What it stands on: its material's `under` (a tree on grass), else its kind's (on floor).
+  mu = materials::under_tile(g.mats, w.w, x, y, z);
   under = theme::under(g.look, k);
-  base = if under != 0 { theme::terrain_sprite(g.look, under, x, y, false) } else { -1 };
+  base = if mu != 0 { theme::tile_sprite(g.look, mu) } else if under != 0 { theme::terrain_sprite(g.look, under, x, y, false) } else { -1 };
   if base >= 0 { theme::put_ground(g.surface, base, px, py, lift, dark); }
   if !theme::upright(g.look, k) {
     own = kind_sprite(g, w, x, y, z, upper);
@@ -1331,6 +1498,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
       }
     }
   }
+  draw_labels(g, w, z, sh, sight);
   figs = figures(g, w, z);
   for y in -1..rows {
     if y >= 0 {
@@ -1360,6 +1528,25 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
         if fx >= 0 && fx < COLS && fy >= 0 && fy < rows { draw_figure(g, f, w.now, if shade < dim { dim } else { shade }); }
       }
     }
+  }
+}
+
+// The place's text on layer z, written on the ground: drawn over the floor and under what
+// stands on it, so the hero walks over it.  Half the font's size, centred on its cell, in the
+// light of that cell; with `sight`, only where the hero sees.
+fn draw_labels(g: Game, w: const rules::Level, z: integer, sh: const vector<integer>, sight: boolean) {
+  ts = g.look.tile_size;
+  for b in g.file.labels {
+    if b.z != z { continue; }
+    vx = b.x - g.cam_x;
+    vy = b.y - g.cam_y - z;
+    if vx < -COLS || vx >= 2 * COLS || vy < 0 || vy >= view_rows(g) { continue; }
+    if sight && !rules::in_view(w, b.x, b.y) { continue; }
+    shade = if vx >= 0 && vx < COLS { sh[vy * COLS + vx] ?? 0 } else { 0 };
+    half = ts / 2;
+    x = vx * ts + half - len(b.says) * half / 2;
+    y = (b.y - g.cam_y) * ts - g.lift + half / 2;
+    theme::write_small(g.surface, g.look, b.says, x as float, y as float, shade);
   }
 }
 

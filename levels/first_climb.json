@@ -1,7 +1,7 @@
 {
   "name": "the first climb",
   "camera": "follow",
-  "legend": { ".": "floor", "#": "wall", "~": "water", "=": "rail" },
+  "legend": { ".": "floor", "#": "wall", "~": "water", "=": "rail", "d": "open_door" },
   "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [
@@ -13,7 +13,7 @@
       "#.....~.....#",
       "#.....~.....#",
       "#.....~.....#",
-      "#############"
+      "#d###########"
     ] },
     { "cx": 0, "cy": 0, "z": 1, "rows": [
       "        ####",
@@ -30,6 +30,12 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "doors": [
+    { "at": [1, 8, 0], "to": "demo", "door": "first_climb" }
+  ],
+  "labels": [
+    { "at": [3, 5, 0], "text": "SHIFT PULL" }
+  ],
   "start": [1, 1, 0],
   "goal": { "type": "layer", "z": 1 }
 }

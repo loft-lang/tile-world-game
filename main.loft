@@ -42,7 +42,14 @@ fn press(game: game::Game, keys: text) {
   }
 }
 
-// TW_SHOT=<file.png> [TW_LEVEL=1] [TW_MOVES="s d d"] [TW_EDIT="d d tab paint"]
+// The world to start: TW_WORLD names its start place (TW_WORLD=demo, the demo village), else
+// order.json's `start`.
+fn start_of(game: const game::Game) -> text {
+  w = env_variable("TW_WORLD") ?? "";
+  if w != "" { w } else { game::start_place(game.dir) }
+}
+
+// TW_SHOT=<file.png> [TW_LEVEL=1 (one level alone; else the world)] [TW_MOVES="s d d"] [TW_EDIT="d d tab paint"]
 // [TW_KEYS="101 9 32 133+122"]: play those moves, then open the editor and make those edits
 // (game::edit's words), then press those keys (codes, `+` for keys held together) a tick
 // each as the game would read them, and write the frame as a picture — with no screen.
@@ -51,7 +58,9 @@ fn picture(game: game::Game, shot: text) {
   if (env_variable("TW_CREDITS") ?? "") != "" {
     game::draw_credits(game);
   } else {
-    game::start_level(game, (env_variable("TW_LEVEL") ?? "0") as integer ?? 0);
+    // TW_LEVEL plays one level of order.json on its own; without it the world, from its start.
+    lv = env_variable("TW_LEVEL") ?? "";
+    if lv != "" { game::start_level(game, lv as integer ?? 0); } else if !game::start_world(game, start_of(game)) { game::start_level(game, 0); }
     play_moves(game, env_variable("TW_MOVES") ?? "");
     edits = env_variable("TW_EDIT") ?? "";
     if edits != "" {
@@ -211,7 +220,7 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  game::start_level(game, 0);
+  if !game::start_world(game, start_of(game)) { game::start_level(game, 0); }
   view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
   // The editor's widgets, where the screen has a pointer: drawn over the frame at half the game's
   // zoom, so their 8-unit letters are as large on any screen as the game's own.

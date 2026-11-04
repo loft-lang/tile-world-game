@@ -1,7 +1,7 @@
 {
   "name": "the torch room",
   "camera": "follow",
-  "legend": { ".": "floor", "#": "wall" },
+  "legend": { "d": "open_door", ".": "floor", "#": "wall" },
   "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [
@@ -9,7 +9,7 @@
       "#..............#",
       "#..............#",
       "#..............#",
-      "################"
+      "#d##############"
     ] },
     { "cx": 0, "cy": 0, "z": 1, "rows": [
       "################",
@@ -30,6 +30,12 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "doors": [
+    { "at": [1, 4, 0], "to": "demo", "door": "the_torch_room" }
+  ],
+  "labels": [
+    { "at": [8, 1, 0], "text": "X PUT DOWN" }
+  ],
   "start": [1, 2, 0],
   "goal": { "type": "chests" }
 }
