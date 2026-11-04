@@ -96,7 +96,8 @@ and take no sides.  They will not protect the town either; the local lord is blo
 
 <a id="st-future"></a>**The village's future** (owner, 2026-11-04): the village has a future in all scenarios; eventually it
 will be rebuilt anyway.  But that is not a very helpful future for the current villagers, who might
-not survive until then.
+not survive until then.  Any of the lords in the ownership dispute (@ST-Court, @ST-Lady,
+@ST-Neighbour) can eventually drive the cyclopes away (owner, 2026-11-04).
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
