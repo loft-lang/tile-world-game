@@ -31,7 +31,8 @@ fn main() {
   test_a_fountain_saves_like_a_well();
   test_the_cave_in_with_the_game();
   test_the_alchemist_takes_from_the_sack();
-  println("checks/game.loft: 18 passed");
+  test_a_torch_at_night_is_seen_going_in();
+  println("checks/game.loft: 19 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -213,7 +214,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 20 && len(g.file.labels) == 21, "twenty houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 21 && len(g.file.labels) == 22, "twenty-one houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -461,4 +462,31 @@ fn test_the_alchemist_takes_from_the_sack() {
   _ = game::update(g, 100, 100);
   assert(rules::sack_room(g.world).0 == 1 && g.world.hero_item == rules::th(g.world, "pick"), "the herbs taken, the mushroom and the pick kept: {rules::sack_room(g.world).0}");
   assert(rules::thing_name(g.world.k, tile_world::top(g.world.w, 8, 4, 0)) == "health_potion", "a potion at the hero's feet");
+}
+
+// The night street (C2b) through the game: into the house in the dark — nothing known; out, the
+// torch taken up, in again — seen: `snooped` is known.  Out, and up to the neighbour: they start
+// at what they saw.
+fn test_a_torch_at_night_is_seen_going_in() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_night_street"), "the night street opens");
+  rules::put_hero(g.world, 8, 4, 0);
+  game::move(g, 0, -1, false);
+  assert(g.place == "the_night_house" && !rules::knows(g.world, "snooped"), "in, in the dark, unseen: {at(g)}");
+  game::move(g, 0, 1, false);
+  assert(g.place == "the_night_street", "out again: {at(g)}");
+  g.world.hero_item = rules::th(g.world, "burning_torch");
+  g.world.hero_until = g.world.now + 600000;
+  rules::put_hero(g.world, 8, 4, 0);
+  game::move(g, 0, -1, false);
+  assert(g.place == "the_night_house" && rules::knows(g.world, "snooped"), "in with a torch: seen, known");
+  game::move(g, 0, 1, false);
+  e = -1;
+  for i in 0..len(g.world.enemies) { if g.world.enemies[i].kind == "neighbour" { e = i; } }
+  n = g.world.enemies[e]!;
+  rules::put_hero(g.world, n.x, n.y - 2, 0);
+  game::move(g, 0, 1, false);
+  assert(talk::current(g.world, e) == 1, "they start at what they saw: line {talk::current(g.world, e)}");
 }

@@ -359,6 +359,8 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   if i < 0 || i >= len(g.file.doors) { return false; }
   to = g.file.doors[i]!.to;
   there = g.file.doors[i]!.door;
+  // Into someone's home while seen (BUILD.md C2b): snooping, and it is known.
+  if g.file.doors[i]!.home && rules::seen_by_people(g.world) { rules::learn(g.world, "snooped"); }
   m = levels::load_with(file("{g.dir}/levels/{to}.json").content() ?? "", g.kinds, g.mats);
   if !m { return false; }
   // Leaving the place is walking away from whoever is talking.

@@ -63,7 +63,9 @@ pub struct Door {
   pub z: integer,
   pub to: text,
   pub door: text,
-  pub out: text
+  pub out: text,
+  /// Someone's home (BUILD.md C2b): going in while seen is snooping (rules::seen_by_people).
+  pub home: boolean = false
 }
 
 /// Text written on the map, centred on cell (x, y) of layer z.
@@ -245,7 +247,8 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     to = str(d.field("to"), "");
     doors += [Door {
       name: str(d.field("name"), to), x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0),
-      to: to, door: str(d.field("door"), ""), out: str(d.field("out"), "")
+      to: to, door: str(d.field("door"), ""), out: str(d.field("out"), ""),
+      home: d.field("home").as_bool() ?? false
     }];
   }
   labels: vector<Label> = [];
@@ -542,6 +545,7 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       out += "    {{ \"at\": [{d.x}, {d.y}, {d.z}], \"to\": {quoted(d.to)}, \"door\": {quoted(d.door)}";
       if d.name != d.to { out += ", \"name\": {quoted(d.name)}"; }
       if d.out != "" { out += ", \"out\": {quoted(d.out)}"; }
+      if d.home { out += ", \"home\": true"; }
       out += " }}";
       first = false;
     }

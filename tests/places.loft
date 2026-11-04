@@ -207,3 +207,19 @@ fn test_the_sack_goes_through_a_door() {
   rules::carry_in(v, rules::carried(w));
   assert(v.shoulder == rules::th(v, "sack") && rules::sack_room(v) == (2, 6), "worn, holding two");
 }
+
+// The night street (C2b): covered, so no daylight — only flames light it.  At the house's door
+// (8, 3) in the dark the neighbour, standing about (8, 7), 3 to 5 cells off, does not see the hero;
+// with a burning torch in hand it does: light gives the hero away.  The door is someone's home.
+fn test_a_torch_at_night_gives_the_hero_away() {
+  lf = place("the_night_street");
+  w = lf.level;
+  rules::tick(w, 0);
+  rules::put_hero(w, 8, 3, 0);
+  assert(!rules::hero_lit(w) && !rules::seen_by_people(w), "in the dark at the door: unseen");
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.now + 600000;
+  assert(rules::hero_lit(w) && rules::seen_by_people(w), "with a torch: seen");
+  d = levels::door_named(lf, "the_night_house");
+  assert(d >= 0 && (lf.doors[d]!.home), "the house is someone's home");
+}

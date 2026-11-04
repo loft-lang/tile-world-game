@@ -104,7 +104,10 @@ pub struct Talk {
   /// What they say to one walking on by, in turn: lines with no choices in them.
   pub barks: vector<Line> = [],
   pub lines: vector<Line>,
-  pub gifts: vector<Gift>
+  pub gifts: vector<Gift>,
+  /// Where a talk starts once a fact is known (BUILD.md C2b): the first known one's line, before
+  /// where it would start otherwise.
+  pub facts: vector<Gift> = []
 }
 
 fn word(v: const JsonValue, name: text) -> text {
@@ -195,13 +198,19 @@ pub fn from_json(v: const JsonValue) -> vector<Talk> {
       go = word(gv, item);
       gifts += [Gift { item: item, go_id: go, go: line_named(lines, go) }];
     }
+    facts: vector<Gift> = [];
+    fv = t.field("facts");
+    for f in fv.keys() {
+      go = word(fv, f);
+      facts += [Gift { item: f, go_id: go, go: line_named(lines, go) }];
+    }
     idle = bumps_of(t.field("bump"), own);
     barks: vector<Line> = [];
     bk = t.field("barks");
     for j in 0..bk.len() { barks += [line_from(bk.item(j), own)]; }
     for q in 0..len(idle) { idle[q].go = line_named(lines, idle[q].go_id); }
     out += [Talk { x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0), name: own,
-                   with: with, bumps: idle, barks: barks, lines: lines, gifts: gifts }];
+                   with: with, bumps: idle, barks: barks, lines: lines, gifts: gifts, facts: facts }];
   }
   out
 }
@@ -288,6 +297,16 @@ pub fn json(ts: const vector<Talk>) -> text {
         out += if gf { " " } else { ", " };
         out += "{quoted(g.item)}: {quoted(g.go_id)}";
         gf = false;
+      }
+      out += " }}";
+    }
+    if len(t.facts) > 0 {
+      out += ", \"facts\": {{";
+      ff = true;
+      for f in t.facts {
+        out += if ff { " " } else { ", " };
+        out += "{quoted(f.item)}: {quoted(f.go_id)}";
+        ff = false;
       }
       out += " }}";
     }
@@ -384,6 +403,12 @@ fn after(t: const Talk, n: integer) -> integer {
   if !line || line.end { return -1; }
   if line.next >= 0 { return line.next; }
   if n + 1 < len(t.lines) { n + 1 } else { -1 }
+}
+
+// Where a talk starts: the line of the first fact of `t` that is known, else `usual`.
+fn start_of(t: const Talk, l: const rules::Level, usual: integer) -> integer {
+  for f in t.facts { if f.go >= 0 && rules::knows(l, f.item) { return f.go; } }
+  usual
 }
 
 // The gift of `t` for the thing the hero holds, its line; -1 for none.
@@ -527,7 +552,7 @@ pub fn step(t: const Talk, l: rules::Level, i: integer) -> boolean {
     if close(t, l, i) && !e.talk_heard {
       l.enemies[i].talk_heard = true;
       l.enemies[i].barked = true;
-      begin(t, l, i, e.talk_start);
+      begin(t, l, i, start_of(t, l, e.talk_start));
       return true;
     }
     // Walking on by within reach: a bark, the next in turn, once each time.

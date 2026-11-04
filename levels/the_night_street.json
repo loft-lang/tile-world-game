@@ -1,0 +1,61 @@
+{
+  "name": "the night street",
+  "camera": "follow",
+  "legend": { "#": "wall", "d": "open_door", ",": "grass", ":": "path", "P": "pine", "R": "roof", "H": "wood_wall", "E": "house_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "PPPPPPPPPPPPPPPPP",
+      "P,,,,,RRRRR,,,,,P",
+      "P,,,,,RRRRR,,,,,P",
+      "P,,,,,HHEHH,,,,,P",
+      "P,,,,,,,:,,,,,,,P",
+      "P,,,,,,,:,,,,,,,P",
+      "P,,,,,,,:::::::,P",
+      "P,,,,,,,,,,,,,:,P",
+      "P,,,,,,,,,,,,,:,P",
+      "P,,,,,,,,,,,,,:,P",
+      "PPPPPPPPPPPPPPdPP"
+    ] },
+    { "cx": 0, "cy": 0, "z": 1, "rows": [
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################",
+      "#################"
+    ] }
+  ],
+  "things": [
+    { "at": [3, 8, 0], "stack": ["burning_torch"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["neighbour", 8, 7, 0] ],
+  "intent": { "seed": 37, "rooms": [ ], "corridors": [ ], "grounds": [
+    { "at": [0, 0], "size": [17, 11], "z": 0, "as": "pine" },
+    { "at": [1, 1], "size": [15, 9], "z": 0, "as": "grass" },
+    { "at": [0, 0], "size": [17, 11], "z": 1, "as": "wall" } ], "trails": [
+    { "points": [[14, 10], [14, 6], [8, 6], [8, 4]], "z": 0, "as": "path" },
+    { "points": [[14, 10]], "z": 0, "as": "open_door" } ], "houses": [
+    { "at": [6, 1], "size": [5, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" } ], "items": [
+    { "at": [3, 8], "z": 0, "stack": ["burning_torch"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [14, 10, 0], "to": "demo", "door": "the_night_street" },
+    { "at": [8, 3, 0], "to": "the_night_house", "door": "the_night_street", "home": true }
+  ],
+  "talks": [
+    { "at": [8, 7, 0], "name": "neighbour", "barks": [ "EVENING." ], "facts": { "snooped": "seen" }, "lines": [
+        { "neighbour": "A QUIET NIGHT.", "end": true },
+        { "id": "seen", "neighbour": "I SAW YOU GO IN THERE, TORCH AND ALL.", "end": true } ] }
+  ],
+  "start": [14, 9, 0],
+  "goal": { "type": "" }
+}

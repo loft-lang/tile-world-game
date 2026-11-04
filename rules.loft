@@ -71,6 +71,10 @@ pub const POTION_MS = 1500;
 /// down the tunnel beyond it for COLLAPSE_CELLS cells; a barricade beside a lit barrel burns for
 /// BARRICADE_BURN_MS and is gone.
 pub const COLLAPSE_CELLS = 3;
+
+/// How far people see the hero (BUILD.md C2b; proposed): within SEE_CELLS in sight when it is lit
+/// — daylight, a flame near, its own torch — and within 2 in the dark, as the Kharn do.
+pub const SEE_CELLS = 6;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -637,6 +641,9 @@ pub struct Level {
   /// sack, never both (0: none); what the sack holds, foraged (it keeps it when put down).
   pub shoulder: integer = 0,
   pub sack: vector<integer> = [],
+  /// What is known (BUILD.md C2, C2b): facts the hero's doings set — `snooped`, seen going into
+  /// someone's home — read by the people's talks; they go along through doors.
+  pub facts: vector<text> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -1578,9 +1585,10 @@ pub struct Carried {
   pub heal_left: integer = 0,
   pub spirit_left: integer = 0,
   pub heal_in: integer = 0,
-  /// What is on the shoulders, and what the sack holds.
+  /// What is on the shoulders, and what the sack holds; what is known.
   pub shoulder: integer = 0,
-  pub sack: vector<integer> = []
+  pub sack: vector<integer> = [],
+  pub facts: vector<text> = []
 }
 
 /// What the hero of `l` takes through a door.
@@ -1593,7 +1601,7 @@ pub fn carried(l: const Level) -> Carried {
     blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 },
     heal_left: l.heal_left, spirit_left: l.spirit_left,
     heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 },
-    shoulder: l.shoulder, sack: l.sack
+    shoulder: l.shoulder, sack: l.sack, facts: l.facts
   }
 }
 
@@ -1616,6 +1624,7 @@ pub fn carry_in(l: Level, c: const Carried) {
   l.heal_due = if c.heal_in > 0 { l.now + c.heal_in } else { 0 };
   l.shoulder = c.shoulder;
   l.sack = c.sack;
+  l.facts = c.facts;
   l.queued = false;
   l.held_by = 0;
   l.struggles = 0;
@@ -1838,6 +1847,33 @@ pub fn take_from_sack(l: Level, name: text) -> integer {
   }
   l.sack = kept;
   n
+}
+
+/// Is fact `f` known?
+pub fn knows(l: const Level, f: text) -> boolean {
+  for k in l.facts { if k == f { return true; } }
+  false
+}
+
+/// Fact `f` becomes known (once).
+pub fn learn(l: Level, f: text) {
+  if !knows(l, f) { l.facts += [f]; }
+}
+
+/// Does anyone who talks see the hero now (BUILD.md C2b)?  One on its layer within SEE_CELLS in a
+/// straight line of sight when the hero is lit, within 2 when it is dark: light gives the hero
+/// away, as it does to the Kharn (owner).
+pub fn seen_by_people(l: const Level) -> boolean {
+  lit = hero_lit(l);
+  for e in l.enemies {
+    if e.z != l.hero_z || !enemy_props(l, e.kind).talks { continue; }
+    n = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+    if n <= (if lit { SEE_CELLS } else { 2 })
+        && tile_world::line_of_sight(l.w, e.x, e.y, l.hero_x, l.hero_y, e.z) {
+      return true;
+    }
+  }
+  false
 }
 
 /// Is this thing a potion: strength (boost), health (heal) or spirit?
