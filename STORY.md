@@ -438,7 +438,10 @@ there are to hunt, and run out of food (@ST-Residents).  Between the start and t
 a phase where the cyclopes get nervous and start to scout outside the mine (owner, 2026-11-04):
 the clock, read from the world.
 **Well defended** is enough capable people together behind a barricade that has been built, of
-straight beams as for the flotilla, at the village entrance (owner, 2026-11-04); so the
+straight beams as for the flotilla, at the village entrance (owner, 2026-11-04).  The town can
+build its barricade itself; it takes time, and an axe (owner, 2026-11-04).  When the Wardens
+understand the danger they are in, and the right thing to do, the hands for the barricade more
+than double (owner, 2026-11-04; @ST-Warden); so the
 Wardens have to move too, for they are in danger as well (owner, 2026-11-04; @ST-Warden).
 
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not

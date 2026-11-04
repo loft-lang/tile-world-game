@@ -121,6 +121,9 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   and 1 otherwise, any held item reaching 3 tiles against the one of bare hands), the Kharn's
   nervous scouting before the attack, the walk from the cave-in to their tunnels, and every place
   having several paths, partly out of sight: sneaking past nearly everything, harder near a group.
+  Then the barricade: beams at the village entrance, built by the town itself with time and an axe,
+  the hands more than doubled once the Wardens understand their danger; the ◇ picks in
+  LOCATIONS.md stand as the logical defaults (owner's leave).
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

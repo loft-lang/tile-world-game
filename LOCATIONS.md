@@ -47,8 +47,8 @@ owner's outline fixes.
   they learn of it (owner); the smithy is the exception, its reopening applauded (owner);
   the smithy's missing parts ◇; the material for the barricade: straight beams, as for the
   flotilla, so the beams that cross the lake also close the village entrance (owner, 2026-11-04;
-  @ST-Climax, @GM-Flotilla).  The barricade growing at the entrance shows how ready the village
-  is ◇.
+  @ST-Climax, @GM-Flotilla).  The town can build the barricade itself; it takes time, and an axe
+  (owner, 2026-11-04).  The barricade growing at the entrance shows how ready the village is ◇.
 
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 
@@ -58,7 +58,9 @@ owner's outline fixes.
   ore was carried out by, with the mine's rails running through the camp to the village (owner).
 - **Learned:** the official side of the court (Voss, sergeant to sergeant); that the Wardens are in
   danger too.
-- **Look out for:** a fellow sergeant's respect, the key to moving them before the climax.
+- **Look out for:** a fellow sergeant's respect, the key to moving them before the climax: once the
+  Wardens understand the danger they are in and the right thing to do, the hands for the barricade
+  more than double (owner, 2026-11-04).
 
 ## 3. The hidden path and the brook (@ST-YoungVillager)
 
