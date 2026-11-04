@@ -27,7 +27,8 @@ fn main() {
   test_floor_text_is_walked_over();
   test_walking_up_to_the_elder();
   test_the_right_hand_acts();
-  println("checks/game.loft: 14 passed");
+  test_a_potion_is_carried_and_drunk_with_the_keys();
+  println("checks/game.loft: 15 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -362,4 +363,36 @@ fn test_the_right_hand_acts() {
     tap(g, keys.2, 50000, 100);
     assert(g.world.hero_item == 0, "{keys.2}: put down");
   }
+}
+
+// A potion in the game (owner): in the cyclops den, empty-handed, the hero walks onto the potion on
+// (1, 16) and picks it up; L puts it down; walked off and on again it is picked up again; J drinks
+// it — nothing at once, from 2.  Out through the den's door into the village before the first
+// point: the healing goes along, 3 there 1500 ms on, 4 at 3000, 5 at 4500.
+fn test_a_potion_is_carried_and_drunk_with_the_keys() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_cyclops_den"), "the den opens");
+  potion = rules::th(g.world, "health_potion");
+  game::move(g, -1, 0, false);
+  game::move(g, -1, 0, false);
+  assert(g.world.hero_x == 1 && g.world.hero_item == potion && g.world.drunk == 0, "picked up: {at(g)}");
+  tap(g, 108, 1000, 100);
+  assert(g.world.hero_item == 0 && tile_world::top(g.world.w, 1, 16, 0) == potion, "L: put down");
+  game::move(g, 1, 0, false);
+  game::move(g, -1, 0, false);
+  assert(g.world.hero_item == potion, "picked up again");
+  g.world.health = 2;
+  tap(g, 106, 2000, 100);
+  assert(g.world.hero_item == 0 && g.world.drunk == 1 && g.world.health == 2, "J: drunk, nothing at once: {g.world.health}");
+  game::move(g, 1, 0, false);
+  game::move(g, 1, 0, false);
+  game::move(g, 0, 1, false);
+  assert(g.place == "demo" && g.world.health == 2, "out in the village, still 2: {at(g)} {g.world.health}");
+  _ = game::update(g, 1500, 3000);
+  assert(g.world.health == 3, "1500 on: 3: {g.world.health}");
+  _ = game::update(g, 1500, 4500);
+  _ = game::update(g, 1500, 6000);
+  assert(g.world.health == 5 && g.world.heal_due == 0, "4500 on: 5, done: {g.world.health}");
 }

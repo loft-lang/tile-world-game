@@ -261,8 +261,9 @@ fn test_a_train_is_pulled_up_to_the_strength() {
   assert(rules::train(v, 3, 0, 0, 1, 0) == 3, "the train stayed\n{show(v, 10)}");
 }
 
-// A green potion, used by walking onto it, adds 2 to both strengths for 60000 ms of the world's
-// clock: four carts pushed and three pulled while it lasts, and not a millisecond after.
+// A green potion, picked up by walking onto it empty-handed and drunk with the swing key (owner),
+// adds 2 to both strengths at once, for 60000 ms of the world's clock: four carts pushed and three
+// pulled while it lasts, and not a millisecond after.
 fn test_a_potion_strengthens_for_a_minute() {
   w = row(12);
   tile_world::fill(w.w, 2, 0, 10, 0, 0, rules::tr(w, "rail"));
@@ -274,7 +275,8 @@ fn test_a_potion_strengthens_for_a_minute() {
   rules::put_hero(w, 0, 0, 0);
   rules::tick(w, 1000);
   assert(rules::walk(w, 1, 0) == rules::Step.Walked, "onto the potion");
-  assert(tile_world::top(w.w, 1, 0, 0) == 0 && w.boost_until == 61000, "used up, strong until 61000");
+  assert(tile_world::top(w.w, 1, 0, 0) == 0 && w.hero_item == rules::th(w, "potion") && w.boost_until == 0, "picked up, not drunk");
+  assert(rules::swing(w) == rules::Step.Drank && w.hero_item == 0 && w.boost_until == 61000, "drunk: strong until 61000");
   assert(rules::push_strength(w) == 5 && rules::pull_strength(w) == 4, "5 and 4");
   assert(rules::walk(w, 1, 0) == rules::Step.Walked, "onto the rail at 2");
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "four carts pushed");

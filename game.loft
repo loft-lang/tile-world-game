@@ -716,10 +716,10 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   oy = w.hero_y;
   oz = w.hero_z;
   oh = w.hero_h;
-  health = w.health + w.spirit;
   money = w.money;
+  drunk = w.drunk;
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
-  if w.health + w.spirit > health { sound(g, "potion"); }
+  if w.drunk > drunk { sound(g, "potion"); }
   if w.money > money { sound(g, "coins"); }
   animate(g, step, ox, oy, oz, oh, dx, dy);
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
@@ -800,6 +800,11 @@ pub fn swing(g: Game) {
     return;
   }
   step = rules::swing(g.world);
+  if step == rules::Step.Drank {
+    g.moves += 1;
+    sound(g, "potion");
+    return;
+  }
   if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     g.moves += 1;
     motion::swing(g.motion, g.world.now);
@@ -1166,7 +1171,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   // The swing (@GM-Combat): a bow shoots and a bomb is thrown on the press; a weapon swings when the
   // key is let go — held HEAVY_HOLD_MS or more, a heavy swing.
   if !g.won && g.keys.is_action_just_pressed("swing") {
-    if rules::armed_with_bow(g.world) || rules::is_bomb_held(g.world) {
+    if rules::armed_with_bow(g.world) || rules::is_bomb_held(g.world) || rules::is_potion_held(g.world) {
       swing(g);
       return true;
     }

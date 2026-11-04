@@ -197,3 +197,36 @@ fn test_the_order_of_the_enemies_does_not_matter() {
     }
   }
 }
+
+// Walk the hero to (x, y) at walking pace, row first then column.
+fn go_to(w: rules::Level, x: integer, y: integer) {
+  guard = 0;
+  while (w.hero_x != x || w.hero_y != y) && guard < 100 {
+    guard += 1;
+    if w.hero_y != y { _ = rules::walk(w, 0, sign(y - w.hero_y)); } else { _ = rules::walk(w, sign(x - w.hero_x), 0); }
+    rules::tick(w, 150);
+  }
+}
+
+// A potion by the door (the cyclops den has a health potion on (1, 16)) heals over time, never at
+// once (owner): the attacker ends the cyclops, struck to 4; walks back to the potion, the axe still
+// in hand, so it is drunk — nothing at once, 5 a 1500 ms on, 6 at 3000, the third point lost.
+fn test_a_potion_by_the_door_heals_after_the_fight() {
+  w = place("the_cyclops_den");
+  assert(tile_world::top(w.w, 1, 16, 0) == rules::th(w, "health_potion"), "the potion by the door");
+  o = play_in(w, "attacker", 20000, false);
+  assert(o.ended && w.health == 4 && tile_world::top(w.w, 1, 16, 0) != 0, "the fight over, struck to 4, the potion left: {w.health}");
+  go_to(w, 1, 15);
+  assert(w.drunk == 0, "not yet");
+  _ = rules::walk(w, 0, 1);
+  at = w.now;
+  assert(w.drunk == 1 && w.health == 4 && w.hero_item == rules::th(w, "axe"), "drunk with the axe in hand, nothing at once: {w.health}");
+  rules::tick(w, 1499);
+  assert(w.health == 4, "1499 on: still 4");
+  rules::tick(w, 1);
+  assert(w.health == 5, "1500 on: 5: {w.health}");
+  rules::tick(w, 1500);
+  assert(w.health == 6, "3000 on: 6: {w.health}");
+  rules::tick(w, 1500);
+  assert(w.health == 6 && w.heal_due == 0 && w.now == at + 4500, "4500 on: 6, done");
+}

@@ -37,6 +37,14 @@ This is what the game built on tile_world should be.
   (`tests/potions.loft`): the red health potion (Kenney's 115) restores 3 up to the start's 6; the
   blue spirit potion (116) gives 2 temporary health — every hurt (a bite, a blast, a fall, a cart)
   takes it first (`rules::harm`), and it never fades.  The status line shows `6+2`.
+  **A potion is carried, and heals over time** (owner, 2026-11-04): walked over empty-handed it
+  is picked up, to be put down (L) where a fight may come or drunk later (J); walked over with the
+  hands full it is drunk.  Never an instant effect on a fight: a drunk potion's points come one
+  every 1500 ms (proposed, `rules::POTION_MS`) — a health potion's 3 over 4.5 s, never above 6, a
+  spirit potion's 2 the same way; a second potion adds its points, not its speed, and healing
+  still to come goes along through a door.  The green strength potion is carried the same way but
+  is strength, not healing: it acts at once.  Tried in the test world: a health potion by the
+  cyclops den's door (`tests/fights.loft`, `checks/game.loft` with the keys).
   A blast pushes the hero over a ledge, and the fall's cost adds to the blast's (owner): a rule
   that stays, and one the level designer keeps in mind — a bomb, or a cart at speed, beside a
   ledge is a level's choice to make deadly or not.
@@ -322,8 +330,8 @@ on water, and things pushed or blown into it are lost.
   - The base strength pushes 3 carts and pulls 2.
   - A train that cannot move — too heavy, at the rails' end, held by a stone — is climbed: the
     hero steps onto its first cart (height 1), so a stuck train is a walkway, not a wall.
-  - A green potion gives +2 to both for 60 s of the world clock. It is used by walking over it
-    (slice 1).
+  - A green potion gives +2 to both for 60 s of the world clock, at once.  Walked over with the
+    hands full it is drunk; empty-handed it is picked up, and J drinks it (owner).
 - **Tracks and rolling carts.**  The owner's rules (2026-10-30), and the proposals not yet
   confirmed marked so.  Built, step 1 (`tests/tracks.loft`): tracks from the rails' joins (each
   rail cell joins the rail beside it; painted pieces, which keep parallel tracks apart, come with

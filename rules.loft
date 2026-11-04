@@ -62,6 +62,10 @@ pub const VOID = 0;
 /// swing is ready again after HEAVY_RECOVER_MS; a light blow following the last within its
 /// recovery and CHAIN_GAP_MS more is the chain's next, and the third ends it with CHAIN_RECOVER_MS.
 pub const PARRY_MS = 150;
+
+/// A potion heals over time (owner: no instant effect on a fight): a point every POTION_MS
+/// (proposed, to tune in play) — a health potion's 3 over 4.5 s.
+pub const POTION_MS = 1500;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
 pub const CHAIN_GAP_MS = 200;
@@ -594,6 +598,12 @@ pub struct Level {
   pub winds: integer = 0,
   pub misses: integer = 0,
   pub parries: integer = 0,
+  /// A potion's healing comes over time (owner): the health and the spirit still to come, a point
+  /// of each every POTION_MS, the next at heal_due (0: none coming); `drunk` counts potions drunk.
+  pub heal_left: integer = 0,
+  pub spirit_left: integer = 0,
+  pub heal_due: integer = 0,
+  pub drunk: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -742,6 +752,8 @@ pub enum Step {
   Swung,
   /// The hero threw the bomb it held.
   Thrown,
+  /// The hero drank a potion: the one it held, or one walked over with its hands full.
+  Drank,
   /// The hero struck an enemy (walking into it, or swinging at it).
   Attacked,
   /// The hero walked into one that talks (`talk_to`, its id): the game says what it says.
@@ -978,6 +990,13 @@ pub fn armed(l: const Level) -> boolean {
 /// Without a weapon, or with no health, nothing happens (Blocked).  The hero does not move.
 pub fn swing(l: Level) -> Step {
   l.queued = false;
+  // A potion held is drunk (owner), the hands empty again.
+  if alive(l) && is_potion_held(l) {
+    t = l.hero_item;
+    l.hero_item = 0;
+    drink(l, t);
+    return Step.Drank;
+  }
   if !alive(l) || !armed(l) { return Step.Blocked; }
   hero_blow(l, l.face_x, l.face_y, true)
 }
@@ -1507,7 +1526,11 @@ pub struct Carried {
   /// The held flame's time left (-1: none held), a boost's and a blow's recovery's (0: none).
   pub flame_left: integer,
   pub boost_left: integer,
-  pub blow_left: integer
+  pub blow_left: integer,
+  /// A potion's healing still to come: health, spirit, and the next point's time left (0: none).
+  pub heal_left: integer = 0,
+  pub spirit_left: integer = 0,
+  pub heal_in: integer = 0
 }
 
 /// What the hero of `l` takes through a door.
@@ -1517,7 +1540,9 @@ pub fn carried(l: const Level) -> Carried {
     face_x: l.face_x, face_y: l.face_y,
     flame_left: if l.hero_until == 0 { -1 } else { l.hero_until - l.now },
     boost_left: if l.boost_until > l.now { l.boost_until - l.now } else { 0 },
-    blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 }
+    blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 },
+    heal_left: l.heal_left, spirit_left: l.spirit_left,
+    heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 }
   }
 }
 
@@ -1535,6 +1560,9 @@ pub fn carry_in(l: Level, c: const Carried) {
   l.hero_until = if c.flame_left < 0 { 0 } else if l.now + c.flame_left > 0 { l.now + c.flame_left } else { 1 };
   l.boost_until = if c.boost_left > 0 { l.now + c.boost_left } else { 0 };
   l.blow_until = if c.blow_left > 0 { l.now + c.blow_left } else { 0 };
+  l.heal_left = c.heal_left;
+  l.spirit_left = c.spirit_left;
+  l.heal_due = if c.heal_in > 0 { l.now + c.heal_in } else { 0 };
   l.queued = false;
   l.held_by = 0;
   l.struggles = 0;
@@ -1700,20 +1728,16 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
   // An item on the floor, or resting on the big thing the hero stands on, is met.
   t = tile_world::top(l.w, x, y, z);
   effect = walk_on(l, t);
-  if effect == "boost" {
+  if is_potion(l, t) {
+    // A potion (owner): with empty hands it is picked up, to be put down where it is wanted or
+    // drunk later (`swing`); with the hands full it is drunk.
     _ = tile_world::take(l.w, x, y, z);
-    l.boost_until = l.now + l.k.boost_ms;
-  } else if effect == "heal" {
-    // A health potion: back up to the start's health, `heals` at most.
-    _ = tile_world::take(l.w, x, y, z);
-    p = l.k.things[t];
-    l.health += if p { p.heals } else { 0 };
-    if l.health > l.k.health { l.health = l.k.health; }
-  } else if effect == "spirit" {
-    // A spirit potion: temporary health, above the start's.
-    _ = tile_world::take(l.w, x, y, z);
-    p = l.k.things[t];
-    l.spirit += if p { p.heals } else { 0 };
+    if l.hero_item == 0 {
+      l.hero_item = t;
+      l.hero_until = 0;
+    } else {
+      drink(l, t);
+    }
   } else if effect == "take" {
     held = l.hero_item;
     held_until = l.hero_until;
@@ -1724,6 +1748,55 @@ fn arrive(l: Level, x: integer, y: integer, z: integer) {
       tile_world::place(l.w, x, y, z, held);
       set_down(l, held, x, y, z, held_until);
     }
+  }
+}
+
+/// Is this thing a potion: strength (boost), health (heal) or spirit?
+pub fn is_potion(l: const Level, thing: integer) -> boolean {
+  e = walk_on(l, thing);
+  e == "boost" || e == "heal" || e == "spirit"
+}
+
+/// Does the hero hold a potion (drunk with the swing key, not swung)?
+pub fn is_potion_held(l: const Level) -> boolean {
+  l.hero_item != 0 && is_potion(l, l.hero_item)
+}
+
+// The hero drinks potion `t`.  Strength comes at once; health and spirit come over time, a point
+// each every POTION_MS from now (owner) — health never above the start's, spirit above it.
+fn drink(l: Level, t: integer) {
+  l.drunk += 1;
+  e = walk_on(l, t);
+  p = l.k.things[t];
+  n = if p { p.heals } else { 0 };
+  if e == "boost" {
+    l.boost_until = l.now + l.k.boost_ms;
+    return;
+  }
+  if e == "heal" { l.heal_left += n; } else { l.spirit_left += n; }
+  if l.heal_due <= 0 { l.heal_due = l.now + POTION_MS; }
+}
+
+// The healing due by now, a point at a time.
+fn heal_due(l: Level) {
+  guard = 0;
+  while l.heal_due > 0 && l.heal_due <= l.now && guard < 1000 {
+    guard += 1;
+    if !alive(l) {
+      l.heal_left = 0;
+      l.spirit_left = 0;
+      l.heal_due = 0;
+      return;
+    }
+    if l.heal_left > 0 {
+      l.heal_left -= 1;
+      if l.health < l.k.health { l.health += 1; }
+    }
+    if l.spirit_left > 0 {
+      l.spirit_left -= 1;
+      l.spirit += 1;
+    }
+    l.heal_due = if l.heal_left > 0 || l.spirit_left > 0 { l.heal_due + POTION_MS } else { 0 };
   }
 }
 
@@ -1775,6 +1848,7 @@ fn step_world(l: Level) {
   bombs_due(l);
   arrows_due(l);
   queued_blow(l);
+  heal_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -1789,6 +1863,7 @@ fn next_due(l: const Level) -> integer {
   for e in l.enemies { if e.due > l.now && (t < 0 || e.due < t) { t = e.due; } }
   for f in l.flames { if f.until > l.now && (t < 0 || f.until < t) { t = f.until; } }
   if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
+  if l.heal_due > l.now && (t < 0 || l.heal_due < t) { t = l.heal_due; }
   if l.queued && l.blow_until > l.now && (t < 0 || l.blow_until < t) { t = l.blow_until; }
   t
 }
@@ -2458,7 +2533,7 @@ pub fn play(l: Level, moves: text) -> integer {
       tick(l, t[1..] as integer ?? 0);
       continue;
     }
-    // `f`: use what the hero holds — shoot a bow, throw a bomb, swing a weapon.
+    // `f`: use what the hero holds — shoot a bow, throw a bomb, drink a potion, swing a weapon.
     if t == "f" {
       st = if armed_with_bow(l) { shoot(l) } else if is_bomb(l, l.hero_item) { throw(l) } else { swing(l) };
       if st != Step.Blocked { done += 1; }

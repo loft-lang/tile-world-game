@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Jurjen Stellingwerff
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
-// Potions and money (DESIGN.md § The principle, § Goals): a health potion walked over restores 3
-// health, up to the start's 6; a spirit potion gives 2 temporary health above it, lost first when
-// the hero is hurt — by a bite, a blast or a fall — and never fading; a chest opened gives its money
-// (10) with its point.
+// Potions and money (DESIGN.md § The principle, § Goals): a potion walked over with empty hands is
+// picked up, with the hands full drunk; held, the swing key drinks it (owner).  It heals over time,
+// never at once (owner): a point every 1500 ms — a health potion 3, up to the start's 6; a spirit
+// potion 2 temporary health above it, lost first when the hero is hurt — by a bite, a blast or a
+// fall — and never fading.  A chest opened gives its money (10) with its point.
 use tile_world;
 use rules;
 
@@ -25,25 +26,113 @@ fn main() {
   assert(w.health == 6 && w.spirit == 0 && w.money == 0, "a fresh hero");
 }
 
-// From 2, a health potion gives 3: 5; from 5, only up to 6.
-fn test_a_health_potion_restores_up_to_the_start() {
-  w = row(4);
-  w.health = 2;
-  put(w, 1, "health_potion");
-  put(w, 2, "health_potion");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.health == 5, "2 + 3: {w.health}");
-  _ = rules::walk(w, 1, 0);
-  assert(w.health == 6 && tile_world::top(w.w, 2, 0, 0) == 0, "capped at 6: {w.health}");
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
 }
 
-// A spirit potion gives 2 above the 6; hurt 1 (a bite), the spirit goes first: 1 + 6; hurt 3 (a
-// blast beside the hero), the last spirit then 2 health: 0 + 4.  It never fades: an hour on, the
-// same.
+// Hands full — a stick held — a health potion walked over at 0 is drunk, and heals over time
+// (owner): nothing at once, a point at 1500, 3000 and 4500 — from 2 to 5 — then no more.
+fn test_a_health_potion_heals_over_time() {
+  w = row(4);
+  w.health = 2;
+  w.hero_item = rules::th(w, "stick");
+  put(w, 1, "health_potion");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.drunk == 1 && w.health == 2, "drunk, nothing yet: {w.health}");
+  assert(tile_world::top(w.w, 1, 0, 0) == 0 && w.hero_item == rules::th(w, "stick"), "gone, the stick still held");
+  until(w, 1499);
+  assert(w.health == 2, "1499: still 2");
+  until(w, 1500);
+  assert(w.health == 3, "1500: 3: {w.health}");
+  until(w, 3000);
+  assert(w.health == 4, "3000: 4: {w.health}");
+  until(w, 4500);
+  assert(w.health == 5 && w.heal_due == 0, "4500: 5, and done: {w.health}");
+  until(w, 10000);
+  assert(w.health == 5, "no more: {w.health}");
+}
+
+// Never above the start's 6: from 5, 6 at 1500; the two points after are lost.
+fn test_a_health_potion_stops_at_the_start() {
+  w = row(3);
+  w.health = 5;
+  w.hero_item = rules::th(w, "stick");
+  put(w, 1, "health_potion");
+  _ = rules::walk(w, 1, 0);
+  until(w, 1500);
+  assert(w.health == 6, "1500: 6");
+  until(w, 4500);
+  assert(w.health == 6 && w.heal_left == 0, "4500: still 6, nothing left to come");
+}
+
+// A second potion does not hurry the first: from 1, drunk at 0 and at 1000, the six points come
+// one every 1500 ms — 2 at 1500 .. 6 at 7500 — the sixth lost at 9000.
+fn test_two_potions_take_their_time() {
+  w = row(4);
+  w.health = 1;
+  w.hero_item = rules::th(w, "stick");
+  put(w, 1, "health_potion");
+  put(w, 2, "health_potion");
+  _ = rules::walk(w, 1, 0);
+  until(w, 1000);
+  _ = rules::walk(w, 1, 0);
+  until(w, 1500);
+  assert(w.health == 2, "1500: 2: {w.health}");
+  until(w, 6000);
+  assert(w.health == 5, "6000: 5: {w.health}");
+  until(w, 7500);
+  assert(w.health == 6, "7500: 6: {w.health}");
+  until(w, 9000);
+  assert(w.health == 6 && w.heal_due == 0, "9000: the last lost, done");
+}
+
+// Empty-handed, a potion walked over is picked up, not drunk (owner): carried, put down elsewhere,
+// picked up again; the swing key drinks it — the hands empty, the healing to come.
+fn test_a_potion_is_picked_up_put_down_and_drunk_later() {
+  w = row(4);
+  w.health = 3;
+  put(w, 1, "health_potion");
+  _ = rules::walk(w, 1, 0);
+  assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0 && tile_world::top(w.w, 1, 0, 0) == 0, "picked up");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::drop(w) == rules::Step.Placed && tile_world::top(w.w, 2, 0, 0) == rules::th(w, "health_potion"), "put down on 2");
+  _ = rules::walk(w, 1, 0);
+  _ = rules::walk(w, -1, 0);
+  assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0, "picked up again");
+  assert(rules::swing(w) == rules::Step.Drank && w.hero_item == 0 && w.drunk == 1 && w.health == 3, "drunk: nothing yet");
+  until(w, 1500);
+  assert(w.health == 4, "1500: 4: {w.health}");
+}
+
+// Healing still to come goes through a door: drunk at 0 from 2, 3 at 1500; the hero through a
+// door then into a place whose clock reads 0 — the next point comes 1500 on there.
+fn test_healing_to_come_goes_through_a_door() {
+  w = row(3);
+  w.health = 2;
+  w.hero_item = rules::th(w, "stick");
+  put(w, 1, "health_potion");
+  _ = rules::walk(w, 1, 0);
+  until(w, 1500);
+  c = rules::carried(w);
+  v = row(3);
+  rules::carry_in(v, c);
+  assert(v.health == 3 && v.heal_left == 2 && v.heal_due == 1500, "carried: 3, two to come, the next at 1500: {v.heal_due}");
+  until(v, 1500);
+  assert(v.health == 4, "there at 1500: 4: {v.health}");
+}
+
+// A spirit potion's 2 above the 6 come over time too: 1 at 1500, 2 at 3000.  Then it never fades:
+// an hour on, the same.  Hurt 1 (a bite), the spirit goes first: 1 + 6; hurt 3 (a blast beside the
+// hero), the last spirit then 2 health: 0 + 4.
 fn test_temporary_health_is_lost_first_and_never_fades() {
   w = row(3);
+  w.hero_item = rules::th(w, "stick");
   put(w, 1, "spirit_potion");
   _ = rules::walk(w, 1, 0);
-  assert(w.spirit == 2 && w.health == 6, "6 + 2");
+  assert(w.spirit == 0 && w.health == 6, "nothing at once");
+  until(w, 1500);
+  assert(w.spirit == 1, "1500: 1");
+  until(w, 3000);
+  assert(w.spirit == 2 && w.health == 6, "3000: 6 + 2");
   rules::tick(w, 3600000);
   assert(w.spirit == 2, "an hour on, still 2");
   rules::harm(w, 1);

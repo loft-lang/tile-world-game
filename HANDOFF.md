@@ -77,11 +77,15 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 - **Combat** (DESIGN.md @GM-Combat, BUILD.md B1b): built — wind-ups, dodge, block, parry and
   riposte, heavy, lunge, side blow, poise, the light chain, the early-swing back-off; ties follow
   the place against the hero (`rules::acts_before`), never a level's list order.  Keys: J/K/L/I
-  with WASD, Space/Shift/X/T with the arrows.  276 tests and 14 checks on both backends.
+  with WASD, Space/Shift/X/T with the arrows.  281 tests and 15 checks on both backends.
   Open: every number is proposed, to tune in play (owner); the hunter's hall is not played by the
   scripted players (the hunter keeps its distance and shoots); the dodger's first blow is no later
   than the attacker's (both open with a lunge on an enemy not yet winding up) — only the
   parrier's is.
+- **Potions** (owner): picked up empty-handed, drunk walked over with full hands or with J; heal
+  over time, a point every 1500 ms (health to 6, spirit above), carried through doors; strength
+  stays instant.  A health potion by the cyclops den's door.  `tests/potions.loft`,
+  `tests/fights.loft`, `checks/game.loft` (the keys, a door).
 - loft defect met: an unwrapped vector element freeing its owner (`repro/loft-element-frees-owner`),
   worked around; not yet reduced without the game's libraries, not filed.
 - The story game: DESIGN FIRST, no implementation yet.  The story is the OWNER's: STORY.md holds
