@@ -425,7 +425,13 @@ artefact given to Tamsin (@ST-Aide), for Lady Brigid, instead of taken to the lo
 <a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
 a different world behind.  Riding off to the young lord is one of the directions he can take
 (@ST-Court, owner 2026-11-04).  Perhaps there is an ending where he settles in the village, but that
-would be quite a special, hidden ending (owner, 2026-11-04).
+would be quite a special, hidden ending (owner, 2026-11-04).  The ending, too, is the player
+walking away: then the game gives the ending, which can hold conclusions the player did not know
+before (owner, 2026-11-04).  So the player may aid one of the contenders purely by mistake: the
+game does not make it unclear on purpose, it just does not hand the pieces over on a plate
+(owner, 2026-11-04).  Nothing is withheld: it is only not delivered in a cutscene.  The player can
+talk to everybody, and can aid anybody (owner, 2026-11-04).  After the game, probably a couple of
+stills: scenes of what follows, as it reaches the hero's ears (owner, 2026-11-04).
 
 *Further outline to come.*
 

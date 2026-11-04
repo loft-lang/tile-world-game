@@ -104,6 +104,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   homes (slimes, crabs, bigfoot on Stormcap, the founder's ghost), the places validated (the
   Wardens on the main path; everyone else has a way in of their own; the hidden path to the cave-in;
   three tunnel levels; the lift to all of them; the pick, the cart and the unloading places).
+  Then: TALKS.md (what people talk about); the court reaches the hero through Agnes and Voss;
+  Tamsin; the artefact (pieces in chests, a key; crafted by the hero, taught by Hollis, at the
+  smithy); the foreign mage behind the rumours; the attack when the Kharn's prey runs out; well
+  defended = capable people behind a built barricade; the ending given after the player walks
+  away, with stills of what follows; nothing withheld, only not delivered in a cutscene.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 
