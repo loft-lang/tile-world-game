@@ -75,6 +75,75 @@ machines to be entered.
 <a id="gm-flotilla"></a>**The flotilla** (owner, 2026-11-04): wood that can be pulled together into a
 flotilla to cross an underground lake.
 
+**Proposed rules, to be ruled by the owner** (each built from rules that exist; not built).
+
+- **The flooded part.**
+  - Water stays the terrain it is: not walked, bats fly over it, things pushed or blown into it
+    are lost, a bomb in it douses the torches it reaches.
+  - **There is a single flooded part of the mine** (owner, 2026-11-04), but it runs in several
+    directions, some of which connect to natural caves.
+  - A **pump** is a fixed big thing standing beside the water.  Running, it drains the body of
+    water it stands at — the water cells joined to the cell beside it — one cell at a time, each
+    drained cell becoming the floor it covered.
+  - **Its drive is magical, and depleted** (owner, 2026-11-04): the drive must be brought to the
+    alchemist (@ST-Alchemist), and charging it is outside his profession, so he needs aid to get
+    it charged (@ST-Magic: magic is crafted).  It needs a lightning strike, which the alchemist
+    cannot produce himself; the wizard (@ST-Wizard) has enough energy, but is not easily swayed
+    to chime in (owner, 2026-11-04).  The lightning can also be captured on the hill-top, by an
+    installation that is already there, where a local monster lives (to be decided); it also
+    needs a bit of help from the weather (@ST-Outside: the climate), to be fitted in (owner).  The
+    alchemist is needed to work the installation, so the way there must be safe for him; he comes
+    on his own, but needs convincing (owner).  The drive is a crystal inside the pump (owner): an
+    item, taken out of the pump and put back into it charged, as a torch is mounted in a socket.
+  - **One charge is not enough** (owner, 2026-11-04): the terrain is unlocked gradually.  The pump
+    was designed to be running constantly, and it has been off for some time.  The crystal is
+    already inside the pump, depleted; there is probably a spare one somewhere too.  The spare is
+    for the same pump, and holds a bit of power, enough for the first step: an alternative way to
+    start (owner).  A crystal cannot be harmed: a blast only flings it away, as it flings any
+    item (owner).  A charge
+    normally lasts two days, but with the amount of water to be pumped now it is spent much
+    quicker.
+  - Proposed: charged, the pump runs by itself, a cell every so many seconds, heard while it runs,
+    until the charge is spent and the crystal is depleted again; each charge drains a part of the
+    flooded area, the nearest first.
+  - **The water refills without the pump, but only a bit a day** (owner, 2026-11-04), so it never
+    suddenly locks the player in or out.  Proposed: a day without the pump turns back a few of
+    the drained cells, the last drained first (the ones nearest the pump stay dry longest), never
+    a cell the hero or a thing stands on.
+  - Under the water lies what was left there: floor, rails, the things a level placed below it
+    (a chest, a cart, a lever), found as the water goes — the flooded part's reward.
+  - Scenario: a room whose far half is water over a chest, the pump on the dry side; one room
+    with a second pump that drains the water off a rail, opening a cart's way.
+- **The cart lift.**
+  - A **lift** is a platform cell with a shaft above or below it: a floor cell, rails on it or
+    not, that moves between two layers, carrying its whole stack — a cart, what rests on the cart,
+    the hero.  At each stop its rails join the track there, so a cart rolls on and off it as onto
+    any rail cell.
+  - It is sent by a lever beside it, at either stop — walked into, or hit by an arrow (arrows
+    throw levers) — and takes a time to travel, heard and seen, a layer every second.
+  - It moves only with its way clear: nothing standing in the shaft, nothing half on and half off
+    (a train longer than the platform stops it).
+  - A cart rolling onto it at speed stops at its far end when the track does not go on there, as
+    at a track's open end with a fixed thing after it.
+  - Scenario: an upper track with a cart and a chest at the end of a lower track; the cart is sent
+    down on the lift and pushed on to the chest, which it carries back up.
+- **The flotilla.**
+  - **The wood is in the mine** (owner, 2026-11-04), but it is hard to transport, and hard to craft
+    into something usable.  Wood not well crafted the hero just does not step on.  Felled trees
+    may still be a source too; the eventual layout of the place decides (owner).
+  - Proposed: wood (a new big thing) floats: pushed or pulled into water it stays, a cell of
+    floating wood, where any other thing is lost.  Open: what crafting it is, and what makes
+    it hard to transport.
+  - Floating logs that touch **link into a flotilla**, as carts link into a train: it moves as one.
+  - Proposed: a flotilla of well-crafted wood carries the hero and what rests on it (it is stood
+    on, as a derailed cart is); wood not well crafted is not stood on, the hero's step is blocked
+    (owner).
+  - The hero on it moves it by pushing off: walking into the shore, a wall or a fixed thing sends
+    the flotilla the other way, a cell every roll_ms, until it touches something — the rolling
+    rule of carts, on water.  It can also be pulled from the shore while the hero stands beside it.
+  - Scenario: an underground lake with logs at its shore; two pulled together carry the hero across
+    to an island with a chest, the way back pushed off the island's rock.
+
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
 whose extent follows a machine's state.  A lift asks for a platform that moves between layers

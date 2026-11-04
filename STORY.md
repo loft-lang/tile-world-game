@@ -57,6 +57,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Newcomers`](#st-newcomers) | other adventurers, a mix of NPCs | § 2 |
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
 | [`@ST-Alchemist`](#st-alchemist) | potions and stimulants for the miners | § 2 |
+| [`@ST-Wizard`](#st-wizard) | a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Hunter`](#st-hunter) | the outcast returned; befriendable, never the village's | § 3 |
@@ -120,6 +121,22 @@ things.  The world presents the different places in a logical order.
 quests related to the bigger world (the political circumstances outside) and the climate (the
 drought).
 
+**The places so far** (gathered from the owner's outline, 2026-11-04; a place marked *reading* is
+the outline's implication, not the owner's words):
+
+- **The village** (@ST-Setting): the town, the small farm (@ST-Farm), the alchemist's home
+  (@ST-Alchemist); the family that fled is missed there (@ST-Debate).
+- **The mine** (@ST-Mine): mined out at the surface; deeper tunnels below (@ST-Hints names the
+  way down); its single flooded part, running in several directions, some into natural caves
+  (@GM-Flooded); an underground lake (@GM-Flotilla); a lift for carts (@GM-CartLift).
+- **The new dig sites in the hills** (@ST-Mine).
+- **The mine the cyclopes settled in** (@ST-Cyclopes); *reading*: whether it is the same mine or
+  one of the dig sites is not said.
+- **The hill-top** with the lightning installation and a local monster (@GM-Flooded).
+- *Reading*: where the federal guards stand (@ST-Guards), at the mine or on the way to it.
+- **The bigger world outside** (@ST-Outside), where the decree comes from (@ST-Decree) and the
+  other adventurers arrive from (@ST-Newcomers).
+
 What the owner has already said that bounds it:
 
 - **Familiar look, surprising world.**  Trope-familiar pictures (Kenney's Tiny packs, a few extras
@@ -158,6 +175,11 @@ craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 
 <a id="st-alchemist"></a>**The alchemist** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.
+
+<a id="st-wizard"></a>**The wizard** (owner, 2026-11-04): not a villager; one of the newcomers, interested
+in the mines for his own goals.  He has the energy for a lightning strike, which the alchemist
+cannot produce himself and the pump's crystal needs (DESIGN.md @GM-Flooded), but is not easily
+swayed to chime in.
 
 *Who each is follows from what the player is to do.*
 
