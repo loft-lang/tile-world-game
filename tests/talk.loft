@@ -1,0 +1,209 @@
+// Talk (talk.loft): coming beside someone starts their talk, walking on by within three steps gets
+// a bark; while a line is said the player has
+// three choices — stay (the next line follows), bump (get something out of them: the line's
+// `bump`, by whom; a thing held, its gift) and walk away (the line's `away`, or the talk ends).  A line is shown READ_MS + CHAR_MS a character:
+// 1500 + 60 n.  The clock is set by hand and only talk::step reads it, so every time below is
+// worked out from the lines' lengths.
+use tile_world;
+use rules;
+use talk;
+
+// A room x 0 .. 11, y 0 .. 4, walled.
+fn room() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 12, 5, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 11, 4, 0, rules::tr(w, "floor"));
+  w
+}
+
+const ELDER = "[ {{ \"at\": [5, 2, 0], \"name\": \"elder\", \"gifts\": {{ \"stick\": \"thanks\" }}, \"bump\": \"poke\", \"barks\": [ \"HI\", \"YO\" ], \"lines\": ["
+  + " \"HELLO\","
+  + " {{ \"hero\": \"HI\" }},"
+  + " {{ \"elder\": \"A STICK?\", \"away\": \"rude\", \"bump\": \"why\", \"then\": \"ask\", \"end\": true }},"
+  + " {{ \"id\": \"rude\", \"elder\": \"RUDE!\", \"end\": true }},"
+  + " {{ \"id\": \"thanks\", \"elder\": \"THANKS\", \"take\": true, \"give\": \"torch\", \"then\": \"done\" }},"
+  + " {{ \"id\": \"done\", \"elder\": \"AGAIN?\", \"end\": true }},"
+  + " {{ \"id\": \"why\", \"hero\": \"WHY?\" }},"
+  + " {{ \"elder\": \"FOR A FIRE\", \"next\": \"ask\" }},"
+  + " {{ \"id\": \"ask\", \"elder\": \"STILL NONE?\", \"end\": true }},"
+  + " {{ \"id\": \"poke\", \"elder\": \"OUCH\", \"end\": true }} ] }} ]";
+
+const ARGUE = "[ {{ \"at\": [3, 2, 0], \"name\": \"tom\", \"with\": {{ \"ann\": [7, 2, 0] }}, \"barks\": [ {{ \"ann\": \"GRR\" }} ], \"lines\": ["
+  + " {{ \"id\": \"a\", \"tom\": \"MINE!\", \"bump\": {{ \"tom\": \"t\", \"ann\": \"n\" }} }},"
+  + " {{ \"ann\": \"NO!\", \"next\": \"a\", \"bump\": {{ \"tom\": \"t\", \"ann\": \"n\" }} }},"
+  + " {{ \"id\": \"t\", \"tom\": \"SEE?\", \"then\": \"t2\", \"end\": true }},"
+  + " {{ \"id\": \"n\", \"ann\": \"THANKS\", \"then\": \"n2\", \"end\": true }},"
+  + " {{ \"id\": \"t2\", \"tom\": \"MY WELL\", \"end\": true }},"
+  + " {{ \"id\": \"n2\", \"ann\": \"SHARED\", \"end\": true }} ] }} ]";
+
+fn talks(raw: text) -> talk::Talk {
+  ts = talk::from_json(json_parse(raw));
+  assert(len(ts) == 1, "one talk: {len(ts)}");
+  for t in ts { return t; }
+  talk::Talk { x: 0, y: 0, z: 0, lines: [], gifts: [] }
+}
+
+// The elder at (5, 2), the hero beside it at (4, 2).
+fn elder() -> rules::Level {
+  l = room();
+  _ = rules::add_enemy(l, "elder", 5, 2, 0);
+  rules::put_hero(l, 4, 2, 0);
+  l
+}
+
+fn at(l: rules::Level, t: const talk::Talk, now: integer) -> integer {
+  l.now = now;
+  _ = talk::step(t, l, 0);
+  talk::current(l, 0)
+}
+
+fn main() {
+  t = talks(ELDER);
+  assert(len(t.lines) == 10 && t.name == "elder", "ten lines: {len(t.lines)}");
+  assert(t.lines[0]!.by == "" && t.lines[0]!.says == "HELLO" && t.lines[1]!.by == "hero", "who says what");
+  assert(talk::duration(t.lines[0]!) == 1800 && talk::duration(t.lines[2]!) == 1980, "a line's time from its length");
+}
+
+// Walking into one whose kind talks speaks to it: the hero stays where it is, and nobody is struck.
+fn test_walking_into_one_who_talks_speaks() {
+  l = elder();
+  id = l.enemies[0]!.id;
+  assert(rules::walk(l, 1, 0) == rules::Step.Talked, "talked");
+  assert(l.hero_x == 4 && l.talk_to == id && l.enemies[0]!.hp == 3, "stays, unharmed: {l.hero_x} {l.talk_to}");
+}
+
+// STAY: the hero beside the elder starts it; line 0 for 1800 ms, line 1 the hero's for 1620, line 2
+// for 1980 — which sets the next talk's start to `ask` — and the talk ends there.  Still standing
+// there, nothing starts again; a bump gets the talk's own `bump` (OUCH); walking off and back
+// starts it at `ask`.
+fn test_staying_lets_it_play_out() {
+  t = talks(ELDER);
+  l = elder();
+  assert(at(l, t, 0) == 0, "walked up: HELLO");
+  assert(at(l, t, 1799) == 0 && at(l, t, 1800) == 1, "HI at 1800");
+  assert(talk::speaker(t, l, 0, 1).0 == 4, "said by the hero");
+  assert(at(l, t, 3419) == 1 && at(l, t, 3420) == 2, "A STICK? at 3420");
+  assert(at(l, t, 5399) == 2 && at(l, t, 5400) == -1, "ended at 5400");
+  assert(at(l, t, 6000) == -1, "still there: nothing new");
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) == 9, "pressed: OUCH");
+  _ = at(l, t, 6000 + 1740);
+  rules::put_hero(l, 9, 2, 0);
+  assert(at(l, t, 8000) == -1, "walked off");
+  rules::put_hero(l, 4, 2, 0);
+  assert(at(l, t, 8100) == 8, "back: STILL NONE?");
+}
+
+// WALK: more than three steps away from line 2 is its `away`, said once, the talk ending after it; away from line 0,
+// which has none, the talk just ends.
+fn test_walking_away_gets_out() {
+  t = talks(ELDER);
+  l = elder();
+  _ = at(l, t, 0);
+  _ = at(l, t, 1800);
+  _ = at(l, t, 3420);
+  rules::put_hero(l, 8, 2, 0);
+  assert(at(l, t, 3500) == 2, "three steps off: still listening");
+  rules::put_hero(l, 9, 2, 0);
+  assert(at(l, t, 3600) == 3, "four off: RUDE!");
+  assert(at(l, t, 3600 + 1800) == -1, "and it ends");
+  l2 = elder();
+  _ = at(l2, t, 0);
+  rules::put_hero(l2, 4, 2, 1);
+  assert(at(l2, t, 100) == -1, "off the layer, no `away`: ended");
+}
+
+// BUMP: during line 2 a bump gets its `bump` out of the elder (WHY?), which goes on to FOR A FIRE
+// and then `ask`; during line 0, which has none, a bump leaves it as it is.
+fn test_bumping_gets_something_out_of_them() {
+  t = talks(ELDER);
+  l = elder();
+  _ = at(l, t, 0);
+  until = l.enemies[0]!.talk_until;
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) == 0 && l.enemies[0]!.talk_until == until, "nothing to bring in: HELLO goes on");
+  _ = at(l, t, 1800);
+  _ = at(l, t, 3420);
+  l.now = 4000;
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) == 6, "WHY?");
+  assert(at(l, t, 4000 + 1740) == 7, "FOR A FIRE at 5740");
+  assert(at(l, t, 5740 + 2100) == 8, "then STILL NONE?");
+}
+
+// A bump holding a thing the talk has a gift for brings it: the gift's line takes the stick (the
+// elder holds it, in sight), gives a torch and remembers `done`.
+fn test_bringing_a_thing() {
+  t = talks(ELDER);
+  l = elder();
+  stick = rules::thing_id(l.k, "stick");
+  l.hero_item = stick;
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) == 4, "THANKS");
+  assert(l.enemies[0]!.item == stick && l.hero_item == rules::thing_id(l.k, "torch"), "the stick for a torch");
+  assert(l.enemies[0]!.talk_start == 5, "next time: AGAIN?");
+}
+
+// Tom at (3, 2) and Ann at (7, 2): two steps from each, walking on, Ann barks GRR; beside Tom they
+// argue: MINE! (1800), NO!
+// (1680), MINE! again at 3490, until the hero bumps one of them: bumping Ann sides with her.  Walking off
+// and coming back starts what was remembered.
+fn test_two_arguing_and_taking_sides() {
+  t = talks(ARGUE);
+  l = room();
+  _ = rules::add_enemy(l, "villager", 3, 2, 0);
+  _ = rules::add_enemy(l, "maid", 7, 2, 0);
+  rules::put_hero(l, 5, 4, 0);
+  assert(at(l, t, 0) == -1, "four steps from both: nothing");
+  rules::put_hero(l, 5, 2, 0);
+  assert(at(l, t, 5) == -1 && talk::barking(l, 0) == 0 && talk::speaker_of(t, l, 0, "ann").0 == 7, "walking on: Ann's GRR");
+  rules::put_hero(l, 4, 2, 0);
+  assert(at(l, t, 10) == 0 && talk::barking(l, 0) == -1, "beside Tom: MINE!");
+  assert(at(l, t, 1810) == 1 && talk::speaker(t, l, 0, 1).0 == 7, "NO!, said by Ann");
+  assert(at(l, t, 1810 + 1679) == 1 && at(l, t, 1810 + 1680) == 0, "and round again at 3490");
+  talk::bump(t, l, 0, 1);
+  assert(talk::current(l, 0) == 3 && talk::name_of(t, l, 0, 1) == "ann", "bumping Ann: THANKS");
+  assert(at(l, t, 3490 + 1859) == 3 && at(l, t, 3490 + 1860) == -1, "ended at 5350");
+  rules::put_hero(l, 5, 4, 0);
+  assert(at(l, t, 6000) == -1, "walked off");
+  rules::put_hero(l, 4, 2, 0);
+  assert(at(l, t, 6100) == 5, "back beside Tom: SHARED");
+  l2 = room();
+  _ = rules::add_enemy(l2, "villager", 3, 2, 0);
+  _ = rules::add_enemy(l2, "maid", 7, 2, 0);
+  rules::put_hero(l2, 4, 2, 0);
+  _ = at(l2, t, 10);
+  talk::bump(t, l2, 0, 0);
+  assert(talk::current(l2, 0) == 2, "bumping Tom instead: SEE?");
+}
+
+// A talk written and read back is the same talk, and writes the same text: a bare text for its own
+// figure's line with nothing else, the speaker as a line's key, bumps and gifts as maps.
+fn test_a_talk_saves_to_itself() {
+  for raw in [ELDER, ARGUE] {
+    ts = talk::from_json(json_parse(raw));
+    out = talk::json(ts);
+    again = talk::json(talk::from_json(json_parse(out)));
+    assert(out == again, "the same text");
+    assert(out.contains("\"HELLO\"") || out.contains("\"ann\": [7, 2, 0]"), "written as a script: {out}");
+  }
+}
+
+// Walking on by: three steps from the elder is a bark (HI, 1620 ms), not a talk, and only one for
+// this time by; walking off and by again, the next bark (YO).  Coming beside starts the talk and
+// silences the bark.
+fn test_walking_on_by_gets_a_bark() {
+  t = talks(ELDER);
+  l = elder();
+  rules::put_hero(l, 8, 2, 0);
+  assert(at(l, t, 0) == -1 && talk::barking(l, 0) == 0, "HI");
+  rules::put_hero(l, 7, 2, 0);
+  assert(at(l, t, 100) == -1 && talk::barking(l, 0) == 0, "still HI, no second bark");
+  assert(at(l, t, 1620) == -1 && talk::barking(l, 0) == -1, "said");
+  rules::put_hero(l, 9, 2, 0);
+  _ = at(l, t, 2000);
+  rules::put_hero(l, 8, 2, 0);
+  assert(at(l, t, 2100) == -1 && talk::barking(l, 0) == 1, "by again: YO");
+  rules::put_hero(l, 6, 2, 0);
+  assert(at(l, t, 2200) == 0 && talk::barking(l, 0) == -1, "beside: HELLO, the bark gone");
+}

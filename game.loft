@@ -12,6 +12,7 @@ use levels;
 use editor;
 use camera;
 use materials;
+use talk;
 use motion;
 use ui;
 use intent;
@@ -38,6 +39,12 @@ const INTENT = 64543;
 // The checks: a chest cut off from the start, a hidden one.
 const CUT_OFF = 63488;
 const HIDDEN = 63519;
+// A speech bubble: at most this many characters a row; its fill, and its edge for the hero and for
+// anyone else (RGB565).
+const BUBBLE = 22;
+const BUBBLE_FILL = 4228;
+const HERO_SAYS = 65120;
+const THEY_SAY = 52857;
 
 // Key codes beside the bindings: Ctrl and Shift held.
 const KEY_SHIFT = 132;
@@ -341,6 +348,11 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   there = g.file.doors[i]!.door;
   m = levels::load_with(file("{g.dir}/levels/{to}.json").content() ?? "", g.kinds, g.mats);
   if !m { return false; }
+  // Leaving the place is walking away from whoever is talking.
+  for t in g.file.talks {
+    o = talk::owner(t, g.world);
+    if o >= 0 && talk::current(g.world, o) >= 0 { talk::walked_away(t, g.world, o); }
+  }
   c = rules::carried(g.world);
   stash(g);
   _ = open_place(g, to);
@@ -702,6 +714,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   if w.money > money { sound(g, "coins"); }
   animate(g, step, ox, oy, oz, oh, dx, dy);
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
+  if step == rules::Step.Talked { talk_to(g, g.world.talk_to); }
   if step == rules::Step.Saved {
     if g.has_save {
       g.previous = g.saved;
@@ -732,6 +745,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   }
   // With no health left, the hero is back at the last well — when it drank from one.
   if !rules::alive(g.world) && g.has_save { return_to_save(g); }
+  _ = step_talks(g);
   // A step onto a door takes the hero through it, to the place it leads to.
   moved = g.world.hero_x != ox || g.world.hero_y != oy || g.world.hero_z != oz;
   door = levels::door_at(g.file, g.world.hero_x, g.world.hero_y, g.world.hero_z);
@@ -1053,6 +1067,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   hx = g.world.hero_x;
   hy = g.world.hero_y;
   rules::tick(g.world, ms);
+  if step_talks(g) { changed = true; }
   // A rolling cart is heard before it is seen: every cell it rolls rumbles; a hit hurts.
   if g.world.rolled != rolled {
     sound(g, "cart", 0.5);
@@ -1138,6 +1153,29 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   if d.0 == 0 && d.1 == 0 { return changed; }
   move(g, d.0, d.1, g.keys.is_action_pressed("pull"));
   true
+}
+
+// The hero spoke to (walked into) the one with id `id`: its talk goes on (talk.loft).
+fn talk_to(g: Game, id: integer) {
+  for e in 0..len(g.world.enemies) {
+    if (g.world.enemies[e]!.id) != id { continue; }
+    ti = talk::of(g.file.talks, g.world, e);
+    if ti < 0 { continue; }
+    for t in g.file.talks[ti..ti + 1] {
+      o = talk::owner(t, g.world);
+      if o >= 0 { talk::bump(t, g.world, o, e); }
+    }
+  }
+}
+
+// Every talk of the place at its clock and the hero's place: answers whether what is said changed.
+fn step_talks(g: Game) -> boolean {
+  changed = false;
+  for t in g.file.talks {
+    o = talk::owner(t, g.world);
+    if o >= 0 && talk::step(t, g.world, o) { changed = true; }
+  }
+  changed
 }
 
 /// Has the player asked to stop?
@@ -1632,6 +1670,7 @@ pub fn draw(g: Game) {
     }
   }
   draw_bow(g);
+  draw_talk(g);
   if g.won {
     write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
   } else if !rules::alive(w) {
@@ -1642,6 +1681,42 @@ pub fn draw(g: Game) {
     if g.note != "" { write(g, g.note, 0, (ROWS - 1) * 16); }
     else if w.money > 0 { status(g, "GOLD {w.money}"); }
     else { status(g, "MOVES {g.moves}"); }
+  }
+}
+
+// What is being said, in a bubble over whoever says it: half-size letters, whole words, at most
+// BUBBLE characters a row; the hero's in its own colour.  Kept inside the view.
+fn draw_talk(g: Game) {
+  w = g.world;
+  ts = g.look.tile_size;
+  for t in g.file.talks {
+    e = talk::owner(t, w);
+    if e < 0 { continue; }
+    n = talk::current(w, e);
+    b = talk::barking(w, e);
+    if n < 0 && b < 0 { continue; }
+    line = if n >= 0 { t.lines[n]! } else { t.barks[b]! };
+    p = talk::speaker_of(t, w, e, line.by);
+    if p.2 != w.hero_z { continue; }
+    rows = talk::wrap(line.says, BUBBLE);
+    wide = 0;
+    for r in rows { if len(r) > wide { wide = len(r); } }
+    half = ts / 2;
+    bw = wide * half + 6;
+    bh = len(rows) * (half + 1) + 5;
+    x = (p.0 - g.cam_x) * ts + half - bw / 2;
+    y = (p.1 - g.cam_y - p.2) * ts - bh - 1;
+    if x < 0 { x = 0; }
+    if x + bw > W { x = W - bw; }
+    if y < 0 { y = 0; }
+    edge = if line.by == "hero" { HERO_SAYS } else { THEY_SAY };
+    tiles::rect(g.surface, x, y, bw, bh, edge);
+    tiles::rect(g.surface, x + 1, y + 1, bw - 2, bh - 2, BUBBLE_FILL);
+    for r in 0..len(rows) {
+      row = rows[r] ?? "";
+      theme::write_small(g.surface, g.look, row, (x + 3 + (wide - len(row)) * half / 2) as float,
+                         (y + 3 + r * (half + 1)) as float, 0);
+    }
   }
 }
 

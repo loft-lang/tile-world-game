@@ -1,0 +1,576 @@
+// Talk: what the hero and the people it meets say, and the choices in it.  A conversation
+// belongs to a figure whose kind talks (a villager); it is a script of lines, each said by someone
+// taking part and shown for a time.  Coming BESIDE one of them starts it: getting close to
+// someone is to have a casual talk.  Passing within WITHIN steps without coming beside is walking
+// on: they say a short BARK (`barks`, taken in turn, one each time the hero comes by) and nothing
+// more.  While a line is said the player has three choices, always the same three (owner,
+// 2026-11-04):
+//
+//   - STAY: let it play out — the next line follows when this one's time is up;
+//   - BUMP into one taking part: get something out of them — the line's `bump` for whom the hero
+//     bumped (one line for anyone, or one per figure: taking a side); bumping while holding a
+//     thing it has a gift for brings that thing, the gift's line;
+//   - WALK away (more than WITHIN steps from everyone in it, or off their layer): get out — the
+//     line's `away` is said, the figure calling after the hero; a line without one ends the talk.
+//
+// Bumping one who is not talking presses it too: the talk's own `bump`.  Walking off (beyond
+// WITHIN) and coming back beside them starts the talk again where it stands.  Neither is ever a big deal by accident (owner): a
+// step or two off is still listening, and a bump with nothing to get leaves the line as it is —
+// so a bump's line, as written, leads back into the talk or to something mild, never to a door
+// closed for good.  A line can `take` what the hero holds (the figure then holds it, in sight)
+// and `give` it a thing; `then` sets where the next talk starts, so what was chosen is
+// remembered.  Where a talk stands is its own figure's state (rules::Enemy talk_*), so a place
+// left keeps it.
+//
+// In a place file a talk reads as a script: a line is the speaker's name with what it says — the
+// talk's own figure by its `name`, "hero", or one of `with` — or just the text, for its own figure.
+//
+//   "talks": [
+//     { "at": [10, 18, 0], "name": "elder", "gifts": { "stick": "thanks" }, "bump": "poke",
+//       "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "lines": [
+//         "WELCOME, TRAVELLER",
+//         { "hero": "WHO ARE YOU?" },
+//         { "elder": "BRING ME A STICK?", "away": "rude", "then": "ask", "end": true },
+//         { "id": "rude", "elder": "FINE, WALK AWAY", "end": true },
+//         { "id": "thanks", "elder": "TAKE THIS", "take": true, "give": "torch", "then": "done" } ] },
+//     { "at": [19, 9, 0], "name": "tom", "with": { "ann": [22, 9, 0] }, "lines": [
+//         { "id": "a", "tom": "THE WELL IS MINE!", "bump": { "tom": "tom_wins", "ann": "ann_wins" } },
+//         { "ann": "NOBODY OWNS THE WELL!", "next": "a" } ] } ]
+//
+// A talk is found by `at`, the nest of the figure it belongs to; `with` names the others by their
+// nests.  With a `next` back to an earlier line two can argue until the hero steps in.  A line's
+// time is derived from its length (READ_MS and CHAR_MS a character); `ms` sets it by hand.  The
+// next line is the one below it unless `next` names another; `end` stops the talk after it.
+use tile_world;
+use rules;
+
+/// How far, in steps, the hero may stand from those talking and still be listening: walking away
+/// takes more than a step or two, so a mis-pressed key is never taken as leaving (owner).
+pub const WITHIN = 3;
+/// A line's time: this, and CHAR_MS for each of its characters.
+pub const READ_MS = 1500;
+pub const CHAR_MS = 60;
+
+/// A bump while the line is said: bumping figure `who` ("" anyone taking part) goes to line `go`.
+pub struct Bump {
+  pub who: text,
+  pub go_id: text,
+  pub go: integer
+}
+
+/// Another figure taking part, by name, found by its nest.
+pub struct Member {
+  pub name: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer
+}
+
+pub struct Line {
+  pub id: text,
+  /// Who says it: "" the talk's own figure, "hero", or a member's name.
+  pub by: text,
+  pub says: text,
+  /// Its time set by hand, 0 derived.
+  pub ms: integer,
+  /// The lines named, as the file names them, and their indexes (-1 for none).
+  pub next_id: text,
+  pub away_id: text,
+  pub then_id: text,
+  pub next: integer,
+  pub away: integer,
+  pub then: integer,
+  pub end: boolean,
+  pub take: boolean,
+  pub give: text,
+  pub bumps: vector<Bump> = []
+}
+
+pub struct Gift {
+  pub item: text,
+  pub go_id: text,
+  pub go: integer
+}
+
+pub struct Talk {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  /// The own figure's name (what a line's `by` or a `bump` calls it), the others taking part, and
+  /// what a bump gets out of them when they are not talking.
+  pub name: text = "",
+  pub with: vector<Member> = [],
+  pub bumps: vector<Bump> = [],
+  /// What they say to one walking on by, in turn: lines with no choices in them.
+  pub barks: vector<Line> = [],
+  pub lines: vector<Line>,
+  pub gifts: vector<Gift>
+}
+
+fn word(v: const JsonValue, name: text) -> text {
+  f = v.field(name);
+  if f.kind() == "JString" { f.as_text() } else { "" }
+}
+
+fn num(v: const JsonValue, default: integer) -> integer {
+  if v.kind() == "JInteger" || v.kind() == "JNumber" { (v.as_number() as integer) ?? default } else { default }
+}
+
+fn flag(v: const JsonValue, name: text) -> boolean {
+  v.field(name).as_bool() ?? false
+}
+
+// The index of the line with id `id` in `lines`; -1 for none or "".
+fn line_named(lines: const vector<Line>, id: text) -> integer {
+  if id == "" { return -1; }
+  for i in 0..len(lines) { if lines[i].id == id { return i; } }
+  -1
+}
+
+// The keys a line has beside its speaker's.
+const LINE_KEYS = "id ms next away then end take give bump";
+
+// What a line says and who says it: a bare text is its own figure's; else the one key that is not
+// one of LINE_KEYS is the speaker (its own figure by `own`, or "them"), its value what it says.
+fn said(e: const JsonValue, own: text) -> (text, text) {
+  if e.kind() == "JString" { return ("", e.as_text()); }
+  reserved = LINE_KEYS.split(' ');
+  for k in e.keys() {
+    if reserved.contains(k) { continue; }
+    who = if k == own || k == "them" { "" } else { k };
+    return (who, word(e, k));
+  }
+  ("", "")
+}
+
+// A `bump`: one line for a bump into anyone, or one per figure.
+fn bumps_of(bv: const JsonValue, own: text) -> vector<Bump> {
+  bumps: vector<Bump> = [];
+  if bv.kind() == "JString" {
+    bumps += [Bump { who: "*", go_id: bv.as_text(), go: -1 }];
+  } else {
+    for who in bv.keys() { bumps += [Bump { who: if who == own { "" } else { who }, go_id: word(bv, who), go: -1 }]; }
+  }
+  bumps
+}
+
+// A line as a place file writes it (a bare text, or the speaker's key and what is set).
+fn line_from(e: const JsonValue, own: text) -> Line {
+  w = said(e, own);
+  Line {
+    id: word(e, "id"), by: w.0, says: w.1, ms: num(e.field("ms"), 0),
+    next_id: word(e, "next"), away_id: word(e, "away"), then_id: word(e, "then"),
+    next: -1, away: -1, then: -1, end: flag(e, "end"), take: flag(e, "take"), give: word(e, "give"),
+    bumps: bumps_of(e.field("bump"), own)
+  }
+}
+
+/// The talks a place file's `talks` holds.
+pub fn from_json(v: const JsonValue) -> vector<Talk> {
+  out: vector<Talk> = [];
+  for i in 0..v.len() {
+    t = v.item(i);
+    at = t.field("at");
+    own = word(t, "name");
+    lines: vector<Line> = [];
+    lv = t.field("lines");
+    for j in 0..lv.len() {
+      lines += [line_from(lv.item(j), own)];
+    }
+    for j in 0..len(lines) {
+      lines[j].next = line_named(lines, lines[j].next_id);
+      lines[j].away = line_named(lines, lines[j].away_id);
+      lines[j].then = line_named(lines, lines[j].then_id);
+      for q in 0..len(lines[j].bumps) { lines[j].bumps[q].go = line_named(lines, lines[j].bumps[q].go_id); }
+    }
+    with: vector<Member> = [];
+    wv = t.field("with");
+    for name in wv.keys() {
+      ma = wv.field(name);
+      with += [Member { name: name, x: num(ma.item(0), 0), y: num(ma.item(1), 0), z: num(ma.item(2), 0) }];
+    }
+    gifts: vector<Gift> = [];
+    gv = t.field("gifts");
+    for item in gv.keys() {
+      go = word(gv, item);
+      gifts += [Gift { item: item, go_id: go, go: line_named(lines, go) }];
+    }
+    idle = bumps_of(t.field("bump"), own);
+    barks: vector<Line> = [];
+    bk = t.field("barks");
+    for j in 0..bk.len() { barks += [line_from(bk.item(j), own)]; }
+    for q in 0..len(idle) { idle[q].go = line_named(lines, idle[q].go_id); }
+    out += [Talk { x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0), name: own,
+                   with: with, bumps: idle, barks: barks, lines: lines, gifts: gifts }];
+  }
+  out
+}
+
+// A JSON string literal of `s`.
+fn quoted(s: text) -> text {
+  out = "\"";
+  for c in s {
+    if c == '"' { out += "\\\""; }
+    else if c == '\\' { out += "\\\\"; }
+    else { out += "{c}"; }
+  }
+  out + "\""
+}
+
+// A `bump` as the file writes it: the one line's id, or a map by figure.
+fn bumps_json(t: const Talk, bs: const vector<Bump>) -> text {
+  if len(bs) == 1 && (bs[0]!.who) == "*" { return quoted(bs[0]!.go_id); }
+  out = "{{";
+  nf = true;
+  own = if t.name != "" { t.name } else { "them" };
+  for q in bs {
+    out += if nf { " " } else { ", " };
+    out += "{quoted(if q.who != "" { q.who } else { own })}: {quoted(q.go_id)}";
+    nf = false;
+  }
+  out + " }}"
+}
+
+// One line of talk `t` as the file writes it: the bare text when its own figure says it and it
+// has nothing else, else its id, its speaker with what is said, and what is set.
+fn line_json(t: const Talk, l: const Line) -> text {
+  plain = l.id == "" && l.by == "" && l.ms == 0 && l.next_id == "" && l.away_id == "" && l.then_id == ""
+          && !l.end && !l.take && l.give == "" && len(l.bumps) == 0;
+  if plain { return quoted(l.says); }
+  who = if l.by != "" { l.by } else if t.name != "" { t.name } else { "them" };
+  out = "{{ ";
+  if l.id != "" { out += "\"id\": {quoted(l.id)}, "; }
+  out += "{quoted(who)}: {quoted(l.says)}";
+  if l.ms != 0 { out += ", \"ms\": {l.ms}"; }
+  if l.next_id != "" { out += ", \"next\": {quoted(l.next_id)}"; }
+  if l.away_id != "" { out += ", \"away\": {quoted(l.away_id)}"; }
+  if l.then_id != "" { out += ", \"then\": {quoted(l.then_id)}"; }
+  if l.end { out += ", \"end\": true"; }
+  if l.take { out += ", \"take\": true"; }
+  if l.give != "" { out += ", \"give\": {quoted(l.give)}"; }
+  if len(l.bumps) > 0 { out += ", \"bump\": {bumps_json(t, l.bumps)}"; }
+  out + " }}"
+}
+
+/// The place file's `talks` for `ts`, as `from_json` reads it back: only what is set.
+pub fn json(ts: const vector<Talk>) -> text {
+  out = "[";
+  first = true;
+  for t in ts {
+    out += if first { "\n" } else { ",\n" };
+    out += "    {{ \"at\": [{t.x}, {t.y}, {t.z}]";
+    if t.name != "" { out += ", \"name\": {quoted(t.name)}"; }
+    if len(t.with) > 0 {
+      out += ", \"with\": {{";
+      mf = true;
+      for m in t.with {
+        out += if mf { " " } else { ", " };
+        out += "{quoted(m.name)}: [{m.x}, {m.y}, {m.z}]";
+        mf = false;
+      }
+      out += " }}";
+    }
+    if len(t.bumps) > 0 { out += ", \"bump\": {bumps_json(t, t.bumps)}"; }
+    if len(t.barks) > 0 {
+      out += ", \"barks\": [";
+      bf = true;
+      for b in t.barks {
+        out += if bf { " " } else { ", " };
+        out += line_json(t, b);
+        bf = false;
+      }
+      out += " ]";
+    }
+    if len(t.gifts) > 0 {
+      out += ", \"gifts\": {{";
+      gf = true;
+      for g in t.gifts {
+        out += if gf { " " } else { ", " };
+        out += "{quoted(g.item)}: {quoted(g.go_id)}";
+        gf = false;
+      }
+      out += " }}";
+    }
+    out += ", \"lines\": [";
+    lf = true;
+    for l in t.lines {
+      out += if lf { "\n" } else { ",\n" };
+      out += "        {line_json(t, l)}";
+      lf = false;
+    }
+    out += " ] }}";
+    first = false;
+  }
+  out + "\n  ]"
+}
+
+/// The time line `l` is shown for.
+pub fn duration(l: const Line) -> integer {
+  if l.ms > 0 { l.ms } else { READ_MS + CHAR_MS * len(l.says) }
+}
+
+/// The talk enemy `i` of `l` takes part in (by its nest: its own, or one it is `with`), its index
+/// in `ts`; -1 when it has none.
+pub fn of(ts: const vector<Talk>, l: const rules::Level, i: integer) -> integer {
+  e = l.enemies[i];
+  if !e { return -1; }
+  for j in 0..len(ts) {
+    t = ts[j];
+    if t.x == e.nest_x && t.y == e.nest_y && t.z == e.nest_z { return j; }
+    for m in t.with { if m.x == e.nest_x && m.y == e.nest_y && m.z == e.nest_z { return j; } }
+  }
+  -1
+}
+
+/// The enemy talk `t` belongs to (its nest is the talk's `at`), which keeps where it stands; -1
+/// when the place has none (killed).
+pub fn owner(t: const Talk, l: const rules::Level) -> integer {
+  nested_at(l, t.x, t.y, t.z)
+}
+
+/// The line enemy `i` is saying (or hearing the hero say) now, -1 for none.
+pub fn current(l: const rules::Level, i: integer) -> integer {
+  e = l.enemies[i];
+  if !e { return -1; }
+  e.talk_line
+}
+
+// Line `n` of `t` begins between the hero and enemy `i`: shown until its time is up; it takes
+// what the hero holds, gives what it gives, and sets where the next talk starts.  The figure
+// stands still, facing the hero, while it lasts.  A line that does not exist ends the talk.
+fn begin(t: const Talk, l: rules::Level, i: integer, n: integer) {
+  line = t.lines[n];
+  if !line {
+    l.enemies[i].talk_line = -1;
+    return;
+  }
+  l.enemies[i].talk_line = n;
+  l.enemies[i].bark_line = -1;
+  l.enemies[i].talk_until = l.now + duration(line);
+  l.enemies[i].talk_away = false;
+  if line.then >= 0 { l.enemies[i].talk_start = line.then; }
+  if line.take && l.hero_item != 0 {
+    l.enemies[i].item = l.hero_item;
+    l.hero_item = 0;
+    l.hero_until = 0;
+  }
+  if line.give != "" {
+    th = rules::thing_id(l.k, line.give);
+    if th != 0 {
+      if l.hero_item == 0 { l.hero_item = th; }
+      else if tile_world::top(l.w, l.hero_x, l.hero_y, l.hero_z) == 0 { tile_world::place(l.w, l.hero_x, l.hero_y, l.hero_z, th); }
+    }
+  }
+  e = l.enemies[i] ?? return;
+  dx = l.hero_x - e.x;
+  dy = l.hero_y - e.y;
+  if dx * dx + dy * dy == 1 {
+    l.enemies[i].face_x = dx;
+    l.enemies[i].face_y = dy;
+  }
+  until = l.enemies[i].talk_until ?? l.now;
+  if e.due < until { l.enemies[i].due = until; }
+  // The others taking part stand still while it is said too.
+  for m in t.with {
+    f = nested_at(l, m.x, m.y, m.z);
+    if f >= 0 && (l.enemies[f].due ?? until) < until { l.enemies[f].due = until; }
+  }
+}
+
+// The line after line `n` of `t`: its `next`, else the one below it; -1 when `n` ends the talk.
+fn after(t: const Talk, n: integer) -> integer {
+  line = t.lines[n];
+  if !line || line.end { return -1; }
+  if line.next >= 0 { return line.next; }
+  if n + 1 < len(t.lines) { n + 1 } else { -1 }
+}
+
+// The gift of `t` for the thing the hero holds, its line; -1 for none.
+fn gift_for(t: const Talk, l: const rules::Level) -> integer {
+  if l.hero_item == 0 { return -1; }
+  name = rules::thing_name(l.k, l.hero_item);
+  for g in t.gifts { if g.item == name { return g.go; } }
+  -1
+}
+
+/// The name enemy `b` has in talk `t` of enemy `i`: "" for `i` itself, a member's name, "?" for
+/// one not in it.
+pub fn name_of(t: const Talk, l: const rules::Level, i: integer, b: integer) -> text {
+  if b == i { return ""; }
+  e = l.enemies[b];
+  if !e { return "?"; }
+  for m in t.with { if m.x == e.nest_x && m.y == e.nest_y && m.z == e.nest_z { return m.name; } }
+  "?"
+}
+
+/// The hero bumped into enemy `b`, taking part in talk `t` of enemy `i`: getting something out of
+/// them.  Holding a thing the talk has a gift for, that gift's line; while a line is said, its
+/// `bump` for `b`; not talking, the talk's own `bump` for `b`.  With none, nothing changes.
+pub fn bump(t: const Talk, l: rules::Level, i: integer, b: integer) {
+  e = l.enemies[i] ?? return;
+  g = gift_for(t, l);
+  if g >= 0 { begin(t, l, i, g); return; }
+  who = name_of(t, l, i, b);
+  if e.talk_line < 0 {
+    for q in t.bumps {
+      if q.go >= 0 && (q.who == "*" || q.who == who) { begin(t, l, i, q.go); return; }
+    }
+    return;
+  }
+  if e.talk_line >= len(t.lines) { return; }
+  for q in t.lines[e.talk_line]!.bumps {
+    if q.go >= 0 && (q.who == "*" || q.who == who) {
+      begin(t, l, i, q.go);
+      return;
+    }
+  }
+}
+
+// Steps from the hero to enemy `i`; a large number off the hero's layer or for no enemy.
+fn apart(l: const rules::Level, i: integer) -> integer {
+  e = l.enemies[i];
+  if !e || e.z != l.hero_z { return 1000000; }
+  ax = if e.x > l.hero_x { e.x - l.hero_x } else { l.hero_x - e.x };
+  ay = if e.y > l.hero_y { e.y - l.hero_y } else { l.hero_y - e.y };
+  ax + ay
+}
+
+// The enemy whose nest is (x, y, z), -1 for none.
+fn nested_at(l: const rules::Level, x: integer, y: integer, z: integer) -> integer {
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i];
+    if e.nest_x == x && e.nest_y == y && e.nest_z == z { return i; }
+  }
+  -1
+}
+
+/// The enemy that is `who` in talk `t` of enemy `i`: "" or the talk's own name the own figure, a
+/// member's name that member; -1 for the hero or a name the talk does not know.
+pub fn figure(t: const Talk, l: const rules::Level, i: integer, who: text) -> integer {
+  if who == "" || who == t.name { return i; }
+  for m in t.with { if m.name == who { return nested_at(l, m.x, m.y, m.z); } }
+  -1
+}
+
+/// Who says line `n` of talk `t` of enemy `i`, as a cell: the hero's or the figure's; a layer of
+/// -1 for one the place does not have.
+pub fn speaker(t: const Talk, l: const rules::Level, i: integer, n: integer) -> (integer, integer, integer) {
+  if n < 0 || n >= len(t.lines) { return (0, 0, -1); }
+  speaker_of(t, l, i, t.lines[n]!.by)
+}
+
+/// Where `by` (a line's speaker: "", "hero" or a member's name) stands, in talk `t` of enemy `i`;
+/// a layer of -1 for one the place does not have.
+pub fn speaker_of(t: const Talk, l: const rules::Level, i: integer, by: text) -> (integer, integer, integer) {
+  if by == "hero" { return (l.hero_x, l.hero_y, l.hero_z); }
+  f = figure(t, l, i, by);
+  e = l.enemies[f];
+  if !e { return (0, 0, -1); }
+  (e.x, e.y, e.z)
+}
+
+/// The bark enemy `i` is saying to one walking on by, its index in its talk's `barks`; -1 none.
+pub fn barking(l: const rules::Level, i: integer) -> integer {
+  e = l.enemies[i];
+  if !e || e.talk_line >= 0 || l.now >= e.bark_until { return -1; }
+  e.bark_line
+}
+
+/// Has the hero come beside one taking part in the talk of enemy `i`: a step from them?
+pub fn close(t: const Talk, l: const rules::Level, i: integer) -> boolean {
+  if apart(l, i) == 1 { return true; }
+  for m in t.with {
+    if apart(l, nested_at(l, m.x, m.y, m.z)) == 1 { return true; }
+  }
+  false
+}
+
+/// Is the hero listening to the talk of enemy `i`: within WITHIN steps of one taking part?
+pub fn listening(t: const Talk, l: const rules::Level, i: integer) -> boolean {
+  if apart(l, i) <= WITHIN { return true; }
+  for m in t.with {
+    if apart(l, nested_at(l, m.x, m.y, m.z)) <= WITHIN { return true; }
+  }
+  false
+}
+
+/// The hero walked away from enemy `i` mid-talk (or left the place): the line's `away`, once;
+/// without one the talk ends.
+pub fn walked_away(t: const Talk, l: rules::Level, i: integer) {
+  e = l.enemies[i] ?? return;
+  if e.talk_line < 0 || e.talk_away { return; }
+  line = t.lines[e.talk_line];
+  away = if line { line.away } else { -1 };
+  if away < 0 {
+    l.enemies[i].talk_line = -1;
+    return;
+  }
+  begin(t, l, i, away);
+  l.enemies[i].talk_away = true;
+}
+
+/// The talk of enemy `i` at the place's clock: walking away is a choice the moment it is made; a
+/// line whose time is up gives way to the next.  Answers whether what is said changed.
+pub fn step(t: const Talk, l: rules::Level, i: integer) -> boolean {
+  e = l.enemies[i] ?? return false;
+  if e.talk_line < 0 {
+    near = listening(t, l, i);
+    // Coming beside them starts the talk — once each time the hero comes by.
+    if close(t, l, i) && !e.talk_heard {
+      l.enemies[i].talk_heard = true;
+      l.enemies[i].barked = true;
+      begin(t, l, i, e.talk_start);
+      return true;
+    }
+    // Walking on by within reach: a bark, the next in turn, once each time.
+    if near && !e.barked && !e.talk_heard && len(t.barks) > 0 {
+      n = e.barks_said % len(t.barks) ?? 0;
+      l.enemies[i].barked = true;
+      l.enemies[i].bark_line = n;
+      l.enemies[i].barks_said = e.barks_said + 1;
+      l.enemies[i].bark_until = l.now + duration(t.barks[n]!);
+      return true;
+    }
+    if !near && (e.talk_heard || e.barked) {
+      l.enemies[i].talk_heard = false;
+      l.enemies[i].barked = false;
+    }
+    // A bark said gives way to silence.
+    if e.bark_line >= 0 && l.now >= e.bark_until {
+      l.enemies[i].bark_line = -1;
+      return true;
+    }
+    return false;
+  }
+  if !e.talk_away && !listening(t, l, i) {
+    walked_away(t, l, i);
+    return true;
+  }
+  if l.now < e.talk_until { return false; }
+  // The line said after the hero walked away ends the talk: nobody is there to answer it.
+  if e.talk_away {
+    l.enemies[i].talk_line = -1;
+    return true;
+  }
+  begin(t, l, i, after(t, e.talk_line));
+  true
+}
+
+/// The lines of `s` for a bubble at most `width` characters wide: whole words, a word longer than
+/// that cut.
+pub fn wrap(s: text, width: integer) -> vector<text> {
+  out: vector<text> = [];
+  row = "";
+  for w in s.split(' ') {
+    if w == "" { continue; }
+    word = if len(w) > width { w.char_slice(0, width) } else { w };
+    if row == "" { row = word; }
+    else if len(row) + 1 + len(word) <= width { row += " " + word; }
+    else {
+      out += [row];
+      row = word;
+    }
+  }
+  if row != "" { out += [row]; }
+  out
+}

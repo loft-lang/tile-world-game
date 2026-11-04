@@ -29,10 +29,39 @@
       "PQPPPQPQPPPQPQPPPQPQPPPQPQPPPQ"
     ] }
   ],
-  "things": [ ],
+  "things": [
+    { "at": [10, 9, 0], "stack": ["stick"] }
+  ],
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "enemies": [ ["elder", 10, 18, 0], ["villager", 19, 9, 0], ["maid", 22, 9, 0] ],
+  "talks": [
+    { "at": [10, 18, 0], "name": "elder", "gifts": { "stick": "thanks" }, "bump": "poke",
+      "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "lines": [
+        "WELCOME TO THE DEMO VILLAGE.",
+        { "hero": "WHAT IS THIS PLACE?" },
+        { "elder": "EVERY HOUSE HOLDS A ROOM.", "bump": "which" },
+        { "id": "ask", "elder": "BRING ME A STICK?", "away": "rude", "then": "ask", "end": true },
+        { "id": "rude", "elder": "MANNERS, YOUNG ONE!", "end": true },
+        { "id": "thanks", "elder": "A FINE STICK! HAVE THIS.", "take": true, "give": "torch", "then": "done" },
+        { "hero": "THANK YOU!", "end": true },
+        { "id": "done", "elder": "MIND THE CYCLOPES.", "end": true },
+        { "id": "which", "hero": "WHICH ROOM IS BEST?" },
+        { "elder": "THE ONE YOU HAVE NOT SEEN.", "next": "ask" },
+        { "id": "poke", "elder": "STOP POKING ME!", "end": true } ] },
+    { "at": [19, 9, 0], "name": "tom", "with": { "ann": [22, 9, 0] }, "bump": "again",
+      "barks": [ "MY WELL!", { "ann": "NOT YOURS!" } ], "lines": [
+        { "id": "a", "tom": "THE WELL IS MINE!", "bump": { "tom": "tom_wins", "ann": "ann_wins" } },
+        { "ann": "NOBODY OWNS THE WELL!", "next": "a", "bump": { "tom": "tom_wins", "ann": "ann_wins" } },
+        { "id": "tom_wins", "tom": "SEE? THEY AGREE WITH ME!" },
+        { "ann": "HMPH. SOME FRIEND YOU ARE.", "then": "sulk", "end": true },
+        { "id": "ann_wins", "ann": "YOU SEE IT TOO! THANK YOU." },
+        { "tom": "FINE. WE SHARE IT.", "then": "calm", "end": true },
+        { "id": "sulk", "tom": "MY WELL. MY RULES.", "bump": { "ann": "again" }, "end": true },
+        { "id": "calm", "ann": "ALL IS WELL AGAIN.", "bump": { "tom": "again" }, "end": true },
+        { "id": "again", "hero": "CAN WE TALK ABOUT THE WELL?", "next": "a" } ] }
+  ],
   "doors": [
     { "at": [4, 4, 0], "to": "first_climb", "door": "demo" },
     { "at": [14, 4, 0], "to": "the_cellar", "door": "demo" },

@@ -67,6 +67,9 @@
     "spider": { "hp": 2, "bite": 1, "move_ms": 500, "chase_ms": 350, "bite_ms": 1000, "sight": 5, "roam": 3, "heal_ms": 4000, "climbs": true },
     "guard": { "hp": 1, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "guard": true },
     "cyclops": { "hp": 5, "bite": 2, "move_ms": 800, "chase_ms": 450, "bite_ms": 1200, "sight": 8, "dark_sight": 2, "roam": 3, "heal_ms": 4000, "searches": true, "calls": 6, "brave": true, "holds": "axe", "bombs": 3, "pulls": true },
-    "hunter": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 400, "bite_ms": 1500, "sight": 8, "dark_sight": 2, "roam": 4, "heal_ms": 4000, "shoots": true, "holds": "bow" }
+    "hunter": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 400, "bite_ms": 1500, "sight": 8, "dark_sight": 2, "roam": 4, "heal_ms": 4000, "shoots": true, "holds": "bow" },
+    "villager": { "hp": 3, "bite": 0, "move_ms": 1400, "chase_ms": 1400, "bite_ms": 1000, "sight": 0, "roam": 2, "heal_ms": 4000, "talks": true },
+    "elder": { "hp": 3, "bite": 0, "move_ms": 2000, "chase_ms": 2000, "bite_ms": 1000, "sight": 0, "roam": 1, "heal_ms": 4000, "talks": true },
+    "maid": { "hp": 3, "bite": 0, "move_ms": 1600, "chase_ms": 1600, "bite_ms": 1000, "sight": 0, "roam": 2, "heal_ms": 4000, "talks": true }
   }
 }

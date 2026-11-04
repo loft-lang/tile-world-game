@@ -117,7 +117,9 @@ struct EnemyProps {
   pulls: boolean,
   /// It shoots arrows (a hunter), every bite_ms: at the hero it sees in line, else at another
   /// enemy it sees, which it hunts.
-  shoots: boolean
+  shoots: boolean,
+  /// It talks (a villager): walked into, it is spoken to, not struck (talk.loft).
+  talks: boolean = false
 }
 
 struct EdgeProps {
@@ -318,7 +320,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       climbs: flag(e, "climbs"), shuns_light: flag(e, "shuns_light"), likes_light: flag(e, "likes_light"),
       guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
       calls: num(e, "calls", 0), brave: flag(e, "brave"), holds: word(e, "holds", ""),
-      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots")
+      bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks")
     }];
   }
   th = v.field("things");
@@ -552,7 +554,11 @@ pub struct Level {
   pub aiming: boolean,
   pub aim_x: integer,
   pub aim_y: integer,
-  pub shots: vector<Shot>
+  pub shots: vector<Shot>,
+  /// The one the hero last walked into that talks (its id), and how often it has (the game says
+  /// what is said).
+  pub talk_to: integer = 0,
+  pub talked: integer = 0
 }
 
 /// An arrow: shot from (x, y, z) the way (dx, dy) `at`; it has flown `cells` cells, flies the next
@@ -600,7 +606,21 @@ pub struct Enemy {
   pub saw: boolean,
   /// What it holds (a thing, 0 for nothing) and, holding bombs, how many are left.
   pub item: integer,
-  pub bombs: integer
+  pub bombs: integer,
+  /// Talking (talk.loft): the line being said (-1 none), the one the next talk starts with, until
+  /// when this line is said, whether the hero walked away from it, and whether a talk that starts
+  /// near has begun since the hero came within reach.
+  pub talk_line: integer = -1,
+  pub talk_start: integer = 0,
+  pub talk_until: integer = 0,
+  pub talk_away: boolean = false,
+  pub talk_heard: boolean = false,
+  /// Barking at one walking on by: the bark said (-1 none), until when, whether this time by has
+  /// had one, and how many it has said (the next is the one after).
+  pub bark_line: integer = -1,
+  pub bark_until: integer = 0,
+  pub barked: boolean = false,
+  pub barks_said: integer = 0
 }
 
 // No enemy: what a missing index reads as.
@@ -678,6 +698,8 @@ pub enum Step {
   Thrown,
   /// The hero struck an enemy (walking into it, or swinging at it).
   Attacked,
+  /// The hero walked into one that talks (`talk_to`, its id): the game says what it says.
+  Talked,
   /// The well gave no water: an enemy is near, in sight.
   Watched,
   /// The hero shot an arrow.
@@ -2032,8 +2054,15 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     }
   }
   // Walking into an enemy strikes it, the hero staying where it is — not a guard (it blocks),
-  // nor one up on a wall (out of the sword's reach).
+  // nor one up on a wall (out of the sword's reach); one that talks is spoken to.
   foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
+  if foe >= 0 && enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).talks {
+    l.face_x = dx;
+    l.face_y = dy;
+    l.talk_to = (l.enemies[foe] ?? no_enemy()).id;
+    l.talked += 1;
+    return Step.Talked;
+  }
   if foe >= 0 {
     if !reachable_foe(l, foe, dx, dy) { return Step.Blocked; }
     return hero_blow(l, dx, dy, false);
@@ -3713,7 +3742,7 @@ fn walled(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: i
 /// of it?  A well gives water, and a guard steps aside, only then.
 pub fn clear_area(l: const Level) -> boolean {
   for e in l.enemies {
-    if enemy_props(l, e.kind).guard || e.z != l.hero_z { continue; }
+    if enemy_props(l, e.kind).guard || enemy_props(l, e.kind).talks || e.z != l.hero_z { continue; }
     if steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= l.k.clear_area
         && tile_world::line_of_sight(l.w, l.hero_x, l.hero_y, e.x, e.y, e.z) {
       return false;
@@ -3781,6 +3810,11 @@ fn enemy_act(l: Level, i: integer) {
   p = enemy_props(l, e.kind);
   if p.guard {
     guard_act(l, i, e, p);
+    return;
+  }
+  // Talking, it stands where it is until the line is said.
+  if e.talk_line >= 0 {
+    l.enemies[i].due = (if e.talk_until > e.due { e.talk_until } else { e.due }) + p.move_ms;
     return;
   }
   if l.held_by == e.id {

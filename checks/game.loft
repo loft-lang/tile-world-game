@@ -9,6 +9,7 @@
 use tile_world;
 use rules;
 use game;
+use talk;
 
 fn main() {
   assert(game::new_game("..") != null, "the game loads from its directory");
@@ -24,7 +25,8 @@ fn main() {
   test_what_the_hero_holds_goes_through();
   test_r_in_a_room_is_the_room_as_entered();
   test_floor_text_is_walked_over();
-  println("checks/game.loft: 12 passed");
+  test_walking_up_to_the_elder();
+  println("checks/game.loft: 13 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -307,4 +309,20 @@ fn test_floor_text_is_walked_over() {
   assert(changed(with, bare) > 0, "the text shows");
   g.look.hero = -1;
   assert(changed(with, frame(g)) > 0, "the hero is drawn over it");
+}
+
+// The elder at (10, 18): two steps west of the start the hero passes three steps from him — a bark
+// (HI THERE.), not a talk; up a row and beside him, the talk: WELCOME TO THE DEMO VILLAGE.
+fn test_walking_up_to_the_elder() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  walk(g, -1, 0, 2);
+  e = 0;
+  for i in 0..len(g.world.enemies) { if (g.world.enemies[i]!.kind) == "elder" { e = i; } }
+  assert(at(g) == "demo 12,19,0" && talk::barking(g.world, e) == 0 && talk::current(g.world, e) == -1,
+         "walking by: a bark: {at(g)}");
+  game::move(g, 0, -1, false);
+  game::move(g, -1, 0, false);
+  assert(at(g) == "demo 11,18,0" && talk::current(g.world, e) == 0, "beside him: the talk: {at(g)}");
 }

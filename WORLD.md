@@ -152,6 +152,29 @@ are detours, the walk back to its nest a rejoin.  What it gains: hours, more poi
 activities as data, bands, and a way back across layers: a spider that fled to another layer
 today stays there, because walking home and wandering both ask for its nest's layer.
 
+**Talking is moving (owner, 2026-11-04; built: `talk.loft`, `tests/talk.loft`).**  No dialogue
+menus: what the hero says is where it walks.  Getting close to someone is to have a casual talk;
+otherwise one walks on.
+
+- **Coming beside** one who talks starts their talk.  **Walking on by** within three steps gets a
+  short bark ("HI THERE.", "WHAT BRINGS YOU HERE?"), one each time by, taken in turn.
+- A talk is a script of lines, each said by someone taking part (the figure, the hero, others
+  `with` it) and shown for a time derived from its length.  While a line is said the player has
+  three choices, always the same three:
+  - **stay**: let it play out, the next line follows;
+  - **bump** one of them: get something out of them, the line's `bump` for whom was bumped (in an
+    argument, taking a side); bumping while holding a thing it has a gift for brings that thing;
+  - **walk away**, more than three steps: get out, the line's `away` (it calls after the hero), or
+    the talk ends.
+- Neither is a big deal by accident: a step or two off is still listening, a bump with nothing to
+  get changes nothing, so a bump's line leads back into the talk or somewhere mild.
+- A line can `take` what the hero holds (the figure then holds it, in sight), `give` a thing, and
+  `then` set where the next talk starts: what was chosen is remembered, in the figure's own state,
+  so a place left keeps it.
+- In a place file a talk reads as a script: `{ "ann": "NOT YOURS!", "next": "a" }`, a bare text
+  for the figure's own line, `bump` and `gifts` as small maps.  The demo village (levels/demo.json)
+  has an elder who wants a stick, and Tom and Ann arguing over the well.
+
 **A creature's routine is its plan, and the player can interrupt it in many ways**: talk to it,
 trade, give or show it something, ask it to follow, block its way, wake it, scare it, attack it,
 steal from it, draw it with light or noise.  Its activity says which apply and how it takes

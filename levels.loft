@@ -38,6 +38,7 @@ use tile_world;
 use rules;
 use materials;
 use intent;
+use talk;
 
 const CHUNK = 32;
 
@@ -91,7 +92,9 @@ pub struct LevelFile {
   pub adjusted: vector<integer> = [],
   /// The doors to other places, and the text written on the map.
   pub doors: vector<Door> = [],
-  pub labels: vector<Label> = []
+  pub labels: vector<Label> = [],
+  /// What the figures that talk say, and the choices in it (talk.loft).
+  pub talks: vector<talk::Talk> = []
 }
 
 struct LegendChar {
@@ -250,7 +253,7 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   LevelFile {
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
     start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
-    adjusted: adjusted, doors: doors, labels: labels
+    adjusted: adjusted, doors: doors, labels: labels, talks: talk::from_json(v.field("talks"))
   }
 }
 
@@ -530,6 +533,7 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     }
     out += "\n  ],";
   }
+  if len(lf.talks) > 0 { out += "\n  \"talks\": {talk::json(lf.talks)},"; }
   out += "\n  \"start\": [{lf.start_x}, {lf.start_y}, {lf.start_z}],\n  \"goal\": ";
   g = lf.goal;
   if g.kind == "layer" {
