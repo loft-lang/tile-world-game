@@ -207,7 +207,9 @@ crafting materials deep in it, unknown to most (@ST-Mine).  He was sent by the e
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord proposed to a princess and was rejected.
 The young lord is the local lord, the one who fell from grace (@ST-Decree), and the hero was in his
 army (@ST-Hero).  He has a claim on the mine, but it is actively blocked (owner, 2026-11-04; the
-guards block him, @ST-Guards).
+guards block him, @ST-Guards).  The princess is the reason he fell from grace (owner, 2026-11-04).
+The hero can influence this, indirectly: by giving the young lord unique treasures, and ways to show
+a bit of spine (owner, 2026-11-04).
 
 <a id="st-lady"></a>**The lady** (owner, 2026-11-04): another one interested in the mine is an older lady with quite
 some magical skills, and aides.  That is not forbidden, but it is not generally approved of.  She
