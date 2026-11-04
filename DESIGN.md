@@ -407,7 +407,7 @@ on water, and things pushed or blown into it are lost.
   shooting).  So a fight is paced by the hero's blows, not by how fast keys are pressed.
 - **One item, no inventory.** The hero holds at most one item, and it is always on screen.
   - Walking over an item swaps it with the one held.
-  - `drop` (X) puts the held item down.
+  - `drop` (L, or X) puts the held item down.
   - **Full hands.** While holding any item, the hero cannot push, pull or lift anything. So
     the cellar's torch is put down beside the rock before the rock is pushed.
   - Built (slice 2): the swap, drop and full hands.
@@ -430,8 +430,8 @@ on water, and things pushed or blown into it are lost.
     with the hero; pressing the target key again switches directly to the next.  The lock is lost
     when the target goes out of the hero's view.  The targeting has to be good enough for this to
     work — levers and bombs among enemies.
-  - **Built** (`tests/bow.loft`; the numbers proposed).  Space shoots (at the locked target, else
-    the way the hero faces, turning it there); `T` locks on the next target.  An arrow flies
+  - **Built** (`tests/bow.loft`; the numbers proposed).  J (or Space) shoots (at the locked
+    target, else the way the hero faces, turning it there); I (or T) locks on the next target.  An arrow flies
     straight, a cell every 30 ms (`arrow_ms`) up to 8 cells (`arrow_range`), striking what it meets
     when it gets there — an enemy can still step out of its way: over items, fences, water and
     chasms; stopped by a wall, a closed edge or a big thing.  It strikes an enemy for 1, a spider
@@ -443,7 +443,7 @@ on water, and things pushed or blown into it are lost.
   - It is thrown like a bowling ball: it rolls in a straight line and ignites on impact.
   - **A bomb rolls; other things do not** (owner).  On a slope it starts rolling downhill by
     itself; it speeds up downhill and slows uphill as a cart does, and on the flat it slows one
-    speed every 4 cells (`bomb_coast`).  Thrown (Space, the way the hero faces) it starts at speed
+    speed every 4 cells (`bomb_coast`).  Thrown (J or Space, the way the hero faces) it starts at speed
     4, a cell every 150 ms: up to 16 cells on the flat.
   - **The thrower fuses it** (owner).  A thrown bomb goes off on **impact** — hitting something
     while it moves: a wall, a thing, the hero, the ground after a fall — and rolling into water
@@ -545,7 +545,7 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   terrain, or a burning torch.  Light falls off one shade a step from it, darkest 7 steps away,
   and it never passes an opaque cell or edge.  This is `tile_world::shades` as it stands today.
 - **Stick, torch, burning torch.**  These are three states of one held item, and all follow the
-  held-item rules.  Walking over one swaps it with the one held, X drops it, and holding one
+  held-item rules.  Walking over one swaps it with the one held, L (or X) drops it, and holding one
   means full hands.
   - A **stick** gives no light.
   - A **torch** is a stick dipped in tar.  It gives no light until it is lit.
@@ -662,8 +662,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     hero and a torch gives it away — the reason to move in the dark.
   - **Seeing the hero anew, a cyclops shouts** (heard: the voice pack's "fight") and **calls** the
     others of its kind within 6 cells to the place, seen or not; it comes at the hero (a cell
-    every 450 ms) and strikes for 2 (every 1200 ms).  Health 5: five of the hero's blows, two
-    seconds of them (§ What the hero holds: a blow takes its time).
+    every 450 ms) and strikes for 2 (every 1200 ms), a sweep wound up for 700 ms (@GM-Combat).
+    Health 8: four of a sword's blows, more than fit inside one sweep's wind-up, so a fight with
+    one is an exchange, never a free kill (§ What the hero holds: a blow takes its time).
   - **Losing it, it searches** the place it last saw it, for 6 s after; there it stands looking,
     then walks home.  Called ones search the same way; one finding the place taken stands beside it.
   - **A blast draws them** (owner): within 8 cells they go to search its place instead of fleeing.
@@ -758,9 +759,9 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
   no weapon (a torch, a stick) is held as before.
 - **Facing** is the way the figure last tried to walk, a wall included; pulling, it faces what
   it pulls (`Level.face_x`, `face_y`).
-- **The swing** (Space): a wind-up 70° behind the facing, a strike through to 70° beyond with a
+- **The swing** (J, or Space): a wind-up 70° behind the facing, a strike through to 70° beyond with a
   2 px lunge, and the recovery, 240 ms. It strikes the cell faced (`rules::swing`): an axe chops a
-  tree there as walking into it does; a sword cuts the air until enemies exist.
+  tree there as walking into it does; a weapon strikes the enemies in its reach (@GM-Combat).
 - **The stagger** (owner): walking into something that does not give way knocks the figure
   3 px back and lets it wobble back, 280 ms, its weapon flung back. A hit (a rolling cart) is
   the same stagger, and a figure the hit moves (shoved aside) glides there while it staggers.

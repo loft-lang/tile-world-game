@@ -74,7 +74,7 @@ one when it is solved), Esc or Q quits.
 | `tools/fill.loft`, `tools/map.loft` | the drawing kit's tools: `loft --lib libs tools/fill.loft PLACE` fills a place in from its intent (ground, trails, blobs, rooms, corridors, houses, slopes, items: intent.loft) and saves it; `tools/map.loft PLACE OUT.png [SCALE]` pictures the whole place, every layer in full light |
 | `tools/tags.loft` | the story's parts (`@ST-Decree`, STORY.md) and the gameplay mechanics wanted (`@GM-CartLift`, DESIGN.md) as tags, like loft's formal rules: `list`, `check` (the index, the paragraphs and every citation in step; exit 1 when not), `sites <tag>`; a place file names what it serves in its `serves` list |
 | `EDITOR.md` | the design of the in-game world editor |
-| `tests/` | the rules, played out: `loft --lib libs --tests tests` |
+| `tests/` | the rules, played out: `loft --lib libs --tests tests` — `combat.loft` each fighting move timed by hand, `fights.loft` the fight rooms played by an attacker, a parrier and a dodger |
 | `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |
 | `ART.md` | the game's own sheet: its layout, its style, how a tile is drawn |
