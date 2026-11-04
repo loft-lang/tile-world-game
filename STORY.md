@@ -37,7 +37,7 @@ Every part of the story has a tag, the way loft's formal rules do, so what is bu
 part of the plot it serves: a place file, a talk, a piece of code or a doc cites it as
 `@ST-<Name>`, and the tag links to the part's paragraph here.  This index DEFINES the parts; each
 part's text is the paragraph that carries its anchor.  A piece that cannot name the part it
-serves is not built (the status above).  `loft tools/story.loft check` keeps the index, the
+serves is not built (the status above).  `loft tools/tags.loft check` keeps the index, the
 paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 
 | Part | What | § |

@@ -95,9 +95,9 @@ pub struct LevelFile {
   pub labels: vector<Label> = [],
   /// What the figures that talk say, and the choices in it (talk.loft).
   pub talks: vector<talk::Talk> = [],
-  /// The parts of the story the place serves, as STORY.md tags them (`@ST-Decree`); checked by
-  /// `loft tools/story.loft check`.
-  pub story: vector<text> = []
+  /// What the place serves: parts of the story (`@ST-Decree`, STORY.md) and gameplay mechanics
+  /// (`@GM-CartLift`, DESIGN.md); checked by `loft tools/tags.loft check`.
+  pub serves: vector<text> = []
 }
 
 struct LegendChar {
@@ -257,12 +257,12 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
     start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
     adjusted: adjusted, doors: doors, labels: labels, talks: talk::from_json(v.field("talks")),
-    story: story_of(v.field("story"))
+    serves: serves_of(v.field("serves"))
   }
 }
 
-// A place file's `story`: the tags it lists.
-fn story_of(v: const JsonValue) -> vector<text> {
+// A place file's `serves`: the tags it lists.
+fn serves_of(v: const JsonValue) -> vector<text> {
   out: vector<text> = [];
   for i in 0..v.len() { out += [v.item(i).as_text()]; }
   out
@@ -435,10 +435,10 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     }
   }
   out = "{{\n  \"name\": {quoted(lf.name)},";
-  if len(lf.story) > 0 {
-    out += "\n  \"story\": [";
+  if len(lf.serves) > 0 {
+    out += "\n  \"serves\": [";
     sf = true;
-    for t in lf.story {
+    for t in lf.serves {
       out += if sf { " " } else { ", " };
       out += quoted(t);
       sf = false;

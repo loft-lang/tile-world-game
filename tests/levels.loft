@@ -258,12 +258,12 @@ fn test_doors_and_labels_load_and_save() {
          "doors and text kept");
 }
 
-// The parts of the story a place serves load and save with it, right under its name.
-fn test_the_story_a_place_serves_loads_and_saves() {
-  raw = read("first_climb").replace("\"name\": \"the first climb\",", "\"name\": \"the first climb\",\n  \"story\": [ \"@ST-Mine\", \"@ST-Play\" ],");
+// What a place serves (story parts, mechanics) loads and saves with it, right under its name.
+fn test_what_a_place_serves_loads_and_saves() {
+  raw = read("first_climb").replace("\"name\": \"the first climb\",", "\"name\": \"the first climb\",\n  \"serves\": [ \"@ST-Mine\", \"@GM-CartLift\" ],");
   m = levels::load(raw, rules::kinds());
   if !m { assert(false, "it loads"); return; }
   lf = m ?? level("first_climb");
-  assert(len(lf.story) == 2 && (lf.story[0] ?? "") == "@ST-Mine", "the parts: {len(lf.story)}");
+  assert(len(lf.serves) == 2 && (lf.serves[0] ?? "") == "@ST-Mine", "what it serves: {len(lf.serves)}");
   assert(levels::save(lf) == raw, "saves to the same text");
 }

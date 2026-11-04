@@ -1,0 +1,230 @@
+// The game's tagged sets and where the game cites them, as loft cites its formal rules.  Two
+// families, each with its home:
+//
+//   @ST-<Name>   a part of the story     STORY.md § Story parts
+//   @GM-<Name>   a gameplay mechanic     DESIGN.md § Gameplay mechanics wanted
+//
+// A tag is DEFINED by its row in its home's index (a row starting with the tag,
+// `| [`@ST-<Name>`](#st-<name>) | … |`), and its text is the paragraph in the same file that carries
+// the anchor `<a id="st-<name>"></a>`.  Anything built — a place file, a talk, a piece of code, a
+// doc — cites what it serves by tag.  A citation is boundary-exact: the name runs as far as
+// letters, digits and `-` go, so a longer name is never read as a shorter one.
+//
+//   loft tools/tags.loft list          every tag: what it is, and its section where it has one
+//   loft tools/tags.loft check         every tag has exactly one paragraph, every paragraph a tag,
+//                                      every citation names a tag; exit 1 when not
+//   loft tools/tags.loft sites <tag>   where a tag is cited (`@ST-Farm`, or `ST-Farm`)
+//
+// loft runs a script from its own directory, so the tool finds the game's root itself: here, or
+// one up.  It reads .loft, .md and .json files, leaving out the fetched libraries, build output,
+// caches and the pictures, and names a file by its path from the root.
+
+/// A tag's family: its prefix and the file that defines it.
+pub struct Family {
+  pub prefix: text,
+  pub home: text
+}
+
+/// A defined tag: its family's prefix and name together (`ST-Farm`), what it is, its section.
+pub struct Part {
+  pub tag: text,
+  pub what: text,
+  pub section: text
+}
+
+pub struct Cite {
+  pub tag: text,
+  pub at: text
+}
+
+const SKIP = "libs build .loft .git native-auto assets target";
+
+pub fn families() -> vector<Family> {
+  [Family { prefix: "ST", home: "STORY.md" }, Family { prefix: "GM", home: "DESIGN.md" }]
+}
+
+// The characters of `s`, one text each.
+fn chars_of(s: text) -> vector<text> {
+  out: vector<text> = [];
+  for c in s { out += ["{c}"]; }
+  out
+}
+
+fn name_char(c: text) -> boolean {
+  c == "-" || c.is_alphanumeric()
+}
+
+/// The tags a line cites, of any family, as `ST-<Name>` / `GM-<Name>` in order: `@`, a family's
+/// prefix and `-`, then a name that starts with a capital letter and runs as far as letters,
+/// digits and `-` go.
+pub fn tags_in(line: text) -> vector<text> {
+  out: vector<text> = [];
+  cs = chars_of(line);
+  n = len(cs);
+  i = 0;
+  while i + 4 < n {
+    hit = "";
+    if (cs[i] ?? "") == "@" && (cs[i + 3] ?? "") == "-" && (cs[i + 4] ?? "").is_uppercase() {
+      p = (cs[i + 1] ?? "") + (cs[i + 2] ?? "");
+      for f in families() { if f.prefix == p { hit = p; } }
+    }
+    if hit == "" {
+      i += 1;
+      continue;
+    }
+    j = i + 4;
+    name = "";
+    while j < n && name_char(cs[j] ?? "") {
+      name += cs[j] ?? "";
+      j += 1;
+    }
+    while name.ends_with("-") { name = name.char_slice(0, len(name) - 1); }
+    out += ["{hit}-{name}"];
+    i = j;
+  }
+  out
+}
+
+/// The anchors `<a id="st-…">` (any family's) a line holds, their ids.
+pub fn anchors_in(line: text) -> vector<text> {
+  out: vector<text> = [];
+  for piece in line.split_text("<a id=\"") {
+    family = false;
+    for f in families() { if piece.starts_with(f.prefix.to_lowercase() + "-") { family = true; } }
+    if !family { continue; }
+    end = piece.find("\"") ?? -1;
+    if end > 0 { out += [piece.char_slice(0, end)]; }
+  }
+  out
+}
+
+fn index_row(line: text, prefix: text) -> boolean {
+  line.starts_with("| [`@{prefix}-")
+}
+
+/// The tags family `f`'s home `doc` defines: its index rows.
+pub fn parts_of(doc: text, f: const Family) -> vector<Part> {
+  out: vector<Part> = [];
+  for line in doc.split('\n') {
+    if !index_row(line, f.prefix) { continue; }
+    tags = tags_in(line);
+    cells = line.split('|');
+    if len(tags) == 0 || len(cells) < 3 { continue; }
+    out += [Part { tag: tags[0] ?? "", what: (cells[2] ?? "").trim(), section: (cells[3] ?? "").trim() }];
+  }
+  out
+}
+
+// Every file under `root`/`rel` the tool reads, by its path from `root`.
+fn files_under(root: text, rel: text, out: vector<text>) {
+  skip = SKIP.split(' ');
+  dir = if rel == "" { root } else { "{root}/{rel}" };
+  for name in list_dir(dir) ?? [] {
+    if skip.contains(name) { continue; }
+    path = if rel == "" { name } else { "{rel}/{name}" };
+    if is_dir("{root}/{path}") {
+      files_under(root, path, out);
+    } else if name.ends_with(".loft") || name.ends_with(".md") || name.ends_with(".json") {
+      out += [path];
+    }
+  }
+}
+
+/// Every citation under `root`, as `path:line` from it, leaving out the homes' own index rows
+/// (they define the tags).
+pub fn cites_under(root: text) -> vector<Cite> {
+  out: vector<Cite> = [];
+  paths: vector<text> = [];
+  files_under(root, "", paths);
+  for path in paths {
+    n = 0;
+    for line in (file("{root}/{path}").content() ?? "").split('\n') {
+      n += 1;
+      defining = false;
+      for f in families() { if path == f.home && index_row(line, f.prefix) { defining = true; } }
+      if defining { continue; }
+      for t in tags_in(line) { out += [Cite { tag: t, at: "{path}:{n}" }]; }
+    }
+  }
+  out
+}
+
+// The game's root: the directory holding STORY.md, here or one up.
+fn root() -> text {
+  if (file("STORY.md").content() ?? "") != "" { "." } else { ".." }
+}
+
+/// What is wrong with family `f`'s tags in its home `doc`, one line each; empty when nothing is.
+pub fn family_problems(doc: text, f: const Family) -> vector<text> {
+  out: vector<text> = [];
+  parts = parts_of(doc, f);
+  ids: vector<text> = [];
+  lp = f.prefix.to_lowercase() + "-";
+  for line in doc.split('\n') { for a in anchors_in(line) { if a.starts_with(lp) { ids += [a]; } } }
+  seen: vector<text> = [];
+  for p in parts {
+    if seen.contains(p.tag) { out += ["@{p.tag} is defined twice"]; }
+    seen += [p.tag];
+    want = p.tag.to_lowercase();
+    n = 0;
+    for a in ids { if a == want { n += 1; } }
+    if n == 0 { out += ["@{p.tag} has no paragraph in {f.home} (<a id=\"{want}\"></a>)"]; }
+    if n > 1 { out += ["@{p.tag} has {n} paragraphs"]; }
+  }
+  for a in ids {
+    found = false;
+    for p in parts { if p.tag.to_lowercase() == a { found = true; } }
+    if !found { out += ["paragraph {a} in {f.home} has no row in its index"]; }
+  }
+  out
+}
+
+/// What is wrong across the families and the citations; empty when nothing is.
+pub fn problems(docs: const vector<text>, cites: const vector<Cite>) -> vector<text> {
+  out: vector<text> = [];
+  defined: vector<text> = [];
+  fs = families();
+  for k in 0..len(fs) {
+    f = fs[k]!;
+    doc = docs[k] ?? "";
+    out += family_problems(doc, f);
+    for p in parts_of(doc, f) { defined += [p.tag]; }
+  }
+  for c in cites {
+    if !defined.contains(c.tag) { out += ["{c.at}: @{c.tag} names nothing defined"]; }
+  }
+  out
+}
+
+fn main() {
+  args = arguments();
+  what = args[0] ?? "list";
+  r = root();
+  docs: vector<text> = [];
+  for f in families() {
+    d = file("{r}/{f.home}").content() ?? "";
+    if d == "" {
+      println("tags: no {f.home} here or one up");
+      exit(1);
+    }
+    docs += [d];
+  }
+  if what == "list" {
+    fs = families();
+    for k in 0..len(fs) {
+      for p in parts_of(docs[k] ?? "", fs[k]!) {
+        println(if p.section != "" { "@{p.tag}  {p.what}  ({p.section})" } else { "@{p.tag}  {p.what}" });
+      }
+    }
+  } else if what == "check" {
+    ps = problems(docs, cites_under(r));
+    for p in ps { println(p); }
+    if len(ps) > 0 { exit(1); }
+  } else if what == "sites" {
+    tag = (args[1] ?? "").replace("@", "");
+    for c in cites_under(r) { if c.tag == tag { println(c.at); } }
+  } else {
+    println("usage: loft tools/tags.loft list | check | sites <tag>");
+    exit(1);
+  }
+}

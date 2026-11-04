@@ -51,6 +51,37 @@ This is what the game built on tile_world should be.
 - **A test enforces it.** Every shipped level carries a solution test played by the base character
   (`tests/first_climb.loft` is the model).
 
+## Gameplay mechanics wanted
+
+The owner's set of gameplay mechanics for the game, apart from the story's parts (STORY.md): each
+has a tag, `@GM-<Name>`, that a place, a puzzle or a piece of code cites the way the story's parts
+are cited, and that links to its paragraph here.  `loft tools/tags.loft check` keeps them in step.
+Each becomes part of the test dungeons (owner, 2026-11-04): a room of the demo village that shows
+it, as the five rooms show the mechanics built so far, and names it in the room's `serves`.  The
+new items get rules of their own, tested in a small scenario, and they fit into the mechanics
+already designed and built (owner, 2026-11-04).
+
+| Mechanic | What |
+|---|---|
+| [`@GM-Flooded`](#gm-flooded) | part of a mine flooded; machines needed to enter |
+| [`@GM-CartLift`](#gm-cartlift) | a lift that can carry mine carts |
+| [`@GM-Flotilla`](#gm-flotilla) | wood pulled together to cross an underground lake |
+
+<a id="gm-flooded"></a>**The flooded part** (owner, 2026-11-04): part of a mine is flooded and needs
+machines to be entered.
+
+<a id="gm-cartlift"></a>**The cart lift** (owner, 2026-11-04): a lift that can carry mine carts.
+
+<a id="gm-flotilla"></a>**The flotilla** (owner, 2026-11-04): wood that can be pulled together into a
+flotilla to cross an underground lake.
+
+*Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
+blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
+whose extent follows a machine's state.  A lift asks for a platform that moves between layers
+carrying what stands on it, a cart and its rails' joins included; today a cart changes layer only
+by being pulled over a layer's edge.  The flotilla asks for things that float: today nothing stands
+on water, and things pushed or blown into it are lost.
+
 ## The world
 
 - **Layers.** `z` is the floor level, unbounded both ways.
