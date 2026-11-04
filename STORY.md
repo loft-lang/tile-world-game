@@ -210,7 +210,9 @@ the mine, unknown to most: the same as the wizard's (owner, 2026-11-04).
 
 <a id="st-neighbour"></a>**The elder lord next door** (owner, 2026-11-04): the last of the lords, an elder male lord, and the
 one who sent the wizard (@ST-Wizard).  His interest in the mine, which is adjacent to his lands, is
-mostly just monetary.  His lands are mostly mountains, with little central control.
+mostly just monetary.  His lands are mostly mountains, with little central control.  He is not
+aware of the wizard's personal interest, but was pleasantly surprised by how willing the grumpy
+mage was to go there (owner, 2026-11-04).
 
 *Who each is follows from what the player is to do.*
 
