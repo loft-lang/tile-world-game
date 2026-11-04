@@ -9,10 +9,10 @@ The rough full game is a story the hero walks through, which in time takes in ev
 in some form (owner, 2026-11-04).  It is not about presenting everything at once.  Nothing of it
 is built until four things are known: the story to tell, the people in it, the monsters and their
 place in the world, and how the story can end (owner).  **Status** (owner, 2026-11-04): the outline
-below is enough; the questions still open (what "well defended" is made of, the other endings,
-the other adventurers' aims) are now ones to answer by building the game.
+below is enough; the questions still open (the other endings, the other adventurers' aims) are now ones to answer by building the game.
 Building keeps the story in sight (owner, 2026-11-04): the individual pieces have to be part of
-the overall plot.
+the overall plot.  What is still open will be decided later, or may even remain a mystery in the
+story: not everything needs spelling out (owner, 2026-11-04).
 
 **An outline, not a world bible** (owner, 2026-11-04): this is foremost a game, and the world is
 the backdrop for it.  The sections below are an outline; their details come from what the player
@@ -49,6 +49,8 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-Setting`](#st-setting) | Orbury, the decrepit mining town, in Sunmarch, in the Kingdom of Aldmere | § 1 |
 | [`@ST-Farm`](#st-farm) | Thornfield, the Dunns' farm, which cannot feed the village | § 1 |
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
+| [`@ST-Artefact`](#st-artefact) | the artefact in pieces, crafted again with the lake's materials | § 1 |
+| [`@ST-Force`](#st-force) | the force in the land: an underling mage of an opposing country, spreading rumours | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
 | [`@ST-Guards`](#st-guards) | the King's Wardens: federal guards, no sides, no protection | § 1 |
 | [`@ST-Future`](#st-future) | the village will be rebuilt anyway; the villagers may not live to see it | § 1 |
@@ -69,6 +71,7 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-YoungVillager`](#st-youngvillager) | Lark, who can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | Master Odran, a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-Rival`](#st-rival) | Sable, the rival adventurer: a contender who blocks walkways | § 2 |
+| [`@ST-Aide`](#st-aide) | Tamsin, Lady Brigid's aide: her viewpoint; arrives after the hero | § 2 |
 | [`@ST-Court`](#st-court) | Lord Edric of Sunmarch, the young local lord, rejected by Princess Isolde | § 2 |
 | [`@ST-Lady`](#st-lady) | Lady Brigid of Greywood, the witch: elderly, far forest lands, after the mine | § 2 |
 | [`@ST-Neighbour`](#st-neighbour) | Lord Garrick of Highcrag, elderly lord of the mountains next door; sent the wizard | § 2 |
@@ -98,6 +101,29 @@ open new dig sites in the hills to reach the valuable ore.  They had to stop, be
 political circumstances from outside and a drought (below: a decree), so there are still
 valuable things to find.  Deep in the mine there are magical crafting materials, unknown to most
 (owner, 2026-11-04; the witch and the wizard are after them, @ST-Lady, @ST-Wizard).
+
+<a id="st-artefact"></a>**The artefact** (owner, 2026-11-04; still to be thought out): it lies in the mine in pieces, and has
+value only when crafted together again, with the help of magical materials from around the Still
+Lake (@ST-Mine, @GM-Flotilla).  Given to Tamsin for Lady Brigid, or taken to the local lord, it
+pushes the story (@ST-BestEnding).  For now (owner, 2026-11-04): the chests are how its pieces are
+found.  The pieces were put in the chests on purpose after the war, and the chests hidden, though
+not well enough against the changes time brought (owner, 2026-11-04).  The hero crafts it
+himself, after learning how from the alchemist (owner, 2026-11-04; @ST-Alchemist), at an abandoned
+smithy that can be made to work again for it (owner, 2026-11-04).  It was shattered in an old demon war, to prevent a portal being opened to the place where
+the demon lord is banished.  The artefact is a key, not the portal: the portal is a specific
+location outside the direct area (owner, 2026-11-04).  This is how the game alludes to a second
+game with a bigger scope; that scope is not brought into this one (owner, 2026-11-04).  That war
+was long before the mine; their leader deemed the place
+inaccessible to people.  A force in the land influences people to gather the pieces again
+(@ST-Force).  The
+demon lord is dead by now, but is still a source of power for mages (owner, 2026-11-04;
+@ST-Magic, @ST-Lady, @ST-Wizard).
+
+<a id="st-force"></a>**The force in the land** (owner, 2026-11-04): an underling mage from an opposing country, seeking to
+destabilise Aldmere, and thinking the demon lord is still alive (@ST-Artefact: he is dead).  The
+mine was not planned by them, but when they heard of it they started the rumours of magical
+riches there.  The player can find out about the mage, but only by getting the different people
+involved together, peacefully, in the same place (owner, 2026-11-04).
 
 <a id="st-decree"></a>**Why the village has stopped mining** (owner, 2026-11-04).  Mining is rough right now, but the
 hardy villagers (some of them workers) would press on regardless of that.  What stops them is a
@@ -129,7 +155,9 @@ but certainly not welcome there at the moment.  For now he is just searching for
 low for a while; but this adventure is also his way to grow into the person he wants to become.
 Part of why he comes here is that he heard this place may offer opportunities for someone like
 him, with little official education.  The army he served in was the local lord's (@ST-Court,
-owner 2026-11-04).  Entering the village is a bit of a let-down for him: this is
+owner 2026-11-04).  He does not know of the court trouble at the start: it is bound up with the
+state of the town, and learned together with the player (owner, 2026-11-04; Agnes tells it,
+@ST-Innkeeper).  Entering the village is a bit of a let-down for him: this is
 very much not the place he wants to be: he arrives riding his horse (owner, 2026-11-04; the game's
 own sheet, tile 24), and cannot find a place to stay at the inn, which is abandoned (@ST-Innkeeper).
 He can stay in the barn at Thornfield, if he is willing to let the Dunns use his horse on the
@@ -163,7 +191,8 @@ the outline's implication, not the owner's words):
 
 - **The village** (@ST-Setting): the town, the small farm with the barn where the hero stays
   (@ST-Farm), the alchemist's home
-  (@ST-Alchemist), the abandoned inn and Agnes's house nearby (@ST-Innkeeper); a small cemetery
+  (@ST-Alchemist), the abandoned inn and Agnes's house nearby (@ST-Innkeeper), an abandoned smithy
+  that can be made to work again (@ST-Artefact); a small cemetery
   near the village, where the founder's ghost appears at night (@ST-Founder); the family that fled is missed there (@ST-Debate).
 - **The main mine, the Old Seam** (@ST-Mine): mined out at the surface; roughly three levels of
   tunnels below it, the flooded ones the deepest (owner, 2026-11-04; @ST-Hints names the way down);
@@ -249,13 +278,15 @@ keeping to himself, with few social skills.
 
 <a id="st-innkeeper"></a>**The innkeeper: Agnes** (owner, 2026-11-04): has seen too many leave, and is for abandoning the
 town (@ST-Debate).  The inn itself is abandoned; she lives in a house nearby that was easier to
-maintain.
+maintain.  She carries the state of the town and the court trouble behind it: the hero, and the
+player with him, learns them from her (owner, 2026-11-04).
 
 <a id="st-warden"></a>**The Wardens' sergeant: Sergeant Voss** (owner, 2026-11-04): a fellow sergeant for the hero to
 measure himself against (@ST-Guards).  The Wardens keep to themselves in a small camp, explicitly
 not mingling with the people: they are there to keep the people out.  They guard the main path to
 the mine; that is enough to stop it running, because the ore is carried out that way too.  It did
-not stop the Kharn (owner, 2026-11-04).
+not stop the Kharn (owner, 2026-11-04).  Part of the court trouble is known to him, and the hero
+can talk to him about it (owner, 2026-11-04).
 
 <a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): of the Dunns of Thornfield (@ST-Farm); can be
 asked to show the player a hidden path into the hills (@ST-Hints, @ST-Stealth).
@@ -276,6 +307,12 @@ places hold puzzles solely because of the obstructions he made.  What does not o
 a runaway cart for one, he can have left behind as practical traps (owner, 2026-11-04).  His spot,
 with his goods and rope among them, is in the High Diggings' mine; during the day he is often in
 the main mine, and cannot get back home until dusk (owner, 2026-11-04).
+
+<a id="st-aide"></a>**Lady Brigid's aide: Tamsin** (owner, 2026-11-04): one of the other adventurers, working for the
+witch (@ST-Lady) and looking for the magical materials in the mine (@ST-Mine); gives her viewpoint,
+so the wizard does not carry both lords (owner).  Unlike Sable, who is there before the hero,
+Tamsin arrives later (owner, 2026-11-04).  Tamsin is gender-neutral, for the fun of it (owner): the
+lines about Tamsin never say he or she.  Tiny Dungeon's tile 88 proposed.
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord, Lord Edric of Sunmarch, proposed to a princess,
 Princess Isolde, and was rejected.
@@ -372,12 +409,18 @@ What the owner has already said about monsters (DESIGN.md § Enemies):
 invade the village, and the hunter is not helping there.  The cyclopes know other places, but
 because of the shared situation the village is their best choice for the moment.  The cyclopes
 are not cold killers, they are tribal: presented with a well-defended village, they retreat.
+**When** (owner, 2026-11-04): the attack takes place when the cyclopes have hunted the monsters
+there are to hunt, and run out of food (@ST-Residents).
+**Well defended** is enough capable people together behind a barricade that has been built; so the
+Wardens have to move too, for they are in danger as well (owner, 2026-11-04; @ST-Warden).
 
 <a id="st-bestending"></a>**The best ending** (owner, 2026-11-04): getting the cyclopes to leave.  Blowing up the mine is not
 it: a cave-in might kill some of them, but the group as a whole would be able to dig itself out
 and start an offensive.  A good ending also resolves the miners' block: they can work the mine
 again (owner, 2026-11-04).  So the mine's ownership has three scenarios: one of the two lords who
-want it gets it, or the local lord's favour is restored (owner).
+want it gets it, or the local lord's favour is restored (owner).  One way to push the story: an
+artefact given to Tamsin (@ST-Aide), for Lady Brigid, instead of taken to the local lord (owner,
+2026-11-04).
 
 <a id="st-sunset"></a>**The hero's ending** (owner, 2026-11-04): the hero rides into the sunset in any scenario, just leaving
 a different world behind.  Riding off to the young lord is one of the directions he can take
@@ -456,10 +499,16 @@ the cost of a choice is known when it is made; none proposes story content.
   read (facts, as above); endings by place reached need nothing new.
 - **The climax is a world event.**  The cyclopes invading, and retreating from a well-defended
   village, asks for: an event that comes at a moment or on a condition; a measure of "well
-  defended" read at that moment from what the player has done; and the group marching from the
+  defended" read at that moment — known now (§ 4): capable people gathered behind a built
+  barricade, which existing rules can make of big things pushed into place (rocks, barrels,
+  carts), the people brought there by their points (WORLD.md step 3); and the group marching from the
   mine to the village through doors (monster bands, WORLD.md step 3, and things following through
   a door).  The cyclopes' rules today are per place and per figure; a group decision to retreat is
   new.
+- **The attack's moment follows the Kharn's prey** (§ 4).  With no unwatched simulation (scripted
+  is enough), the prey running out can be a count read from the clock and from what has happened
+  to the monsters: those the player, the hunter (who hunts them too) or a blast takes off it bring
+  the attack nearer; those kept alive put it off.
 - **Hints for a stuck player** need to know the player is stuck (time spent in a place, tries,
   returns) and lines that depend on it: facts and conditions again, the same mechanism as gossip.
 - **Relations that last** (the hunter befriended, a family returning, the village's mood) are facts

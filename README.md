@@ -65,6 +65,7 @@ one when it is solved), Esc or Q quits.
 | `main.loft` | the loop: shows the picture with `screen`, reads the keys from the window or the machine's keyboard |
 | `DESIGN.md` | what the game should become, slice by slice |
 | `STORY.md` | the story game, designed before it is built: the owner's story, people, monsters and endings, what the engine offers them, and engine notes kept apart |
+| `TALKS.md` | what the game's people talk about: what each knows, wants and gets wrong, what the village argues over, what play changes — a writer's sheet from STORY.md |
 | `tools/tags.loft` | the story's parts (`@ST-Decree`, STORY.md) and the gameplay mechanics wanted (`@GM-CartLift`, DESIGN.md) as tags, like loft's formal rules: `list`, `check` (the index, the paragraphs and every citation in step; exit 1 when not), `sites <tag>`; a place file names what it serves in its `serves` list |
 | `EDITOR.md` | the design of the in-game world editor |
 | `tests/` | the rules, played out: `loft --lib libs --tests tests` |

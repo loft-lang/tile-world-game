@@ -86,7 +86,7 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   invasion, which a well-defended village turns back) and the best ending (they leave); then the
   farm, the decree's form (the lord fallen, a weak ownership dispute, neutral federal guards), the
   stealth puzzles, the other adventurers in a low-magic world, the alchemist.  Owner: the outline
-  is enough; what stays open (what "well defended" is made of, the other endings, the hero's
+  is enough; what stays open (the other endings, the hero's
   outcome, the adventurers' aims) is answered by building.  Nothing waiting on the owner in the
   outline itself.
   Later the same day (some of it from the owner's cloud session, branch ccr-0cdce633-v9vy6v,
