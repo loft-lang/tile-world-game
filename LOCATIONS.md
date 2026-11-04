@@ -14,7 +14,9 @@ everything else the outline already fixes.
 
 - **Unique:** the people.  Talk, their routines, day and night matter most here.  The village is
   the tutorial, though never presented that way (owner, 2026-11-04): it holds the world's main
-  mechanics on a smaller scale, and less interconnected.  Stones to push; a chest, which someone
+  mechanics on a smaller scale, and less interconnected.  It is a sandbox: the hero has only light
+  reasons to snoop around, which will clearly not stop players doing so.  The villagers are grumpy
+  about snooping, but enough aid to the village makes them look past it (owner, 2026-11-04).  Stones to push; a chest, which someone
   brought down to the inn's basement; a cart to push, on the rails that run from the mine through
   the Wardens' camp all the way to the village (owner, 2026-11-04).  A well with a pump, driven by
   small crystals with far less power, which the alchemist can fill himself (owner, 2026-11-04;
@@ -128,6 +130,8 @@ everything else the outline already fixes.
   behind that place's own mechanic.
 - **Bombs belong to the working mine:** the Old Seam's levels and the High Diggings' extensions,
   not the village or the hills.
+- **Save points:** the strange fountains, in the mines and the hills (@ST-Fountains); the village's
+  well is a pump with small crystals, not one of them.
 - **Still without a place:** the bow; money (what it buys); where Rennick lives; the Fenns' empty
   house.  (The axe is in the closed houses, the well in the village.)
 - **Thin places:** the Wardens' camp and the hillside are crossings more than places to explore.

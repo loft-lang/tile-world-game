@@ -614,7 +614,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   fleeing enemy that is still in sight counts.
 - **Guards.** A guard blocks a door by standing in front of it. It steps aside when the hero
   approaches and the area is clear.
-- **Wells and safe points.** Drinking from a well saves the whole situation.
+- **Wells and safe points.** Drinking from a well saves the whole situation.  In the story game the
+  safe points are strange fountains in the mines and the hills, whose liquid turns to mud when taken
+  and whose secret the alchemist cannot find (owner, 2026-11-04; STORY.md @ST-Fountains).
   - A well gives water only when the area is clear.
   - A key returns to the saved situation, after a confirmation (B, then B again).
   - Losing all health returns the hero to the last safe point; with none, R restarts.

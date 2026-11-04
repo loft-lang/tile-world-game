@@ -68,6 +68,7 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-Blaster`](#st-blaster) | Wick, the blaster: for blowing up the mine; an outsider, few social skills | § 2 |
 | [`@ST-Innkeeper`](#st-innkeeper) | Agnes, the innkeeper of an abandoned inn: for abandoning the town | § 2 |
 | [`@ST-Warden`](#st-warden) | Sergeant Voss of the King's Wardens, in their own camp, keeping the people out | § 2 |
+| [`@ST-Fountains`](#st-fountains) | strange fountains in the mines and hills; their liquid turns to mud | § 2 |
 | [`@ST-YoungVillager`](#st-youngvillager) | Lark, who can show the player a hidden path into the hills | § 2 |
 | [`@ST-Wizard`](#st-wizard) | Master Odran, a newcomer after the mines for his own goals; not easily swayed | § 2 |
 | [`@ST-Rival`](#st-rival) | Sable, the rival adventurer: a contender who blocks walkways | § 2 |
@@ -267,7 +268,8 @@ depend on each other, but they have wildly different opinions on just about ever
 not agree with the hero plundering the remains of the village; the smithy is the exception, and
 they applaud it being opened again (owner, 2026-11-04).  It is not the things taken they mind (a
 rope, say): an outsider sneaking into houses is not done, so they get far less accommodating once
-they learn of it (owner, 2026-11-04).
+they learn of it (owner, 2026-11-04).  They are grumpy about snooping, but enough aid to the village
+makes them look past it (owner, 2026-11-04).
 
 <a id="st-newcomers"></a>**Other newcomers** (owner, 2026-11-04): the hero is not the only one coming here; there are other
 adventurers beside him and the hunter.  This is a world with magic in it, which makes for a mix of
@@ -297,6 +299,12 @@ not mingling with the people: they are there to keep the people out.  They guard
 the mine; that is enough to stop it running, because the ore is carried out that way too.  It did
 not stop the Kharn (owner, 2026-11-04).  Part of the court trouble is known to him, and the hero
 can talk to him about it (owner, 2026-11-04).
+
+<a id="st-fountains"></a>**The strange fountains** (owner, 2026-11-04): found in the mines and the hills, holding a strange
+liquid.  The alchemist talks about them: he cannot take the liquid from them, because it turns to
+mud, and he cannot find what makes the water special, or any use for it.  They are the game's save
+points (owner, 2026-11-04; DESIGN.md § Guards, doors and wells: drinking saves the whole situation),
+explained in the world as a mystery nobody has solved.
 
 <a id="st-youngvillager"></a>**A younger villager: Lark** (owner, 2026-11-04): of the Dunns of Thornfield (@ST-Farm); can be
 asked to show the player a hidden path into the hills (@ST-Hints, @ST-Stealth).
