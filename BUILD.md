@@ -72,6 +72,14 @@ its tests on both backends.
   full until bumped from the side at an unloading place; a full cart heavier.  Room: *the
   workings*.  Ruled first: a full cart's weight (proposed: two carts).  Red: a new
   `tests/rubble.loft`.
+- **B2b. Beams and cave-ins** (owner; DESIGN.md § Torches and light).  A beam lying loose is an
+  item carried in the hand; a beam standing in its place holds a tunnel up, and taken out with a
+  pick it collapses the tunnel — the difference on screen.  The accidental barricade (the village
+  barricade's picture) taken apart with a pick gives 2 beams, or burned away by a lit tar barrel
+  opens the way and gives none.  Proposed: the collapse fills the tunnel with rubble (rocks
+  touching), cleared again with the pick and a cart (B2) — a cost in time, never a dead end.
+  Room: *the workings*, a loose beam, a standing one, a barricade.  Ruled first: what a collapse
+  leaves; how a tar barrel is lit and brought to the barricade.  Red: a new `tests/beams.loft`.
 - **B3. The cart lift.**  A platform between layers carrying its stack, sent by a lever (or an
   arrow), moving only with its shaft clear, its rails joining the track at each stop.  Room: *the
   lift*.  Ruled first: its speed; riding it with no cart.  Red: a new `tests/lift.loft`.
@@ -94,6 +102,10 @@ its tests on both backends.
 - **B7. Foraging and brewing.**  Plants that can be picked (Tiny Farm's), meat from what is hunted;
   a person who takes ingredients and gives a potion (a talk's `gifts`, `take`, `give`, built).  Room:
   *the garden*.  Red: a talk test, ingredients in, a potion out.
+- **B7b. The sack** (owner).  Carried on the shoulders in the rope's slot, so never beside the
+  rope, and solely for foraging: it holds what is foraged (plants, meat, ingredients) while the hand
+  holds its one item.  Room: *the garden*.  Ruled first: how much it holds; how it is emptied (to
+  the alchemist through a talk's `take`, B7).  Red: a sack filled, given, and refused beside a rope.
 - **B8. The new creatures, one a step.**  The grey rat (out by day, carrying off food left lying),
   the slime, the crab, the ghost (at night, after C1), bigfoot (with Stormcap's terrain).  A room
   each.  Ruled first: each one's habits.  Red: a test per creature in `tests/enemies.loft`'s manner,
@@ -111,10 +123,20 @@ share, so each is built once and shown in the test world first.
   being seen (who saw the hero do what); goodwill, lost by snooping and won back by aid.  Room: two
   villagers, one who sees and one who is told.  Red: a talk test, a fact set by one and read by
   the other.
+- **C2b. A torch at night gives the hero away** (owner).  Light is seen, by the villagers as by
+  the Kharn: a hero carrying a lit torch into a home at night is suspect, a fact (C2) that costs
+  goodwill; the dark keeps it unseen.  Needs C1 (night) and C2.  Room: a house at night, a villager
+  beside it.  Ruled first: who sees a lit window, and from how far.  Red: the same entry with and
+  without the torch, the fact set only with it.
 - **C3. People following points.**  Creatures and people at their points at their hours, walking
   between places by the doors; a person brought to a place (the alchemist to Stormcap, the people
   to the barricade).  WORLD.md step 3.  Room: a villager going to work and home.  Red: a scripted
   day, each at their points.
+- **C3b. Sable in the way** (owner; STORY.md @ST-Rival).  The rival adventurer on his points: in
+  the main mine by day, home by dusk; walkways he blocks so others go the long way, and his
+  practical traps built from what exists — a runaway cart waiting at a lever on a slope, a bomb
+  left beside the rails.  Room: a gallery with his cart and lever.  Ruled first: whether he moves
+  his obstructions once the hero has passed them.  Red: his day scripted, a trap sprung by hand.
 - **C4. A group acting together.**  The Kharn as a tribe: prey counted down by the clock and by
   what has happened to the monsters; nervous scouting outside the mine; the attack; turned back
   by a defended place, they leave.  Room: a small tribe, a small village, a barricade.  Red: the
@@ -124,6 +146,12 @@ share, so each is built once and shown in the test world first.
   two numbers of hands.
 - **C6. Saves.**  The clock, the hero, each place's changes, the facts (WORLD.md step 5).  Red: a
   save, a restart, the same state.
+- **C6b. The fountains as save points** (owner; STORY.md @ST-Fountains).  The strange fountains
+  in the mines and the hills save the whole situation as a well does today; their liquid cannot be
+  taken (it turns to mud).  Tiny Dungeon's wall fountains (green 8, 20, 32, 44; dry 7, 19, 31, 43):
+  a fountain kind using the wells' rule.  None in the village (LOCATIONS.md).  Room: a gallery with
+  a fountain.  Ruled first: whether a dry fountain is ever filled.  Red: a save at a fountain and
+  the way back to it, as `checks/game.loft`'s wells.
 - **C7. The epilogue.**  The player walks away; stills of what follows, chosen by the facts.  Red:
   the stills for a set of facts.
 
