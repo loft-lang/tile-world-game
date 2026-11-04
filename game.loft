@@ -166,6 +166,9 @@ fn sound_events() -> vector<text> {
    "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1", "grab:1"]
 }
 
+// The play keys by hand (owner): WASD is the left hand, so its actions are the right hand's home
+// row — J swing, K guard and pull, L put down, I aim; with the arrows under the right hand the
+// left keeps Space, Shift, X and T.  The editor's keys are read only while editing.
 fn bindings() -> input::Bindings {
   b = input::Bindings {
     bnd_actions: [
@@ -173,10 +176,10 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "down", ab_keys: [115, 129] },
       input::ActionBinding { ab_name: "left", ab_keys: [97, 130] },
       input::ActionBinding { ab_name: "right", ab_keys: [100, 131] },
-      input::ActionBinding { ab_name: "pull", ab_keys: [132, 112] },
-      input::ActionBinding { ab_name: "drop", ab_keys: [120] },
-      input::ActionBinding { ab_name: "swing", ab_keys: [32] },
-      input::ActionBinding { ab_name: "aim", ab_keys: [116] },
+      input::ActionBinding { ab_name: "pull", ab_keys: [132, 112, 107] },
+      input::ActionBinding { ab_name: "drop", ab_keys: [120, 108] },
+      input::ActionBinding { ab_name: "swing", ab_keys: [32, 106] },
+      input::ActionBinding { ab_name: "aim", ab_keys: [116, 105] },
       input::ActionBinding { ab_name: "back", ab_keys: [98] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
@@ -1177,8 +1180,8 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.swing_down_at >= 0 { changed = true; }
-  // Block and parry (@GM-Combat): the brace key (Shift, the pull key) with no way pressed — held, a
-  // block; the moment it goes down, a parry.
+  // Block and parry (@GM-Combat): the guard key (K or Shift, the pull key) with no way pressed —
+  // held, a block; the moment it goes down, a parry.
   still = !g.keys.is_action_pressed("left") && !g.keys.is_action_pressed("right")
           && !g.keys.is_action_pressed("up") && !g.keys.is_action_pressed("down");
   g.world.blocking = still && g.keys.is_action_pressed("pull");

@@ -21,7 +21,10 @@ on its floor.  A world is the places reached from a start place through doors: `
 starts another one (order.json's `start` is the default), and `TW_LEVEL=<n>` plays one level of
 `order.json` on its own, as before.
 
-Arrows or WASD move.  Hold Shift (or P) while moving to pull; X puts down what the hero holds.
+WASD move, and the right hand acts: J swings (held, a heavy swing; a bow shoots, a bomb is thrown),
+K alone guards (pressed, a parry; held, a block) and held while moving pulls, L puts down what the
+hero holds, I aims.  Moving with the arrows instead, the left hand has the same on Space, Shift, X
+and T.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
 Walking into a well saves the situation; losing all health brings the hero back there, and B
 (twice, to confirm) goes back by choice.  R restarts the place as it

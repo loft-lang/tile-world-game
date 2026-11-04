@@ -205,11 +205,13 @@ first blow later.*
 - **Standing still trades blows.**  A swing from where the hero stands lands, but the enemy's
   next blow lands too: an exchange, hit for hit.  Every better outcome comes from moving or
   defending — a dodge, a block, a parry, a strike from the side.
-- **Light swing** — Space, standing: the held weapon's damage, its reach (three cells), its
+- **Keys by hand** (owner) — WASD is the left hand, so the actions are the right hand's: J swing,
+  K guard (and pull), L put down, I aim; with the arrows, Space, Shift, X and T.
+- **Light swing** — J (Space), standing: the held weapon's damage, its reach (three cells), its
   recovery.  Blows that strike one after another (within a recovery and 200 ms) are a chain, and
   the third ends it with a long recovery (800 ms): the hero is open.  No faster second blow — that
   made pure aggression win unscratched.
-- **Heavy swing** — Space held, released after a wind-up (proposed 500 ms, drawn back): +1 damage,
+- **Heavy swing** — J (Space) held, released after a wind-up (proposed 500 ms, drawn back): +1 damage,
   it staggers what it hits (its wind-up broken, pushed back a cell where there is room), and a long
   recovery after (proposed 800 ms).
 - **Lunge** — a step towards the enemy and a swing within 150 ms of it: a thrust at the cell faced
@@ -219,10 +221,10 @@ first blow later.*
   step back taken during an enemy's wind-up leaves the cell its blow aimed at: a **dodge**, no
   damage.  A blow on an enemy's side while it winds up (it faces neither the hero nor away: the
   hero dodged and struck back) is +1 and breaks its wind-up.
-- **Block** — Shift held without a direction, facing the blow: its damage halved (proposed: a
+- **Block** — K (Shift) held without a direction, facing the blow: its damage halved (proposed: a
   blow of 1 blocked costs nothing every other time), the hero not moving while blocking.  Steady,
   never the best: it costs the time a dodge or a parry would turn into an opening.
-- **Parry** — Shift pressed without a direction in the last 150 ms of an enemy's wind-up: its blow
+- **Parry** — K (Shift) pressed without a direction in the last 150 ms of an enemy's wind-up: its blow
   is turned aside, no damage, and it is open (staggered, its next act a blow's time later); a blow
   on an open enemy is a **riposte**: double damage.  Pressed too early or late, the hero takes the
   blow.  Not every blow can be parried: a cyclops's sweep cannot, only dodged.

@@ -38,7 +38,7 @@
     { "at": [6, 8, 0], "to": "demo", "door": "the_armoury" }
   ],
   "labels": [
-    { "at": [6, 4, 0], "text": "SPACE SWING" }
+    { "at": [6, 4, 0], "text": "J SWING" }
   ],
   "start": [6, 7, 0],
   "goal": { "type": "" }

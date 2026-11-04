@@ -34,7 +34,7 @@
     { "at": [1, 4, 0], "to": "demo", "door": "the_torch_room" }
   ],
   "labels": [
-    { "at": [8, 1, 0], "text": "X PUT DOWN" }
+    { "at": [8, 1, 0], "text": "L PUT DOWN" }
   ],
   "start": [1, 2, 0],
   "goal": { "type": "chests" }

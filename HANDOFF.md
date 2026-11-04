@@ -145,6 +145,9 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   parry and riposte, heavy swing, lunge, side blow, poise, the light chain, the early-swing back-off;
   a parry turns to the soonest blow; ties follow the place against the hero, never the list's order.
   The rat run has three rats and a cyclops 8 health, so an attacker is hurt (`tests/fights.loft`).
+  Keys by hand (owner): WASD is the left hand, so the right acts — J swing (held: heavy), K guard
+  (alone: parry/block; with a way: pull), L put down, I aim; with the arrows, Space, Shift, X, T.
+  The floor labels name the right-hand keys; `checks/game.loft` presses both sets.
   Story discussion edits STORY.md locally and commits once a part settles, never per sentence;
   the owner may also work from a cloud session (a `ccr-*` branch): check `git ls-remote` first.
 

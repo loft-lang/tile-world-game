@@ -104,8 +104,8 @@
     { "at": [2, 8, 0], "to": "demo", "door": "the_cyclops_hall" }
   ],
   "labels": [
-    { "at": [4, 1, 0], "text": "T AIM" },
-    { "at": [4, 2, 0], "text": "SPACE SHOOT" }
+    { "at": [4, 1, 0], "text": "I AIM" },
+    { "at": [4, 2, 0], "text": "J SHOOT" }
   ],
   "start": [
     2,
