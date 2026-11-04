@@ -47,6 +47,7 @@ paragraphs and the citations in step; `sites <tag>` lists where a part is cited.
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
 | [`@ST-Guards`](#st-guards) | federal guards: no sides, no protection | § 1 |
+| [`@ST-Future`](#st-future) | the village will be rebuilt anyway; the villagers may not live to see it | § 1 |
 | [`@ST-Hero`](#st-hero) | the sergeant who failed as an officer | § 1 |
 | [`@ST-Play`](#st-play) | searching places, puzzles to progress | § 1 |
 | [`@ST-Hints`](#st-hints) | villagers aid a stuck player; not a tutorial | § 1 |
@@ -92,6 +93,10 @@ strong enough claim to really pull their weight.  The drought is a factor, but n
 
 <a id="st-guards"></a>**The guards** (owner, 2026-11-04) are part of the decree: they are from the federal government
 and take no sides.  They will not protect the town either; the local lord is blocked here.
+
+<a id="st-future"></a>**The village's future** (owner, 2026-11-04): the village has a future in all scenarios; eventually it
+will be rebuilt anyway.  But that is not a very helpful future for the current villagers, who might
+not survive until then.
 
 Weighed and set aside, and why (owner): no blasting powder (it would block gameplay); no buyer
 (it stops the drive of the people and the hero); the workers conscripted (too much the same thing
