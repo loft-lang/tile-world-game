@@ -818,6 +818,11 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## What the player sees
 
+- **Almost nothing on the screen** (owner, 2026-11-05).  The story game has a minimal UI: no time,
+  seconds, moves or gold on screen, and most of the rest taken off too — how is still to be worked
+  out.  The demo world keeps its status line as a test bench.  So a mechanic is presented by the
+  world itself (a figure's pose, what it holds or wears, the light, what people say), never by a
+  readout; a mechanic only a readout shows is not yet presented.
 - **The hero's position decides what is drawn**, never what is on screen.
 - **Up.**
   - In a low corridor (under a ceiling) only the hero's own layer is drawn, even beside a taller
