@@ -16,7 +16,8 @@ OpenGL and shaders, through the `graphics` library.  TANMATSU.md § One world, d
 one fidelity is the frame: the world draws nothing, and each machine draws it with the renderer
 it can afford.
 
-Every choice below that is not the owner's is **proposed**.
+Every choice below that is not the owner's is **proposed**, or a **default** taken to change later
+(§ Defaults).
 
 ## What stays and what is new
 
@@ -78,7 +79,7 @@ along the roof's north edge, falling south to the eaves.  So in 3D:
   edge, on the top of the front wall, up to the ridge at the north edge;
 - each row of the plane takes that row's autotile piece, as the 2D lays them, so the ridge cap
   is at the top and the shingles run down to the eaves;
-- the ridge stands one layer above the eaves (proposed; the slope then steepens for a shallow
+- the ridge stands one layer above the eaves (a default; the slope then steepens for a shallow
   house and flattens for a deep one);
 - the triangles at its east and west ends, and the north face from the wall top up to the ridge,
   are closed in the house's own wall picture (the wood or stone wall's middle piece).  The camera
@@ -96,10 +97,10 @@ Texels with alpha below ½ are discarded, so the depth buffer sorts cards and bo
 nothing has to be sorted by hand.
 
 - **The board:** a card is drawn twice, the second copy 1/32 behind it in the outline colour
-  (`o`, 3f2631), so the cut-out's edge shows as a thin dark board (proposed; cheap, and the
+  (`o`, 3f2631), so the cut-out's edge shows as a thin dark board (a default; cheap, and the
   sheets' own outline already suits it).
 - **A shadow:** a soft dark ellipse on the ground under each card, so a card stands rather than
-  floats (proposed).
+  floats (a default).
 - **A kind's shape is one key** (owner: cardboard for now, swapped out later where it pays):
   `theme.json` may give a thing or an enemy a `shape` (`card` when left out, the only one built).
   A box or a model for one kind later replaces that kind's card and nothing else.
@@ -151,8 +152,8 @@ darker.  It shapes the boxes without lighting anything the rules leave dark.
 **The camera** stays close to what the 2D shows (owner), a little more horizontal.  The 2D view
 draws a cell's ground and a wall's face equally tall: a wall one layer high takes one tile, and
 so does the cell behind it.  That is what a camera looking down at 45° from the south sees, so
-45° is the 2D's own angle; the 3D camera starts a little lower, at 40° (proposed), so faces and
-cards stand a little taller than the ground they stand on.  The field is narrow (25°, proposed),
+45° is the 2D's own angle; the 3D camera starts a little lower, at 40° (a default), so faces and
+cards stand a little taller than the ground they stand on.  The field is narrow (25°, a default),
 so the perspective stays mild and a row far off is not much smaller than one near.  It follows
 what `camera.loft` follows (`follow`, `rooms`), the same target turned into a point over the
 place, and it does not turn: the pictures are drawn to be seen from the south.
@@ -230,9 +231,19 @@ comparison is not enough.
 - Roofs follow the 2D's pictures: one slope facing south, ridge at the north.
 - The hero is never hidden: the 2D's cut-away of the walls in front of it, found by projection.
 
-## Open, for the owner
+## Defaults, to change later
 
-- The pixel look: drawn at the window's size with nearest texels (sharp texels, smooth edges), or
-  drawn small and scaled up (chunky pixels, as the 2D game).
-- The board's edge and the shadow under each card.
-- How high the ridge stands (one layer above the eaves, proposed).
+Taken as reasonable defaults (owner: change them later).  Each is one named constant in
+`render3d.loft`, so a change is a number, not a rewrite.
+
+- **The pixel look:** drawn at the window's own size, texels sampled nearest — sharp pixels on
+  the pictures, smooth edges on the geometry.  `RENDER_SCALE` (1) draws into a smaller target
+  and scales it up nearest instead: 1/3 gives the 2D's chunky pixels.  The window's size wins
+  first because a perspective drawn small shimmers as the camera follows the hero.
+- **The board's edge:** on, a copy 1/32 behind each card in the outline colour (`BOARD`).
+- **The shadow:** on, a soft ellipse ¾ of a cell wide under each card, darker the nearer the card
+  stands to the ground (`SHADOW`).
+- **The ridge:** one layer above the eaves (`RIDGE`).
+- **The camera:** 40° down, a 25° field (`PITCH`, `FIELD`).
+- **The cut-away:** a wall is cut when it covers any of the hero's card (`CUT_COVER` 0: any part),
+  the strictest reading of "never hidden".
