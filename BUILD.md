@@ -180,10 +180,12 @@ share, so each is built once and shown in the test world first.
   play; it starts at 07:00; 4 cells refill a day, the last drained first, never one the hero or a
   thing stands on.  Not yet: night drawn darker in the places that were drawn covered for it (the
   night street keeps its cover), the ghost (B8), people's hours (C3).
-- **C2. Shared facts.**  A line that sets a fact, and lines, barks and talks that depend on facts;
-  being seen (who saw the hero do what); goodwill, lost by snooping and won back by aid.  Room: two
-  villagers, one who sees and one who is told.  Red: a talk test, a fact set by one and read by
-  the other.
+- **C2. Shared facts — built** (the *night* and *words* houses; `tests/talk.loft`).  A line that
+  `sets` a fact; barks said only `when` a condition holds, and talks starting where one holds
+  (`facts`) — a condition is a fact, `!fact`, `liked` or `disliked` (`rules::holds`); goodwill,
+  one number for the village (owner: lost by snooping, won by aid): seen going into a home −1, a
+  gift taken +1.  Facts are the village's, so the one who sees tells everyone.  Answered
+  (proposed): goodwill one number, not one per person; ±1 a deed; carried through doors.
 - **C2b. A torch at night gives the hero away** (owner).  Light is seen, by the villagers as by
   the Kharn: a hero carrying a lit torch into a home at night is suspect, a fact (C2) that costs
   goodwill; the dark keeps it unseen.  Needs C1 (night) and C2.  Room: a house at night, a villager
@@ -209,14 +211,16 @@ share, so each is built once and shown in the test world first.
 - **C3c. Following through a door.**  What is with the hero passes with it (WORLD.md § The
   world): a cart it pulls, an enemy close behind, a person it leads.  Room: two houses joined by a
   door.  Red: each comes through on the hero's step, on the far side.
-- **C2c. Hints for a stuck player** (@ST-Hints).  The game notices a player stuck — long in one
-  place, the same tries again — and the people's lines can depend on it, as on a fact.  Red: a
-  scripted stay that sets it, a talk that then gives the hint.
-- **C2d. Persuading and being understood.**  What convinces someone — Odran to give the
-  lightning's energy, Voss of the danger — is the owner's to define; the engine's part is a talk
-  that changes on what the hero has done, brought or shown (facts, gifts, things seen).  Urgha's
-  broken words (@ST-Cyclopes): lines that come through in part.  Red: a talk that will not until a
-  fact is known, then does.
+- **C2c. Hints for a stuck player — built** (@ST-Hints; the *words* house).  The fact `stuck`:
+  known after 2 minutes within 3 cells of one spot, or after 3 blocked tries at one cell in a row;
+  forgotten when the hero moves 3 cells on (or through a door).  A talk starting at its hint line
+  once `stuck` holds (`"facts": {"stuck": "hint"}`).  Answered (proposed): the numbers; the hints'
+  words are the owner's.
+- **C2d. Persuading and being understood — built** (the *words* house).  Persuasion is a talk that
+  starts elsewhere once a fact holds (what convinces Odran or Voss stays the owner's to define).
+  Urgha's broken words (@ST-Cyclopes): a line with `clear` comes through in part — every other
+  word heard as `..` — until its fact is known (proposed: the scholar teaches `cyclops_words`; who
+  teaches it in the story is the owner's).
 - **C9. The Dunns' bargain** (@ST-Farm).  The hero's horse lent to the farm for a bed in the barn:
   a choice made once, kept (a fact), the horse at the farm until he needs it.  Red: the bargain
   struck, the horse moved, the barn open.

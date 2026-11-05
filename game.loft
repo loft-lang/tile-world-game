@@ -363,7 +363,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   to = g.file.doors[i]!.to;
   there = g.file.doors[i]!.door;
   // Into someone's home while seen (BUILD.md C2b): snooping, and it is known.
-  if g.file.doors[i]!.home && rules::seen_by_people(g.world) { rules::learn(g.world, "snooped"); }
+  if g.file.doors[i]!.home && rules::seen_by_people(g.world) { rules::snoop(g.world); }
   m = levels::load_with(file("{g.dir}/levels/{to}.json").content() ?? "", g.kinds, g.mats);
   if !m { return false; }
   // Leaving the place is walking away from whoever is talking.
@@ -1846,7 +1846,7 @@ fn draw_talk(g: Game) {
     line = if n >= 0 { t.lines[n]! } else { t.barks[b]! };
     p = talk::speaker_of(t, w, e, line.by);
     if p.2 != w.hero_z { continue; }
-    rows = talk::wrap(line.says, BUBBLE);
+    rows = talk::wrap(talk::heard(w, line), BUBBLE);
     wide = 0;
     for r in rows { if len(r) > wide { wide = len(r); } }
     half = ts / 2;

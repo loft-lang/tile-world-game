@@ -227,3 +227,79 @@ fn test_a_recipe() {
   assert(talk::current(l, 0) == 1 && rules::in_sack(l, "herb") == 1 && rules::in_sack(l, "mushroom") == 0, "brewed: one herb left");
   assert(l.hero_item == rules::th(l, "health_potion"), "a potion given");
 }
+
+// Barks that depend on what is known and on goodwill (C2): the neighbour's barks — HELLO always,
+// SNOOP! only once `snooped` is known, THANKS only while the hero is liked.  At first only HELLO;
+// seen snooping (goodwill -1): HELLO and SNOOP! in turn, never THANKS; a gift taken twice brings
+// the goodwill to 1: THANKS among them.
+const NEIGHBOUR = "[ {{ \"at\": [5, 2, 0], \"name\": \"neighbour\", \"barks\": [ \"HELLO\", {{ \"neighbour\": \"SNOOP!\", \"when\": \"snooped\" }},"
+  + " {{ \"neighbour\": \"THANKS\", \"when\": \"liked\" }} ], \"lines\": [ \"HM.\" ] }} ]";
+
+// The barks the neighbour says, passing by `n` times.
+fn passing(t: const talk::Talk, l: rules::Level, n: integer) -> vector<integer> {
+  out: vector<integer> = [];
+  for k in 0..n {
+    rules::put_hero(l, 8, 2, 0);
+    _ = at(l, t, l.now + 10);
+    out += [talk::barking(l, 0)];
+    rules::put_hero(l, 9, 2, 0);
+    _ = at(l, t, l.now + 3000);
+  }
+  out
+}
+
+fn test_barks_that_depend_on_what_is_known() {
+  t = talks(NEIGHBOUR);
+  l = elder();
+  assert(passing(t, l, 3) == [0, 0, 0], "at first: only HELLO");
+  rules::snoop(l);
+  assert(l.goodwill == -1 && !rules::holds(l, "liked") && rules::holds(l, "disliked"), "snooping: disliked");
+  b = passing(t, l, 4);
+  assert(b.contains(1) && !b.contains(2), "SNOOP! among them, never THANKS: {b}");
+  l.goodwill += 2;
+  b = passing(t, l, 6);
+  assert(b.contains(2) && rules::holds(l, "!disliked"), "liked: THANKS among them: {b}");
+}
+
+// Hints for a stuck player (C2c; proposed numbers): the elder starts with a hint once `stuck` is
+// known.  Three blocked tries at one cell in a row — the wall at (4, -1) — and it is; a step
+// three cells on forgets it.  Standing within 3 cells: at 119999 ms not yet, at 120000 stuck.
+const HINTER = "[ {{ \"at\": [5, 2, 0], \"name\": \"elder\", \"facts\": {{ \"stuck\": \"hint\" }}, \"lines\": ["
+  + " {{ \"elder\": \"HELLO.\", \"end\": true }}, {{ \"id\": \"hint\", \"elder\": \"TRY THE LEVER.\", \"end\": true }} ] }} ]";
+
+fn test_a_stuck_player_gets_a_hint() {
+  t = talks(HINTER);
+  l = elder();
+  rules::put_hero(l, 4, 0, 0);
+  _ = rules::walk(l, 0, -1);
+  _ = rules::walk(l, 0, -1);
+  assert(!rules::knows(l, "stuck"), "two tries: not yet");
+  _ = rules::walk(l, 0, -1);
+  assert(rules::knows(l, "stuck"), "three: stuck");
+  rules::put_hero(l, 4, 2, 0);
+  assert(at(l, t, 10) == 1, "the hint: {talk::current(l, 0)}");
+  rules::put_hero(l, 8, 2, 0);
+  rules::tick(l, 1);
+  assert(!rules::knows(l, "stuck"), "moved on: forgotten");
+  v = room();
+  rules::put_hero(v, 1, 1, 0);
+  rules::tick(v, 119999);
+  assert(!rules::knows(v, "stuck"), "119999: not yet");
+  rules::tick(v, 1);
+  assert(rules::knows(v, "stuck"), "120000: stuck");
+}
+
+// Broken words (C2d, Urgha; proposed): a line with `clear` comes through in part — every other
+// word `..` — until its fact is known, then whole.  Persuasion is a talk starting elsewhere once a
+// fact holds (`facts`, as the hint above).
+const URGHA = "[ {{ \"at\": [5, 2, 0], \"name\": \"urgha\", \"lines\": ["
+  + " {{ \"urgha\": \"YOU NOT KHARN FRIEND\", \"clear\": \"cyclops_words\", \"end\": true }} ] }} ]";
+
+fn test_broken_words_come_through_in_part() {
+  t = talks(URGHA);
+  l = elder();
+  line = t.lines[0]!;
+  assert(talk::heard(l, line) == "YOU .. KHARN ..", "in part: {talk::heard(l, line)}");
+  rules::learn(l, "cyclops_words");
+  assert(talk::heard(l, line) == "YOU NOT KHARN FRIEND", "understood");
+}

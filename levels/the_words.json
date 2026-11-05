@@ -1,0 +1,43 @@
+{
+  "name": "the words",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "###############",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "###############",
+      "       d"
+    ] }
+  ],
+  "things": [
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["urgha", 3, 2, 0], ["elder", 11, 2, 0], ["elder", 7, 5, 0] ],
+  "intent": { "seed": 72, "rooms": [
+    { "x": 0, "y": 0, "w": 15, "h": 8, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[7, 8]], "z": 0, "as": "open_door" } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [7, 8, 0], "to": "demo", "door": "the_words" }
+  ],
+  "talks": [
+    { "at": [3, 2, 0], "name": "urgha", "lines": [
+        { "urgha": "YOU NOT KHARN. YOU FRIEND OF VILLAGE?", "end": true, "clear": "cyclops_words" } ] },
+    { "at": [11, 2, 0], "name": "scholar", "lines": [
+        { "scholar": "THE CYCLOPES SPEAK OUR WORDS, HALF OF THEM. NOW YOU HEAR THE REST.", "end": true, "sets": "cyclops_words" } ] },
+    { "at": [7, 5, 0], "name": "keeper", "barks": [ "MIND THE WALLS.", { "keeper": "THANK YOU FOR YOUR HELP.", "when": "liked" } ], "facts": { "stuck": "hint" }, "lines": [
+        { "keeper": "URGHA IS HARD TO FOLLOW.", "end": true },
+        { "id": "hint", "keeper": "STUCK? THE SCHOLAR KNOWS THEIR WORDS.", "end": true } ] }
+  ],
+  "start": [7, 7, 0],
+  "goal": { "type": "" }
+}

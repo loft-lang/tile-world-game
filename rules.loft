@@ -99,6 +99,12 @@ pub const DRIFT_MS = 500;
 /// the player in or out; the number proposed).
 pub const REFILL_CELLS = 4;
 
+/// A player is stuck (C2c; proposed) after STUCK_MS within STUCK_CELLS of one spot, or after
+/// STUCK_TRIES blocked tries at one cell in a row; moving STUCK_CELLS on clears it.
+pub const STUCK_MS = 120000;
+pub const STUCK_CELLS = 3;
+pub const STUCK_TRIES = 3;
+
 /// The artefact is made of ARTEFACT_PIECES pieces (B6; proposed).
 pub const ARTEFACT_PIECES = 4;
 pub const BARRICADE_BURN_MS = 3000;
@@ -830,6 +836,18 @@ pub struct Level {
   pub day: integer = 0,
   /// The artefact's pieces found (B6; owner: a number the game counts).
   pub relic_pieces: integer = 0,
+  /// The village's goodwill (C2; owner: lost by snooping, won by aid): a gift taken +1, seen going
+  /// into a home -1.  Above 0 the hero is `liked`, below `disliked` — what barks and lines ask.
+  pub goodwill: integer = 0,
+  /// Noticing a stuck player (C2c): where the hero has stayed since when, and the blocked tries
+  /// at one cell in a row.
+  pub stay_x: integer = 0,
+  pub stay_y: integer = 0,
+  pub stay_z: integer = 0,
+  pub stay_since: integer = -1,
+  pub tried_x: integer = 0,
+  pub tried_y: integer = 0,
+  pub tries: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -1787,7 +1805,8 @@ pub struct Carried {
   pub shoulder: integer = 0,
   pub sack: vector<integer> = [],
   pub facts: vector<text> = [],
-  pub relic_pieces: integer = 0
+  pub relic_pieces: integer = 0,
+  pub goodwill: integer = 0
 }
 
 /// What the hero of `l` takes through a door.
@@ -1800,7 +1819,8 @@ pub fn carried(l: const Level) -> Carried {
     blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 },
     heal_left: l.heal_left, spirit_left: l.spirit_left,
     heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 },
-    shoulder: l.shoulder, sack: l.sack, facts: l.facts, relic_pieces: l.relic_pieces
+    shoulder: l.shoulder, sack: l.sack, facts: l.facts, relic_pieces: l.relic_pieces,
+    goodwill: l.goodwill
   }
 }
 
@@ -1825,6 +1845,7 @@ pub fn carry_in(l: Level, c: const Carried) {
   l.sack = c.sack;
   l.facts = c.facts;
   l.relic_pieces = c.relic_pieces;
+  l.goodwill = c.goodwill;
   l.queued = false;
   l.held_by = 0;
   l.struggles = 0;
@@ -2148,6 +2169,30 @@ pub fn knows(l: const Level, f: text) -> boolean {
 /// Fact `f` becomes known (once).
 pub fn learn(l: Level, f: text) {
   if !knows(l, f) { l.facts += [f]; }
+}
+
+/// Forget fact `f` (C2c: `stuck`, once the hero moves on).
+pub fn forget(l: Level, f: text) {
+  if !knows(l, f) { return; }
+  kept: vector<text> = [];
+  for g in l.facts { if g != f { kept += [g]; } }
+  l.facts = kept;
+}
+
+/// Seen going into someone's home (C2b): it is known, and the village thinks less of the hero.
+pub fn snoop(l: Level) {
+  learn(l, "snooped");
+  l.goodwill -= 1;
+}
+
+/// Does condition `c` hold (C2: what a bark or a line asks)?  Empty: always; `!c`: not c;
+/// `liked` / `disliked`: the goodwill above / below 0; else the fact `c` known.
+pub fn holds(l: const Level, c: text) -> boolean {
+  if c == "" { return true; }
+  if c.starts_with("!") { return !holds(l, c[1..]); }
+  if c == "liked" { return l.goodwill > 0; }
+  if c == "disliked" { return l.goodwill < 0; }
+  knows(l, c)
 }
 
 /// Does anyone who talks see the hero now (BUILD.md C2b)?  One on its layer within SEE_CELLS in a
@@ -2768,6 +2813,7 @@ pub fn tick(l: Level, ms: integer) {
 
 // Everything due by now: rolling carts, bombs and fuses, arrows, enemies, flames burning out.
 fn step_world(l: Level) {
+  if alive(l) { notice_stay(l); }
   start_rolls(l);
   roll_due(l);
   start_bomb_rolls(l);
@@ -2798,6 +2844,8 @@ fn next_due(l: const Level) -> integer {
   for pm in l.pumping { if pm.due > l.now && (t < 0 || pm.due < t) { t = pm.due; } }
   for f in l.lifts { if f.to != f.z && f.due > l.now && (t < 0 || f.due < t) { t = f.due; } }
   for dr in l.drifts { if dr.due > l.now && (t < 0 || dr.due < t) { t = dr.due; } }
+  stuck_at = l.stay_since + STUCK_MS;
+  if l.stay_since >= 0 && stuck_at > l.now && (t < 0 || stuck_at < t) { t = stuck_at; }
   if l.storm > 0 {
     s = ((l.now / l.storm ?? 0) + 1) * l.storm;
     if t < 0 || s < t { t = s; }
@@ -3184,6 +3232,41 @@ pub fn alive(l: const Level) -> boolean {
 /// Move the hero one cell (dx, dy one of the four directions): walk, push, climb onto a thing,
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
+  tx = l.hero_x + dx;
+  ty = l.hero_y + dy;
+  step = walk_step(l, dx, dy);
+  notice_stay(l);
+  // The same blocked try again and again (C2c).
+  if step == Step.Blocked {
+    if tx == l.tried_x && ty == l.tried_y && l.tries > 0 { l.tries += 1; } else {
+      l.tried_x = tx;
+      l.tried_y = ty;
+      l.tries = 1;
+    }
+    if l.tries >= STUCK_TRIES { learn(l, "stuck"); }
+  } else {
+    l.tries = 0;
+  }
+  step
+}
+
+// Long in one place (C2c): moved STUCK_CELLS on (or to another layer), the stay starts again and
+// `stuck` is forgotten; STUCK_MS within it, `stuck` is known.
+fn notice_stay(l: Level) {
+  if l.stay_since < 0 || l.hero_z != l.stay_z || abs(l.hero_x - l.stay_x) >= STUCK_CELLS
+     || abs(l.hero_y - l.stay_y) >= STUCK_CELLS {
+    l.stay_x = l.hero_x;
+    l.stay_y = l.hero_y;
+    l.stay_z = l.hero_z;
+    l.stay_since = l.now;
+    l.tries = 0;
+    forget(l, "stuck");
+    return;
+  }
+  if l.now - l.stay_since >= STUCK_MS { learn(l, "stuck"); }
+}
+
+fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
   l.queued = false;
   if !alive(l) { return Step.Blocked; }
   // Stance (@GM-Combat): fighting, a step that is not into an enemy keeps the hero facing the

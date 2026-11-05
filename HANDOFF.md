@@ -129,6 +129,9 @@ on the interpreter and `--native`.
   - SMITHY: take the burning torch from its socket, light the forge; the blunt sword struck at the
     anvil (J) is a sword; open the four old chests (PIECES 4), talk to the alchemist (the lore),
     take the lake's essence to the anvil: the artefact.
+  - WORDS: Urgha's line in part; the scholar (east) teaches their words, then Urgha is heard whole;
+    bump a wall three times, and the keeper's talk starts with a hint.  The night street's
+    neighbour barks HMPF. SNOOPER. once the hero is disliked (seen snooping).
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.
