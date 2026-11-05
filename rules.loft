@@ -195,6 +195,9 @@ struct EnemyProps {
   sideways: boolean = false,
   swallows: boolean = false,
   passes_walls: boolean = false,
+  /// What it leaves for food when it is ended (B7: meat from what is hunted; owner: the hero can
+  /// forage meat for the villagers).
+  meat: text = "",
   sweep: boolean = false,
   poise: boolean = false
 }
@@ -455,7 +458,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks"),
       windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
       out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
-      sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls")
+      sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"),
+      meat: word(e, "meat", "")
     }];
   }
   th = v.field("things");
@@ -2037,6 +2041,23 @@ pub fn sack_room(l: const Level) -> (integer, integer) {
   s = l.k.things[l.shoulder];
   if !s || s.carries == 0 { return (0, 0); }
   (len(l.sack), s.carries)
+}
+
+/// How many `name` the sack holds.
+pub fn in_sack(l: const Level, name: text) -> integer {
+  n = 0;
+  for t in l.sack { if thing_name(l.k, t) == name { n += 1; } }
+  n
+}
+
+/// Take `count` of `name` out of the sack (a recipe's ingredients, B7).
+pub fn take_some_from_sack(l: Level, name: text, count: integer) {
+  kept: vector<integer> = [];
+  n = 0;
+  for t in l.sack {
+    if n < count && thing_name(l.k, t) == name { n += 1; } else { kept += [t]; }
+  }
+  l.sack = kept;
 }
 
 /// Take every `name` out of the sack (a talk's gift taken from it): how many there were.
@@ -5600,6 +5621,9 @@ pub fn strike_enemy(l: Level, i: integer, damage: integer) {
     _ = l.enemies.remove(i);
     l.killed += 1;
     if held != 0 { leave(l, held, x, y, z, fx, fy); }
+    // What is hunted leaves its meat (B7).
+    mp = enemy_props(l, e.kind);
+    if mp.meat != "" { leave(l, thing_id(l.k, mp.meat), x, y, z, fx, fy); }
     return;
   }
   l.enemies[i].hp = hp;

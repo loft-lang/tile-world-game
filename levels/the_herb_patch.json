@@ -33,7 +33,7 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
-  "enemies": [ ["elder", 8, 3, 0] ],
+  "enemies": [ ["rat", 13, 2, 0], ["elder", 8, 3, 0], ["villager", 13, 10, 0] ],
   "intent": { "seed": 31, "rooms": [ ], "corridors": [ ], "grounds": [
     { "at": [0, 0], "size": [17, 13], "z": 0, "as": "pine" },
     { "at": [1, 1], "size": [15, 11], "z": 0, "as": "grass" } ], "trails": [
@@ -55,9 +55,12 @@
     { "at": [8, 8, 0], "text": "L PUT DOWN" }
   ],
   "talks": [
-    { "at": [8, 3, 0], "name": "alchemist", "barks": [ "HERBS?" ], "gifts": { "herb": "brew", "mushroom": "brew" }, "lines": [
+    { "at": [8, 3, 0], "name": "alchemist", "barks": [ "HERBS?" ], "gifts": { "herb": "brew", "mushroom": "brew" }, "recipes": [ { "needs": { "herb": 2, "mushroom": 1 }, "go": "brew" } ], "lines": [
         "BRING ME HERBS, I BREW.",
-        { "id": "brew", "alchemist": "GOOD. HERE, A POTION.", "end": true, "give": "health_potion" } ] }
+        { "id": "brew", "alchemist": "GOOD. HERE, A POTION.", "end": true, "give": "health_potion" } ] },
+    { "at": [13, 10, 0], "name": "farmer", "barks": [ "HUNGRY TIMES." ], "gifts": { "meat": "fed" }, "lines": [
+        { "farmer": "ANY MEAT FOR THE POT?", "end": true },
+        { "id": "fed", "farmer": "THAT FEEDS US TONIGHT.", "end": true, "take": true, "sets": "village_fed" } ] }
   ],
   "start": [8, 11, 0],
   "goal": { "type": "" }

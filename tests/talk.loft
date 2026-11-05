@@ -207,3 +207,23 @@ fn test_walking_on_by_gets_a_bark() {
   rules::put_hero(l, 6, 2, 0);
   assert(at(l, t, 2200) == 0 && talk::barking(l, 0) == -1, "beside: HELLO, the bark gone");
 }
+
+// A recipe (B7): the alchemist makes a potion of 2 herbs and a mushroom.  With 1 herb in the sack,
+// bumped, nothing; with 3 herbs and a mushroom, the recipe's line — the 2 herbs and the mushroom
+// taken, the third herb left — and a potion given.
+const BREWER = "[ {{ \"at\": [5, 2, 0], \"name\": \"alchemist\", \"recipes\": [ {{ \"needs\": {{ \"herb\": 2, \"mushroom\": 1 }}, \"go\": \"brew\" }} ], \"lines\": ["
+  + " {{ \"alchemist\": \"HERBS?\", \"end\": true }},"
+  + " {{ \"id\": \"brew\", \"alchemist\": \"A POTION.\", \"give\": \"health_potion\", \"end\": true }} ] }} ]";
+
+fn test_a_recipe() {
+  t = talks(BREWER);
+  l = elder();
+  l.shoulder = rules::th(l, "sack");
+  l.sack = [rules::th(l, "herb")];
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) < 0 && len(l.sack) == 1, "not enough: nothing");
+  l.sack = [rules::th(l, "herb"), rules::th(l, "herb"), rules::th(l, "mushroom"), rules::th(l, "herb")];
+  talk::bump(t, l, 0, 0);
+  assert(talk::current(l, 0) == 1 && rules::in_sack(l, "herb") == 1 && rules::in_sack(l, "mushroom") == 0, "brewed: one herb left");
+  assert(l.hero_item == rules::th(l, "health_potion"), "a potion given");
+}

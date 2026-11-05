@@ -94,3 +94,11 @@ fn test_bigfoot_sleeps_at_night() {
   e = w.enemies[0]!;
   assert(e.x == 2 && e.y == 1, "home by night: {e.x},{e.y}");
 }
+
+// Meat from what is hunted (B7): a rat ended leaves meat where it stood — forage, into the sack.
+fn test_what_is_hunted_leaves_meat() {
+  w = strip();
+  _ = rules::add_enemy(w, "rat", 4, 1, 0);
+  rules::strike_enemy(w, 0, 9);
+  assert(top(w, 4, 1) == "meat", "meat left: {top(w, 4, 1)}");
+}

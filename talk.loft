@@ -94,6 +94,13 @@ pub struct Gift {
   pub go: integer
 }
 
+/// A recipe: the ingredients and how many of each, and the line it leads to.
+pub struct Recipe {
+  pub needs: vector<(text, integer)>,
+  pub go_id: text,
+  pub go: integer = -1
+}
+
 pub struct Talk {
   pub x: integer,
   pub y: integer,
@@ -109,8 +116,12 @@ pub struct Talk {
   pub gifts: vector<Gift>,
   /// Where a talk starts once a fact is known (BUILD.md C2b): the first known one's line, before
   /// where it would start otherwise.
-  pub facts: vector<Gift> = []
+  pub facts: vector<Gift> = [],
+  /// What they make of ingredients (B7): with the sack holding what a recipe needs, bumped, they
+  /// take that much and say its line (the alchemist: herbs and a mushroom, a potion).
+  pub recipes: vector<Recipe> = []
 }
+
 
 fn word(v: const JsonValue, name: text) -> text {
   f = v.field(name);
@@ -206,13 +217,24 @@ pub fn from_json(v: const JsonValue) -> vector<Talk> {
       go = word(fv, f);
       facts += [Gift { item: f, go_id: go, go: line_named(lines, go) }];
     }
+    recipes: vector<Recipe> = [];
+    rv = t.field("recipes");
+    for k in 0..rv.len() {
+      r = rv.item(k);
+      nv = r.field("needs");
+      needs: vector<(text, integer)> = [];
+      for name in nv.keys() { needs += [(name, num(nv.field(name), 1))]; }
+      go = word(r, "go");
+      recipes += [Recipe { needs: needs, go_id: go, go: line_named(lines, go) }];
+    }
     idle = bumps_of(t.field("bump"), own);
     barks: vector<Line> = [];
     bk = t.field("barks");
     for j in 0..bk.len() { barks += [line_from(bk.item(j), own)]; }
     for q in 0..len(idle) { idle[q].go = line_named(lines, idle[q].go_id); }
     out += [Talk { x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0), name: own,
-                   with: with, bumps: idle, barks: barks, lines: lines, gifts: gifts, facts: facts }];
+                   with: with, bumps: idle, barks: barks, lines: lines, gifts: gifts, facts: facts,
+                   recipes: recipes }];
   }
   out
 }
@@ -302,6 +324,18 @@ pub fn json(ts: const vector<Talk>) -> text {
         gf = false;
       }
       out += " }}";
+    }
+    if len(t.recipes) > 0 {
+      out += ", \"recipes\": [";
+      rf = true;
+      for r in t.recipes {
+        out += if rf { " " } else { ", " };
+        nd = "";
+        for q in r.needs { nd += if nd == "" { "{quoted(q.0)}: {q.1}" } else { ", {quoted(q.0)}: {q.1}" }; }
+        out += "{{ \"needs\": {{ {nd} }}, \"go\": {quoted(r.go_id)} }}";
+        rf = false;
+      }
+      out += " ]";
     }
     if len(t.facts) > 0 {
       out += ", \"facts\": {{";
@@ -440,6 +474,16 @@ pub fn bump(t: const Talk, l: rules::Level, i: integer, b: integer) {
   e = l.enemies[i] ?? return;
   g = gift_for(t, l);
   if g >= 0 { begin(t, l, i, g); return; }
+  // A recipe the sack holds enough for (B7): that much taken out, its line said.
+  for r in t.recipes {
+    if r.go < 0 { continue; }
+    enough = true;
+    for q in r.needs { if rules::in_sack(l, q.0) < q.1 { enough = false; } }
+    if !enough { continue; }
+    for q in r.needs { rules::take_some_from_sack(l, q.0, q.1); }
+    begin(t, l, i, r.go, false);
+    return;
+  }
   // A gift in the sack worn (BUILD.md B7b): every one of its kind is taken out, the line said.
   for gf in t.gifts {
     if gf.go >= 0 && rules::take_from_sack(l, gf.item) > 0 {

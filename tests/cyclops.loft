@@ -299,9 +299,10 @@ fn top_is(w: const rules::Level, x: integer, y: integer, name: text) -> boolean 
 }
 
 // Bested on (1, 0): a cyclops leaves its axe, a bomber one bomb (lying, not lit), an unarmed one
-// nothing, a hunter its bow, a rat nothing.
+// nothing, a hunter its bow, a rat its meat (B7: what is hunted leaves meat — the animal itself,
+// not hidden loot; proposed).
 fn test_a_bested_enemy_leaves_what_it_held() {
-  for c in [("cyclops", "", "axe"), ("cyclops", "bomb", "bomb"), ("cyclops", "none", ""), ("hunter", "", "bow"), ("rat", "", "")] {
+  for c in [("cyclops", "", "axe"), ("cyclops", "bomb", "bomb"), ("cyclops", "none", ""), ("hunter", "", "bow"), ("rat", "", "meat")] {
     w = hall(6, 1, true);
     rules::put_hero(w, 0, 0, 2);
     _ = rules::add_enemy(w, c.0, 1, 0, 0);

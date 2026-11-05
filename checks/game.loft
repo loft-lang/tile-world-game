@@ -442,8 +442,8 @@ fn test_the_cave_in_with_the_game() {
   assert(rules::alive(g.world), "the world runs on");
 }
 
-// The herb patch (B7b) through the game: the sack worn, two herbs foraged — the status line says
-// SACK 2/6 — then the alchemist, bumped: every herb taken from the sack, the pick in the hand kept,
+// The herb patch (B7b, B7) through the game: the sack worn, two herbs and a mushroom foraged, then
+// the alchemist, bumped: his recipe's two herbs and mushroom taken from the sack, the pick kept,
 // a potion given (at the hero's feet, the hand being full).  Out through the door the sack goes
 // along, holding what is left.
 fn test_the_alchemist_takes_from_the_sack() {
@@ -463,7 +463,7 @@ fn test_the_alchemist_takes_from_the_sack() {
   rules::put_hero(w, 8, 4, 0);
   game::move(g, 0, -1, false);
   _ = game::update(g, 100, 100);
-  assert(rules::sack_room(g.world).0 == 1 && g.world.hero_item == rules::th(g.world, "pick"), "the herbs taken, the mushroom and the pick kept: {rules::sack_room(g.world).0}");
+  assert(rules::sack_room(g.world).0 == 0 && g.world.hero_item == rules::th(g.world, "pick"), "the recipe's two herbs and mushroom taken, the pick kept: {rules::sack_room(g.world).0}");
   assert(rules::thing_name(g.world.k, tile_world::top(g.world.w, 8, 4, 0)) == "health_potion", "a potion at the hero's feet");
 }
 

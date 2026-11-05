@@ -141,9 +141,14 @@ its tests on both backends.
   line `sets` (owner: learnt from the alchemist).  Answered (proposed): the swing at the anvil (a
   walk into it pushes it); 4 pieces; the forge's reach 3 cells; the pieces carried through doors,
   on the status line.
-- **B7. Foraging and brewing.**  Plants that can be picked (Tiny Farm's), meat from what is hunted;
-  a person who takes ingredients and gives a potion (a talk's `gifts`, `take`, `give`, built).  Room:
-  *the garden*.  Red: a talk test, ingredients in, a potion out.
+- **B7. Foraging and brewing — built** (the demo's *herbs* house; `tests/talk.loft`,
+  `tests/creatures.loft`).  Plants to pick (herbs, mushrooms: forage, into the sack); meat from what
+  is hunted — a rat, a crab, bigfoot leave it when ended (owner: the hero can forage meat and
+  vegetables for the villagers; killing is never the goal, but hunting for food is a reason);
+  a person who makes something of ingredients: a talk's `recipes`, each the ingredients it needs
+  and how many — the sack holding enough, bumped, that much is taken and its line said (the
+  alchemist: 2 herbs and a mushroom, a health potion); a farmer who takes meat (the fact
+  `village_fed`).  Answered (proposed): which creatures leave meat; the recipe's numbers.
 - **B7b. The sack** (owner).  Carried on the shoulders in the rope's slot, so never beside the
   rope, and solely for foraging: it holds what is foraged (plants, meat, ingredients) while the hand
   holds its one item.  **Built** (the *herbs* house).  Answered (proposed): it carries 6; a herb or

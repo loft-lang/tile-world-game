@@ -98,7 +98,8 @@ on the interpreter and `--native`.
   - CAVE-IN: take the pick, strike the rock with the cart behind; push the full cart to the niche
     and bump it from above (BUMP); the two full carts are too heavy until one is tipped; take the
     standing beam out; take the barricade apart, or light the barrel with the far torch and push it.
-  - HERBS: wear the sack, forage (SACK n/6), bump the alchemist for a potion; the rope stays lying.
+  - HERBS: wear the sack, forage (SACK n/6), bump the alchemist — 2 herbs and a mushroom, a
+    potion; the rope stays lying; the rat there leaves meat when ended, the farmer takes it.
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
