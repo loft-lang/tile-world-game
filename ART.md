@@ -32,7 +32,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 3–4 | tracks | 36–51: junctions; 52, 53: the lever |
 | 5 | bombs, the bow | 60–62: the bomb, lying and lit; 63–65: the blast; 66: the bow; 67: an arrow |
 | 6 | the mine's work | 72: a loaded cart; 73, 74: a lit tar barrel; 75, 76: a burning barricade; 77: a coiled rope; 78: a door held shut by a beam; 79–82: crystals, large and small, spent and charged; 83: a lightning rod |
-| 7– | later additions (monsters, …) | |
+| 7 | crafting | 84, 85: the lit forge |
+| 8– | later additions (monsters, …) | |
 
 ### The tiles
 
@@ -66,11 +67,15 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 79, 80 | crystal, spent and charged | Kenney's grey stone (dungeon:56); charged, its light cells turned blue-green |
 | 81, 82 | small crystal, spent and charged | the same, reduced to ten pixels |
 | 83 | lightning rod | Kenney's post (town:47) with an iron spike and a spark on top |
+| 84, 85 | lit forge, frames A and B | Kenney's forge face (dungeon:28) with fire behind its grate's bars, hotter at the bottom; the flame's colours swapped between the frames |
 
 ## The style, measured from `tiny-dungeon.png`
 
-- **Palette.**  Only the 27 colours `tiny-dungeon.png` uses, one letter each in
-  `assets/art/world/palette.txt`; `tools/sheet.loft` refuses any other.
+- **Palette.**  The 27 colours `tiny-dungeon.png` uses, one letter each in
+  `assets/art/world/palette.txt`, and the few a tile took from another Kenney pack (the rope's
+  Tiny Farm browns, the rod's post) or its own glow (a charged crystal), listed below them;
+  `tools/sheet.loft` refuses any other.  A new colour is added there by name, never only in the
+  picture.
 - **Outline.**  `#3f2631` (`o`), 2 px thick on the outside with rounded corners: every empty
   pixel within dx² + dy² ≤ 5 of the figure (measured on the staff, dungeon:129).  Where two
   things overlap, the line between them is 1 px.  **Iron on a wall is outlined in navy**
@@ -123,7 +128,8 @@ Kenney's tiles are drawn larger first and reduced to their size, so that is how 
    only where nothing is beneath — so the route a junction is set to is the one drawn on top.
 5. **Built.**  `loft --lib libs tools/sheet.loft` writes `tile-world.png`.  With `check` it
    instead exits 1 when the committed sheet differs from the sources (`check`, not `--check`:
-   a `--` flag after the script is loft's own).
+   a `--` flag after the script is loft's own).  Every tile has a source: a tile put into the
+   picture by hand is lost at the next build.  Run `check` after any change to the sheet.
 
 ## Presenting it
 

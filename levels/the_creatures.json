@@ -54,7 +54,7 @@
     { "at": [10, 13, 0], "to": "demo", "door": "the_creatures" }
   ],
   "labels": [
-    { "at": [11, 12, 0], "text": "SLEEP" }
+    { "at": [9, 11, 0], "text": "SLEEP" }
   ],
   "start": [10, 12, 0],
   "goal": { "type": "" }

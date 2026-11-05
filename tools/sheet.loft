@@ -8,8 +8,8 @@
 // It refuses a tile of the wrong size, a letter outside the palette and an index used twice.
 //   loft --lib libs tools/sheet.loft            write the sheet
 //   loft --lib libs tools/sheet.loft check      exit 1 when the committed sheet differs from it
-// (`check`, not `--check`: a `--` flag after the script is loft's own).  The game's checks run
-// it, so the sources and the picture cannot drift apart.
+// (`check`, not `--check`: a `--` flag after the script is loft's own).  Run `check` after any
+// change to the sheet, so the sources and the picture cannot drift apart.
 use imaging;
 
 /// The tile size and the sheet's width in tiles: Tiny Dungeon's.

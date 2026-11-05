@@ -34,7 +34,7 @@
   ],
   "talks": [
     { "at": [3, 2, 0], "name": "wanderer", "lines": [
-        { "wanderer": "SHOW ME THE WAY EAST?", "then": "there", "follows": true },
+        { "wanderer": "SHOW ME THE WAY EAST?", "then": "there", "follows": true, "end": true },
         { "id": "there", "wanderer": "I WILL STAY HERE.", "then": "settled", "stays": true },
         { "id": "settled", "wanderer": "A GOOD PLACE.", "end": true } ] }
   ],

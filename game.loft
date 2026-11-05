@@ -2311,9 +2311,9 @@ pub fn draw(g: Game) {
   } else if !rules::alive(w) {
     write(g, "NO HEARTS - R", 0, (ROWS - 1) * 16);
   } else {
-    // A note (a signpost's count, SAVED, BACK? B AGAIN) has the whole line until the next
-    // move; the move count shares it with the boost and the hearts.
-    if g.note != "" { write(g, g.note, 0, (ROWS - 1) * 16); }
+    // A note (a signpost's count, SAVED, BACK? B AGAIN) takes the line's left until the next
+    // move, beside the hearts; otherwise the move count or the gold, with the readouts.
+    if g.note != "" { status(g, g.note, true); }
     else if w.money > 0 { status(g, "GOLD {w.money}"); }
     else { status(g, "MOVES {g.moves}"); }
   }
@@ -2355,11 +2355,14 @@ fn draw_talk(g: Game) {
   }
 }
 
-// The play status line: `left` from the left, and at the right the seconds a boost has left
-// and the hero's health, a heart and a number.  `left` is cut short to leave them room.
-fn status(g: Game, left: text) {
+// The play status line, in half-size letters (a full-size line held only 13): `left` from the
+// left, and at the right the seconds a boost has left and the hero's health, a heart and a
+// number.  With `note` the readouts give way to it, the hearts stay.  `left` is cut short to
+// leave them room.
+fn status(g: Game, left: text, note: boolean = false) {
   w = g.world;
   ts = g.look.tile_size;
+  half = ts / 2;
   y = (ROWS - 1) * ts;
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
   // The time of day (C1), hours and minutes.
@@ -2371,14 +2374,18 @@ fn status(g: Game, left: text) {
   if held.1 > 0 { right = "SACK {held.0}/{held.1} " + right; }
   // Health, and the temporary health above it ("6+2").
   hearts = if w.spirit > 0 { "{w.health}+{w.spirit}" } else { "{w.health}" };
-  cells = len(right) + 1 + len(hearts);
-  write(g, right, (COLS - cells) * ts, y);
-  theme::put(g.surface, g.look.heart, (COLS - len(hearts) - 1) * ts, y, 0);
-  write(g, hearts, (COLS - len(hearts)) * ts, y);
-  room = COLS - cells - 1;
+  if note { right = ""; }
+  // In half cells: the line holds twice COLS; the heart is a full tile, two of them.
+  line = COLS * 2;
+  cells = len(right) + 2 + len(hearts);
+  text_y = (y + half / 2) as float;
+  theme::write_small(g.surface, g.look, right, ((line - cells) * half) as float, text_y, 0);
+  theme::put(g.surface, g.look.heart, (line - len(hearts) - 2) * half, y, 0);
+  theme::write_small(g.surface, g.look, hearts, ((line - len(hearts)) * half) as float, text_y, 0);
+  room = line - cells - 1;
   // Bound first: a text `if` as a call argument does not compile on --native before loft#2225.
   shown = if len(left) > room { left.char_slice(0, room) } else { left };
-  write(g, shown, 0, y);
+  theme::write_small(g.surface, g.look, shown, 0.0, text_y, 0);
 }
 
 // The checks (EDITOR.md § 5) over layer z of the view: the way to a cell goal as dots, a chest

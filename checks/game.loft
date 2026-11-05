@@ -584,6 +584,9 @@ fn test_a_person_follows_through_doors() {
   rules::put_hero(g.world, 5, 2, 0);
   game::move(g, -1, 0, false);
   assert(g.world.enemies[0]!.led, "spoken to, it follows: at {at(g)}");
+  // Its line said to the end (about 2 s, ten seconds given), it still follows.
+  for s in 1..=10 { _ = game::update(g, 1000, s * 1000); }
+  assert(g.world.enemies[0]!.led, "its line over, it still follows");
   rules::put_hero(g.world, 11, 3, 0);
   game::move(g, 1, 0, false);
   assert(g.place == "the_follow_b", "through the east door: {g.place}");
