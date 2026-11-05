@@ -527,15 +527,18 @@ slopes (Tiny Ski).
 Written to be overruled.  Each note says what a kind of story choice would ask of the engine, so
 the cost of a choice is known when it is made; none proposes story content.
 
-- **Talk carries no shared memory yet.**  A talk remembers only where its own figure's next talk
-  starts.  A story where people know what happened elsewhere (gossip, a reputation, an event the
-  village reacts to) needs facts a line can set and other lines can depend on.
+- **Talk has a first shared memory** (BUILD.md C2b): facts, known world-wide and carried through
+  doors; a talk can start at a known fact; a doing can set one (going into a home while seen sets
+  `snooped`).  Gossip, a reputation, an event the village reacts to still need lines that set
+  facts, and lines and barks that depend on them past the start.
 - **Barks rotate in order.**  A world that should feel lived-in may want them chosen by what the
   hero carries or how hurt it is, by a recent blast, by the time of day, drawn from seed and day.
 - **Overheard scenes.**  Two people talking between themselves while the hero only passes would
   need a talk that runs at listening range, apart from the hero's own talk that starts beside.
 - **Routines come first for "living".**  People moving through their day (WORLD.md step 3: points,
-  activities, the clock) carries more life than any talk; talk then follows the activity.
+  activities, the clock) carries more life than any talk; talk then follows the activity.  A
+  first piece exists (BUILD.md C3b): a person's points by the place's clock; walking between
+  places and one clock across them do not.
 - **Places are the cheap part.**  A new place is a file and a door; a story with many small places
   costs little engine work.  What costs more: things that follow the hero through a door, one clock
   across places, saves (WORLD.md steps 2 and 5).

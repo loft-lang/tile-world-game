@@ -520,15 +520,15 @@ on water, and things pushed or blown into it are lost.
       behind the dyke: walking into one of its stones with a burning torch, the bomb right behind
       that stone (proposed, taken by the owner as the reason it stays hidden).  A full dyke built
       and then lit over a stone: players will not come across it unless they are very persistent
-      in their experiments (owner, 2026-11-05) — which is why Wick telling it matters.  Proposed,
-      not yet ruled: a cracked wall becomes rubble (a rock on floor); the first wall in the open
-      way cracks, one a blast.
+      in their experiments (owner, 2026-11-05) — which is why Wick telling it matters.  Built with
+      the proposals: a cracked wall becomes rubble (a stone on floor); the first wall straight
+      ahead cracks, one a blast.
     - **A door held shut** (owner, 2026-11-05): the locked door is a door held shut by a beam on
-      the side it opens towards, and that beam can be demolished.  Doors today have no side they
-      open towards (a closed door opens when walked into, from either side): a barred door needs
-      one.  From the beam's side the player lifts it, no bomb needed (owner, 2026-11-05); from the
-      other side only the directed blast opens the door.  Proposed, not yet ruled: the beam lifted
-      comes away as a loose beam to carry; one a blast hits is broken.
+      the side it opens towards, and that beam can be demolished.  From the beam's side the player
+      lifts it, no bomb needed (owner, 2026-11-05); from the other side only the directed blast
+      opens the door.  Built: one terrain kind, `barred`, the side of each door's beam in the
+      level's `bars`; the beam lifted comes away whole (proposed), into the hand or at the feet,
+      the door left closed; one a blast hits is broken, the door blown open.
     - **A way round puzzles** (owner, 2026-11-05): the directed blast — cracking a wall, blowing
       out a door held shut — is a way to circumvent some of the puzzles a place sets up: the
       persistent experimenter's reward.  So a place is designed knowing it: a puzzle it lets be

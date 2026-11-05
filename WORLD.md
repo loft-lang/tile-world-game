@@ -380,7 +380,8 @@ Each step is checked before the next starts; "checked" names what goes red.
 1. **Places and doors** (the game's logic).  Level files become place files, a door edge gains a
    destination, `order.json` and goals go; a start place and cell remain.  Checked by a scripted
    walk: out of one place through its front door, back in through its back door, every place's
-   state as left.
+   state as left.  *Built for the demo village (HANDOFF.md); not yet: what follows the hero
+   through a door, doors in the editor.*
 2. **The clock and whereabouts.**  A time of day; timed states as moments; whereabouts asked on
    entering a place; a held-up creature going on from where it stands.  Checked by asking the
    same moment twice and across a save and reload: the same answers; and by the hero following a
@@ -403,7 +404,8 @@ Each step is checked before the next starts; "checked" names what goes red.
    by a letter the hero sends on, whose change happens at the moment it arrives and not before;
    by a letter left beside the road, taken by the scripted passer-by at the moment the table
    gives and acted on after its scripted delay, or left alone when the hero took it first; the
-   same in every run and across a save and reload.
+   same in every run and across a save and reload.  *Begun: a person's points by the place's
+   clock (`routes`, BUILD.md C3b); the rest open.*
 4. **The world from what exists**, in the developer's terms.  The five levels stitched together
    through a stretch of land outside (Kenney's Tiny Town and Tiny Farm sheets), each with a
    second way out; their rooms and corridors described as outlines with their words, the game

@@ -64,7 +64,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 - **Design docs:** `DESIGN.md` (the game: principle, rules agreed, slices) and `EDITOR.md` (the
   in-game editor: model, file format, places, keys, checks, platforms, order of work).
 
-## State 2026-11-04
+## State 2026-11-05
+
+303 tests (`loft --lib libs --tests tests`) and 20 checks (`loft --lib libs checks/game.loft`),
+on the interpreter and `--native`.
 
 - **Places and doors** (WORLD.md step 1, mostly): the game starts in the demo village
   (`levels/demo.json`), a house per mechanic room, doors both ways, every place kept as left,
@@ -72,18 +75,25 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   stays its own world beside the story game to come (owner).  Not yet: what follows the hero
   through a door (a pulled cart, an enemy close behind), one clock across places (each keeps its
   own), doors in the editor.
+- **What is known and people's days, in part** (C2, C3): facts, carried through doors, a talk
+  starting at a known fact, a door marked `home` setting `snooped` when the hero is seen going in;
+  a person's points by the place's clock (`routes`).  Not yet: lines that set facts, one clock
+  across places, people walking between places.
+- **The engine's limits met:** tile_world keeps sixteen terrain kinds (four bits) — the door held
+  shut is one kind, its beam's side kept in the level's `bars`; one id is left (15).  Night is a
+  covered place until the clock (C1) exists.
 - **Talk** (`talk.loft`, WORLD.md § Talking is moving): beside = talk, passing = bark; stay /
   bump / walk away while a line is said; gifts, take/give, `then`.
 - **Combat** (DESIGN.md @GM-Combat, BUILD.md B1b): built — wind-ups, dodge, block, parry and
   riposte, heavy, lunge, side blow, poise, the light chain, the early-swing back-off; ties follow
   the place against the hero (`rules::acts_before`), never a level's list order.  Keys: J/K/L/I
-  with WASD, Space/Shift/X/T with the arrows.  281 tests and 15 checks on both backends.
+  with WASD, Space/Shift/X/T with the arrows.
   Open: every number is proposed, to tune in play (owner); the hunter's hall is not played by the
   scripted players (the hunter keeps its distance and shoots); the dodger's first blow is no later
   than the attacker's (both open with a lunge on an enemy not yet winding up) — only the
   parrier's is.
-- **Five new houses** in the demo village's east block (BUILD.md B2, B2b, B7b, C2b, C3b, C6b; the
-  open questions answered as proposals there), each to try by hand:
+- **Seven new houses** in the demo village's east end (BUILD.md A0b, B2, B2b, B2c, B7b, C2b, C3b,
+  C6b; the open questions answered as proposals there), each to try by hand:
   - FOUNTAIN: walk into the green basin — SAVED; the rats beyond bite to nothing — BACK AT FOUNTAIN.
   - CAVE-IN: take the pick, strike the rock with the cart behind; push the full cart to the niche
     and bump it from above (BUMP); the two full carts are too heavy until one is tipped; take the
