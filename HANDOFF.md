@@ -66,8 +66,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
 
 ## State 2026-11-05
 
-303 tests (`loft --lib libs --tests tests`) and 20 checks (`loft --lib libs checks/game.loft`),
-on the interpreter and `--native`.
+345 tests (`loft --lib libs --tests tests`) and 29 checks (`loft --lib libs checks/game.loft`),
+on the interpreter and `--native`.  Every mechanic of BUILD.md's phases A–C is built, each with a
+house in the demo village; still open there: WORLD.md step 3's regions, bands and coverage table,
+and a tribe acting across places (C3, C4).  The next phase is D, the story's places.
 
 - **Places and doors** (WORLD.md step 1, mostly): the game starts in the demo village
   (`levels/demo.json`), a house per mechanic room, doors both ways, every place kept as left,
