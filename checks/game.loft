@@ -34,7 +34,8 @@ fn main() {
   test_a_torch_at_night_is_seen_going_in();
   test_sables_day_and_trap_in_the_game();
   test_day_and_night();
-  println("checks/game.loft: 21 passed");
+  test_the_alchemist_teaches_the_lore();
+  println("checks/game.loft: 22 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -532,4 +533,20 @@ fn test_day_and_night() {
   assert(game::is_night(g) && g.note == "SLEPT TILL 20:00" && g.world.night && !rules::hero_lit(g.world), "slept till night: {g.note}");
   game::move(g, 1, 0, false);
   assert(!game::is_night(g) && g.note == "SLEPT TILL 07:00" && g.clock / game::DAY_MS == 1, "and till the next morning: {g.note}");
+}
+
+// The smithy (B6): coming beside the alchemist there, his line makes the artefact's lore known (a
+// talk line setting a fact, C2).
+fn test_the_alchemist_teaches_the_lore() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_smithy"), "the smithy opens");
+  e = g.world.enemies[0]!;
+  tile_world::set_terrain(g.world.w, e.x - 2, e.y, 0, rules::tr(g.world, "floor"));
+  tile_world::set_terrain(g.world.w, e.x - 1, e.y, 0, rules::tr(g.world, "floor"));
+  while tile_world::top(g.world.w, e.x - 1, e.y, 0) != 0 { _ = tile_world::take(g.world.w, e.x - 1, e.y, 0); }
+  rules::put_hero(g.world, e.x - 2, e.y, 0);
+  game::move(g, 1, 0, false);
+  assert(rules::knows(g.world, "artefact_lore"), "the lore known: at {at(g)}");
 }

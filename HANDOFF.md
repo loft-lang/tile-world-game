@@ -125,6 +125,9 @@ on the interpreter and `--native`.
   - CREATURES: the grey rat going for the herbs and carrying them to its nest; the crab along the
     pool's edge; the slime swallowing what it meets; bigfoot inside his moat; sleep (the bed) till
     night and the ghost is there.
+  - SMITHY: take the burning torch from its socket, light the forge; the blunt sword struck at the
+    anvil (J) is a sword; open the four old chests (PIECES 4), talk to the alchemist (the lore),
+    take the lake's essence to the anvil: the artefact.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

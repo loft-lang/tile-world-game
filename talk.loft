@@ -83,7 +83,9 @@ pub struct Line {
   pub end: boolean,
   pub take: boolean,
   pub give: text,
-  pub bumps: vector<Bump> = []
+  pub bumps: vector<Bump> = [],
+  /// A fact the line makes known when it is said (C2: the alchemist teaching the artefact's lore).
+  pub sets: text = ""
 }
 
 pub struct Gift {
@@ -131,7 +133,7 @@ fn line_named(lines: const vector<Line>, id: text) -> integer {
 }
 
 // The keys a line has beside its speaker's.
-const LINE_KEYS = "id ms next away then end take give bump";
+const LINE_KEYS = "id ms next away then end take give bump sets";
 
 // What a line says and who says it: a bare text is its own figure's; else the one key that is not
 // one of LINE_KEYS is the speaker (its own figure by `own`, or "them"), its value what it says.
@@ -163,7 +165,7 @@ fn line_from(e: const JsonValue, own: text) -> Line {
   Line {
     id: word(e, "id"), by: w.0, says: w.1, ms: num(e.field("ms"), 0),
     next_id: word(e, "next"), away_id: word(e, "away"), then_id: word(e, "then"),
-    next: -1, away: -1, then: -1, end: flag(e, "end"), take: flag(e, "take"), give: word(e, "give"),
+    next: -1, away: -1, then: -1, end: flag(e, "end"), take: flag(e, "take"), give: word(e, "give"), sets: word(e, "sets"),
     bumps: bumps_of(e.field("bump"), own)
   }
 }
@@ -244,7 +246,7 @@ fn bumps_json(t: const Talk, bs: const vector<Bump>) -> text {
 // has nothing else, else its id, its speaker with what is said, and what is set.
 fn line_json(t: const Talk, l: const Line) -> text {
   plain = l.id == "" && l.by == "" && l.ms == 0 && l.next_id == "" && l.away_id == "" && l.then_id == ""
-          && !l.end && !l.take && l.give == "" && len(l.bumps) == 0;
+          && !l.end && !l.take && l.give == "" && len(l.bumps) == 0 && l.sets == "";
   if plain { return quoted(l.says); }
   who = if l.by != "" { l.by } else if t.name != "" { t.name } else { "them" };
   out = "{{ ";
@@ -257,6 +259,7 @@ fn line_json(t: const Talk, l: const Line) -> text {
   if l.end { out += ", \"end\": true"; }
   if l.take { out += ", \"take\": true"; }
   if l.give != "" { out += ", \"give\": {quoted(l.give)}"; }
+  if l.sets != "" { out += ", \"sets\": {quoted(l.sets)}"; }
   if len(l.bumps) > 0 { out += ", \"bump\": {bumps_json(t, l.bumps)}"; }
   out + " }}"
 }
@@ -374,6 +377,7 @@ fn begin(t: const Talk, l: rules::Level, i: integer, n: integer, taking: boolean
     l.hero_item = 0;
     l.hero_until = 0;
   }
+  if line.sets != "" { rules::learn(l, line.sets); }
   if line.give != "" {
     th = rules::thing_id(l.k, line.give);
     if th != 0 {

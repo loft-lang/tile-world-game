@@ -863,6 +863,12 @@ pub fn swing(g: Game) {
     return;
   }
   step = rules::swing(g.world);
+  if step == rules::Step.Crafted {
+    g.moves += 1;
+    motion::swing(g.motion, g.world.now);
+    sound(g, "chop", 0.9);
+    return;
+  }
   if step == rules::Step.Drank {
     g.moves += 1;
     sound(g, "potion");
@@ -1871,6 +1877,8 @@ fn status(g: Game, left: text) {
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
   // The time of day (C1), hours and minutes.
   right = "{clock_text(g)} " + right;
+  // The artefact's pieces found (B6).
+  if w.relic_pieces > 0 { right = "PIECES {w.relic_pieces} " + right; }
   // The sack worn: what it holds of what it carries.
   held = rules::sack_room(w);
   if held.1 > 0 { right = "SACK {held.0}/{held.1} " + right; }

@@ -133,11 +133,14 @@ its tests on both backends.
   hero on it, until it touches something.  Answered (proposed): a raft carries the hero from 3
   beams; one rope fastens every beam touching the one walked into; it drifts a cell every 500 ms;
   pushing never moves items into water (rules as they were).
-- **B6. Crafting.**  A workbench (the smithy's anvil) turns things brought to it into another: the
-  blunt sword into a sword; the artefact, from its pieces (a number the game counts, owner: a chest
-  adds one) and the materials.  Room: *the smithy*.  Ruled
-  first: how a recipe is given (walked into with the parts beside it, or a talk with the one who
-  teaches).  Red: a new `tests/crafting.loft`.
+- **B6. Crafting — built** (the demo's *smithy* house; `tests/crafting.loft`).  The anvil is worked
+  with the swing key, a hot forge within 3 cells — the abandoned smithy made functional by lighting
+  its forge with a flame (owner: it can be made functional).  The blunt sword is made whole, a
+  sword; the artefact is made from 4 of its pieces (owner: a number the game counts; old chests
+  give one each, `relic_chest`) and the lake's essence, once its lore is known — the fact a talk
+  line `sets` (owner: learnt from the alchemist).  Answered (proposed): the swing at the anvil (a
+  walk into it pushes it); 4 pieces; the forge's reach 3 cells; the pieces carried through doors,
+  on the status line.
 - **B7. Foraging and brewing.**  Plants that can be picked (Tiny Farm's), meat from what is hunted;
   a person who takes ingredients and gives a potion (a talk's `gifts`, `take`, `give`, built).  Room:
   *the garden*.  Red: a talk test, ingredients in, a potion out.

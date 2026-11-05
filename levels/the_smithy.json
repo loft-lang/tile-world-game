@@ -19,33 +19,52 @@
     { "at": [8, 0, 0], "stack": ["socket", "burning_torch"] },
     { "at": [1, 1, 0], "stack": ["table"] },
     { "at": [3, 1, 0], "stack": ["table"] },
+    { "at": [4, 1, 0], "stack": ["table"] },
     { "at": [5, 1, 0], "stack": ["chair"] },
     { "at": [6, 1, 0], "stack": ["table"] },
     { "at": [7, 1, 0], "stack": ["chair"] },
-    { "at": [8, 1, 0], "stack": ["table"] },
+    { "at": [9, 1, 0], "stack": ["table"] },
     { "at": [1, 2, 0], "stack": ["table"] },
+    { "at": [9, 2, 0], "stack": ["lake_essence"] },
     { "at": [1, 3, 0], "stack": ["chair"] },
+    { "at": [3, 3, 0], "stack": ["forge"] },
     { "at": [5, 3, 0], "stack": ["anvil"] },
-    { "at": [1, 4, 0], "stack": ["chair"] },
-    { "at": [9, 4, 0], "stack": ["chair"] },
+    { "at": [9, 3, 0], "stack": ["chair"] },
+    { "at": [7, 4, 0], "stack": ["blunt_sword"] },
+    { "at": [1, 5, 0], "stack": ["table"] },
+    { "at": [2, 5, 0], "stack": ["relic_chest"] },
+    { "at": [4, 5, 0], "stack": ["relic_chest"] },
+    { "at": [6, 5, 0], "stack": ["relic_chest"] },
+    { "at": [8, 5, 0], "stack": ["relic_chest"] },
     { "at": [1, 6, 0], "stack": ["table"] },
     { "at": [2, 6, 0], "stack": ["chair"] },
+    { "at": [3, 6, 0], "stack": ["chair"] },
     { "at": [4, 6, 0], "stack": ["table"] },
-    { "at": [6, 6, 0], "stack": ["table"] },
-    { "at": [8, 6, 0], "stack": ["chair"] },
-    { "at": [9, 6, 0], "stack": ["table"] }
+    { "at": [6, 6, 0], "stack": ["table"] }
   ],
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "enemies": [ ["elder", 9, 4, 0] ],
   "intent": { "seed": 9, "rooms": [
     { "x": 0, "y": 0, "w": 11, "h": 8, "z": 0, "words": ["furnished"] } ], "corridors": [ ], "trails": [
     { "points": [[5, 7]], "z": 0, "as": "open_door" } ], "items": [
     { "at": [5, 3], "z": 0, "stack": ["anvil"] },
-    { "at": [8, 0], "z": 0, "stack": ["socket", "burning_torch"] } ] },
+    { "at": [8, 0], "z": 0, "stack": ["socket", "burning_torch"] },
+    { "at": [3, 3], "z": 0, "stack": ["forge"] },
+    { "at": [7, 4], "z": 0, "stack": ["blunt_sword"] },
+    { "at": [9, 2], "z": 0, "stack": ["lake_essence"] },
+    { "at": [2, 5], "z": 0, "stack": ["relic_chest"] },
+    { "at": [4, 5], "z": 0, "stack": ["relic_chest"] },
+    { "at": [6, 5], "z": 0, "stack": ["relic_chest"] },
+    { "at": [8, 5], "z": 0, "stack": ["relic_chest"] } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [5, 7, 0], "to": "demo", "door": "the_smithy" }
+  ],
+  "talks": [
+    { "at": [9, 4, 0], "name": "alchemist", "barks": [ "THE FORGE IS COLD." ], "lines": [
+        { "alchemist": "FOUR PIECES AND THE LAKE'S ESSENCE, AT A HOT ANVIL.", "end": true, "sets": "artefact_lore" } ] }
   ],
   "start": [5, 6, 0],
   "goal": { "type": "" }

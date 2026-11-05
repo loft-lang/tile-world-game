@@ -98,6 +98,9 @@ pub const DRIFT_MS = 500;
 /// A day without the pump turns back REFILL_CELLS drained cells (owner: a bit a day, never locking
 /// the player in or out; the number proposed).
 pub const REFILL_CELLS = 4;
+
+/// The artefact is made of ARTEFACT_PIECES pieces (B6; proposed).
+pub const ARTEFACT_PIECES = 4;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -287,6 +290,15 @@ struct ThingProps {
   fastens: boolean = false,
   /// A bed (C1): walked into, the hero sleeps.
   sleeps: boolean = false,
+  /// Crafting (B6): a `workbench` (the anvil) is worked with the swing key, a hot forge (`heats`)
+  /// within 3 cells; what is `forged_to` there becomes it (the blunt sword, a sword); the lake's
+  /// `essence` with the artefact's pieces and its lore makes the artefact; a chest that gives
+  /// `pieces` of it (owner: a number the game counts, a chest adding one).
+  workbench: boolean = false,
+  heats: boolean = false,
+  forged_to: text = "",
+  essence: boolean = false,
+  pieces: integer = 0,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -469,6 +481,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       well: flag(e, "well"), calls_lift: flag(e, "calls_lift"),
       floats_to: word(e, "floats_to", ""), afloat: flag(e, "afloat"), raft_to: word(e, "raft_to", ""),
       raft: flag(e, "raft"), fastens: flag(e, "fastens"), sleeps: flag(e, "sleeps"),
+      workbench: flag(e, "workbench"), heats: flag(e, "heats"), forged_to: word(e, "forged_to", ""),
+      essence: flag(e, "essence"), pieces: num(e, "pieces", 0),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -810,6 +824,8 @@ pub struct Level {
   /// (what refills by the day, it has refilled for).
   pub night: boolean = false,
   pub day: integer = 0,
+  /// The artefact's pieces found (B6; owner: a number the game counts).
+  pub relic_pieces: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -969,6 +985,8 @@ pub enum Step {
   Lifted,
   /// The hero lay down on a bed and slept: the game moves its clock on (C1).
   Slept,
+  /// The hero worked something at the anvil into something else (B6).
+  Crafted,
   /// A full cart bumped from the side tipped its load out.
   Unloaded,
   /// The hero struck an enemy (walking into it, or swinging at it).
@@ -1207,6 +1225,9 @@ pub fn armed(l: const Level) -> boolean {
 /// Without a weapon, or with no health, nothing happens (Blocked).  The hero does not move.
 pub fn swing(l: Level) -> Step {
   l.queued = false;
+  // At the anvil (B6): the swing works what the hero holds.
+  bench = l.k.things[base(l, l.hero_x + l.face_x, l.hero_y + l.face_y, l.hero_z)];
+  if alive(l) && bench && bench.workbench { return craft(l); }
   // A potion held is drunk (owner), the hands empty again.
   if alive(l) && is_potion_held(l) {
     t = l.hero_item;
@@ -1761,7 +1782,8 @@ pub struct Carried {
   /// What is on the shoulders, and what the sack holds; what is known.
   pub shoulder: integer = 0,
   pub sack: vector<integer> = [],
-  pub facts: vector<text> = []
+  pub facts: vector<text> = [],
+  pub relic_pieces: integer = 0
 }
 
 /// What the hero of `l` takes through a door.
@@ -1774,7 +1796,7 @@ pub fn carried(l: const Level) -> Carried {
     blow_left: if l.blow_until > l.now { l.blow_until - l.now } else { 0 },
     heal_left: l.heal_left, spirit_left: l.spirit_left,
     heal_in: if l.heal_due > l.now { l.heal_due - l.now } else { 0 },
-    shoulder: l.shoulder, sack: l.sack, facts: l.facts
+    shoulder: l.shoulder, sack: l.sack, facts: l.facts, relic_pieces: l.relic_pieces
   }
 }
 
@@ -1798,6 +1820,7 @@ pub fn carry_in(l: Level, c: const Carried) {
   l.shoulder = c.shoulder;
   l.sack = c.sack;
   l.facts = c.facts;
+  l.relic_pieces = c.relic_pieces;
   l.queued = false;
   l.held_by = 0;
   l.struggles = 0;
@@ -2639,6 +2662,39 @@ pub fn refill(l: Level, days: integer) {
   }
 }
 
+// --- Crafting (BUILD.md B6) ---
+
+// Is a hot forge within 3 cells of the hero, on its layer?
+fn forge_near(l: const Level) -> boolean {
+  for dy in -3..=3 {
+    for dx in -3..=3 {
+      p = l.k.things[base(l, l.hero_x + dx, l.hero_y + dy, l.hero_z)];
+      if p && p.heats { return true; }
+    }
+  }
+  false
+}
+
+// Working at the anvil, a hot forge near (owner: the abandoned smithy made functional): what is
+// forged to something becomes it (the blunt sword, a sword); the lake's essence, with the pieces
+// enough and the alchemist's lore known (owner: the hero learns it from him), makes the artefact.
+// Blocked for anything else, or with the forge cold.
+fn craft(l: Level) -> Step {
+  if !forge_near(l) { return Step.Blocked; }
+  p = l.k.things[l.hero_item];
+  if !p { return Step.Blocked; }
+  if p.forged_to != "" {
+    l.hero_item = thing_id(l.k, p.forged_to);
+    return Step.Crafted;
+  }
+  if p.essence && l.relic_pieces >= ARTEFACT_PIECES && knows(l, "artefact_lore") {
+    l.relic_pieces -= ARTEFACT_PIECES;
+    l.hero_item = th(l, "artefact");
+    return Step.Crafted;
+  }
+  Step.Blocked
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -3261,6 +3317,7 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     p = l.k.things[thing];
     l.points += if p { p.points } else { 0 };
     l.money += if p { p.money } else { 0 };
+    l.relic_pieces += if p { p.pieces } else { 0 };
     return Step.Opened;
   }
   // A thing that tells (a signpost) is read: `closed` answers what it says.

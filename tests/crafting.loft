@@ -1,0 +1,67 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Crafting (BUILD.md B6; the owner's rules, the workings proposed): the anvil worked with the swing
+// key, a hot forge within 3 cells — the abandoned smithy made functional by lighting its forge; the
+// blunt sword made whole; the artefact from its pieces (a number, a chest adding one) and the
+// lake's essence, once its lore is known (owner: learnt from the alchemist).
+use tile_world;
+use rules;
+
+// A room x 0 .. 8, y 0 .. 4: the anvil on (5, 1), the forge (cold) on (3, 1); the hero on (5, 2)
+// facing the anvil.
+fn smithy() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 9, 5, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 8, 4, 0, rules::tr(w, "floor"));
+  tile_world::place(w.w, 5, 1, 0, rules::th(w, "anvil"));
+  tile_world::place(w.w, 3, 1, 0, rules::th(w, "forge"));
+  rules::put_hero(w, 5, 2, 0);
+  w.face_x = 0;
+  w.face_y = -1;
+  w
+}
+
+fn light_forge(w: rules::Level) {
+  rules::put_hero(w, 3, 2, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = 600000;
+  assert(rules::walk(w, 0, -1) == rules::Step.Lit, "the forge lit");
+  rules::put_hero(w, 5, 2, 0);
+  w.face_x = 0;
+  w.face_y = -1;
+}
+
+fn main() {
+  w = smithy();
+  assert(w.hero_y == 2, "at the anvil");
+}
+
+// The forge cold, the anvil does nothing; lit (a burning torch walked into it), the blunt sword
+// struck at the anvil is a sword.
+fn test_the_blunt_sword_made_whole() {
+  w = smithy();
+  w.hero_item = rules::th(w, "blunt_sword");
+  assert(rules::swing(w) == rules::Step.Blocked && w.hero_item == rules::th(w, "blunt_sword"), "the forge cold: nothing");
+  light_forge(w);
+  w.hero_item = rules::th(w, "blunt_sword");
+  assert(rules::swing(w) == rules::Step.Crafted && w.hero_item == rules::th(w, "sword"), "made whole");
+}
+
+// The artefact: the lake's essence at the anvil, the forge hot — 3 pieces, not enough; 4 without the
+// lore, not; 4 and the lore known, the artefact, the pieces used.  A relic chest opened adds one.
+fn test_the_artefact() {
+  w = smithy();
+  light_forge(w);
+  w.hero_item = rules::th(w, "lake_essence");
+  w.relic_pieces = 3;
+  w.facts = ["artefact_lore"];
+  assert(rules::swing(w) == rules::Step.Blocked, "3 pieces: not enough");
+  w.relic_pieces = 4;
+  w.facts = [];
+  assert(rules::swing(w) == rules::Step.Blocked, "without the lore: not");
+  rules::learn(w, "artefact_lore");
+  assert(rules::swing(w) == rules::Step.Crafted && w.hero_item == rules::th(w, "artefact") && w.relic_pieces == 0, "the artefact");
+  tile_world::place(w.w, 6, 2, 0, rules::th(w, "relic_chest"));
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened && w.relic_pieces == 1, "a chest: a piece");
+}
