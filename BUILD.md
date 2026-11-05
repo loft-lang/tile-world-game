@@ -208,9 +208,16 @@ share, so each is built once and shown in the test world first.
   (a lever cannot hold a cart, which starts down any branch that leads downhill): a cart waiting at
   the terrace's edge, held by a rock on the rails; whoever pushes the rock off stands on the track,
   and the cart, starting a cell every 600 ms, strikes them unless they step off at once.
-- **C3c. Following through a door.**  What is with the hero passes with it (WORLD.md § The
-  world): a cart it pulls, an enemy close behind, a person it leads.  Room: two houses joined by a
-  door.  Red: each comes through on the hero's step, on the far side.
+- **C3c. Following through a door — built** (the *follow* house, two rooms joined by a door;
+  `tests/following.loft`).  What is with the hero passes with it (WORLD.md § The world): every
+  person it leads, an enemy that saw it right beside it (one step), and the thing in front of it
+  when its last step pulled one (the first car of a train only).  Set down on the door's cell
+  behind the hero — the thing, then the first one, if the thing leaves it free — the others
+  beside the hero, north, east, south, west, then the corners.  A person brought somewhere: a
+  talk line `follows` and the person is led, keeping beside the hero; a line `stays` and it is
+  not.  Answered (proposed): everyone led comes along wherever they are in the place; a person's
+  home is the cell it was set down on, so one brought somewhere stays near the door it came in
+  by; its talk goes with it (the game's `moved_talks`, applied whenever a place opens).
 - **C2c. Hints for a stuck player — built** (@ST-Hints; the *words* house).  The fact `stuck`:
   known after 2 minutes within 3 cells of one spot, or after 3 blocked tries at one cell in a row;
   forgotten when the hero moves 3 cells on (or through a door).  A talk starting at its hint line

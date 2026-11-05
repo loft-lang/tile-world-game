@@ -1,0 +1,82 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// People brought somewhere and following through a door (BUILD.md C3, C3c; WORLD.md § The world;
+// the numbers proposed): a person led keeps beside the hero; through a door go the people it
+// leads, an enemy right behind it, and the thing it just pulled — set down on the door's cell
+// behind the hero, then beside it.
+use tile_world;
+use rules;
+
+// A hall x 0 .. 11, y 0 .. 2, walled.
+fn hall() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 12, 3, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 11, 2, 0, rules::tr(w, "floor"));
+  w
+}
+
+fn main() {
+  w = hall();
+  assert(len(w.enemies) == 0, "an empty hall");
+}
+
+// A villager on (2, 1) led, the hero on (8, 1): a step each 1400 ms towards it — (6, 1) at 5600 —
+// till beside it, (7, 1) at 7000, and there it stays.
+fn test_a_person_led_keeps_beside_the_hero() {
+  w = hall();
+  rules::put_hero(w, 8, 1, 0);
+  _ = rules::add_enemy(w, "villager", 2, 1, 0);
+  w.enemies[0].led = true;
+  rules::tick(w, 6999);
+  assert((w.enemies[0]!.x) == 6, "6999: on (6, 1): {w.enemies[0]!.x}");
+  rules::tick(w, 1);
+  assert((w.enemies[0]!.x) == 7, "7000: beside");
+  rules::tick(w, 10000);
+  e = w.enemies[0]!;
+  assert(steps_apart_is_one(w, e), "stays beside: {e.x},{e.y}");
+}
+
+fn steps_apart_is_one(w: const rules::Level, e: const rules::Enemy) -> boolean {
+  dx = if e.x > w.hero_x { e.x - w.hero_x } else { w.hero_x - e.x };
+  dy = if e.y > w.hero_y { e.y - w.hero_y } else { w.hero_y - e.y };
+  dx + dy == 1
+}
+
+// The hero on (10, 1) about to go through, having pulled a chair from (8, 1) to (9, 1) — facing it;
+// a villager led on (2, 1); a rat that saw it beside it on (10, 0); a rat that did not on (10, 2),
+// and one far off on (4, 0).  Taken out: the villager, the rat beside, the chair — the other rats
+// stay.  Set down in a second hall, the door on (5, 1) and the hero on (5, 0): the chair on the
+// door's cell; the villager — first — beside the hero, as the chair holds the door's cell: north
+// first, (5, -1) is wall, so east, (6, 0); the rat the next free, west, (4, 0).  Each one's home
+// where it is set down.
+fn test_what_goes_through_a_door() {
+  w = hall();
+  tile_world::place(w.w, 8, 1, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 9, 1, 0);
+  assert(rules::pull(w, 1, 0) == rules::Step.Pulled && w.hero_x == 10 && w.pulling, "pulled");
+  _ = rules::add_enemy(w, "villager", 2, 1, 0);
+  w.enemies[0].led = true;
+  _ = rules::add_enemy(w, "rat", 10, 0, 0);
+  w.enemies[1].saw = true;
+  _ = rules::add_enemy(w, "rat", 10, 2, 0);
+  _ = rules::add_enemy(w, "rat", 4, 0, 0);
+  w.enemies[3].saw = true;
+  f = rules::take_followers(w);
+  assert(len(f.enemies) == 2 && f.thing == rules::th(w, "chair") && len(w.enemies) == 2, "the villager, the rat beside, the chair");
+  assert(tile_world::top(w.w, 9, 1, 0) == 0, "the chair gone from here");
+  v = hall();
+  rules::put_hero(v, 5, 0, 0);
+  moved = rules::set_followers(v, f, 5, 1, 0);
+  assert(rules::thing_name(v.k, tile_world::top(v.w, 5, 1, 0)) == "chair", "the chair on the door's cell");
+  vi = v.enemies[0]!;
+  ra = v.enemies[1]!;
+  assert(vi.kind == "villager" && vi.x == 6 && vi.y == 0 && vi.led && vi.nest_x == 6, "the villager beside: {vi.x},{vi.y}");
+  assert(ra.kind == "rat" && ra.x == 4 && ra.y == 0, "the rat beside: {ra.x},{ra.y}");
+  assert(len(moved) == 2 && (moved[0]!.0) == 2 && (moved[0]!.3) == 6, "homes before and now");
+  // Without a thing, the first comes onto the door's cell itself.
+  u = hall();
+  rules::put_hero(u, 5, 0, 0);
+  _ = rules::set_followers(u, rules::Followers { enemies: [vi], thing: 0 }, 5, 1, 0);
+  assert((u.enemies[0]!.x) == 5 && (u.enemies[0]!.y) == 1, "on the door's cell");
+}

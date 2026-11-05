@@ -1,0 +1,43 @@
+{
+  "name": "the follow",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "#############",
+      "#...........#",
+      "#...........#",
+      "#...........d",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "######d######"
+    ] }
+  ],
+  "things": [
+    { "at": [8, 3, 0], "stack": ["chair"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["villager", 3, 2, 0], ["rat", 9, 5, 0] ],
+  "intent": { "seed": 73, "rooms": [
+    { "x": 0, "y": 0, "w": 13, "h": 8, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[6, 7]], "z": 0, "as": "open_door" },
+    { "points": [[12, 3]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [8, 3], "z": 0, "stack": ["chair"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [6, 7, 0], "to": "demo", "door": "the_follow" },
+    { "at": [12, 3, 0], "to": "the_follow_b", "door": "the_follow" }
+  ],
+  "talks": [
+    { "at": [3, 2, 0], "name": "wanderer", "lines": [
+        { "wanderer": "SHOW ME THE WAY EAST?", "then": "there", "follows": true },
+        { "id": "there", "wanderer": "I WILL STAY HERE.", "then": "settled", "stays": true },
+        { "id": "settled", "wanderer": "A GOOD PLACE.", "end": true } ] }
+  ],
+  "start": [6, 6, 0],
+  "goal": { "type": "" }
+}

@@ -848,6 +848,8 @@ pub struct Level {
   pub tried_x: integer = 0,
   pub tried_y: integer = 0,
   pub tries: integer = 0,
+  /// The hero's last step pulled something (C3c: a cart pulled through a door comes along).
+  pub pulling: boolean = false,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -873,6 +875,9 @@ pub struct Shot {
 /// An enemy: its id (it keeps it while it lives), kind, place and nest, its health, when it acts
 /// next and when it heals next, the steps it has taken (its wander's seed) and the way it faces.
 pub struct Enemy {
+  /// Led by the hero (C3: a person brought somewhere, a talk line `follows` to `stays`): it keeps
+  /// beside the hero, and comes along through doors.
+  pub led: boolean = false,
   /// Away (B8): out of its time and home — gone from the place till its time comes (the ghost by
   /// day): not met, not drawn.
   pub away: boolean = false,
@@ -2171,6 +2176,80 @@ pub fn learn(l: Level, f: text) {
   if !knows(l, f) { l.facts += [f]; }
 }
 
+// --- Following through a door (BUILD.md C3c) ---
+
+/// What passes through a door with the hero: the enemies (a person led, an enemy close behind),
+/// and the thing it pulled.
+pub struct Followers {
+  pub enemies: vector<Enemy>,
+  pub thing: integer
+}
+
+/// Take out of `l` what goes through the door with the hero (WORLD.md § The world): every person
+/// it leads, an enemy that saw it and is right beside it (one step), and the thing in front of it
+/// when its last step pulled one.
+pub fn take_followers(l: Level) -> Followers {
+  out: vector<Enemy> = [];
+  kept: vector<Enemy> = [];
+  for e in l.enemies {
+    p = enemy_props(l, e.kind);
+    close = e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= 1;
+    if e.led || (close && p.bite > 0 && e.saw && !e.away) { out += [e]; } else { kept += [e]; }
+  }
+  l.enemies = kept;
+  thing = 0;
+  if l.pulling {
+    fx = l.hero_x + l.face_x;
+    fy = l.hero_y + l.face_y;
+    if tile_world::top(l.w, fx, fy, l.hero_z) != 0 { thing = tile_world::take(l.w, fx, fy, l.hero_z); }
+  }
+  l.pulling = false;
+  Followers { enemies: out, thing: thing }
+}
+
+// A cell on layer z an enemy of kind p can be set down on: one it stands on, no enemy and no hero
+// there.
+fn free_for(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer) -> boolean {
+  enemy_stands(l, p, x, y, z) && enemy_at(l, x, y, z) < 0 && !(x == l.hero_x && y == l.hero_y && z == l.hero_z)
+}
+
+/// Set down in `l` what came through the door with the hero, (x, y, z) the door's cell behind it:
+/// the thing on it, the first enemy on it — or, taken, beside the hero, north, east, south, west,
+/// then the corners — each the next one free; an enemy's home is where it is set down.  For each
+/// enemy, its home before and now (a talk follows its person by the home).
+pub fn set_followers(l: Level, f: const Followers, x: integer, y: integer, z: integer)
+    -> vector<(integer, integer, integer, integer, integer, integer)> {
+  moved: vector<(integer, integer, integer, integer, integer, integer)> = [];
+  if f.thing != 0 { tile_world::place(l.w, x, y, z, f.thing); }
+  spots: vector<(integer, integer)> = [(x, y)];
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, 1), (-1, -1)] {
+    spots += [(l.hero_x + d.0, l.hero_y + d.1)];
+  }
+  for e in f.enemies {
+    p = enemy_props(l, e.kind);
+    for s in spots {
+      if !free_for(l, p, s.0, s.1, z) { continue; }
+      n = e;
+      n.id = l.next_enemy;
+      l.next_enemy += 1;
+      n.x = s.0;
+      n.y = s.1;
+      n.z = z;
+      n.nest_x = s.0;
+      n.nest_y = s.1;
+      n.nest_z = z;
+      n.due = l.now + p.move_ms;
+      n.talk_line = -1;
+      n.bark_line = -1;
+      n.wind_until = 0;
+      l.enemies += [n];
+      moved += [(e.nest_x, e.nest_y, e.nest_z, s.0, s.1, z)];
+      break;
+    }
+  }
+  moved
+}
+
 /// Forget fact `f` (C2c: `stuck`, once the hero moves on).
 pub fn forget(l: Level, f: text) {
   if !knows(l, f) { return; }
@@ -3232,6 +3311,7 @@ pub fn alive(l: const Level) -> boolean {
 /// Move the hero one cell (dx, dy one of the four directions): walk, push, climb onto a thing,
 /// or climb a layer.  The hero stays where it is when the step is Blocked.
 pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
+  l.pulling = false;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
   step = walk_step(l, dx, dy);
@@ -3476,6 +3556,13 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
 /// nothing did, Blocked when the hero cannot take the step (a plain one, onto a cell no higher
 /// than the hero stands).
 pub fn pull(l: Level, dx: integer, dy: integer) -> Step {
+  step = pull_step(l, dx, dy);
+  l.pulling = step == Step.Pulled;
+  notice_stay(l);
+  step
+}
+
+fn pull_step(l: Level, dx: integer, dy: integer) -> Step {
   l.queued = false;
   if !alive(l) { return Step.Blocked; }
   // Pulling, the hero faces the thing it pulls, behind it.
@@ -5468,6 +5555,18 @@ fn enemy_act(l: Level, i: integer) {
         }
       }
     }
+  }
+  // Led by the hero (C3), it keeps beside it.
+  if e.led {
+    if e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) > 1 {
+      lw = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, false, no_shades());
+      if lw.2 > 1 {
+        enemy_step(l, i, lw.0, lw.1, p.move_ms);
+        return;
+      }
+    }
+    l.enemies[i].due = e.due + p.move_ms;
+    return;
   }
   // A person with a day goes to where the clock says, and waits there (C3).
   r = route_of(l, e);

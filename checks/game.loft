@@ -36,7 +36,8 @@ fn main() {
   test_day_and_night();
   test_the_alchemist_teaches_the_lore();
   test_the_scholar_makes_urgha_understood();
-  println("checks/game.loft: 23 passed");
+  test_a_person_follows_through_doors();
+  println("checks/game.loft: 24 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -218,7 +219,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 27 && len(g.file.labels) == 29, "twenty-seven houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 28 && len(g.file.labels) == 30, "twenty-eight houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -564,4 +565,27 @@ fn test_the_scholar_makes_urgha_understood() {
   rules::put_hero(g.world, 10, 2, 0);
   game::move(g, 1, 0, false);
   assert(rules::knows(g.world, "cyclops_words") && talk::heard(g.world, urgha) == "YOU NOT KHARN. YOU FRIEND OF VILLAGE?", "understood: at {at(g)}");
+}
+
+// Following through a door (C3, C3c): the wanderer, spoken to, follows; through the east door it
+// comes along, its talk with it; back through the west door, both come back — its talk there once,
+// found at its new home.
+fn test_a_person_follows_through_doors() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_follow"), "the follow opens");
+  rules::put_hero(g.world, 5, 2, 0);
+  game::move(g, -1, 0, false);
+  assert(g.world.enemies[0]!.led, "spoken to, it follows: at {at(g)}");
+  rules::put_hero(g.world, 11, 3, 0);
+  game::move(g, 1, 0, false);
+  assert(g.place == "the_follow_b", "through the east door: {g.place}");
+  assert(len(g.world.enemies) == 1 && (g.world.enemies[0]!.led) && len(g.file.talks) == 1, "it came along, its talk too");
+  assert(talk::owner(g.file.talks[0]!, g.world) == 0, "its talk finds it");
+  back = levels::door_named(g.file, "the_follow");
+  assert(game::go_through(g, back), "back west");
+  assert(g.place == "the_follow" && len(g.file.talks) == 1, "home, one talk: {len(g.file.talks)}");
+  o = talk::owner(g.file.talks[0]!, g.world);
+  assert(o >= 0 && (g.world.enemies[o]!.kind) == "villager", "found at its new home");
 }

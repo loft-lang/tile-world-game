@@ -303,3 +303,20 @@ fn test_broken_words_come_through_in_part() {
   rules::learn(l, "cyclops_words");
   assert(talk::heard(l, line) == "YOU NOT KHARN FRIEND", "understood");
 }
+
+// Leading (C3): a line that `follows` — the person led; walked off and back, the next line
+// `stays` — led no more.
+const WANDERER = "[ {{ \"at\": [5, 2, 0], \"name\": \"wanderer\", \"lines\": ["
+  + " {{ \"wanderer\": \"LEAD ON\", \"follows\": true, \"then\": \"here\", \"end\": true }},"
+  + " {{ \"id\": \"here\", \"wanderer\": \"HERE I STAY\", \"stays\": true, \"end\": true }} ] }} ]";
+
+fn test_a_line_leads_and_one_stays() {
+  t = talks(WANDERER);
+  l = elder();
+  assert(at(l, t, 0) == 0 && (l.enemies[0]!.led), "LEAD ON: led");
+  assert(at(l, t, 3000) == -1, "said");
+  rules::put_hero(l, 9, 2, 0);
+  _ = at(l, t, 5000);
+  rules::put_hero(l, 4, 2, 0);
+  assert(at(l, t, 6000) == 1 && !(l.enemies[0]!.led), "HERE I STAY: led no more");
+}

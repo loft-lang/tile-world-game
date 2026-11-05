@@ -53,6 +53,17 @@ const KEY_CTRL = 133;
 /// How long the swing key is held for a heavy swing (@GM-Combat; proposed, to tune in play).
 pub const HEAVY_HOLD_MS = 500;
 
+/// A talk that went with its person to another place (C3: a person brought somewhere): written in
+/// place `from`'s file at (fx, fy, fz), now in place `place`, anchored at the person's new home.
+pub struct MovedTalk {
+  pub from: text,
+  pub fx: integer,
+  pub fy: integer,
+  pub fz: integer,
+  pub place: text,
+  pub talk: talk::Talk
+}
+
 pub struct Game {
   pub world: rules::Level,
   /// The level being played, as its file holds it (name, start, goal).
@@ -142,7 +153,9 @@ pub struct Game {
   lift: integer,
   /// When the swing key went down (-1: it is up): let go after HEAVY_HOLD_MS it is a heavy swing,
   /// sooner a light one (@GM-Combat).
-  swing_down_at: integer = -1
+  swing_down_at: integer = -1,
+  /// The talks that went with their people to other places (C3).
+  pub moved_talks: vector<MovedTalk> = []
 }
 
 /// A place the hero has left, as it left it.
@@ -307,6 +320,15 @@ fn open_place(g: Game, name: text) -> boolean {
   if !m { return false; }
   g.file = m;
   g.place = name;
+  // The talks whose people left for elsewhere are not here; those whose people came here are.
+  here: vector<talk::Talk> = [];
+  for t in g.file.talks {
+    gone = false;
+    for mt in g.moved_talks { if mt.from == name && mt.fx == t.x && mt.fy == t.y && mt.fz == t.z { gone = true; } }
+    if !gone { here += [t]; }
+  }
+  for mt in g.moved_talks { if mt.place == name { here += [mt.talk]; } }
+  g.file.talks = here;
   g.level = -1;
   for i in 0..len(g.order) { if g.order[i] == name { g.level = i; } }
   g.ed = editor::new_editor_with(g.file, g.mats);
@@ -344,6 +366,7 @@ pub fn start_world(g: Game, place: text) -> boolean {
   if !open_place(g, place) { return false; }
   g.in_world = true;
   g.places = [];
+  g.moved_talks = [];
   g.solved_places = [];
   g.entered_by = "";
   g.has_arrived = false;
@@ -372,6 +395,14 @@ pub fn go_through(g: Game, i: integer) -> boolean {
     if o >= 0 && talk::current(g.world, o) >= 0 { talk::walked_away(t, g.world, o); }
   }
   c = rules::carried(g.world);
+  // What goes through with the hero (C3c), and the talks of the people it leads.
+  leaving: vector<talk::Talk> = [];
+  for t in g.file.talks {
+    o = talk::owner(t, g.world);
+    if o >= 0 && (g.world.enemies[o]!.led) { leaving += [t]; }
+  }
+  f = rules::take_followers(g.world);
+  from = g.place;
   stash(g);
   _ = open_place(g, to);
   j = visited(g, to);
@@ -396,6 +427,14 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   } else {
     rules::put_hero(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
   }
+  dc = if k >= 0 { (g.file.doors[k]!.x, g.file.doors[k]!.y, g.file.doors[k]!.z) } else { (g.world.hero_x, g.world.hero_y, g.world.hero_z) };
+  moved = rules::set_followers(g.world, f, dc.0, dc.1, dc.2);
+  for mv in moved {
+    for t in leaving {
+      if t.x != mv.0 || t.y != mv.1 || t.z != mv.2 { continue; }
+      bring_talk(g, from, t, mv.3, mv.4, mv.5);
+    }
+  }
   g.entered_by = there;
   g.arrived = g.world;
   g.has_arrived = true;
@@ -410,6 +449,26 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   aim(g);
   sound(g, "door_open");
   true
+}
+
+// Talk `t` of place `from` goes with its person to the place now open, anchored at (x, y, z):
+// one that had moved before moves on; one from its own file is taken out of it.
+fn bring_talk(g: Game, from: text, t: const talk::Talk, x: integer, y: integer, z: integer) {
+  n = t;
+  n.x = x;
+  n.y = y;
+  n.z = z;
+  for i in 0..len(g.moved_talks) {
+    m = g.moved_talks[i]!;
+    if m.place == from && m.talk.x == t.x && m.talk.y == t.y && m.talk.z == t.z {
+      g.moved_talks[i].place = g.place;
+      g.moved_talks[i].talk = n;
+      g.file.talks += [n];
+      return;
+    }
+  }
+  g.moved_talks += [MovedTalk { from: from, fx: t.x, fy: t.y, fz: t.z, place: g.place, talk: n }];
+  g.file.talks += [n];
 }
 
 // A level's file name from what was typed: lower-case letters, digits, `_` and `-`; spaces as

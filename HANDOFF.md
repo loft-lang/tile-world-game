@@ -132,6 +132,9 @@ on the interpreter and `--native`.
   - WORDS: Urgha's line in part; the scholar (east) teaches their words, then Urgha is heard whole;
     bump a wall three times, and the keeper's talk starts with a hint.  The night street's
     neighbour barks HMPF. SNOOPER. once the hero is disliked (seen snooping).
+  - FOLLOW: talk to the wanderer — it follows; pull the chair to the east door and go through:
+    the chair, the wanderer (and the rat, if it is on your heels) come along; talk again there —
+    it stays.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.
