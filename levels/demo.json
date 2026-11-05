@@ -218,7 +218,7 @@
     { "at": [69, 20, 0], "text": "WORK" },
     { "at": [75, 6, 0], "text": "FARM" },
     { "at": [75, 14, 0], "text": "RAID" },
-    { "at": [76, 14, 0], "text": "LEAVE" }
+    { "at": [76, 16, 0], "text": "LEAVE" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [

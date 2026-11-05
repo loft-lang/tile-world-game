@@ -54,7 +54,7 @@ properties is built the same way.
 | A door (`opens_to`) and an open door | the doorway: the walls beside it continue; the door picture on a panel set in the opening — closed across it, open swung against the side | the door tile (dungeon:45, the house doors' town:74 and 78) |
 | A fence: `upright`, a line (`along`) | a panel through the middle of the cell along its line, as tall as the picture | the 2D's choice of across or along, on both faces |
 | A standing beam, a held-shut door (`barred`) | as a wall or a door, with their pictures | their tiles |
-| A roof (a material of kind `wall` with a roof autotile, on the layer over a house) | a slab one layer up, the autotile piece on top; proposed later: a pitched roof from the autotile's rows (the `n` row the slope up, the `s` row the eaves) | the autotile piece |
+| A roof (a material of kind `wall` with a roof autotile, on the layer over a house) | one slope facing south, as the 2D's pictures show it (§ Roofs) | the autotile pieces, row by row |
 | The walls between cells (`edges` in `kinds.json`: wall, door, window, fence) | a thin panel (⅛) on the cell boundary | the matching terrain's picture; `theme.json` has no edge looks yet, so they are proposed there: `edges: { wall: …, door: …, window: …, fence: … }` |
 | Void | nothing | — |
 | Floor text (`labels`) | a decal on the ground, lifted a hair above it | the font's tiles at half size, as `draw_labels` writes them |
@@ -66,6 +66,26 @@ its top the middle top piece (derived; `theme.json` may name them: `faces: { sid
 
 Trees, wells and basins are terrain in the rules but pictures of objects: they are cards (below),
 standing on their cell's ground.
+
+### Roofs
+
+A roof follows what the 2D's pictures say it is (owner).  Its autotile's north row (town:52–54,
+48–50) carries the ridge cap along its top edge; every row south of it, the south row included,
+is the same run of shingles (64–66, 60–62).  That is one slope facing the viewer: the ridge
+along the roof's north edge, falling south to the eaves.  So in 3D:
+
+- the roof's cells (on the layer over the house) make one plane, from the eaves at the south
+  edge, on the top of the front wall, up to the ridge at the north edge;
+- each row of the plane takes that row's autotile piece, as the 2D lays them, so the ridge cap
+  is at the top and the shingles run down to the eaves;
+- the ridge stands one layer above the eaves (proposed; the slope then steepens for a shallow
+  house and flattens for a deep one);
+- the triangles at its east and west ends, and the north face from the wall top up to the ridge,
+  are closed in the house's own wall picture (the wood or stone wall's middle piece).  The camera
+  stays south, so the north face is rarely seen.
+
+Kenney's sheet also has gable fronts (town:63, 67) that the 2D does not use; a roof turned the
+other way would want them, and none is drawn so yet.
 
 ## Everything else: cardboard
 
@@ -80,6 +100,9 @@ nothing has to be sorted by hand.
   sheets' own outline already suits it).
 - **A shadow:** a soft dark ellipse on the ground under each card, so a card stands rather than
   floats (proposed).
+- **A kind's shape is one key** (owner: cardboard for now, swapped out later where it pays):
+  `theme.json` may give a thing or an enemy a `shape` (`card` when left out, the only one built).
+  A box or a model for one kind later replaces that kind's card and nothing else.
 - **Things:** each thing of a cell's stack is a card, its base at the cell's rise plus the heights
   of the things under it (`draw_stack`'s rule: 4 pixels a step becomes ¼); a thing holding
   another (a socket and its torch) is one card when the theme has the pair; a flame shows its
@@ -125,20 +148,28 @@ darker.  It shapes the boxes without lighting anything the rules leave dark.
 
 ## The camera and what is seen
 
-**The camera:** a perspective view (a 35° field, proposed) from the south, looking down at about
-55°, the angle the pictures are drawn for.  It follows what `camera.loft` follows (`follow`,
-`rooms`), the same target turned into a point over the place.  It keeps its yaw at first: a
-camera turning round the place would show cards edge-on.  A small swing (±30°) is the next try,
-the cards turning with it.
+**The camera** stays close to what the 2D shows (owner), a little more horizontal.  The 2D view
+draws a cell's ground and a wall's face equally tall: a wall one layer high takes one tile, and
+so does the cell behind it.  That is what a camera looking down at 45° from the south sees, so
+45° is the 2D's own angle; the 3D camera starts a little lower, at 40° (proposed), so faces and
+cards stand a little taller than the ground they stand on.  The field is narrow (25°, proposed),
+so the perspective stays mild and a row far off is not much smaller than one near.  It follows
+what `camera.loft` follows (`follow`, `rooms`), the same target turned into a point over the
+place, and it does not turn: the pictures are drawn to be seen from the south.
 
 **What is seen:** DESIGN.md § What the player sees carries over as rules, not as a look:
 
 - under a ceiling only the hero's layer and those below are drawn; nothing above (roofs vanish
   while inside), the same test (`open_sky`);
 - under the open sky the layer above is drawn too;
-- a wall in front of the hero is cut away (owner: only walls).  In 2D it is the wall cell south of
-  the hero; in 3D it is every wall whose box hides the hero's card from the camera — the cells a
-  line from the camera to the hero's head crosses (proposed);
+- **the hero is never hidden** (owner): the walls in front of it are cut away, as in 2D, and only
+  walls.  The 2D cuts the wall cell south of the hero (and the ledge's top drawn over it): at the
+  2D's angle no wall further south reaches the hero.  The same rule in 3D asks which walls cover
+  the hero's card from the camera.  With the camera lower than the 2D's, a wall two or more cells
+  south, or one taller than a layer, can reach it too.  So the renderer projects the card's
+  rectangle toward the camera and cuts every wall box it passes through (in the hero's column
+  and, where the card is wider than a cell, the columns beside it), with what stands on those
+  walls on the layers above.  At 45° this cuts exactly the 2D's cell;
 - things and figures past a wall are not drawn (`in_view`, owner: only walls hide); the ground is;
 - layers below a ledge are drawn darker each layer down, to about four deep, as in 2D.
 
@@ -175,7 +206,9 @@ is checked by a program and looked at.
    scenes (the guard, the rat, the bomb) filmed in 3D.
 4. **Light.**  Checked: a vertex's light equals the 2D's shade for that corner at the same moment.
 5. **What is seen.**  Checked: the rules `checks/game.loft` holds for the 2D (a wall in front cut
-   away, only walls hiding) asked of the 3D renderer's list of what it drew.
+   away, only walls hiding) asked of the 3D renderer's list of what it drew; at 45° the cut is
+   the 2D's cell exactly; at the 3D camera's angle, a hero behind two walls in a row, and behind a
+   wall two layers high, is still seen in part.
 6. **Effects, bubbles, the editor switch.**
 7. **The browser.**  WebGL2 through `loft-gl-wasm.js`, which turns the `330 core` shaders into
    `300 es`: one set of shaders for both.
@@ -190,12 +223,16 @@ the catalogue): control of multisampling and alpha-to-coverage (smoother card ed
 `GroupMeshes` fits per-layer chunks.  tile_world: the per-chunk change count above, if the
 comparison is not enough.
 
+## Decided (owner, 2026-11-05)
+
+- The camera stays close to the 2D's view, a little more horizontal; it does not turn.
+- Cardboard for everything that is not the environment, for now; a kind's `shape` swaps it later.
+- Roofs follow the 2D's pictures: one slope facing south, ridge at the north.
+- The hero is never hidden: the 2D's cut-away of the walls in front of it, found by projection.
+
 ## Open, for the owner
 
-- The camera: fixed from the south, or turning (then cards turn with it, or keep facing south).
-- Cards for everything that is not terrain, as asked; whether a few big things (a chest, a table,
-  a cart) read better as boxes is worth one try.
-- Roofs flat or pitched.
 - The pixel look: drawn at the window's size with nearest texels (sharp texels, smooth edges), or
   drawn small and scaled up (chunky pixels, as the 2D game).
 - The board's edge and the shadow under each card.
+- How high the ridge stands (one layer above the eaves, proposed).
