@@ -105,11 +105,16 @@ its tests on both backends.
 - **B3. The cart lift.**  A platform between layers carrying its stack, sent by a lever (or an
   arrow), moving only with its shaft clear, its rails joining the track at each stop.  Room: *the
   lift*.  Ruled first: its speed; riding it with no cart.  Red: a new `tests/lift.loft`.
-- **B4. The pump and its crystals.**  A crystal is an item that cannot be harmed (a blast flings
-  it); a charged one in a pump drains the joined water a cell at a time, the nearest first, until
-  spent; a small crystal for a well's pump.  Room: *the flooded hall*, a spare crystal for a
-  first charge.  The daily refill waits for the clock (C1): here it is played on a clock set by
-  hand.  Ruled first: cells a charge, the draining speed.  Red: a new `tests/pump.loft`.
+- **B4. The pump and its crystals — built** (the demo's *pump* house; `tests/pump.loft`).  A
+  crystal cannot be harmed (an item: a blast flings it).  Put into the mine's pump, a charged one
+  gives it its charge at once and is left spent; the pump drains the water joined to it, nearest
+  first, each drained cell what the level lists beneath it (`beneath`; floor otherwise).  The
+  village's well pump runs on a small one — the fact `well_running` — and goes off like a bomb
+  with a large one; the mine's pump ignores a small one.  A spent large crystal on a lightning rod
+  is charged by a strike — the place's `storm` cycle, until the weather (C1) drives it; a small
+  one the alchemist fills (a talk's gift).  Answered (proposed): a cell every 1500 ms; a full
+  charge 12 cells, the spare 4; the well runs 60 s on a small one.  Not yet: the daily refill
+  (needs the clock, C1).
 - **B5. The flotilla and the rope.**  Beams float where other things are lost; beams that touch
   link as carts do; beams fastened with rope are stood on, a lone beam is not; pushing off drifts
   the flotilla until it touches something.  Rope is carried on the shoulders beside what is held,
@@ -170,6 +175,20 @@ share, so each is built once and shown in the test world first.
   (a lever cannot hold a cart, which starts down any branch that leads downhill): a cart waiting at
   the terrace's edge, held by a rock on the rails; whoever pushes the rock off stands on the track,
   and the cart, starting a cell every 600 ms, strikes them unless they step off at once.
+- **C3c. Following through a door.**  What is with the hero passes with it (WORLD.md § The
+  world): a cart it pulls, an enemy close behind, a person it leads.  Room: two houses joined by a
+  door.  Red: each comes through on the hero's step, on the far side.
+- **C2c. Hints for a stuck player** (@ST-Hints).  The game notices a player stuck — long in one
+  place, the same tries again — and the people's lines can depend on it, as on a fact.  Red: a
+  scripted stay that sets it, a talk that then gives the hint.
+- **C2d. Persuading and being understood.**  What convinces someone — Odran to give the
+  lightning's energy, Voss of the danger — is the owner's to define; the engine's part is a talk
+  that changes on what the hero has done, brought or shown (facts, gifts, things seen).  Urgha's
+  broken words (@ST-Cyclopes): lines that come through in part.  Red: a talk that will not until a
+  fact is known, then does.
+- **C9. The Dunns' bargain** (@ST-Farm).  The hero's horse lent to the farm for a bed in the barn:
+  a choice made once, kept (a fact), the horse at the farm until he needs it.  Red: the bargain
+  struck, the horse moved, the barn open.
 - **C4. A group acting together.**  The Kharn as a tribe: prey counted down by the clock and by
   what has happened to the monsters; nervous scouting outside the mine; the attack; turned back
   by a defended place, they leave.  Room: a small tribe, a small village, a barricade.  Red: the

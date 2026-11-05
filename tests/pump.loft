@@ -1,0 +1,112 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The pump and its crystals (BUILD.md B4, DESIGN.md @GM-Flooded; the owner's rules, the numbers
+// proposed): a crystal put into the pump gives it its charge at once and is left spent; the pump
+// drains the water joined to it, nearest first, a cell every 1500 ms — a full crystal 12 cells, the
+// spare 4 — each drained cell what lies beneath it (floor, or what the level lists).  The mine's
+// pump ignores a small crystal; the village's well pump runs on one, and goes off like a bomb with a
+// large one.  A spent large crystal on a lightning rod is charged by a strike.
+use tile_world;
+use rules;
+
+// A room x 1 .. 9, y 1 .. 5, walled; a pool x 5 .. 8, y 2 .. 4 (12 cells), a rail beneath (6, 3) and
+// a chest under the water on (8, 4); the pump on (4, 3), the hero on (3, 3) facing it.
+fn room() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 10, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 1, 1, 9, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 5, 2, 8, 4, 0, rules::tr(w, "water"));
+  w.beneath += [rules::Beneath { x: 6, y: 3, z: 0, kind: "rail" }];
+  tile_world::place(w.w, 8, 4, 0, rules::th(w, "chest"));
+  tile_world::place(w.w, 4, 3, 0, rules::th(w, "pump"));
+  rules::put_hero(w, 3, 3, 0);
+  w
+}
+
+fn kind(w: const rules::Level, x: integer, y: integer) -> text {
+  rules::terrain_name(w.k, tile_world::terrain(w.w, x, y, 0))
+}
+
+fn water_left(w: const rules::Level) -> integer {
+  n = 0;
+  for y in 2..=4 { for x in 5..=8 { if kind(w, x, y) == "water" { n += 1; } } }
+  n
+}
+
+fn main() {
+  w = room();
+  assert(water_left(w) == 12, "a pool of 12");
+}
+
+// A charged crystal in the pump: spent at once, the pump running.  The cell beside it, (5, 3), goes
+// first, at 1500; the rail beneath (6, 3) comes up in its turn; at 18000 the twelfth: the pool
+// gone, the chest standing on floor, the pump stopped.
+fn test_a_charged_crystal_drains_the_pool() {
+  w = room();
+  w.hero_item = rules::th(w, "charged_crystal");
+  assert(rules::walk(w, 1, 0) == rules::Step.Placed && w.hero_item == 0, "put in");
+  assert(rules::thing_name(w.k, tile_world::top(w.w, 4, 3, 0)) == "crystal" && len(w.pumping) == 1, "spent at once, the pump running");
+  rules::tick(w, 1499);
+  assert(water_left(w) == 12, "1499: not yet");
+  rules::tick(w, 1);
+  assert(kind(w, 5, 3) == "floor" && water_left(w) == 11, "1500: the cell beside it");
+  rules::tick(w, 16500);
+  assert(water_left(w) == 0 && kind(w, 6, 3) == "rail", "18000: all twelve, the rail beneath");
+  assert(rules::thing_name(w.k, tile_world::top(w.w, 8, 4, 0)) == "chest" && kind(w, 8, 4) == "floor", "the chest on floor");
+  rules::tick(w, 1500);
+  assert(len(w.pumping) == 0, "stopped");
+}
+
+// The spare holds a bit (owner): 4 cells, then the pump stops with 8 left.
+fn test_the_spare_drains_a_part() {
+  w = room();
+  w.hero_item = rules::th(w, "spare_crystal");
+  _ = rules::walk(w, 1, 0);
+  rules::tick(w, 20000);
+  assert(water_left(w) == 8 && len(w.pumping) == 0, "four drained: {water_left(w)} left");
+}
+
+// The mine's pump ignores a small crystal (owner); a crystal in it is taken out with an empty hand.
+fn test_the_pump_ignores_a_small_crystal() {
+  w = room();
+  w.hero_item = rules::th(w, "charged_small_crystal");
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && w.hero_item != 0, "ignored");
+  w.hero_item = rules::th(w, "crystal");
+  _ = rules::walk(w, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "crystal"), "taken out");
+}
+
+// The lightning rod: a spent crystal on it, a strike every 10000 ms: at 9999 still spent, at 10000
+// charged.
+fn test_lightning_charges_a_crystal_on_the_rod() {
+  w = room();
+  w.storm = 10000;
+  tile_world::place(w.w, 2, 1, 0, rules::th(w, "lightning_rod"));
+  w.hero_item = rules::th(w, "crystal");
+  rules::put_hero(w, 2, 2, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Placed, "put on the rod");
+  rules::tick(w, 9999);
+  assert(rules::thing_name(w.k, tile_world::top(w.w, 2, 1, 0)) == "crystal", "9999: still spent");
+  rules::tick(w, 1);
+  assert(rules::thing_name(w.k, tile_world::top(w.w, 2, 1, 0)) == "charged_crystal", "10000: charged");
+}
+
+// The village's well pump: a charged small crystal runs it — the well known to run — for 60000 ms;
+// a large one makes it go off like a bomb (owner).
+fn test_the_well_pump_and_the_wrong_crystal() {
+  w = room();
+  tile_world::place(w.w, 2, 1, 0, rules::th(w, "well_pump"));
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "charged_small_crystal");
+  assert(rules::walk(w, 0, -1) == rules::Step.Placed && rules::knows(w, "well_running"), "the well runs");
+  rules::tick(w, 59999);
+  assert(rules::knows(w, "well_running"), "59999: still");
+  rules::tick(w, 1);
+  assert(!rules::knows(w, "well_running"), "60000: run down");
+  v = room();
+  tile_world::place(v.w, 2, 1, 0, rules::th(v, "well_pump"));
+  rules::put_hero(v, 2, 2, 0);
+  v.hero_item = rules::th(v, "charged_crystal");
+  assert(rules::walk(v, 0, -1) == rules::Step.Lit && v.blasted == 1 && v.health < 6, "it goes off like a bomb: {v.health}");
+}

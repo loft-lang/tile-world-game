@@ -81,6 +81,11 @@ pub const SEE_CELLS = 6;
 /// cell (a cave-in, below) CAVE_MS after it is free.
 pub const DIRECT_REACH = 5;
 pub const CAVE_MS = 1000;
+
+/// A running pump drains a cell every PUMP_MS; a charged small crystal keeps the village's well
+/// running WELL_MS (proposed, to tune in play).
+pub const PUMP_MS = 1500;
+pub const WELL_MS = 60000;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -234,6 +239,18 @@ struct ThingProps {
   /// than the hand; a sack `carries` that many.
   forage: boolean = false,
   carries: integer = 0,
+  /// The pump and its crystals (BUILD.md B4, @GM-Flooded): a holder (a pump, the village's well
+  /// pump, a lightning rod) takes a crystal of its `holder` size ("large", "small"); a crystal is
+  /// of a `crystal` size, gives a pump its `charge` (cells to drain) and is left `spent_to`; a
+  /// spent one is `charged_to` again by lightning (large) or the alchemist (small).  `drains`:
+  /// a holder that drains the water beside it (the mine's pump); `well`: the village's.
+  holder: text = "",
+  crystal: text = "",
+  charge: integer = 0,
+  charged_to: text = "",
+  spent_to: text = "",
+  drains: boolean = false,
+  well: boolean = false,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -409,6 +426,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       picks: flag(e, "picks"), rubble: flag(e, "rubble"), loads_to: word(e, "loads_to", ""),
       unloads_to: word(e, "unloads_to", ""), weight: num(e, "weight", 1), apart_to: word(e, "apart_to", ""),
       burns_away: flag(e, "burns_away"), forage: flag(e, "forage"), carries: num(e, "carries", 0),
+      holder: word(e, "holder", ""), crystal: word(e, "crystal", ""), charge: num(e, "charge", 0),
+      charged_to: word(e, "charged_to", ""), spent_to: word(e, "spent_to", ""), drains: flag(e, "drains"),
+      well: flag(e, "well"),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -538,6 +558,24 @@ pub struct Bar {
   pub y: integer,
   pub z: integer,
   pub side: text
+}
+
+/// A pump running (B4): where it stands, the cells it has still to drain, when the next goes.
+pub struct Pumping {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub left: integer,
+  pub due: integer
+}
+
+/// What lies under water on (x, y, z), a terrain kind by name, found when it is drained (floor
+/// when none is listed).
+pub struct Beneath {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub kind: text
 }
 
 pub struct Fall {
@@ -696,6 +734,13 @@ pub struct Level {
   pub falls: vector<Fall> = [],
   /// The doors held shut by a beam, and the side each beam is on.
   pub bars: vector<Bar> = [],
+  /// The pumps running, what lies under the water, the cells drained (in order), and the place's
+  /// storm: a lightning strike every `storm` ms (0: none), until the weather (C1) drives it.
+  pub pumping: vector<Pumping> = [],
+  pub beneath: vector<Beneath> = [],
+  pub drained: vector<(integer, integer, integer)> = [],
+  pub storm: integer = 0,
+  pub strikes: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -2173,6 +2218,132 @@ fn take_out_beam(l: Level, tx: integer, ty: integer, z: integer, dx: integer, dy
   Step.Picked
 }
 
+// --- The pump and its crystals (BUILD.md B4, @GM-Flooded) ---
+
+// Walking into `thing` on (tx, ty, z), a holder of crystals: with an empty hand a crystal in it is
+// taken out; with a crystal of its size, it is put in — a pump takes its charge at once and runs
+// (the crystal left spent), the village's well pump runs on a charged small one (the well known
+// to run) and goes off like a bomb with a large one (owner), the mine's pump ignores a small one
+// (owner).  Blocked for anything else.
+fn crystal_work(l: Level, thing: integer, tx: integer, ty: integer, z: integer) -> Step {
+  p = l.k.things[thing];
+  if !p || p.holder == "" { return Step.Blocked; }
+  top = tile_world::top(l.w, tx, ty, z);
+  if top != thing {
+    if l.hero_item != 0 { return Step.Blocked; }
+    l.hero_item = tile_world::take(l.w, tx, ty, z);
+    return Step.Took;
+  }
+  c = l.k.things[l.hero_item];
+  if !c || c.crystal == "" { return Step.Blocked; }
+  if p.well && c.crystal == "large" && c.charge > 0 {
+    explode(l, tx, ty, z, false, l.now);
+    return Step.Lit;
+  }
+  if c.crystal != p.holder { return Step.Blocked; }
+  t = l.hero_item;
+  l.hero_item = 0;
+  if c.charge > 0 && (p.drains || p.well) {
+    tile_world::place(l.w, tx, ty, z, thing_id(l.k, c.spent_to));
+    if p.drains {
+      l.pumping += [Pumping { x: tx, y: ty, z: z, left: c.charge, due: l.now + PUMP_MS }];
+    } else {
+      learn(l, "well_running");
+      l.pumping += [Pumping { x: tx, y: ty, z: z, left: 0, due: l.now + WELL_MS }];
+    }
+    return Step.Placed;
+  }
+  tile_world::place(l.w, tx, ty, z, t);
+  Step.Placed
+}
+
+fn water_at(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  p = l.k.terrain[tile_world::terrain(l.w, x, y, z)];
+  p && p.water
+}
+
+// The pumps running and the wells due by now; the lightning that strikes.
+fn pumps_due(l: Level) {
+  i = 0;
+  while i < len(l.pumping) {
+    pm = l.pumping[i] ?? Pumping { x: 0, y: 0, z: 0, left: 0, due: 0 };
+    if pm.due > l.now { i += 1; continue; }
+    p = l.k.things[base(l, pm.x, pm.y, pm.z)];
+    if p && p.well {
+      // The well's run is over: its small crystal spent, the well no longer running.
+      kept: vector<text> = [];
+      for f in l.facts { if f != "well_running" { kept += [f]; } }
+      l.facts = kept;
+      _ = l.pumping.remove(i);
+      continue;
+    }
+    w = drain_target(l, pm.x, pm.y, pm.z);
+    if w.2 < 0 || pm.left <= 0 {
+      _ = l.pumping.remove(i);
+      continue;
+    }
+    under = beneath_at(l, w.0, w.1, pm.z);
+    tile_world::set_terrain(l.w, w.0, w.1, pm.z, terrain_id(l.k, under));
+    l.drained += [(w.0, w.1, pm.z)];
+    l.pumping[i].left = pm.left - 1;
+    l.pumping[i].due = pm.due + PUMP_MS;
+    i += 1;
+  }
+  if l.storm > 0 {
+    n = l.now / l.storm ?? 0;
+    while l.strikes < n {
+      l.strikes += 1;
+      lightning(l);
+    }
+  }
+}
+
+// The water a pump on (x, y, z) drains next: the nearest cell of the body of water beside it —
+// found walking out from the pump over the cells it has drained, the first water met, north first
+// among equals; (0, 0, -1) for none.  So it drains the joined water, nearest first, and never a
+// pool it is not joined to.
+fn drain_target(l: const Level, x: integer, y: integer, z: integer) -> (integer, integer, integer) {
+  out: vector<(integer, integer)> = [(x, y)];
+  i = 0;
+  while i < len(out) && i < 4000 {
+    c = out[i] ?? (x, y);
+    i += 1;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      if water_at(l, nx, ny, z) { return (nx, ny, 1); }
+      was = false;
+      for q in l.drained { if q.0 == nx && q.1 == ny && q.2 == z { was = true; } }
+      if !was { continue; }
+      seen = false;
+      for o in out { if o.0 == nx && o.1 == ny { seen = true; } }
+      if !seen { out += [(nx, ny)]; }
+    }
+  }
+  (0, 0, -1)
+}
+
+// What lies under the water on (x, y, z): its listed kind, else floor.
+fn beneath_at(l: const Level, x: integer, y: integer, z: integer) -> text {
+  for b in l.beneath { if b.x == x && b.y == y && b.z == z { return b.kind; } }
+  "floor"
+}
+
+// A lightning strike: every lightning rod holding a spent large crystal charges it.
+fn lightning(l: Level) {
+  for c in tile_world::stacks(l.w) {
+    t = base(l, c.0, c.1, c.2);
+    p = l.k.things[t];
+    if !p || p.holder == "" || p.drains || p.well { continue; }
+    on = tile_world::top(l.w, c.0, c.1, c.2);
+    q = l.k.things[on];
+    if on != t && q && q.charged_to != "" && q.crystal == "large" {
+      _ = tile_world::take(l.w, c.0, c.1, c.2);
+      tile_world::place(l.w, c.0, c.1, c.2, thing_id(l.k, q.charged_to));
+    }
+  }
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -2233,6 +2404,7 @@ fn step_world(l: Level) {
   queued_blow(l);
   heal_due(l);
   falls_due(l);
+  pumps_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -2249,6 +2421,11 @@ fn next_due(l: const Level) -> integer {
   if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
   if l.heal_due > l.now && (t < 0 || l.heal_due < t) { t = l.heal_due; }
   for f in l.falls { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
+  for pm in l.pumping { if pm.due > l.now && (t < 0 || pm.due < t) { t = pm.due; } }
+  if l.storm > 0 {
+    s = ((l.now / l.storm ?? 0) + 1) * l.storm;
+    if t < 0 || s < t { t = s; }
+  }
   if l.queued && l.blow_until > l.now && (t < 0 || l.blow_until < t) { t = l.blow_until; }
   t
 }
@@ -2753,6 +2930,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // barricade sets it burning; a full cart bumped from the side tips its load out.
   mine = mine_work(l, thing, tx, ty, z, dx, dy);
   if mine != Step.Blocked { return mine; }
+  // A holder of crystals (B4): a pump, the village's well pump, a lightning rod.
+  mach = crystal_work(l, thing, tx, ty, z);
+  if mach != Step.Blocked { return mach; }
   // A lever is thrown: every junction beside it is set the other way (its twin picture), and the
   // handle goes over; the hero stays where it is.
   if throw_lever(l, tx, ty, z) { return Step.Switched; }

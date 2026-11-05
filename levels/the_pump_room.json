@@ -1,0 +1,63 @@
+{
+  "name": "the pump room",
+  "serves": [ "@GM-Flooded" ],
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "~": "water", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "################",
+      "#..............#",
+      "#..............#",
+      "#.......~~~~~~.#",
+      "#.......~~~~~~.#",
+      "#.......~~~~~~.#",
+      "#.......~~~~~~.#",
+      "#.......~~~~~~.#",
+      "#.......~~~~~~.#",
+      "#..............#",
+      "#..............#",
+      "#######d########"
+    ] }
+  ],
+  "things": [
+    { "at": [2, 2, 0], "stack": ["spare_crystal"] },
+    { "at": [7, 5, 0], "stack": ["pump", "crystal"] },
+    { "at": [12, 7, 0], "stack": ["chest"] },
+    { "at": [3, 8, 0], "stack": ["lightning_rod"] },
+    { "at": [2, 10, 0], "stack": ["well_pump"] },
+    { "at": [4, 10, 0], "stack": ["small_crystal"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["elder", 5, 2, 0] ],
+  "intent": { "seed": 59, "rooms": [
+    { "x": 0, "y": 0, "w": 16, "h": 12, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[8, 8], [13, 8]], "z": 0, "as": "water" },
+    { "points": [[8, 7], [13, 7]], "z": 0, "as": "water" },
+    { "points": [[8, 6], [13, 6]], "z": 0, "as": "water" },
+    { "points": [[8, 5], [13, 5]], "z": 0, "as": "water" },
+    { "points": [[8, 4], [13, 4]], "z": 0, "as": "water" },
+    { "points": [[8, 3], [13, 3]], "z": 0, "as": "water" },
+    { "points": [[7, 11]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [7, 5], "z": 0, "stack": ["pump", "crystal"] },
+    { "at": [2, 2], "z": 0, "stack": ["spare_crystal"] },
+    { "at": [3, 8], "z": 0, "stack": ["lightning_rod"] },
+    { "at": [2, 10], "z": 0, "stack": ["well_pump"] },
+    { "at": [4, 10], "z": 0, "stack": ["small_crystal"] },
+    { "at": [12, 7], "z": 0, "stack": ["chest"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [7, 11, 0], "to": "demo", "door": "the_pump_room" }
+  ],
+  "talks": [
+    { "at": [5, 2, 0], "name": "alchemist", "barks": [ "A SMALL CRYSTAL?" ], "gifts": { "small_crystal": "fill" }, "lines": [
+        { "alchemist": "BRING ME A SMALL CRYSTAL, I FILL IT.", "end": true },
+        { "id": "fill", "alchemist": "THERE. IT HOLDS A DAY'S WATER.", "end": true, "take": true, "give": "charged_small_crystal" } ] }
+  ],
+  "beneath": [ [8, 5, 0, "rail"], [9, 5, 0, "rail"], [10, 5, 0, "rail"], [11, 5, 0, "rail"], [12, 5, 0, "rail"], [13, 5, 0, "rail"] ],
+  "storm": 20000,
+  "start": [7, 10, 0],
+  "goal": { "type": "" }
+}

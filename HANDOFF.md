@@ -109,6 +109,10 @@ on the interpreter and `--native`.
     it (behind and beside, open ahead), take the torch and walk into the back stone: the north wall
     cracks into a covered tunnel (a chest); three cracks side by side and its middle caves in, again
     and again; a dyke facing the east door blows it open (a chest).
+  - PUMP: take the spent crystal out of the pump, put the spare in — four cells drain, the rail
+    beneath comes up; the spent crystal on the rod is charged at the next strike (a 20 s storm),
+    and drains twelve more; the alchemist fills the small crystal for the well pump (a large one
+    there goes off like a bomb).
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

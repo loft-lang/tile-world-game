@@ -257,6 +257,13 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     b = bv.item(i);
     l.bars += [rules::Bar { x: num(b.item(0), 0), y: num(b.item(1), 0), z: num(b.item(2), 0), side: b.item(3).as_text() }];
   }
+  // What lies under the water (B4), and the place's storm (a strike every so many ms).
+  wv = v.field("beneath");
+  for i in 0..wv.len() {
+    b = wv.item(i);
+    l.beneath += [rules::Beneath { x: num(b.item(0), 0), y: num(b.item(1), 0), z: num(b.item(2), 0), kind: b.item(3).as_text() }];
+  }
+  l.storm = num(v.field("storm"), 0);
   // The people's days (C3): each by where they nest, its cycle and its points.
   rv = v.field("routes");
   for i in 0..rv.len() {
@@ -582,6 +589,17 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     out += "\n  ],";
   }
   if len(lf.talks) > 0 { out += "\n  \"talks\": {talk::json(lf.talks)},"; }
+  if len(lf.level.beneath) > 0 {
+    out += "\n  \"beneath\": [";
+    first = true;
+    for b in lf.level.beneath {
+      out += if first { " " } else { ", " };
+      out += "[{b.x}, {b.y}, {b.z}, {quoted(b.kind)}]";
+      first = false;
+    }
+    out += " ],";
+  }
+  if lf.level.storm > 0 { out += "\n  \"storm\": {lf.level.storm},"; }
   if len(lf.level.bars) > 0 {
     out += "\n  \"bars\": [";
     first = true;

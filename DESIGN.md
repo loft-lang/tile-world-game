@@ -86,7 +86,7 @@ flotilla to cross an underground lake.
 
 **Proposed rules, to be ruled by the owner** (each built from rules that exist; not built).
 
-- **The flooded part.**
+- **The flooded part.**  **Built** but the daily refill (BUILD.md B4; the numbers there).
   - Water stays the terrain it is: not walked, bats fly over it, things pushed or blown into it
     are lost, a bomb in it douses the torches it reaches.
   - **There is a single flooded part of the mine** (owner, 2026-11-04): its lower tunnels, with no

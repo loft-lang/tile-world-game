@@ -346,3 +346,25 @@ fn test_the_blasting_house() {
   _ = rules::play(w, "d d");
   assert(rules::walk(w, 1, 0) == rules::Step.Opened, "the chest beyond");
 }
+
+// The pump room (B4): the pump holds its spent crystal — taken out with an empty hand; the spare
+// put in: four cells drained, the nearest first, the pool still mostly there (one charge is not
+// enough, owner).  The spent crystal on the rod: charged by the room's first strike, at 20000.
+fn test_the_pump_room() {
+  lf = place("the_pump_room");
+  w = lf.level;
+  rules::put_hero(w, 6, 5, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "crystal"), "the spent crystal out");
+  spent = w.hero_item;
+  w.hero_item = rules::th(w, "spare_crystal");
+  assert(rules::walk(w, 1, 0) == rules::Step.Placed, "the spare in");
+  rules::tick(w, 6000);
+  n = 0;
+  for y in 3..=8 { for x in 8..=13 { if kind_at(lf, x, y, 0) == "water" { n += 1; } } }
+  assert(n == 32 && kind_at(lf, 8, 5, 0) == "rail", "four drained, the first the rail beside the pump: {n}");
+  w.hero_item = spent;
+  rules::put_hero(w, 3, 9, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Placed, "the spent crystal on the rod");
+  rules::tick(w, 20000 - w.now);
+  assert(top_name(w, 3, 8) == "charged_crystal", "charged by the strike");
+}
