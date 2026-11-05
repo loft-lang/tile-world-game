@@ -1,0 +1,32 @@
+// Does a place hold (owner, 2026-11-05: a natural cave has a dome, a tunnel walls beside it)?  Lists
+// every cell under a ceiling with no wall beside it — what a blast-widened tunnel leaves, and what a
+// wide cave drawn flat would be — and exits 1 when there is one.
+//
+//   loft --lib libs tools/stable.loft PLACE
+//
+// PLACE is a file in levels/ (without `.json`).
+use rules;
+use materials;
+use levels;
+
+fn main() {
+  args = arguments();
+  place = args[0] ?? "";
+  if place == "" {
+    println("usage: loft --lib libs tools/stable.loft PLACE");
+    exit(1);
+  }
+  theme_text = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  m = levels::load_with(file("../levels/{place}.json").content() ?? "", k, materials::load(theme_text, k));
+  if !m { println("../levels/{place}.json does not load"); exit(1); }
+  lf = m ?? return;
+  cells = rules::unsupported(lf.level);
+  if len(cells) == 0 {
+    println("{place}: holds");
+    return;
+  }
+  println("{place}: {len(cells)} cells under a ceiling with no wall beside them:");
+  for c in cells { println("  {c.0},{c.1} on layer {c.2}"); }
+  exit(1);
+}

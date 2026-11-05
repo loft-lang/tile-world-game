@@ -40,6 +40,17 @@ Small editor steps that every later place needs; none changes the rules.
   street of houses for them in the demo village.  Red: `tests/kit.loft` (a house's door, the
   slope onto a ledge, the ford, the grove's trees, the ramp between galleries, items, a tunnel's
   doorway and rubble kept off the rails).
+- **A0b. Domes and what holds — built (2026-11-05).**  The owner's caves (DESIGN.md § Bombs): a
+  natural cave has a dome, its walls moving one cell in per layer up, so a wide cave needs height;
+  it can have partly straight walls, and so more height there; and it can be crossed by a bridge
+  higher up.  The kit's `domes` shape draws one from a blob's floor (`straight` layers on its
+  `sides`); a bridge is a trail on a higher layer (the `bridge` material, planks).
+  `tools/stable.loft PLACE` lists the cells that would not hold — under a ceiling, no wall beside
+  them (`rules::unsupported`): what a blast-widened tunnel leaves.  Room: the demo's *dome* house
+  (a straight north wall, stairs up two layers, a bridge across, a chest beyond).  Red:
+  `tests/intent.loft` (each floor cell's ceiling at its distance from the outside; the straight
+  wall layer by layer), `tests/places.loft` (the dome holds, a three-wide tunnel does not, the
+  bridge crossed).  The cave-in that acts on unsupported cells is not built.
 
 - **A1. Figures in the editor.**  Place and remove enemies and people (the kinds in kinds.json)
   from the palette, saved in the place file's `enemies`.  Red: `tests/editor.loft`, a figure placed,

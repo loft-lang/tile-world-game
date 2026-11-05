@@ -92,6 +92,11 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  - DOME: a natural cave drawn with the kit's `domes` (walls stepping in a cell a layer, the north
+    one straight for two); stairs up beside the way in, two layers, and a plank bridge across the
+    cave to a chest.  `tools/stable.loft the_dome` says it holds.
+  Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
+  of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.
 - **Potions** (owner): picked up empty-handed, drunk walked over with full hands or with J; heal
   over time, a point every 1500 ms (health to 6, spirit above), carried through doors; strength

@@ -15,7 +15,7 @@ yet.  The lines themselves are the owner's to write.
 | Who | Knows | Wants or cares about | Natural subjects |
 |---|---|---|---|
 | Garth Mabley, the old foreman (@ST-Foreman) | the mine's layout, outdated | the mine running again | the old tunnels as they were, the founder, the pump and lift as they used to work; where he is now wrong |
-| Wick, the blaster (@ST-Blaster) | explosives | blowing up the mine with the Kharn in it | the plan and how it could be done; says little, and badly |
+| Wick, the blaster (@ST-Blaster) | explosives; where bombs lie in the mines (owner) | blowing up the mine with the Kharn in it | the plan and how it could be done; where the bombs are; blasting, which he can teach the hero (owner); says little, and badly |
 | Agnes, the innkeeper (@ST-Innkeeper) | who left, when and why; the state of the town and the court trouble behind it — the hero learns these from her, with the player (owner) | leaving | the abandoned inn, the Fenns, the people who went; the lord's fall and the decree |
 | The Dunns of Thornfield (@ST-Farm) | the farm, the land drying | food; the horse's work | the drought, the creeping desert, too many mouths |
 | Lark (@ST-YoungVillager) | the hidden paths, the brook, the crabs | *(open)* | the hills, places others do not know |

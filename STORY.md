@@ -65,7 +65,7 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-Magic`](#st-magic) | low magic: crafted, part of puzzles | § 2 |
 | [`@ST-Alchemist`](#st-alchemist) | Hollis, potions and stimulants for the miners | § 2 |
 | [`@ST-Foreman`](#st-foreman) | Garth Mabley, the retired foreman: the gist of the mine, not its latest state | § 2 |
-| [`@ST-Blaster`](#st-blaster) | Wick, the blaster: for blowing up the mine; an outsider, few social skills | § 2 |
+| [`@ST-Blaster`](#st-blaster) | Wick, the blaster: for blowing up the mine; an outsider, few social skills; knows where bombs lie, teaches blasting | § 2 |
 | [`@ST-Innkeeper`](#st-innkeeper) | Agnes, the innkeeper of an abandoned inn: for abandoning the town | § 2 |
 | [`@ST-Warden`](#st-warden) | Sergeant Voss of the King's Wardens, in their own camp, keeping the people out | § 2 |
 | [`@ST-Fountains`](#st-fountains) | strange fountains in the mines and hills; their liquid turns to mud | § 2 |
@@ -293,7 +293,11 @@ knows the gist of the mine, but not its latest state (@ST-Mine, @ST-Hints).
 
 <a id="st-blaster"></a>**The blaster: Wick** (owner, 2026-11-04): knows explosives, and is sure the mine can be blown up
 with the cyclopes in it (@ST-Debate).  He was already a bit of an outsider among the miners:
-keeping to himself, with few social skills.
+keeping to himself, with few social skills.  He can tell the hero where bombs lie in the mines,
+and teach him blasting (owner, 2026-11-05): that a small dyke of stones pushed up to a bomb
+directs its explosion one way, instead of the general push to all sides.  Not a skill the hero gains: a rule of the
+world anyone can find, but not obvious to gamers; Wick is where it can be learnt by being told
+(owner, 2026-11-05; DESIGN.md § Bombs, @ST-Hints).
 
 <a id="st-innkeeper"></a>**The innkeeper: Agnes** (owner, 2026-11-04): has seen too many leave, and is for abandoning the
 town (@ST-Debate).  The inn itself is abandoned; she lives in a house nearby that was easier to
@@ -549,6 +553,10 @@ the cost of a choice is known when it is made; none proposes story content.
   is enough), the prey running out can be a count read from the clock and from what has happened
   to the monsters: those the player, the hunter (who hunts them too) or a blast takes off it bring
   the attack nearer; those kept alive put it off.
+- **Wick's blasting is a rule, not a skill** (owner, 2026-11-05): the directed blast holds for
+  every player, so it needs no fact or unlock — only the rule in the blast (DESIGN.md § Bombs) and
+  Wick's lines explaining it.  **Where bombs lie**, told, is a hint (@ST-Hints): lines naming the
+  places, or marks on the map when there is one.
 - **Hints for a stuck player** need to know the player is stuck (time spent in a place, tries,
   returns) and lines that depend on it: facts and conditions again, the same mechanism as gossip.
 - **Relations that last** (the hunter befriended, a family returning, the village's mood) are facts

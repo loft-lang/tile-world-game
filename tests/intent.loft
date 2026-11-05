@@ -109,3 +109,85 @@ fn test_the_same_intent_gives_the_same_cells() {
   // read by hand): the C backend runs this file too and must give the same picture.
   assert(a == "#########|#ooooooo#|#o..o...#|#oo...o.#|#o..oo..#|#oooo..o#|#########|", "pinned: {a}");
 }
+
+// A dome (owner: walls move one cell in per layer up): for every floor cell of the cave, the first
+// wall above it is on the layer of its distance from outside the floor — counted over the eight
+// neighbours, as the walls step in — and nothing above is floor.  Computed here from the floor
+// alone, apart from the kit.  The intent saves and loads back the same.
+fn test_a_dome_steps_its_walls_in_a_cell_a_layer() {
+  it = intent::Intent { seed: 47, rooms: [], corridors: [], domes: [intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0 }] };
+  fills = intent::derive(it, []);
+  floor: vector<(integer, integer)> = [];
+  for f in fills {
+    if f.z == 0 && f.terrain == "floor" { floor += [(f.x, f.y)]; }
+    assert(f.z == 0 || f.terrain == "wall", "above the floor only wall: {f.x},{f.y},{f.z} {f.terrain}");
+  }
+  assert(len(floor) > 60, "a cave's floor: {len(floor)}");
+  for c in floor {
+    // Its distance from outside: the smallest ring (in eight-neighbour steps) holding a non-floor cell.
+    d = 1;
+    found = false;
+    while !found && d < 20 {
+      for dy in -d..=d {
+        for dx in -d..=d {
+          inside = false;
+          for q in floor { if q.0 == c.0 + dx && q.1 == c.1 + dy { inside = true; } }
+          if !inside { found = true; }
+        }
+      }
+      if !found { d += 1; }
+    }
+    first = -1;
+    for f in fills {
+      if f.x == c.0 && f.y == c.1 && f.z > 0 && f.terrain == "wall" && (first < 0 || f.z < first) { first = f.z; }
+    }
+    assert(first == d, "{c.0},{c.1}: the ceiling at layer {first}, its distance {d}");
+  }
+  back = intent::intent_from(json_parse(intent::intent_json(it)));
+  assert(len(back.domes) == 1 && intent::intent_json(back) == intent::intent_json(it), "saves and loads back");
+}
+
+// Straight walls (owner: a cave can have partly straight walls, and so more height there): the same
+// dome, its north side rising straight for 2 layers.  Layer by layer, against the one below: a cell
+// open below, whose only cells closed there among its eight lie to the north, stays open — with
+// the straight wall beside it, to its north — on layers 1 and 2; without the straight side it
+// would close.
+fn open_on(fills: const vector<intent::Fill>, floor: const vector<(integer, integer)>, z: integer) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  for c in floor {
+    set = false;
+    for k in 1..=z { for f in fills { if f.x == c.0 && f.y == c.1 && f.z == k { set = true; } } }
+    if !set { out += [c]; }
+  }
+  out
+}
+
+fn test_a_straight_wall_rises_before_it_steps_in() {
+  d = intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0, straight: 2, sides: "N" };
+  fills = intent::derive(intent::Intent { seed: 47, rooms: [], corridors: [], domes: [d] }, []);
+  floor: vector<(integer, integer)> = [];
+  for f in fills { if f.z == 0 && f.terrain == "floor" { floor += [(f.x, f.y)]; } }
+  checked = 0;
+  for z in [1, 2] {
+    below = if z == 1 { floor } else { open_on(fills, floor, 1) };
+    here = open_on(fills, floor, z);
+    for c in below {
+      only_north = true;
+      north_out = false;
+      for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        inside = false;
+        for q in below { if q.0 == c.0 + o.0 && q.1 == c.1 + o.1 { inside = true; } }
+        if !inside && o.1 >= 0 { only_north = false; }
+        if !inside && o.1 < 0 { north_out = true; }
+      }
+      if !only_north || !north_out { continue; }
+      checked += 1;
+      still = false;
+      for q in here { if q.0 == c.0 && q.1 == c.1 { still = true; } }
+      wall_n = false;
+      for f in fills { if f.x == c.0 && f.y == c.1 - 1 && f.z == z && f.terrain == "wall" { wall_n = true; } }
+      assert(still && wall_n, "{c.0},{c.1} on layer {z}: open, the straight wall beside it: {still} {wall_n}");
+    }
+  }
+  assert(checked > 0, "cells along the straight north wall: {checked}");
+}

@@ -121,6 +121,25 @@ pub struct Item {
   pub stack: vector<text>
 }
 
+/// A natural cave (owner, 2026-11-05: a cave has no level ceiling but a dome, modelled with the
+/// layers — a rock wall moves one cell in per layer up, so a wide cave needs height).  Its floor is
+/// a blob's shape, `w` by `h` from (x, y) on layer z, of `what`, walled round with `wall`; on each
+/// layer up the open part loses its edge — the cells with a cell outside it among their eight
+/// neighbours become `wall` — until nothing is left open, and that last layer caps it.  A cave can
+/// have partly straight walls, and so more height there (owner, 2026-11-05): on its `sides` (of
+/// "NESW"; "" for all) the walls rise straight for `straight` layers before they step in.
+pub struct Dome {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub what: text = "floor",
+  pub wall: text = "wall",
+  pub straight: integer = 0,
+  pub sides: text = ""
+}
+
 pub struct Intent {
   pub seed: integer,
   pub rooms: vector<Room>,
@@ -130,7 +149,8 @@ pub struct Intent {
   pub blobs: vector<Blob> = [],
   pub houses: vector<House> = [],
   pub slopes: vector<Slope> = [],
-  pub items: vector<Item> = []
+  pub items: vector<Item> = [],
+  pub domes: vector<Dome> = []
 }
 
 /// A word a room can take: the things it scatters (picked in turn by the hash), how many for
@@ -164,6 +184,7 @@ pub fn no_intent() -> Intent {
 pub fn is_empty(it: const Intent) -> boolean {
   len(it.rooms) == 0 && len(it.corridors) == 0 && len(it.grounds) == 0 && len(it.trails) == 0
     && len(it.blobs) == 0 && len(it.houses) == 0 && len(it.slopes) == 0 && len(it.items) == 0
+    && len(it.domes) == 0
 }
 
 fn text_of(v: const JsonValue, default: text) -> text {
@@ -233,6 +254,15 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     it.blobs += [Blob { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 3), h: int_of(sz.item(1), 3),
                         z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor"), rim: text_of(e.field("rim"), ""),
                         scatter: sc }];
+  }
+  ds = v.field("domes");
+  for i in 0..ds.len() {
+    e = ds.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    it.domes += [Dome { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 3), h: int_of(sz.item(1), 3),
+                        z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor"), wall: text_of(e.field("wall"), "wall"),
+                        straight: int_of(e.field("straight"), 0), sides: text_of(e.field("sides"), "") }];
   }
   hs = v.field("houses");
   for i in 0..hs.len() {
@@ -306,6 +336,20 @@ pub fn intent_json(it: const Intent) -> text {
       out += "    {{ \"points\": [{ps}], \"z\": {t.z}, \"as\": {quote(t.what)}";
       if t.width != 1 { out += ", \"width\": {t.width}"; }
       if t.rim != "" { out += ", \"rim\": {quote(t.rim)}"; }
+      out += " }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.domes) > 0 {
+    out += ", \"domes\": [";
+    first = true;
+    for d in it.domes {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{d.x}, {d.y}], \"size\": [{d.w}, {d.h}], \"z\": {d.z}, \"as\": {quote(d.what)}";
+      if d.wall != "wall" { out += ", \"wall\": {quote(d.wall)}"; }
+      if d.straight > 0 { out += ", \"straight\": {d.straight}"; }
+      if d.sides != "" { out += ", \"sides\": {quote(d.sides)}"; }
       out += " }}";
       first = false;
     }
@@ -586,6 +630,73 @@ fn in_blob(b: const Blob, x: integer, y: integer, seed: integer) -> boolean {
   d * 100 <= r * r * edge
 }
 
+// A dome (see `Dome`): the floor on its blob's cells, the wall round them, and the layers above,
+// each open where the one below is open and all eight neighbours are too — but for a neighbour
+// beyond a straight side while that side still rises straight — walled round that open part, the
+// rest of the one below's open part wall, up to the layer that closes it.
+fn add_dome(g: Grid, d: const Dome, seed: integer) {
+  shape = Blob { x: d.x, y: d.y, w: d.w, h: d.h, z: d.z, what: d.what, rim: "", scatter: [] };
+  open: vector<boolean> = [];
+  for y in d.y..d.y + d.h {
+    for x in d.x..d.x + d.w { open += [in_blob(shape, x, y, seed)]; }
+  }
+  for y in d.y - 1..d.y + d.h + 1 {
+    for x in d.x - 1..d.x + d.w + 1 {
+      if is_open(d, open, x, y) { set(g, x, y, d.z, d.what); }
+      else if near_open(d, open, x, y) && terrain_at(g, x, y, d.z) != d.what { set(g, x, y, d.z, d.wall); }
+    }
+  }
+  z = d.z;
+  left = true;
+  while left && z < d.z + d.w + d.h + d.straight {
+    z += 1;
+    rise = z - d.z;
+    next: vector<boolean> = [];
+    left = false;
+    for y in d.y..d.y + d.h {
+      for x in d.x..d.x + d.w {
+        keep = is_open(d, open, x, y);
+        for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+          if !is_open(d, open, x + o.0, y + o.1) && !(rise <= d.straight && straight_way(d, o.0, o.1)) { keep = false; }
+        }
+        next += [keep];
+        if keep { left = true; }
+      }
+    }
+    // Wall where the open part below closes, and round what stays open (a straight wall included).
+    for y in d.y - 1..d.y + d.h + 1 {
+      for x in d.x - 1..d.x + d.w + 1 {
+        if is_open(d, next, x, y) { continue; }
+        if is_open(d, open, x, y) || (left && near_open(d, next, x, y)) { set(g, x, y, z, d.wall); }
+      }
+    }
+    open = next;
+  }
+}
+
+// Does the way (ox, oy) out of a dome cross a side that rises straight: its north (oy < 0), east,
+// south or west, per `sides` ("" for every side)?
+fn straight_way(d: const Dome, ox: integer, oy: integer) -> boolean {
+  if d.straight <= 0 { return false; }
+  all = d.sides == "";
+  (oy < 0 && (all || d.sides.contains("N"))) || (ox > 0 && (all || d.sides.contains("E")))
+    || (oy > 0 && (all || d.sides.contains("S"))) || (ox < 0 && (all || d.sides.contains("W")))
+}
+
+// Is (x, y) in the open part `open` of dome d's rectangle?
+fn is_open(d: const Dome, open: const vector<boolean>, x: integer, y: integer) -> boolean {
+  if x < d.x || y < d.y || x >= d.x + d.w || y >= d.y + d.h { return false; }
+  open[(y - d.y) * d.w + (x - d.x)] ?? false
+}
+
+// Is one of (x, y)'s eight neighbours in the open part?
+fn near_open(d: const Dome, open: const vector<boolean>, x: integer, y: integer) -> boolean {
+  for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+    if is_open(d, open, x + o.0, y + o.1) { return true; }
+  }
+  false
+}
+
 fn add_blob(g: Grid, b: const Blob, seed: integer) {
   cells: vector<(integer, integer)> = [];
   for y in b.y..b.y + b.h {
@@ -670,6 +781,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
     }
   }
   for b in it.blobs { add_blob(g, b, it.seed); }
+  for d in it.domes { add_dome(g, d, it.seed); }
   // Rooms: the outline wall, the inside floor; an inside wins over an earlier room's wall, so
   // rooms drawn against each other open into one.
   for r in it.rooms {

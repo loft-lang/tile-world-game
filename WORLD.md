@@ -40,6 +40,13 @@ cell's tile follows from its material, and the rare tile set by hand is listed a
 
 ## The world
 
+**Layers are a 3D model; the grid is a choice** (owner, 2026-11-05).  The current engine models
+little, but the layers already carry a full shape — a dome cave is its walls stepping in one cell
+per layer up (intent.loft's `domes`, DESIGN.md § Bombs).  It is capable of rendering 3D; the
+difference the enhanced engine makes is a hex pattern instead of cubes.  So what is built on
+layers (heights, ceilings, domes, what holds) carries over; what assumes four square neighbours
+(the eight-neighbour checks, the facing, the reach across a swing) is what a hex grid revisits.
+
 **Places joined by doors.**  The world is a set of places: a dungeon, a building, a stretch of
 land outside.  Each is a map of its own (a place file, the chunked format of EDITOR.md § 2).  A
 door is a link from one place to another, both ways:

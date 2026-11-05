@@ -1902,6 +1902,35 @@ fn follow_route(l: Level, i: integer, e: const Enemy, p: const EnemyProps, k: in
   l.enemies[i].due = e.due + p.move_ms;
 }
 
+/// The cells that would not hold (owner, 2026-11-05: a cave has a dome, a tunnel walls beside it):
+/// one the hero could stand in, with something set on the layer right above it — a ceiling — and
+/// no wall (an opaque cell) among its eight neighbours.  A one-wide tunnel and a dome hold; a
+/// span under a level ceiling, wider than a cell from its walls, does not.  The check for a
+/// drawn place (tools/stable.loft); the cave-in that will act on it is not built yet.
+pub fn unsupported(l: const Level) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  for z in tile_world::layers(l.w) {
+    for c in tile_world::chunks(l.w, z) {
+      for j in 0..32 {
+        for i in 0..32 {
+          x = c.0 * 32 + i;
+          y = c.1 * 32 + j;
+          if !tile_world::is_set(l.w, x, y, z) || !walkable(l, tile_world::terrain(l.w, x, y, z)) { continue; }
+          if !tile_world::is_set(l.w, x, y, z + 1) || tile_world::terrain(l.w, x, y, z + 1) == VOID { continue; }
+          held = false;
+          for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+            k = tile_world::terrain(l.w, x + o.0, y + o.1, z);
+            p = l.k.terrain[k];
+            if p && p.opaque { held = true; }
+          }
+          if !held { out += [(x, y, z)]; }
+        }
+      }
+    }
+  }
+  out
+}
+
 /// Is fact `f` known?
 pub fn knows(l: const Level, f: text) -> boolean {
   for k in l.facts { if k == f { return true; } }

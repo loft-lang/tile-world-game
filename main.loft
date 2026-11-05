@@ -9,9 +9,17 @@ use audio;
 use input;
 use ui;
 
-// Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them.
+// Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
+// N ms of the game pass (a step's glide ends, the world runs on), as a play script's `~N` does.
 fn play_moves(game: game::Game, moves: text) {
+  t = 0;
   for m in moves.split(' ') {
+    if m.starts_with("~") {
+      ms = m[1..] as integer ?? 0;
+      t += ms;
+      _ = game::update(game, ms, t);
+      continue;
+    }
     pull = m.starts_with("p");
     d = if pull { m[1..] } else { m };
     if d == "w" { game::move(game, 0, -1, pull); }

@@ -501,6 +501,59 @@ on water, and things pushed or blown into it are lost.
     - **Damage, more the nearer** (owner): the hero and enemies lose 4 - d health (proposed: 4 on
       the bomb's own cell); the hero is also pushed, like a light thing.
     - **Fragile things break**: a chair within distance 2 (proposed).
+    - **A directed blast** (owner, 2026-11-05): stones pushed up to a bomb — a small dyke of them
+      behind it — direct its explosion: the push goes one way, instead of the general push to all
+      sides.  It is a rule of the world, not a learnt skill: any player can find it, but it is not
+      obvious to gamers, and Wick can explain it (STORY.md @ST-Blaster).  The model (owner): a
+      simplified version of real blasting, where TNT needs a sand foot — tamping — to be directed;
+      without it, it blows up mostly air.  The ordinary blast stays as it is, everywhere (owner,
+      2026-11-05); the directed one does more besides: it can crack walls and blow out locked
+      doors (owner, 2026-11-05).  Its air travels further from the stones, out the open way, so
+      more can be hit there, and harder (owner, 2026-11-05; proposed: a reach of 5 instead of 3,
+      the push and the harm one stronger at each distance).  Five stones direct it fully (owner,
+      2026-11-05): read as the five cells round the bomb that are not ahead of it — behind it,
+      beside it, and the two behind it on the slant — so the blast goes out over the three ahead.
+      That is the difference (owner, 2026-11-05): a full, interconnected dyke holds — its stones
+      stay, and the blast is directed; a partial dyke is partly moved — its stones are pushed as
+      in any blast.  No fuse, no delay (owner, 2026-11-05): lit, it goes off at once, and the dyke
+      is the only way to light it safely — the wall that keeps the hero from harm.  Lit from
+      behind the dyke: walking into one of its stones with a burning torch, the bomb right behind
+      that stone (proposed, taken by the owner as the reason it stays hidden).  A full dyke built
+      and then lit over a stone: players will not come across it unless they are very persistent
+      in their experiments (owner, 2026-11-05) — which is why Wick telling it matters.  Proposed,
+      not yet ruled: a cracked wall becomes rubble (a rock on floor); the first wall in the open
+      way cracks, one a blast.
+    - **A door held shut** (owner, 2026-11-05): the locked door is a door held shut by a beam on
+      the side it opens towards, and that beam can be demolished.  Doors today have no side they
+      open towards (a closed door opens when walked into, from either side): a barred door needs
+      one.  From the beam's side the player lifts it, no bomb needed (owner, 2026-11-05); from the
+      other side only the directed blast opens the door.  Proposed, not yet ruled: the beam lifted
+      comes away as a loose beam to carry; one a blast hits is broken.
+    - **A way round puzzles** (owner, 2026-11-05): the directed blast — cracking a wall, blowing
+      out a door held shut — is a way to circumvent some of the puzzles a place sets up: the
+      persistent experimenter's reward.  So a place is designed knowing it: a puzzle it lets be
+      skipped is a choice.  There is no wall it cannot crack (owner, 2026-11-05); what holds is
+      room: the dyke is five stones pushed to the bomb, and a wall is not one of them, so in a
+      one-wide tunnel no dyke can be built to blast a side (owner, 2026-11-05).  It is still
+      possible by blasting the tunnel's sides again and again until it is three wide — and that is
+      where it ends (owner, 2026-11-05): a tunnel widened so brings a bigger cave-in, which beams do
+      not help against, and getting its rubble out for the next blast becomes impossible.  So a
+      place keeps a puzzle from being blasted round by giving it no room for a dyke, and the
+      widening that would make room brings the tunnel down for good.  It is impossible by how
+      wide the cave-in is (owner, 2026-11-05): in a one-wide tunnel a cave-in puts its stones once
+      — every cell there is beside a wall, and once cleared it stays clear (so the cave-in of a
+      standing beam, B2b, is cleared again with the pick and a cart); but a cell one step further
+      from a wall keeps gathering stones — clear it and more fall.  A widened span never empties,
+      so its rubble cannot be got out for the next blast.  A natural cave holds: it has no level
+      ceiling but a dome (owner, 2026-11-05), so its open middle does not cave in; only a span
+      made wide by blasting, under a level ceiling, keeps gathering stones.  The dome is modelled
+      with the layers (owner, 2026-11-05): a rock wall can move one cell in per layer up, so a wide
+      cave needs height — its walls step in layer by layer until they close.  Proposed, read from
+      that: a cell under a ceiling (something set on the layer above it) must have a wall beside
+      it, or it is unsupported — and an unsupported cell keeps gathering stones.  A one-wide tunnel
+      holds (walls beside every cell); a dome holds (above its inner cells the cave goes on up, no
+      ceiling there; above its edge cells the stepped-in wall, with a wall beside them); a tunnel
+      blasted three wide does not (its middle has the level ceiling above and no wall beside).
   - **Small items in the blast** (proposed).  They are light, so they fly further: speed 4 - d + 1,
     a cell a step, in the same "away".  They stop at the cell before a wall or a big thing; over
     a drop they fall (and come to rest, roll off, or are lost, as any falling item); landing on

@@ -215,7 +215,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 22 && len(g.file.labels) == 23, "twenty-two houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 23 && len(g.file.labels) == 24, "twenty-three houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)

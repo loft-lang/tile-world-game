@@ -281,3 +281,33 @@ fn test_sables_cart_waits_for_whoever_clears_its_rock() {
   rules::tick(v, 8000);
   assert(v.health == 6 && tile_world::top(v.w, 13, 11, 1) == 0 && top_name(v, 13, 6) == "cart", "the cart rolled past into the gallery: {v.health} {top_name(v, 13, 6)}");
 }
+
+// What holds (owner: a cave has a dome, a tunnel walls beside it): the demo's dome cave holds; a
+// tunnel blasted three wide under a level ceiling does not — floor x 1..3, y 1..5, walled round,
+// the layer above covering it: its middle cells (2, 2), (2, 3), (2, 4) have no wall among their
+// eight neighbours; the middle's two end cells touch the end walls and hold, and so does every
+// cell beside a side wall.  A one-wide tunnel under the same ceiling holds.
+fn test_what_holds() {
+  assert(len(rules::unsupported(place("the_dome").level)) == 0, "the dome holds");
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 4, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 1, 1, 3, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 0, 4, 6, 1, rules::tr(w, "wall"));
+  assert(rules::unsupported(w) == [(2, 2, 0), (2, 3, 0), (2, 4, 0)], "the wide middle: {len(rules::unsupported(w))}");
+  v = rules::level(rules::kinds());
+  tile_world::fill(v.w, 0, 0, 2, 6, 0, rules::tr(v, "wall"));
+  tile_world::fill(v.w, 1, 1, 1, 5, 0, rules::tr(v, "floor"));
+  tile_world::fill(v.w, 0, 0, 2, 6, 1, rules::tr(v, "wall"));
+  assert(len(rules::unsupported(v)) == 0, "a one-wide tunnel holds");
+}
+
+// The dome's bridge: up the stairs by the way in (layer 0 to 1 to 2), along the tunnel on layer 2
+// and across the bridge high over the cave, to the chest beyond it.
+fn test_a_bridge_crosses_the_dome() {
+  w = place("the_dome").level;
+  _ = rules::play(w, "w a a a a a a a w w w w w w w w");
+  assert(w.hero_x == 1 && w.hero_y == 6 && w.hero_z == 2, "up the stairs, along the tunnel: {w.hero_x},{w.hero_y},{w.hero_z}");
+  _ = rules::play(w, "d d d d d d d d d d d d d d");
+  assert(w.hero_x == 15 && w.hero_z == 2, "across the bridge: {w.hero_x},{w.hero_y},{w.hero_z}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened && w.points == 1, "the chest beyond");
+}
