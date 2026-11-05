@@ -389,7 +389,7 @@ pub fn solved(lf: const LevelFile, l: const rules::Level) -> boolean {
 }
 
 // A JSON string literal of `s`.
-fn quoted(s: text) -> text {
+pub fn quoted(s: text) -> text {
   out = "\"";
   for c in s {
     if c == '"' { out += "\\\""; }

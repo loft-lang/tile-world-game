@@ -53,6 +53,24 @@ const KEY_CTRL = 133;
 /// How long the swing key is held for a heavy swing (@GM-Combat; proposed, to tune in play).
 pub const HEAVY_HOLD_MS = 500;
 
+// The structs a `Game` holds in vectors are declared above it: one declared below its holder
+// turns an `x[i]!` discharge into an owner that frees the game's store (loft#2404, fixed on a
+// branch, not yet in a release).
+/// A place the hero has left, as it left it.
+struct Visited {
+  place: text,
+  level: rules::Level
+}
+
+/// An enemy as last drawn: its id, its motion, its cell and its health.
+struct Mover {
+  id: integer,
+  motion: motion::Motion,
+  x: integer,
+  y: integer,
+  hp: integer
+}
+
 /// One of the world's people (C3; `levels/people.json`): its kind, the points it keeps to over its
 /// cycle — each a place, a cell and from when in the cycle — and its talk (none or one), which
 /// goes where it goes.  Entering a place, the people whose point is there are there, at it; during
@@ -179,23 +197,12 @@ pub struct Game {
   /// The talks that went with their people to other places (C3).
   pub moved_talks: vector<MovedTalk> = [],
   /// The world's people and their points (C3).
-  pub people: vector<Person> = []
+  pub people: vector<Person> = [],
+  /// Where the game is saved at a well or fountain (C6); "" — the checks, a picture — none.
+  pub save_dir: text = ""
 }
 
-/// A place the hero has left, as it left it.
-struct Visited {
-  place: text,
-  level: rules::Level
-}
 
-/// An enemy as last drawn: its id, its motion, its cell and its health.
-struct Mover {
-  id: integer,
-  motion: motion::Motion,
-  x: integer,
-  y: integer,
-  hp: integer
-}
 
 struct Sound {
   const sd_name: text,
@@ -476,6 +483,130 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   aim(g);
   sound(g, "door_open");
   true
+}
+
+// --- Saves (BUILD.md C6, WORLD.md step 5) ---
+
+/// The game saved, as files: `save.json` — the clock, the place and the hero's cell, what it
+/// carries (its things, health, money, the facts, the goodwill), the places solved and the talks
+/// moved — and every place as it was left, `<place>.json` in the place files' own form (its
+/// enemies at their homes).  The world's people are not written: read back, they are where their
+/// points say.
+pub fn save_files(g: Game) -> vector<(text, text)> {
+  stash(g);
+  out: vector<(text, text)> = [];
+  names = "";
+  for v in g.places {
+    m = levels::load_with(file("{g.dir}/levels/{v.place}.json").content() ?? "", g.kinds, g.mats);
+    if !m { continue; }
+    lf = m;
+    lf.level = v.level;
+    kept: vector<rules::Enemy> = [];
+    for e in v.level.enemies { if e.person == "" { kept += [e]; } }
+    lf.level.enemies = kept;
+    out += [("{v.place}.json", levels::save_with(lf, g.mats))];
+    names += if names == "" { levels::quoted(v.place) } else { ", {levels::quoted(v.place)}" };
+  }
+  c = rules::carried(g.world);
+  solved = "";
+  for s in g.solved_places { solved += if solved == "" { levels::quoted(s) } else { ", {levels::quoted(s)}" }; }
+  moved = "";
+  for mt in g.moved_talks {
+    one = "{{ \"from\": {levels::quoted(mt.from)}, \"was\": [{mt.fx}, {mt.fy}, {mt.fz}], \"place\": {levels::quoted(mt.place)}, \"at\": [{mt.talk.x}, {mt.talk.y}, {mt.talk.z}] }}";
+    moved += if moved == "" { one } else { ", {one}" };
+  }
+  w = g.world;
+  out += [("save.json", "{{\n  \"clock\": {g.clock},\n  \"place\": {levels::quoted(g.place)},\n  \"hero\": [{w.hero_x}, {w.hero_y}, {w.hero_z}],\n  \"carried\": {c:j},\n  \"solved\": [{solved}],\n  \"moved\": [{moved}],\n  \"places\": [{names}]\n}}\n")];
+  out
+}
+
+/// Read a game saved as `save_files` wrote it back: the same place, hero, clock, places as they
+/// were left, and the people where their points say.  False (nothing changed) when it does not
+/// read.
+pub fn load_files(g: Game, files: const vector<(text, text)>) -> boolean {
+  raw = "";
+  for f in files { if f.0 == "save.json" { raw = f.1; } }
+  v = json_parse(raw);
+  place = levels::str(v.field("place"), "");
+  if place == "" { return false; }
+  places: vector<Visited> = [];
+  pv = v.field("places");
+  for i in 0..pv.len() {
+    name = pv.item(i).as_text();
+    for f in files {
+      if f.0 != "{name}.json" { continue; }
+      m = levels::load_with(f.1, g.kinds, g.mats);
+      if m { places += [Visited { place: name, level: m.level }]; }
+    }
+  }
+  moved: vector<MovedTalk> = [];
+  mv = v.field("moved");
+  for i in 0..mv.len() {
+    e = mv.item(i);
+    from = levels::str(e.field("from"), "");
+    was = e.field("was");
+    at = e.field("at");
+    fx = levels::num(was.item(0), 0);
+    fy = levels::num(was.item(1), 0);
+    fz = levels::num(was.item(2), 0);
+    m = levels::load_with(file("{g.dir}/levels/{from}.json").content() ?? "", g.kinds, g.mats);
+    if !m { continue; }
+    for t in m.talks {
+      if t.x != fx || t.y != fy || t.z != fz { continue; }
+      n = t;
+      n.x = levels::num(at.item(0), 0);
+      n.y = levels::num(at.item(1), 0);
+      n.z = levels::num(at.item(2), 0);
+      moved += [MovedTalk { from: from, fx: fx, fy: fy, fz: fz, place: levels::str(e.field("place"), ""), talk: n }];
+    }
+  }
+  g.moved_talks = moved;
+  if !open_place(g, place) { return false; }
+  g.in_world = true;
+  g.places = places;
+  g.solved_places = [];
+  sv = v.field("solved");
+  for i in 0..sv.len() { g.solved_places += [sv.item(i).as_text()]; }
+  j = visited(g, place);
+  g.world = if j >= 0 { g.places[j]!.level } else { g.file.level };
+  g.clock = levels::num(v.field("clock"), 0);
+  hero = v.field("hero");
+  rules::put_hero(g.world, levels::num(hero.item(0), 0), levels::num(hero.item(1), 0), levels::num(hero.item(2), 0));
+  c = rules::Carried.parse(v.field("carried"));
+  rules::carry_in(g.world, c);
+  keep_time(g);
+  move_people(g, true);
+  g.entered_by = "";
+  g.arrived = g.world;
+  g.has_arrived = true;
+  g.motion = motion::still();
+  g.movers = [];
+  g.note = "";
+  g.area = camera::bounds(g.world.w);
+  g.cam_x = g.area.0;
+  g.cam_y = g.area.1;
+  aim(g);
+  true
+}
+
+/// Save the game into directory `dir` (made when missing).
+pub fn write_save(g: Game, dir: text) -> boolean {
+  _ = mkdir_all(dir);
+  for f in save_files(g) { if !file("{dir}/{f.0}").write(f.1).ok() { return false; } }
+  true
+}
+
+/// Read back the game saved in directory `dir`; false when there is none.
+pub fn read_save(g: Game, dir: text) -> boolean {
+  raw = file("{dir}/save.json").content() ?? "";
+  if raw == "" { return false; }
+  files: vector<(text, text)> = [("save.json", raw)];
+  v = json_parse(raw).field("places");
+  for i in 0..v.len() {
+    name = v.item(i).as_text();
+    files += [("{name}.json", file("{dir}/{name}.json").content() ?? "")];
+  }
+  load_files(g, files)
 }
 
 // The world's people, from `levels/people.json` (none when there is no such file).
@@ -1001,6 +1132,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     mi = materials::at(g.mats, w.w, w.hero_x + dx, w.hero_y + dy, w.hero_z);
     g.saved_at = if (g.mats.list[mi] ?? materials::none_material()).name == "fountain" { "FOUNTAIN" } else { "WELL" };
     g.note = "SAVED";
+    if g.save_dir != "" && !write_save(g, g.save_dir) { g.note = "NOT SAVED"; }
   }
   if step != rules::Step.Blocked { g.moves += 1; }
   move_sound(g, step, thing, z);

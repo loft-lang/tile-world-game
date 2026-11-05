@@ -10,3 +10,5 @@ target/
 .loft/
 # The web page ./play-web.sh builds
 /build/
+# The game saved at a well or fountain (C6)
+/saves/

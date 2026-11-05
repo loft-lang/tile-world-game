@@ -258,8 +258,14 @@ share, so each is built once and shown in the test world first.
   into a barricade on the next free cell.  More hands, faster: after 8000 ms one hand has built
   one cell, two hands two.  The hero brings more hands by leading them (C3).  Answered
   (proposed): the numbers.
-- **C6. Saves.**  The clock, the hero, each place's changes, the facts (WORLD.md step 5).  Red: a
-  save, a restart, the same state.
+- **C6. Saves — built** (`checks/game.loft`).  Drinking at a well or a fountain also writes the
+  game to `saves/` (git-ignored): `save.json` — the clock, the place and the hero's cell, what it
+  carries (its things, health, money, the facts, the goodwill, the pieces), the places solved and
+  the talks moved — and each place as it was left, `<place>.json` in the place files' own form.
+  The game started for play goes on from it (`TW_NEW=1` starts afresh); the checks and the
+  pictures never write one.  Answered (proposed): enemies are saved at their homes, so a fight is
+  not saved in the middle; what is in motion (a rolling cart, a lit fuse, a running pump) is not
+  saved; the world's people are not written — read back, they are where their points say.
 - **C6b. The fountains as save points** (owner; STORY.md @ST-Fountains).  The strange fountains
   in the mines and the hills save the whole situation as a well does today; their liquid cannot be
   taken (it turns to mud).  Tiny Dungeon's wall fountains (green 8, 20, 32, 44; dry 7, 19, 31, 43):

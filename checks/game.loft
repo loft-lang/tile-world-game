@@ -39,7 +39,8 @@ fn main() {
   test_a_person_follows_through_doors();
   test_the_worker_keeps_to_its_day();
   test_the_dunns_bargain();
-  println("checks/game.loft: 26 passed");
+  test_a_save_read_back_is_the_same();
+  println("checks/game.loft: 27 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -641,4 +642,35 @@ fn test_the_dunns_bargain() {
   game::move(g, 1, 0, false);
   assert(g.place == "the_barn", "the barn open: {g.place} {g.note}");
   for e in g.world.enemies { assert(e.kind != "horse", "the horse not with the hero"); }
+}
+
+// Saves (C6): in the demo, a chest's coin taken in the smithy's street and the bargain struck at
+// the farm — the clock on, a fact known, the farm as left; saved, played on (the hero moved, a
+// fact forgotten), and read back: the same place, cell, clock, facts, money, places.
+fn test_a_save_read_back_is_the_same() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_farm"), "the farm opens");
+  rules::learn(g.world, "bargain");
+  g.world.money = 7;
+  g.clock = 444000;
+  rules::put_hero(g.world, 4, 5, 0);
+  tile_world::place(g.world.w, 9, 5, 0, rules::th(g.world, "chair"));
+  d = levels::door_named(g.file, "demo");
+  assert(game::go_through(g, d), "out to the village");
+  hx = g.world.hero_x;
+  hy = g.world.hero_y;
+  files = game::save_files(g);
+  assert(len(files) == 3, "the save, the farm and the village: {len(files)}");
+  rules::put_hero(g.world, 40, 7, 0);
+  g.world.facts = [];
+  g.world.money = 0;
+  g.clock = 0;
+  assert(game::load_files(g, files), "read back");
+  assert(g.place == "demo" && g.world.hero_x == hx && g.world.hero_y == hy, "the same cell: {at(g)}");
+  assert(g.clock == 444000 && rules::knows(g.world, "bargain") && g.world.money == 7, "the clock, the facts, the money");
+  f = levels::door_named(g.file, "the_farm");
+  assert(game::go_through(g, f), "into the farm");
+  assert(tile_world::top(g.world.w, 9, 5, 0) == rules::th(g.world, "chair"), "the farm as it was left");
 }

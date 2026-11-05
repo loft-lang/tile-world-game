@@ -229,6 +229,9 @@ fn main() {
     if game::any_key(game) { break; }
   }
   if !game::start_world(game, start_of(game)) { game::start_level(game, 0); }
+  // The game saved at a well or fountain (C6) is where play goes on; TW_NEW=1 starts afresh.
+  game.save_dir = "saves";
+  if (env_variable("TW_NEW") ?? "") == "" { _ = game::read_save(game, "saves"); }
   view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
   // The editor's widgets, where the screen has a pointer: drawn over the frame at half the game's
   // zoom, so their 8-unit letters are as large on any screen as the game's own.
