@@ -975,6 +975,12 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   oh = w.hero_h;
   money = w.money;
   drunk = w.drunk;
+  // A door shut until something holds (C9: the barn, once the bargain is struck).
+  sd = levels::door_at(g.file, w.hero_x + dx, w.hero_y + dy, z);
+  if !pull && sd >= 0 && g.file.doors[sd]!.needs != "" && !rules::holds(w, g.file.doors[sd]!.needs) {
+    g.note = "SHUT";
+    return;
+  }
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
   if w.drunk > drunk { sound(g, "potion"); }
   if w.money > money { sound(g, "coins"); }

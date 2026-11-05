@@ -1,0 +1,44 @@
+{
+  "name": "the farm",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "#############",
+      "#...........#",
+      "#...........#",
+      "#...........d",
+      "#...........#",
+      "#...........#",
+      "#...........#",
+      "######d######"
+    ] }
+  ],
+  "things": [
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["villager", 8, 2, 0], ["horse", 2, 3, 0] ],
+  "intent": { "seed": 76, "rooms": [
+    { "x": 0, "y": 0, "w": 13, "h": 8, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[6, 7]], "z": 0, "as": "open_door" },
+    { "points": [[12, 3]], "z": 0, "as": "open_door" } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [6, 7, 0], "to": "demo", "door": "the_farm" },
+    { "at": [12, 3, 0], "to": "the_barn", "door": "the_farm", "needs": "bargain" }
+  ],
+  "talks": [
+    { "at": [2, 3, 0], "name": "horse", "lines": [
+        { "horse": "NEIGH.", "end": true, "follows": true } ] },
+    { "at": [8, 2, 0], "name": "dunn", "lines": [
+        { "dunn": "A FINE HORSE. LEND IT TO THE FARM, AND THE BARN IS YOURS TO SLEEP IN.", "away": "no", "bump": "deal" },
+        { "id": "deal", "dunn": "DONE. THE HORSE STAYS WITH US.", "then": "after", "end": true, "sets": "bargain", "keeps": "horse" },
+        { "id": "no", "dunn": "THINK IT OVER.", "end": true },
+        { "id": "after", "dunn": "THE HORSE IS DOING FINE.", "end": true } ] }
+  ],
+  "start": [6, 6, 0],
+  "goal": { "type": "" }
+}

@@ -236,9 +236,13 @@ share, so each is built once and shown in the test world first.
   Urgha's broken words (@ST-Cyclopes): a line with `clear` comes through in part — every other
   word heard as `..` — until its fact is known (proposed: the scholar teaches `cyclops_words`; who
   teaches it in the story is the owner's).
-- **C9. The Dunns' bargain** (@ST-Farm).  The hero's horse lent to the farm for a bed in the barn:
-  a choice made once, kept (a fact), the horse at the farm until he needs it.  Red: the bargain
-  struck, the horse moved, the barn open.
+- **C9. The Dunns' bargain — built** (@ST-Farm; the *farm* house, a yard and a barn).  The hero's
+  horse (our sheet's 24) follows it, spoken to; Dunn's offer is taken by bumping him while he makes
+  it, refused by walking away (asked again next time); struck, it is kept — the fact `bargain`,
+  his talk starting after it from then on — and a line's `keeps` leaves the horse with the farm,
+  no longer following.  The barn's door `needs` the bargain: shut (SHUT) until it holds; a bed
+  inside.  Answered (proposed): the horse taken back by speaking to it again, the bargain and the
+  bed kept; the words are placeholders for the owner's.
 - **C4. A group acting together.**  The Kharn as a tribe: prey counted down by the clock and by
   what has happened to the monsters; nervous scouting outside the mine; the attack; turned back
   by a defended place, they leave.  Room: a small tribe, a small village, a barricade.  Red: the

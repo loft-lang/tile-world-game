@@ -20,7 +20,7 @@
       "-": 127
     }
   },
-  "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122", "guard": "dungeon:87", "cyclops": "dungeon:109", "hunter": "dungeon:112", "villager": "dungeon:85", "elder": "dungeon:84", "maid": "dungeon:99", "neighbour": "dungeon:85", "rival": "dungeon:98", "grey_rat": "dungeon:124", "slime": "dungeon:108", "crab": "dungeon:110", "ghost": "dungeon:121", "bigfoot": "ski:78", "urgha": "dungeon:109" },
+  "enemies": { "rat": "dungeon:123", "bat": "dungeon:120", "spider": "dungeon:122", "guard": "dungeon:87", "cyclops": "dungeon:109", "hunter": "dungeon:112", "villager": "dungeon:85", "elder": "dungeon:84", "maid": "dungeon:99", "neighbour": "dungeon:85", "rival": "dungeon:98", "grey_rat": "dungeon:124", "slime": "dungeon:108", "crab": "dungeon:110", "ghost": "dungeon:121", "bigfoot": "ski:78", "urgha": "dungeon:109", "horse": "world:24" },
   "arrow": "world:67",
   "aim": "battle:61",
   "blast": ["world:63", "world:64", "world:65"],
