@@ -102,9 +102,10 @@ on the interpreter and `--native`.
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
-  - DOME: a natural cave drawn with the kit's `domes` (walls stepping in a cell a layer, the north
-    one straight for two); stairs up beside the way in, two layers, and a plank bridge across the
-    cave to a chest.  `tools/stable.loft the_dome` says it holds.
+  - DOME: a wide dome (31 by 23, raised to 5 layers) with a crag's gallery joined to its south-east,
+    one cave; stairs up beside the way in, two layers, and a plank bridge across to a chest.
+    `tools/stable.loft the_dome` says it holds.  (After an intent change that removes cells, draw a
+    place again from empty: the fill tool never clears a cell.)
   - BLASTING: lift the beam of the way in; in the chamber put a bomb down, push five stones round
     it (behind and beside, open ahead), take the torch and walk into the back stone: the north wall
     cracks into a covered tunnel (a chest); three cracks side by side and its middle caves in, again

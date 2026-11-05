@@ -110,12 +110,12 @@ fn test_the_same_intent_gives_the_same_cells() {
   assert(a == "#########|#ooooooo#|#o..o...#|#oo...o.#|#o..oo..#|#oooo..o#|#########|", "pinned: {a}");
 }
 
-// A dome (owner: walls move one cell in per layer up): for every floor cell of the cave, the first
+// A crag (walls move one cell in per layer up): for every floor cell of the cave, the first
 // wall above it is on the layer of its distance from outside the floor — counted over the eight
 // neighbours, as the walls step in — and nothing above is floor.  Computed here from the floor
 // alone, apart from the kit.  The intent saves and loads back the same.
-fn test_a_dome_steps_its_walls_in_a_cell_a_layer() {
-  it = intent::Intent { seed: 47, rooms: [], corridors: [], domes: [intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0 }] };
+fn test_a_crag_steps_its_walls_in_a_cell_a_layer() {
+  it = intent::Intent { seed: 47, rooms: [], corridors: [], domes: [intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0, shape: "crag" }] };
   fills = intent::derive(it, []);
   floor: vector<(integer, integer)> = [];
   for f in fills {
@@ -147,47 +147,102 @@ fn test_a_dome_steps_its_walls_in_a_cell_a_layer() {
   assert(len(back.domes) == 1 && intent::intent_json(back) == intent::intent_json(it), "saves and loads back");
 }
 
-// Straight walls (owner: a cave can have partly straight walls, and so more height there): the same
-// dome, its north side rising straight for 2 layers.  Layer by layer, against the one below: a cell
-// open below, whose only cells closed there among its eight lie to the north, stays open — with
-// the straight wall beside it, to its north — on layers 1 and 2; without the straight side it
-// would close.
-fn open_on(fills: const vector<intent::Fill>, floor: const vector<(integer, integer)>, z: integer) -> vector<(integer, integer)> {
-  out: vector<(integer, integer)> = [];
-  for c in floor {
-    set = false;
-    for k in 1..=z { for f in fills { if f.x == c.0 && f.y == c.1 && f.z == k { set = true; } } }
-    if !set { out += [c]; }
-  }
-  out
-}
-
+// Straight walls (owner: a cave can have partly straight walls, and so more height there): the
+// same crag, its north side rising straight for 2 layers.  No cell's ceiling is lower for it, none
+// more than 2 higher; along the north edge some cell's is the full 2 higher, along the south edge
+// none is; and above the outside cell north of each such cell the wall stands on layers 1 and 2.
 fn test_a_straight_wall_rises_before_it_steps_in() {
-  d = intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0, straight: 2, sides: "N" };
-  fills = intent::derive(intent::Intent { seed: 47, rooms: [], corridors: [], domes: [d] }, []);
-  floor: vector<(integer, integer)> = [];
-  for f in fills { if f.z == 0 && f.terrain == "floor" { floor += [(f.x, f.y)]; } }
-  checked = 0;
-  for z in [1, 2] {
-    below = if z == 1 { floor } else { open_on(fills, floor, 1) };
-    here = open_on(fills, floor, z);
-    for c in below {
-      only_north = true;
-      north_out = false;
-      for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-        inside = false;
-        for q in below { if q.0 == c.0 + o.0 && q.1 == c.1 + o.1 { inside = true; } }
-        if !inside && o.1 >= 0 { only_north = false; }
-        if !inside && o.1 < 0 { north_out = true; }
+  plain = intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0, shape: "crag" };
+  tall = intent::Dome { x: 2, y: 1, w: 13, h: 11, z: 0, straight: 2, sides: "N", shape: "crag" };
+  a = intent::dome_heights(plain, 47);
+  b = intent::dome_heights(tall, 47);
+  fills = intent::derive(intent::Intent { seed: 47, rooms: [], corridors: [], domes: [tall] }, []);
+  north_full = 0;
+  south_more = 0;
+  for y in b.y..b.y + b.h {
+    for x in b.x..b.x + b.w {
+      ha = a.v[(y - a.y) * a.w + (x - a.x)] ?? 0;
+      hb = b.v[(y - b.y) * b.w + (x - b.x)] ?? 0;
+      if ha == 0 { continue; }
+      assert(hb >= ha && hb <= ha + 2, "{x},{y}: {ha} then {hb}");
+      north_edge = (a.v[(y - 1 - a.y) * a.w + (x - a.x)] ?? 0) == 0;
+      south_edge = (a.v[(y + 1 - a.y) * a.w + (x - a.x)] ?? 0) == 0;
+      if north_edge && hb == ha + 2 {
+        north_full += 1;
+        for z in [1, 2] {
+          wall = false;
+          for f in fills { if f.x == x && f.y == y - 1 && f.z == z && f.terrain == "wall" { wall = true; } }
+          assert(wall, "{x},{y - 1}: the straight wall on layer {z}");
+        }
       }
-      if !only_north || !north_out { continue; }
-      checked += 1;
-      still = false;
-      for q in here { if q.0 == c.0 && q.1 == c.1 { still = true; } }
-      wall_n = false;
-      for f in fills { if f.x == c.0 && f.y == c.1 - 1 && f.z == z && f.terrain == "wall" { wall_n = true; } }
-      assert(still && wall_n, "{c.0},{c.1} on layer {z}: open, the straight wall beside it: {still} {wall_n}");
+      if south_edge && !north_edge && hb > ha { south_more += 1; }
     }
   }
-  assert(checked > 0, "cells along the straight north wall: {checked}");
+  assert(north_full > 0 && south_more == 0, "the north side rises straight, the south does not: {north_full} {south_more}");
+}
+
+fn field(f: const intent::Heights, x: integer, y: integer) -> integer {
+  if x < f.x || y < f.y || x >= f.x + f.w || y >= f.y + f.h { return 0; }
+  f.v[(y - f.y) * f.w + (x - f.x)] ?? 0
+}
+
+// How far below a dome's top (owner): the middle 8 at the top, a step of 4, a step of 2, then a layer
+// a step to its foot — r being the steps from the middle.
+fn drop_of(r: integer) -> integer {
+  if r <= 4 { 0 } else if r <= 8 { 1 } else if r <= 10 { 2 } else { 2 + r - 10 }
+}
+
+// A dome (owner: the higher layers push towards the middle, so the middle holds bigger spans): on a
+// wide floor (41 by 31) each cell's ceiling is the profile of its steps from the middle — the crag's
+// field being each cell's distance from the edge (checked above) — so going up the walls step in 1
+// a layer, then 2, then 4, and the top closes over a middle no wider than 8 steps across (9 cells).
+// A chosen height: taller, every ceiling raised by the difference (straight walls first); lower,
+// flattened but still rising to the middle.
+fn test_a_dome_flattens_towards_its_top() {
+  crag = intent::dome_heights(intent::Dome { x: 0, y: 0, w: 41, h: 31, z: 0, shape: "crag" }, 61);
+  dome = intent::dome_heights(intent::Dome { x: 0, y: 0, w: 41, h: 31, z: 0 }, 61);
+  far = 0;
+  for v in crag.v { if v > far { far = v; } }
+  own = 1 + drop_of(far - 1);
+  top_open = 0;
+  for y in crag.y..crag.y + crag.h {
+    for x in crag.x..crag.x + crag.w {
+      d = field(crag, x, y);
+      if d == 0 { continue; }
+      assert(field(dome, x, y) == own - drop_of(far - d), "{x},{y}: distance {d}, ceiling {field(dome, x, y)}");
+      if field(dome, x, y) == own { top_open += 1; }
+    }
+  }
+  assert(far > 10 && own == far - 8, "a wide dome: middle {far}, height {own}");
+  assert(top_open > 0, "a middle under the top");
+  taller = intent::dome_heights(intent::Dome { x: 0, y: 0, w: 41, h: 31, z: 0, height: own + 3 }, 61);
+  lower = intent::dome_heights(intent::Dome { x: 0, y: 0, w: 41, h: 31, z: 0, height: 3 }, 61);
+  for k in 0..len(dome.v) {
+    n = dome.v[k] ?? 0;
+    if n == 0 { continue; }
+    assert((taller.v[k] ?? 0) == n + 3, "taller: raised by 3");
+    assert((lower.v[k] ?? 0) >= 1 && (lower.v[k] ?? 0) <= 3, "lower: within 3");
+  }
+}
+
+// Two caves on one floor that overlap are one cave: each shaped within the whole (its distances to
+// the edge of the joined floor, so the seam does not dip), every cell's ceiling the higher of the
+// two — read from what the kit draws (the first wall above each floor cell) — and it holds.
+fn test_caves_combine_into_one() {
+  a = intent::Dome { x: 0, y: 0, w: 13, h: 11, z: 0 };
+  b = intent::Dome { x: 8, y: 4, w: 15, h: 9, z: 0, shape: "crag" };
+  fa = intent::dome_heights(a, 67, [a, b]);
+  fb = intent::dome_heights(b, 67, [a, b]);
+  fills = intent::derive(intent::Intent { seed: 67, rooms: [], corridors: [], domes: [a, b] }, []);
+  checked = 0;
+  for f in fills {
+    if f.z != 0 || f.terrain != "floor" { continue; }
+    want = field(fa, f.x, f.y);
+    if field(fb, f.x, f.y) > want { want = field(fb, f.x, f.y); }
+    first = -1;
+    for g in fills { if g.x == f.x && g.y == f.y && g.z > 0 && g.terrain == "wall" && (first < 0 || g.z < first) { first = g.z; } }
+    assert(first == want, "{f.x},{f.y}: ceiling at {first}, the higher of the two {want}");
+    checked += 1;
+  }
+  assert(checked > 100, "one cave: {checked} floor cells");
 }

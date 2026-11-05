@@ -305,10 +305,10 @@ fn test_what_holds() {
 // and across the bridge high over the cave, to the chest beyond it.
 fn test_a_bridge_crosses_the_dome() {
   w = place("the_dome").level;
-  _ = rules::play(w, "w a a a a a a a w w w w w w w w");
-  assert(w.hero_x == 1 && w.hero_y == 6 && w.hero_z == 2, "up the stairs, along the tunnel: {w.hero_x},{w.hero_y},{w.hero_z}");
-  _ = rules::play(w, "d d d d d d d d d d d d d d");
-  assert(w.hero_x == 15 && w.hero_z == 2, "across the bridge: {w.hero_x},{w.hero_y},{w.hero_z}");
+  _ = rules::play(w, "w a a a a a a a a a a a a a a a a w w w w w w w w w w w w w");
+  assert(w.hero_x == 1 && w.hero_y == 12 && w.hero_z == 2, "up the stairs, along the tunnel: {w.hero_x},{w.hero_y},{w.hero_z}");
+  _ = rules::play(w, "d d d d d d d d d d d d d d d d d d d d d d d d d d d d d d d d");
+  assert(w.hero_x == 33 && w.hero_z == 2, "across the bridge: {w.hero_x},{w.hero_y},{w.hero_z}");
   assert(rules::walk(w, 1, 0) == rules::Step.Opened && w.points == 1, "the chest beyond");
 }
 

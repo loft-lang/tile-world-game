@@ -121,13 +121,16 @@ pub struct Item {
   pub stack: vector<text>
 }
 
-/// A natural cave (owner, 2026-11-05: a cave has no level ceiling but a dome, modelled with the
-/// layers — a rock wall moves one cell in per layer up, so a wide cave needs height).  Its floor is
-/// a blob's shape, `w` by `h` from (x, y) on layer z, of `what`, walled round with `wall`; on each
-/// layer up the open part loses its edge — the cells with a cell outside it among their eight
-/// neighbours become `wall` — until nothing is left open, and that last layer caps it.  A cave can
-/// have partly straight walls, and so more height there (owner, 2026-11-05): on its `sides` (of
-/// "NESW"; "" for all) the walls rise straight for `straight` layers before they step in.
+/// A natural cave (owner, 2026-11-05), drawn as a ceiling-height field: every floor cell gets the
+/// layer its ceiling is on, from its distance to the edge of the floor (in steps over the eight
+/// neighbours; on its straight `sides` — of "NESW", "" for all — the edge counts `straight` steps
+/// further, so the walls there rise straight that many layers first).  The `shape` turns distance
+/// into height: a "crag" climbs a layer a step (the walls move one cell in per layer); a "dome"
+/// (owner: higher layers push towards the middle, so the middle holds bigger spans) is one layer a
+/// step at its foot, then steps of 2, then 4, and its top closes over a middle of 8.  `height`
+/// (0: its own) makes it taller — straight walls first — or lower, its steps flattened.  The floor
+/// is a blob's shape, `w` by `h` from (x, y) on layer z, of `what`, walled round with `wall`.  Caves
+/// on one layer that overlap are one cave: each cell's ceiling the highest any of them gives it.
 pub struct Dome {
   pub x: integer,
   pub y: integer,
@@ -137,7 +140,9 @@ pub struct Dome {
   pub what: text = "floor",
   pub wall: text = "wall",
   pub straight: integer = 0,
-  pub sides: text = ""
+  pub sides: text = "",
+  pub shape: text = "dome",
+  pub height: integer = 0
 }
 
 pub struct Intent {
@@ -262,7 +267,8 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     sz = e.field("size");
     it.domes += [Dome { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 3), h: int_of(sz.item(1), 3),
                         z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor"), wall: text_of(e.field("wall"), "wall"),
-                        straight: int_of(e.field("straight"), 0), sides: text_of(e.field("sides"), "") }];
+                        straight: int_of(e.field("straight"), 0), sides: text_of(e.field("sides"), ""),
+                        shape: text_of(e.field("shape"), "dome"), height: int_of(e.field("height"), 0) }];
   }
   hs = v.field("houses");
   for i in 0..hs.len() {
@@ -350,6 +356,8 @@ pub fn intent_json(it: const Intent) -> text {
       if d.wall != "wall" { out += ", \"wall\": {quote(d.wall)}"; }
       if d.straight > 0 { out += ", \"straight\": {d.straight}"; }
       if d.sides != "" { out += ", \"sides\": {quote(d.sides)}"; }
+      if d.shape != "dome" { out += ", \"shape\": {quote(d.shape)}"; }
+      if d.height > 0 { out += ", \"height\": {d.height}"; }
       out += " }}";
       first = false;
     }
@@ -630,48 +638,203 @@ fn in_blob(b: const Blob, x: integer, y: integer, seed: integer) -> boolean {
   d * 100 <= r * r * edge
 }
 
-// A dome (see `Dome`): the floor on its blob's cells, the wall round them, and the layers above,
-// each open where the one below is open and all eight neighbours are too — but for a neighbour
-// beyond a straight side while that side still rises straight — walled round that open part, the
-// rest of the one below's open part wall, up to the layer that closes it.
-fn add_dome(g: Grid, d: const Dome, seed: integer) {
-  shape = Blob { x: d.x, y: d.y, w: d.w, h: d.h, z: d.z, what: d.what, rim: "", scatter: [] };
-  open: vector<boolean> = [];
-  for y in d.y..d.y + d.h {
-    for x in d.x..d.x + d.w { open += [in_blob(shape, x, y, seed)]; }
+/// A ceiling-height field: for each cell of the rectangle (x, y, w, h), the layer its ceiling is on
+/// above the floor (0: not cave).
+pub struct Heights {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub v: vector<integer>
+}
+
+fn height_at(f: const Heights, x: integer, y: integer) -> integer {
+  if x < f.x || y < f.y || x >= f.x + f.w || y >= f.y + f.h { return 0; }
+  f.v[(y - f.y) * f.w + (x - f.x)] ?? 0
+}
+
+/// The ceiling-height field of one cave shape (see `Dome`), within the cave it is part of: `area`,
+/// the shapes on its floor that make one cave with it (none: itself alone).  Distances are to the
+/// edge of that whole cave's floor, so where shapes join the ceiling does not dip.
+pub fn dome_heights(d: const Dome, seed: integer, area: const vector<Dome> = []) -> Heights {
+  parts: vector<Dome> = if len(area) == 0 { [d] } else { area };
+  own_shape = Blob { x: d.x, y: d.y, w: d.w, h: d.h, z: d.z, what: d.what, rim: "", scatter: [] };
+  // Distances over the cave's rectangle and a ring round it: the outside cells beside the floor
+  // are the seeds — 0, or `straight` on one of this shape's straight sides — and each floor cell
+  // is one more than its nearest, in steps over the eight neighbours.
+  bx0 = d.x;
+  by0 = d.y;
+  bx1 = d.x + d.w;
+  by1 = d.y + d.h;
+  for p in parts {
+    if p.x < bx0 { bx0 = p.x; }
+    if p.y < by0 { by0 = p.y; }
+    if p.x + p.w > bx1 { bx1 = p.x + p.w; }
+    if p.y + p.h > by1 { by1 = p.y + p.h; }
   }
-  for y in d.y - 1..d.y + d.h + 1 {
-    for x in d.x - 1..d.x + d.w + 1 {
-      if is_open(d, open, x, y) { set(g, x, y, d.z, d.what); }
-      else if near_open(d, open, x, y) && terrain_at(g, x, y, d.z) != d.what { set(g, x, y, d.z, d.wall); }
+  gx = bx0 - 1;
+  gy = by0 - 1;
+  gw = bx1 - bx0 + 2;
+  gh = by1 - by0 + 2;
+  far = 1000000;
+  inside: vector<boolean> = [];
+  mine: vector<boolean> = [];
+  dist: vector<integer> = [];
+  for y in gy..gy + gh {
+    for x in gx..gx + gw {
+      any = false;
+      for p in parts {
+        if in_blob(Blob { x: p.x, y: p.y, w: p.w, h: p.h, z: p.z, what: p.what, rim: "", scatter: [] }, x, y, seed) { any = true; }
+      }
+      inside += [any];
+      mine += [in_blob(own_shape, x, y, seed)];
+      dist += [far];
     }
   }
-  z = d.z;
-  left = true;
-  while left && z < d.z + d.w + d.h + d.straight {
-    z += 1;
-    rise = z - d.z;
-    next: vector<boolean> = [];
-    left = false;
-    for y in d.y..d.y + d.h {
-      for x in d.x..d.x + d.w {
-        keep = is_open(d, open, x, y);
-        for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-          if !is_open(d, open, x + o.0, y + o.1) && !(rise <= d.straight && straight_way(d, o.0, o.1)) { keep = false; }
+  top = 0;
+  for y in gy..gy + gh {
+    for x in gx..gx + gw {
+      if inside[(y - gy) * gw + (x - gx)] ?? false { continue; }
+      // An outside cell beside the floor is a seed; on a straight side when the floor lies straight
+      // beside it that way (floor south of it: it is on the north side), only a corner's touch
+      // deciding by the slant.
+      beside = false;
+      flat_any = false;
+      flat_straight = false;
+      slant_straight = false;
+      for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+        if !(inside[(y - o.1 - gy) * gw + (x - o.0 - gx)] ?? false) { continue; }
+        // The floor cell is at (x - o.0, y - o.1): this outside cell lies the way o from it.
+        beside = true;
+        if o.0 == 0 || o.1 == 0 {
+          flat_any = true;
+          if straight_way(d, o.0, o.1) { flat_straight = true; }
+        } else if straight_way(d, o.0, o.1) {
+          slant_straight = true;
         }
-        next += [keep];
-        if keep { left = true; }
       }
+      if !beside { continue; }
+      straight = if flat_any { flat_straight } else { slant_straight };
+      off = if straight { d.straight } else { 0 };
+      k = (y - gy) * gw + (x - gx);
+      dist[k] = off;
+      if off > top { top = off; }
     }
-    // Wall where the open part below closes, and round what stays open (a straight wall included).
-    for y in d.y - 1..d.y + d.h + 1 {
-      for x in d.x - 1..d.x + d.w + 1 {
-        if is_open(d, next, x, y) { continue; }
-        if is_open(d, open, x, y) || (left && near_open(d, next, x, y)) { set(g, x, y, z, d.wall); }
-      }
-    }
-    open = next;
   }
+  // Outward from the seeds, a step at a time: the cells reached at v + 1 from those at v.
+  v = 0;
+  more = true;
+  while more && v < gw + gh + top + 4 {
+    more = false;
+    for y in gy..gy + gh {
+      for x in gx..gx + gw {
+        if (dist[(y - gy) * gw + (x - gx)] ?? far) != v { continue; }
+        for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+          nx = x + o.0;
+          ny = y + o.1;
+          if nx < gx || ny < gy || nx >= gx + gw || ny >= gy + gh { continue; }
+          k = (ny - gy) * gw + (nx - gx);
+          if (inside[k] ?? false) && (dist[k] ?? far) > v + 1 { dist[k] = v + 1; more = true; }
+        }
+      }
+    }
+    if more || v < top { more = true; }
+    v += 1;
+  }
+  far_d = 0;
+  for k in 0..gw * gh { if (mine[k] ?? false) && (dist[k] ?? 0) > far_d && (dist[k] ?? 0) < far { far_d = dist[k] ?? 0; } }
+  own = if d.shape == "crag" { far_d } else { 1 + dome_drop(far_d - 1) };
+  out = Heights { x: gx, y: gy, w: gw, h: gh, v: [] };
+  for k in 0..gw * gh {
+    if !(mine[k] ?? false) { out.v += [0]; continue; }
+    dd = dist[k] ?? 1;
+    n = if d.shape == "crag" { dd } else { own - dome_drop(far_d - dd) };
+    // A chosen height: taller, the walls straight first; lower, the steps flattened.
+    if d.height > 0 && d.shape == "crag" && n > d.height { n = d.height; }
+    if d.height > 0 && d.shape != "crag" {
+      if d.height > own { n += d.height - own; } else if d.height < own { n = (n * d.height + own - 1) / own ?? 1; }
+    }
+    out.v += [if n < 1 { 1 } else { n }];
+  }
+  out
+}
+
+// How far below a dome's top a cell r steps from its middle has its ceiling (owner): the middle 8
+// (r up to 4) at the top; a layer down to r 8 (a step of 4); another to r 10 (a step of 2); then a
+// layer a step, down to the foot.
+fn dome_drop(r: integer) -> integer {
+  if r <= 4 { return 0; }
+  if r <= 8 { return 1; }
+  if r <= 10 { return 2; }
+  2 + r - 10
+}
+
+// The caves of an intent (see `Dome`), layer by layer of their floors: the shapes on one floor
+// layer combined — each cell's ceiling the highest any gives it — then drawn: floor and its wall on
+// the floor layer; on each layer up, open where the ceiling is higher, rock where it is, and wall
+// round what is open.
+fn add_caves(g: Grid, domes: const vector<Dome>, seed: integer) {
+  floors: vector<integer> = [];
+  for d in domes {
+    known = false;
+    for z in floors { if z == d.z { known = true; } }
+    if !known { floors += [d.z]; }
+  }
+  for z0 in floors {
+    fields: vector<Heights> = [];
+    x0 = 1000000;
+    y0 = 1000000;
+    x1 = -1000000;
+    y1 = -1000000;
+    what = "floor";
+    wall = "wall";
+    cave: vector<Dome> = [];
+    for d in domes { if d.z == z0 { cave += [d]; } }
+    for d in domes {
+      if d.z != z0 { continue; }
+      f = dome_heights(d, seed, cave);
+      fields += [f];
+      if f.x < x0 { x0 = f.x; }
+      if f.y < y0 { y0 = f.y; }
+      if f.x + f.w > x1 { x1 = f.x + f.w; }
+      if f.y + f.h > y1 { y1 = f.y + f.h; }
+      what = d.what;
+      wall = d.wall;
+    }
+    all = Heights { x: x0, y: y0, w: x1 - x0, h: y1 - y0, v: [] };
+    top = 0;
+    for y in y0..y1 {
+      for x in x0..x1 {
+        n = 0;
+        for f in fields { hh = height_at(f, x, y); if hh > n { n = hh; } }
+        all.v += [n];
+        if n > top { top = n; }
+      }
+    }
+    for k in 0..=top {
+      for y in y0 - 1..y1 + 1 {
+        for x in x0 - 1..x1 + 1 {
+          n = height_at(all, x, y);
+          open = n > k;
+          if k == 0 {
+            if n > 0 { set(g, x, y, z0, what); }
+            else if near_height(all, x, y, 0) && terrain_at(g, x, y, z0) != what { set(g, x, y, z0, wall); }
+            continue;
+          }
+          if open { continue; }
+          if n == k || near_height(all, x, y, k) { set(g, x, y, z0 + k, wall); }
+        }
+      }
+    }
+  }
+}
+
+// Is one of (x, y)'s eight neighbours open on layer k of the field (its ceiling above k)?
+fn near_height(f: const Heights, x: integer, y: integer, k: integer) -> boolean {
+  for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+    if height_at(f, x + o.0, y + o.1) > k { return true; }
+  }
+  false
 }
 
 // Does the way (ox, oy) out of a dome cross a side that rises straight: its north (oy < 0), east,
@@ -681,20 +844,6 @@ fn straight_way(d: const Dome, ox: integer, oy: integer) -> boolean {
   all = d.sides == "";
   (oy < 0 && (all || d.sides.contains("N"))) || (ox > 0 && (all || d.sides.contains("E")))
     || (oy > 0 && (all || d.sides.contains("S"))) || (ox < 0 && (all || d.sides.contains("W")))
-}
-
-// Is (x, y) in the open part `open` of dome d's rectangle?
-fn is_open(d: const Dome, open: const vector<boolean>, x: integer, y: integer) -> boolean {
-  if x < d.x || y < d.y || x >= d.x + d.w || y >= d.y + d.h { return false; }
-  open[(y - d.y) * d.w + (x - d.x)] ?? false
-}
-
-// Is one of (x, y)'s eight neighbours in the open part?
-fn near_open(d: const Dome, open: const vector<boolean>, x: integer, y: integer) -> boolean {
-  for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-    if is_open(d, open, x + o.0, y + o.1) { return true; }
-  }
-  false
 }
 
 fn add_blob(g: Grid, b: const Blob, seed: integer) {
@@ -781,7 +930,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
     }
   }
   for b in it.blobs { add_blob(g, b, it.seed); }
-  for d in it.domes { add_dome(g, d, it.seed); }
+  add_caves(g, it.domes, it.seed);
   // Rooms: the outline wall, the inside floor; an inside wins over an earlier room's wall, so
   // rooms drawn against each other open into one.
   for r in it.rooms {

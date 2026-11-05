@@ -44,12 +44,17 @@ Small editor steps that every later place needs; none changes the rules.
   natural cave has a dome, its walls moving one cell in per layer up, so a wide cave needs height;
   it can have partly straight walls, and so more height there; and it can be crossed by a bridge
   higher up.  The kit's `domes` shape draws one from a blob's floor (`straight` layers on its
-  `sides`); a bridge is a trail on a higher layer (the `bridge` material, planks).
+  `sides`; `shape` "dome" — the owner's: steps of 1, then 2, then 4, the top over a middle of 8 —
+  or "crag", a step a layer; `height` to raise or flatten it; overlapping shapes on one floor make
+  one cave, each shaped within the whole); a bridge is a trail on a higher layer (the `bridge`
+  material, planks).  The fill tool sets what an intent draws and never clears a cell an earlier
+  intent drew (it cannot tell it from one set by hand): a place whose intent loses cells is drawn
+  again from empty.
   `tools/stable.loft PLACE` lists the cells that would not hold — under a ceiling, no wall beside
   them (`rules::unsupported`): what a blast-widened tunnel leaves.  Room: the demo's *dome* house
   (a straight north wall, stairs up two layers, a bridge across, a chest beyond).  Red:
-  `tests/intent.loft` (each floor cell's ceiling at its distance from the outside; the straight
-  wall layer by layer), `tests/places.loft` (the dome holds, a three-wide tunnel does not, the
+  `tests/intent.loft` (a crag's ceiling at each cell's distance; the straight side; a dome's
+  profile and a chosen height; two shapes as one cave), `tests/places.loft` (the dome holds, a three-wide tunnel does not, the
   bridge crossed).  The cave-in that acts on unsupported cells: B2c.
 
 - **A1. Figures in the editor.**  Place and remove enemies and people (the kinds in kinds.json)

@@ -554,6 +554,18 @@ on water, and things pushed or blown into it are lost.
       holds (walls beside every cell); a dome holds (above its inner cells the cave goes on up, no
       ceiling there; above its edge cells the stepped-in wall, with a wall beside them); a tunnel
       blasted three wide does not (its middle has the level ceiling above and no wall beside).
+    - **Crag and dome** (owner, 2026-11-05): walls moving in one cell a layer make a crag, not a
+      dome; in a dome the higher layers push so far towards the middle that bigger spans hold
+      there — the middle 8 at the top, the walls beside it a step of 4, then of 2, then the one-cell
+      steps all the way down.  Built as a **ceiling-height field** (the kit's `domes`, proposed by
+      us for any width and height and for shapes combined): each floor cell's ceiling layer from its
+      distance to the edge of the floor (eight neighbours; a straight side counted `straight`
+      further) — a crag a layer a step; a dome measured from its middle, r steps in: the top for r
+      up to 4, a layer down to 8, another to 10, then a layer a step to its foot, so its own height is
+      its middle's distance less 8.  A chosen `height` raises it (straight walls first) or flattens
+      it.  Shapes on one floor that overlap are one cave: each shaped by its distances to the edge
+      of the joined floor (so where they meet the ceiling does not dip), every cell's ceiling the
+      highest any gives it — a dome with a crag's gallery off it, two domes and the saddle between.
     - **Built** (BUILD.md B2c; `tests/blasting.loft`, the demo's blasting house), with these
       proposals, to tune in play: a dyke is checked for the ways north, east, south, west in
       turn; the directed blast strikes only the cells ahead, all pushed that way, out to 5 steps,
