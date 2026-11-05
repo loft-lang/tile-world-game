@@ -412,3 +412,19 @@ fn test_the_lake_house() {
   _ = rules::play(w, "d");
   assert(w.hero_x == 15 && rules::walk(w, 1, 0) == rules::Step.Opened, "across, the chest");
 }
+
+// The creatures house (B8): each where its habits keep it — the grey rat off for a herb by day,
+// the crab on its row by the pool, bigfoot inside his moat; by night the ghost is there.
+fn test_the_creatures_house() {
+  lf = place("the_creatures");
+  w = lf.level;
+  rules::tick(w, 30000);
+  for e in w.enemies {
+    if e.kind == "crab" { assert(e.y == 3, "the crab on its row: {e.y}"); }
+    if e.kind == "bigfoot" { assert(e.x >= 16 && e.x <= 18 && e.y >= 9 && e.y <= 11, "bigfoot in his moat: {e.x},{e.y}"); }
+    if e.kind == "ghost" { assert(e.away, "by day the ghost is away"); }
+  }
+  w.night = true;
+  rules::tick(w, 5000);
+  for e in w.enemies { if e.kind == "ghost" { assert(!e.away, "by night it is there"); } }
+}

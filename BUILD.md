@@ -148,10 +148,14 @@ its tests on both backends.
   every one of that kind taken (the hand left as it is); with the sack worn, the rope walked over
   stays lying, and the other way round; L with empty hands puts the shoulder thing down, the sack
   keeping what it holds; both go through doors.
-- **B8. The new creatures, one a step.**  The grey rat (out by day, carrying off food left lying),
-  the slime, the crab, the ghost (at night, after C1), bigfoot (with Stormcap's terrain).  A room
-  each.  Ruled first: each one's habits.  Red: a test per creature in `tests/enemies.loft`'s manner,
-  every time by hand.
+- **B8. The new creatures — built** (the demo's *creatures* house; `tests/creatures.loft`), each
+  with a way of its own — proposed, the owner rules each one's habits: the grey rat (dungeon:124)
+  out by day, carrying forage left lying home to its nest, home at night; the slime (108) keeping
+  within 2 cells of water, swallowing an item it comes onto (falling out when it is ended); the
+  crab (110) within a cell of water, going only sideways, east and west; the founder's ghost (121)
+  there only by night — away by day, not met, not drawn — passing through walls, harmless, a talk
+  for the owner's lines; bigfoot (Tiny Ski's 78) big and strong, out by day, home by night — the
+  ways to deal with him are the owner's, with Stormcap's terrain.
 
 ## Phase C — the world's systems
 

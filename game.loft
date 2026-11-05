@@ -1569,7 +1569,7 @@ struct Figure {
 fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
   out: vector<Figure> = [];
   for e in w.enemies {
-    if e.z != z { continue; }
+    if e.z != z || e.away { continue; }
     m = motion::still();
     for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
     pose = motion::pose(m, e.face_x, e.face_y, w.now);

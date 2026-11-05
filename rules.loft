@@ -180,6 +180,18 @@ struct EnemyProps {
   /// the hero's reach) and cannot be parried, only dodged.  `poise`: a light blow does not break its
   /// wind-up.
   windup_ms: integer = 300,
+  /// The new creatures' habits (BUILD.md B8; proposed, the owner rules each): `out_by` "day" or
+  /// "night" — at its other time it goes home and rests there (one out by night is away, gone, by
+  /// day: the ghost); a `thief` carries forage left lying home to its nest (the grey rat); it keeps
+  /// within `near_water` cells of water (the slime 2, the crab 1); `sideways`, it moves only east
+  /// and west (the crab); it `swallows` an item it comes onto (the slime: it falls out when it is
+  /// ended); it `passes_walls` (the ghost).
+  out_by: text = "",
+  thief: boolean = false,
+  near_water: integer = 0,
+  sideways: boolean = false,
+  swallows: boolean = false,
+  passes_walls: boolean = false,
   sweep: boolean = false,
   poise: boolean = false
 }
@@ -429,7 +441,9 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       guard: flag(e, "guard"), dark_sight: num(e, "dark_sight", sight), searches: flag(e, "searches"),
       calls: num(e, "calls", 0), brave: flag(e, "brave"), holds: word(e, "holds", ""),
       bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks"),
-      windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise")
+      windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
+      out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
+      sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls")
     }];
   }
   th = v.field("things");
@@ -821,6 +835,9 @@ pub struct Shot {
 /// An enemy: its id (it keeps it while it lives), kind, place and nest, its health, when it acts
 /// next and when it heals next, the steps it has taken (its wander's seed) and the way it faces.
 pub struct Enemy {
+  /// Away (B8): out of its time and home — gone from the place till its time comes (the ghost by
+  /// day): not met, not drawn.
+  pub away: boolean = false,
   pub id: integer,
   pub kind: text,
   pub x: integer,
@@ -4634,7 +4651,7 @@ pub fn arm_enemy(l: Level, i: integer, name: text) {
 pub fn enemy_at(l: const Level, x: integer, y: integer, z: integer) -> integer {
   for i in 0..len(l.enemies) {
     e = l.enemies[i];
-    if e.x == x && e.y == y && e.z == z { return i; }
+    if e.x == x && e.y == y && e.z == z && !e.away { return i; }
   }
   -1
 }
@@ -4647,7 +4664,9 @@ fn steps_apart(x0: integer, y0: integer, x1: integer, y1: integer) -> integer {
 // it walks (water too if it flies, a rough wall if it climbs; at most a step up or down), with
 // nothing on it but an item (a bat never onto a flame), no hero and no other enemy.
 fn enemy_can(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
-  if !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
+  // A crab (B8) goes sideways only: east and west.
+  if p.sideways && dy != 0 { return false; }
+  if !p.passes_walls && !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
   nx = x + dx;
   ny = y + dy;
   if !enemy_stands(l, p, nx, ny, z) { return false; }
@@ -4659,8 +4678,17 @@ fn enemy_can(l: const Level, p: const EnemyProps, x: integer, y: integer, z: int
 // it climbs), with nothing on it but an item (a bat never a flame), no hero and no other enemy?
 fn enemy_stands(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer) -> boolean {
   k = tile_world::terrain(l.w, x, y, z);
-  goes = (walkable(l, k) && !blocks_things(l, k)) || (p.flies && is_water(l, k)) || (p.climbs && rough(l, k));
+  goes = (walkable(l, k) && !blocks_things(l, k)) || (p.flies && is_water(l, k)) || (p.climbs && rough(l, k))
+         || (p.passes_walls && k != VOID);
   if !goes { return false; }
+  // One that keeps to water (B8) goes no further from it than `near_water` cells.
+  if p.near_water > 0 {
+    wet = false;
+    for dy in -p.near_water..=p.near_water {
+      for dx in -p.near_water..=p.near_water { if is_water(l, tile_world::terrain(l.w, x + dx, y + dy, z)) { wet = true; } }
+    }
+    if !wet { return false; }
+  }
   t = tile_world::top(l.w, x, y, z);
   if t != 0 && !item(l, t) { return false; }
   if p.likes_light && t != 0 && is_flame(l, t) { return false; }
@@ -5074,6 +5102,14 @@ fn enemies_due(l: Level) {
 fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
   l.enemies[i].x = (l.enemies[i].x ?? 0) + dx;
   l.enemies[i].y = (l.enemies[i].y ?? 0) + dy;
+  // One that swallows (the slime, B8) takes an item it comes onto, holding nothing yet.
+  ep = enemy_props(l, l.enemies[i].kind ?? "");
+  ex = l.enemies[i].x ?? 0;
+  ey = l.enemies[i].y ?? 0;
+  ez = l.enemies[i].z ?? 0;
+  if ep.swallows && (l.enemies[i].item ?? 1) == 0 && item(l, tile_world::top(l.w, ex, ey, ez)) {
+    l.enemies[i].item = tile_world::take(l.w, ex, ey, ez);
+  }
   l.enemies[i].face_x = dx;
   l.enemies[i].face_y = dy;
   l.enemies[i].steps = (l.enemies[i].steps ?? 0) + 1;
@@ -5219,6 +5255,58 @@ fn enemy_act(l: Level, i: integer) {
   if l.held_by == e.id {
     pull_hero(l, i, e, p);
     return;
+  }
+  // Out of its time (B8): home it goes, and rests there — one out only by night is away while at
+  // home by day (the ghost); back at its time, it is there again.
+  if p.out_by != "" && (p.out_by == "night") != l.night {
+    if e.x == e.nest_x && e.y == e.nest_y && e.z == e.nest_z {
+      if p.out_by == "night" { l.enemies[i].away = true; }
+      l.enemies[i].due = e.due + p.move_ms;
+      return;
+    }
+    hw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
+    if hw.2 > 0 { enemy_step(l, i, hw.0, hw.1, p.move_ms); } else { l.enemies[i].due = e.due + p.move_ms; }
+    return;
+  }
+  if e.away { l.enemies[i].away = false; }
+  // A thief (the grey rat, B8): forage it holds goes home to its nest; forage lying within its
+  // sight it goes for, and takes.
+  if p.thief {
+    if e.item != 0 {
+      if e.x == e.nest_x && e.y == e.nest_y && e.z == e.nest_z {
+        if tile_world::top(l.w, e.x, e.y, e.z) == 0 { tile_world::place(l.w, e.x, e.y, e.z, e.item); l.enemies[i].item = 0; }
+        l.enemies[i].due = e.due + p.move_ms;
+        return;
+      }
+      tw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
+      if tw.2 > 0 {
+        enemy_step(l, i, tw.0, tw.1, p.move_ms);
+        return;
+      }
+    } else {
+      food = (0, 0, -1);
+      for dy in -p.sight..=p.sight {
+        for dx in -p.sight..=p.sight {
+          fx = e.x + dx;
+          fy = e.y + dy;
+          if fx == e.nest_x && fy == e.nest_y { continue; }
+          fp = l.k.things[tile_world::top(l.w, fx, fy, e.z)];
+          if fp && fp.forage && (food.2 < 0 || steps_apart(e.x, e.y, fx, fy) < food.2) { food = (fx, fy, steps_apart(e.x, e.y, fx, fy)); }
+        }
+      }
+      if food.2 == 1 {
+        l.enemies[i].item = tile_world::take(l.w, food.0, food.1, e.z);
+        l.enemies[i].due = e.due + p.move_ms;
+        return;
+      }
+      if food.2 > 1 {
+        fw = enemy_way(l, p, e.x, e.y, e.z, food.0, food.1, false, no_shades());
+        if fw.2 > 0 {
+          enemy_step(l, i, fw.0, fw.1, p.move_ms);
+          return;
+        }
+      }
+    }
   }
   // A person with a day goes to where the clock says, and waits there (C3).
   r = route_of(l, e);

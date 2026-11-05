@@ -122,6 +122,9 @@ on the interpreter and `--native`.
   - THE CLOCK: the time on the status line; the bed beside the village's start (SLEEP) sleeps till
     20:00 — night: the street dark but for flames — and again till 07:00.  The game needs
     tile_world 0.7.0 (loft-libs-world#41): `./fetch-libs.sh` once it is merged.
+  - CREATURES: the grey rat going for the herbs and carrying them to its nest; the crab along the
+    pool's edge; the slime swallowing what it meets; bigfoot inside his moat; sleep (the bed) till
+    night and the ghost is there.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

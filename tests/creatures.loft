@@ -1,0 +1,96 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The new creatures (BUILD.md B8), each with a way of its own (proposed, the owner rules each):
+// the grey rat out by day carrying forage home; the slime keeping to the water's edge, swallowing
+// an item it comes onto; the crab going only sideways along the water; the ghost there only by
+// night, through walls; bigfoot out by day, home by night.
+use tile_world;
+use rules;
+
+// A floor x 0 .. 9, y 0 .. 2, walled; water on row 3 below it.
+fn strip() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 10, 4, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 9, 2, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 3, 9, 3, 0, rules::tr(w, "water"));
+  rules::put_hero(w, 9, 0, 0);
+  w
+}
+
+fn top(w: const rules::Level, x: integer, y: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, 0))
+}
+
+fn main() {
+  w = strip();
+  _ = rules::add_enemy(w, "grey_rat", 2, 1, 0);
+  assert(len(w.enemies) == 1, "a grey rat");
+}
+
+// The grey rat, its nest on (2, 1), a herb lying on (6, 1): it goes for it a cell every 700 ms —
+// (3, 1) at 700, (4, 1) 1400, (5, 1) 2100 — takes it at 2800, carries it home — (2, 1) by 4900 —
+// and leaves it there at 5600.  At night it goes home and stays.
+fn test_the_grey_rat_carries_food_home() {
+  w = strip();
+  _ = rules::add_enemy(w, "grey_rat", 2, 1, 0);
+  tile_world::place(w.w, 6, 1, 0, rules::th(w, "herb"));
+  rules::tick(w, 2800);
+  e = w.enemies[0]!;
+  assert(e.item == rules::th(w, "herb") && top(w, 6, 1) == "", "2800: taken: at {e.x},{e.y}");
+  rules::tick(w, 2800);
+  e = w.enemies[0]!;
+  assert(e.x == 2 && e.y == 1 && e.item == 0 && top(w, 2, 1) == "herb", "5600: home, left at its nest: {e.x},{e.y}");
+  v = strip();
+  _ = rules::add_enemy(v, "grey_rat", 2, 1, 0);
+  v.night = true;
+  tile_world::place(v.w, 6, 1, 0, rules::th(v, "herb"));
+  rules::tick(v, 10000);
+  e = v.enemies[0]!;
+  assert(e.x == 2 && e.y == 1 && top(v, 6, 1) == "herb", "by night: home, the herb left alone");
+}
+
+// The ghost, its haunt on (5, 1): by day away — no enemy met there — by night there.
+fn test_the_ghost_is_there_only_by_night() {
+  w = strip();
+  _ = rules::add_enemy(w, "ghost", 5, 1, 0);
+  rules::tick(w, 1200);
+  assert(rules::enemy_at(w, 5, 1, 0) < 0 && (w.enemies[0]!.away), "by day: away");
+  w.night = true;
+  rules::tick(w, 1200);
+  assert(!(w.enemies[0]!.away), "by night: there");
+}
+
+// The crab, by the water on (4, 2): ten seconds of wandering, and it never leaves its row.
+fn test_the_crab_goes_sideways() {
+  w = strip();
+  _ = rules::add_enemy(w, "crab", 4, 2, 0);
+  for _ in 0..20 {
+    rules::tick(w, 500);
+    assert((w.enemies[0]!.y) == 2, "sideways only: y {w.enemies[0]!.y}");
+  }
+}
+
+// The slime by the water, (2, 2), the hero on (5, 2), a herb between on (3, 2): it comes at the
+// hero (first acting at 1500) onto the herb and swallows it; ended, it lets it fall.
+fn test_the_slime_swallows_what_it_meets() {
+  w = strip();
+  rules::put_hero(w, 5, 2, 0);
+  _ = rules::add_enemy(w, "slime", 2, 2, 0);
+  tile_world::place(w.w, 3, 2, 0, rules::th(w, "herb"));
+  rules::tick(w, 1500);
+  e = w.enemies[0]!;
+  assert(e.x == 3 && e.item == rules::th(w, "herb") && top(w, 3, 2) == "", "swallowed: at {e.x}");
+  rules::strike_enemy(w, 0, 9);
+  assert(len(w.enemies) == 0 && top(w, 3, 2) == "herb", "ended: it falls out");
+}
+
+// Bigfoot, his den on (2, 1): by night he stays home.
+fn test_bigfoot_sleeps_at_night() {
+  w = strip();
+  _ = rules::add_enemy(w, "bigfoot", 2, 1, 0);
+  w.night = true;
+  rules::tick(w, 10000);
+  e = w.enemies[0]!;
+  assert(e.x == 2 && e.y == 1, "home by night: {e.x},{e.y}");
+}
