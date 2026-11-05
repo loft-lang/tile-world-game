@@ -9,6 +9,8 @@
 use tile_world;
 use rules;
 use game;
+use motion;
+use theme;
 use talk;
 
 fn main() {
@@ -42,7 +44,8 @@ fn main() {
   test_a_save_read_back_is_the_same();
   test_the_epilogue_follows_the_facts();
   test_a_door_made_in_the_editor();
-  println("checks/game.loft: 29 passed");
+  test_a_block_and_a_parry_are_seen();
+  println("checks/game.loft: 30 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -632,6 +635,8 @@ fn test_the_dunns_bargain() {
   if !m { assert(false, "the game loads"); return; }
   g = m;
   assert(game::start_world(g, "the_farm"), "the farm opens");
+  closed = theme::terrain_sprite(g.look, rules::tr(g.world, "door"), 12, 3, false);
+  assert(game::kind_sprite(g, g.world, 12, 3, 0, false) == closed, "the barn door drawn closed");
   rules::put_hero(g.world, 11, 3, 0);
   game::move(g, 1, 0, false);
   assert(g.place == "the_farm" && g.note == "SHUT", "the barn shut: {g.note}");
@@ -644,6 +649,7 @@ fn test_the_dunns_bargain() {
   game::move(g, 1, 0, false);
   game::move(g, 1, 0, false);
   assert(rules::knows(g.world, "bargain") && !(g.world.enemies[h]!.led), "struck: the horse stays");
+  assert(game::kind_sprite(g, g.world, 12, 3, 0, false) != closed, "the barn door drawn open");
   rules::put_hero(g.world, 11, 3, 0);
   game::move(g, 1, 0, false);
   assert(g.place == "the_barn", "the barn open: {g.place} {g.note}");
@@ -726,4 +732,68 @@ fn test_a_door_made_in_the_editor() {
   rules::put_hero(g.world, 3, 5, 0);
   game::move(g, 0, 1, false);
   assert(g.place == "the_barn", "through the new door: {at(g)} {g.note}");
+}
+
+// The block and the parry seen (@GM-Combat): in the farm, a rat put beside the hero (sword in
+// hand, facing it).  K pressed and held: the rat's bite lands on the guard — counted, a small
+// spark, the hero pushed back (a brace, not a stagger), no health lost.  Then, with the rat
+// winding up again, K tapped in the last 100 ms: the bite turned aside — a big spark, the hero's
+// weapon flicked, the rat flung back twice as hard as a hit (a stagger of strength 2).
+fn test_a_block_and_a_parry_are_seen() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_farm"), "the farm opens");
+  g.world.enemies = [];
+  rules::put_hero(g.world, 6, 5, 0);
+  g.world.hero_item = rules::th(g.world, "sword");
+  g.world.face_x = 1;
+  g.world.face_y = 0;
+  rat = rules::add_enemy(g.world, "rat", 7, 5, 0);
+  r = len(g.world.enemies) - 1;
+  // The frames drawn meanwhile: each one follows the enemies' moves (game::draw does it).
+  game::follow_enemies(g);
+  up: vector<boolean> = [];
+  for _ in 0..256 { up += [false]; }
+  down = up;
+  down[107] = true;
+  // Pressed (a parry, too early for any bite), then held: a block.
+  g.keys.input_tick_from_state(down, 0.0, 0.0, 0, 0);
+  t = 1000;
+  _ = game::update(g, 0, t);
+  g.keys.input_tick_from_state(down, 0.0, 0.0, 0, 0);
+  for _ in 0..40 {
+    if g.world.blocks > 0 { break; }
+    t += 50;
+    _ = game::update(g, 50, t);
+    game::follow_enemies(g);
+  }
+  assert(g.world.blocking && g.world.blocks == 1 && g.world.parries == 0, "the bite on the guard: {g.world.blocks} blocked, {g.world.parries} parried");
+  assert(len(g.sparks) == 1 && !(g.sparks[0]!.big), "a small spark: {len(g.sparks)}");
+  assert(g.motion.act == motion::Act.Brace && g.world.health == 6, "pushed back, not hurt: {g.world.health}");
+  // Let go; wait for the next wind-up, and tap K in its last 100 ms.
+  g.keys.input_tick_from_state(up, 0.0, 0.0, 0, 0);
+  for _ in 0..80 {
+    e = g.world.enemies[r]!;
+    if e.wind_until > 0 && e.wind_until - g.world.now <= 100 { break; }
+    t += 25;
+    _ = game::update(g, 25, t);
+    game::follow_enemies(g);
+  }
+  assert((g.world.enemies[r]!.wind_until) > 0, "winding up again");
+  g.keys.input_tick_from_state(down, 0.0, 0.0, 0, 0);
+  _ = game::update(g, 0, t);
+  assert(g.motion.act == motion::Act.Flick, "the weapon flicked");
+  g.keys.input_tick_from_state(up, 0.0, 0.0, 0, 0);
+  for _ in 0..10 {
+    if g.world.parries > 0 { break; }
+    t += 25;
+    _ = game::update(g, 25, t);
+    game::follow_enemies(g);
+  }
+  big = false;
+  for sp in g.sparks { if sp.big { big = true; } }
+  assert(g.world.parries == 1 && big && g.world.health == 6, "turned aside, a big spark: {g.world.parries} {big} {g.world.health}");
+  mo = game::motion_of(g, rat);
+  assert(mo.act == motion::Act.Stagger && mo.strength == 2 && (g.world.enemies[r]!.open_until) > g.world.now, "the rat flung back, open");
 }

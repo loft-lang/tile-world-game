@@ -394,6 +394,13 @@ pub fn put_fine(surface: integer, s: integer, x: float, y: float, degrees: float
   tiles::sprite(surface, s / 4096 ?? 0, s % 4096 ?? 0, x, y, degrees, pivot.0, pivot.1, shade: shade);
 }
 
+/// Draw sprite `s` scaled by `scale`, centred on (cx, cy); nothing for -1.
+pub fn put_scaled(surface: integer, th: const Theme, s: integer, cx: float, cy: float, scale: float, shade: integer) {
+  if s < 0 { return; }
+  half = (th.tile_size as float) * scale / 2.0;
+  tiles::sprite(surface, s / 4096 ?? 0, s % 4096 ?? 0, cx - half, cy - half, scale_x: scale, scale_y: scale, shade: shade);
+}
+
 /// `put_held` in fractions: the thing at the hand (hand_x, hand_y), turned `angle` and pushed
 /// `reach` the way it points.
 pub fn put_held_fine(surface: integer, th: const Theme, thing: integer, hand_x: float, hand_y: float,

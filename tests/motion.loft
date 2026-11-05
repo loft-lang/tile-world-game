@@ -115,3 +115,63 @@ fn test_the_fine_wobble_is_a_damped_wave() {
   assert(near(motion::fine_pose(m, 1, 0, 70).tilt, 0.0), "a quarter: {motion::fine_pose(m, 1, 0, 70).tilt}");
   assert(near(motion::fine_pose(m, 1, 0, 105).tilt, -4.375), "three eighths: {motion::fine_pose(m, 1, 0, 105).tilt}");
 }
+
+// A parry (@GM-Combat): facing right (90, the stroke clockwise) the weapon flicks from across the
+// body, 90 - 75 = 15, out past the facing to 90 + 45 in 60 ms, and back to the facing by 160 ms.
+//   0 ms: 15, leaning 2 into it, reach 0;
+//   30 ms: 15 + part(120, 30, 60) = 75, reach part(2, 30, 60) = 1;
+//   60 ms: 90 + part(45, 100, 100) = 135, reach 2;
+//   110 ms: 90 + part(45, 50, 100) = 113, tilt part(2, 50, 100) = 1, reach 1.
+fn test_a_parry_flicks_out_from_across_the_body() {
+  m = motion::still();
+  motion::flick(m, 0);
+  assert(show(motion::pose(m, 1, 0, 0)) == "x0 y0 t2 w15 r0", "0: {show(motion::pose(m, 1, 0, 0))}");
+  assert(show(motion::pose(m, 1, 0, 30)) == "x0 y0 t2 w75 r1", "30: {show(motion::pose(m, 1, 0, 30))}");
+  assert(show(motion::pose(m, 1, 0, 60)) == "x0 y0 t2 w135 r2", "60: {show(motion::pose(m, 1, 0, 60))}");
+  assert(show(motion::pose(m, 1, 0, 110)) == "x0 y0 t1 w113 r1", "110: {show(motion::pose(m, 1, 0, 110))}");
+  assert(show(motion::pose(m, 1, 0, 160)) == "x0 y0 t0 w90 r0", "after: {show(motion::pose(m, 1, 0, 160))}");
+  f = motion::fine_pose(m, 1, 0, 30);
+  assert(f.weapon > 74.99 && f.weapon < 75.01 && f.reach > 0.99 && f.reach < 1.01, "fine at 30: {f.weapon} {f.reach}");
+}
+
+// A blow on the guard: pushed back 2 px (left) in 45 ms, back by 180 ms; no wobble, no fling.
+//   20 ms: part(2, 20, 45) = 1; 45 ms: 2; 135 ms: part(2, 45, 135) = 1.
+fn test_a_blocked_blow_pushes_the_guard_back() {
+  m = motion::still();
+  motion::brace(m, 0, -1, 0);
+  assert(show(motion::pose(m, 1, 0, 20)) == "x-1 y0 t0 w90 r0", "20: {show(motion::pose(m, 1, 0, 20))}");
+  assert(show(motion::pose(m, 1, 0, 45)) == "x-2 y0 t0 w90 r0", "45: {show(motion::pose(m, 1, 0, 45))}");
+  assert(show(motion::pose(m, 1, 0, 135)) == "x-1 y0 t0 w90 r0", "135: {show(motion::pose(m, 1, 0, 135))}");
+  assert(!motion::busy(m, 180), "over at 180");
+}
+
+// A riposte's stagger (strength 2) doubles the knock, the wobble and the fling: at 35 ms
+// x -part(6, 35, 70) = -3, tilt 2 * 6 = 12, weapon 90 - part(70, 245, 280) = 29 (a hit: -2, 6, 59).
+fn test_a_riposte_staggers_twice_as_hard() {
+  m = motion::still();
+  motion::stagger(m, 0, -1, 0, 0, 0, 1, 0, 2);
+  assert(show(motion::pose(m, 1, 0, 35)) == "x-3 y0 t12 w29 r0", "35: {show(motion::pose(m, 1, 0, 35))}");
+}
+
+// The stances, over a standing pose facing right (weapon 90): the guard turns the weapon across
+// the body to 15, draws it in (reach -1), crouches a pixel and leans back 3; a wind-up all the way
+// raises it back to 90 - 70 = 20, a sweep's to 90 - 150 = -60; open after a parry it hangs at
+// 90 + 120 = 210, the body 2 px back, leaning 6; wounded, a pixel lower, and standing a quarter
+// of the way through its sway (400 of 1600 ms) leaning the full 3.
+fn test_the_stances_read_apart() {
+  m = motion::still();
+  g = motion::fine_pose(m, 1, 0, 0);
+  motion::guard(g, 1, 0);
+  assert(near(g.weapon, 15.0) && near(g.reach, -1.0) && near(g.y, 1.0) && near(g.tilt, -3.0), "guard: {g.weapon} {g.reach} {g.y} {g.tilt}");
+  a = motion::fine_pose(m, 1, 0, 0);
+  motion::windup(a, 1, 0, 1.0, false);
+  b = motion::fine_pose(m, 1, 0, 0);
+  motion::windup(b, 1, 0, 1.0, true);
+  assert(near(a.weapon, 20.0) && near(b.weapon, -60.0), "a blow {a.weapon}, a sweep {b.weapon}");
+  o = motion::fine_pose(m, 1, 0, 0);
+  motion::open(o, 1, 0);
+  assert(near(o.weapon, 210.0) && near(o.x, -2.0) && near(o.tilt, -6.0), "open: {o.weapon} {o.x} {o.tilt}");
+  h = motion::fine_pose(m, 1, 0, 0);
+  motion::wounded(h, 400, true);
+  assert(near(h.y, 1.0) && near(h.tilt, 3.0), "wounded: {h.y} {h.tilt}");
+}

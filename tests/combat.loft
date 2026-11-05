@@ -94,14 +94,19 @@ fn test_a_block_halves() {
   _ = foe(w, "cyclops", 3, 2, 0);
   w.blocking = true;
   until(w, 700);
-  assert(w.health == 5, "the sweep blocked: {w.health}");
+  assert(w.health == 5 && w.blocks == 1, "the sweep blocked: {w.health}, counted {w.blocks}");
   v = room("sword");
   _ = foe(v, "rat", 3, 2, 0);
   v.blocking = true;
   until(v, 300);
   assert(v.health == 6, "the first bite blocked: nothing: {v.health}");
   until(v, 1500);
-  assert(v.health == 5, "the second: half carried, a point: {v.health}");
+  assert(v.health == 5 && v.blocks == 2, "the second: half carried, a point: {v.health}, {v.blocks} blocked");
+  // Not blocking, a bite is not a block.
+  u = room("sword");
+  _ = foe(u, "rat", 3, 2, 0);
+  until(u, 300);
+  assert(u.health == 5 && u.blocks == 0, "unguarded: bitten, none blocked");
 }
 
 // A parry: pressed at 200, inside the last 150 ms of the rat's wind-up (150 .. 300), the bite is
@@ -115,13 +120,15 @@ fn test_a_parry_and_a_riposte() {
   rules::parry(w);
   until(w, 300);
   assert(w.health == 6 && w.parries == 1, "turned aside: {w.health}");
-  assert(rules::swing(w) == rules::Step.Attacked && hp(w, r) == 5, "a riposte, 4: {hp(w, r)}");
+  assert(rules::swing(w) == rules::Step.Attacked && hp(w, r) == 5 && w.ripostes == 1, "a riposte, 4: {hp(w, r)}, counted {w.ripostes}");
   v = room("sword");
   _ = foe(v, "rat", 3, 2, 0);
   until(v, 100);
   rules::parry(v);
   until(v, 300);
   assert(v.health == 5 && v.parries == 0, "too early: bitten: {v.health}");
+  // A blow on an enemy not open is no riposte.
+  assert(rules::swing(v) == rules::Step.Attacked && v.ripostes == 0, "an ordinary blow");
 }
 
 // A sweep cannot be parried, only dodged: the cyclops's axe aims at (2, 2) and the cells beside it
@@ -272,4 +279,15 @@ fn test_who_acts_first_follows_the_place_not_the_list() {
     r = w.enemies[rules::enemy_at(w, 2, 1, 0)]!;
     assert(r.nest_x == 1, "{order}: by the right one, from (1, 1): {taken}");
   }
+}
+
+// A parry pressed with no blow coming keeps the hero's facing: the rat beside it (3, 2) not yet
+// winding up, a cyclops far off (2, 4) last in the list.  Before, the -1 of "none" read the last
+// enemy and turned the hero to (0, 2) — no way at all — and no blow after counted as faced.
+fn test_a_parry_with_no_blow_coming_keeps_the_facing() {
+  w = room("sword");
+  _ = foe(w, "rat", 3, 2, 5000);
+  _ = foe(w, "cyclops", 2, 4, 5000);
+  rules::parry(w);
+  assert(w.face_x == 1 && w.face_y == 0, "still facing east: {w.face_x},{w.face_y}");
 }

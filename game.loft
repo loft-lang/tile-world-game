@@ -68,7 +68,21 @@ struct Mover {
   motion: motion::Motion,
   x: integer,
   y: integer,
-  hp: integer
+  hp: integer,
+  /// Whether it followed the hero when last drawn: a change is shown as a nod (a hop in place).
+  led: boolean = false
+}
+
+/// Where two weapons met (@GM-Combat): a spark between the hero's cell (x, y, z) and the one it
+/// faces (fx, fy), from `start`; `big` for a parry, small for a block.
+pub struct Spark {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub fx: integer,
+  pub fy: integer,
+  pub start: integer,
+  pub big: boolean
 }
 
 /// A still of the epilogue (C7; `levels/epilogue.json`): shown when every condition in `when`
@@ -220,8 +234,16 @@ pub struct Game {
   /// The editor panel's fields (A2, A3): the place a door leads to, the text to write, a tag.
   pub door_field: text = "",
   pub text_field: text = "",
-  pub tag_field: text = ""
+  pub tag_field: text = "",
+  /// Where weapons met lately, and when the hero last struck a riposte (its stagger is doubled).
+  pub sparks: vector<Spark> = [],
+  riposted_at: integer = -1000000
 }
+
+/// How long a spark shows, small (a block) and big (a parry), and its size against a tile
+/// (proposed, to tune in play).
+const SPARK_MS = 120;
+const BIG_SPARK_MS = 200;
 
 
 
@@ -235,7 +257,7 @@ struct Sound {
 fn sound_events() -> vector<text> {
   ["step:5", "step_wood:5", "bump:1", "push_rock:3", "push_anvil:2", "cart:3", "wood:3",
    "climb_up:1", "climb_down:1", "potion:1", "strong:1", "weak:1", "win:1", "begin:1",
-   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1", "grab:1"]
+   "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "block:1", "parry:1", "riposte:1", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1", "grab:1"]
 }
 
 // The play keys by hand (owner): WASD is the left hand, so its actions are the right hand's home
@@ -1647,6 +1669,8 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   winds = g.world.winds;
   parries = g.world.parries;
   misses = g.world.misses;
+  blocks = g.world.blocks;
+  ripostes = g.world.ripostes;
   rules::tick(g.world, ms);
   g.clock += ms;
   keep_time(g);
@@ -1654,8 +1678,44 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
   // is a swish.  While any enemy winds up, the picture moves.
   if g.world.winds != winds { sound(g, "grab", 0.35); }
-  if g.world.parries != parries { sound(g, "sword", 1.0); }
   if g.world.misses != misses { sound(g, "bump", 0.4); }
+  // A parry (@GM-Combat): a bright ring and a big spark where the weapons meet; the enemy's blow
+  // turned aside flings it back twice as hard as a hit, and it is left open (drawn so).
+  if g.world.parries != parries {
+    sound(g, "parry", 1.0);
+    spark(g, true);
+    foe = rules::enemy_at(g.world, g.world.hero_x + g.world.face_x, g.world.hero_y + g.world.face_y, g.world.hero_z);
+    fe = if foe >= 0 { g.world.enemies[foe] } else { null };
+    if fe {
+      for i in 0..len(g.movers) {
+        if (g.movers[i].id ?? 0) == fe.id {
+          motion::stagger(g.movers[i].motion, g.world.now, g.world.face_x, g.world.face_y, 0, 0, fe.face_x, fe.face_y, 2);
+        }
+      }
+    }
+    changed = true;
+  }
+  // A block: a dull knock and a small spark; the enemy's strike is seen, and the hero, guard
+  // held, is pushed back — not staggered, even when the blow cost half its damage.
+  blocked = g.world.blocks != blocks;
+  if blocked {
+    sound(g, "block", 1.0);
+    spark(g, false);
+    foe = rules::enemy_at(g.world, g.world.hero_x + g.world.face_x, g.world.hero_y + g.world.face_y, g.world.hero_z);
+    fe = if foe >= 0 { g.world.enemies[foe] } else { null };
+    if fe {
+      for i in 0..len(g.movers) {
+        if (g.movers[i].id ?? 0) == fe.id { motion::swing(g.movers[i].motion, g.world.now); }
+      }
+    }
+    motion::brace(g.motion, g.world.now, -g.world.face_x, -g.world.face_y);
+    changed = true;
+  }
+  // A riposte: a heavy crack, and the enemy reels twice as far (follow_enemies).
+  if g.world.ripostes != ripostes {
+    sound(g, "riposte", 1.0);
+    g.riposted_at = g.world.now;
+  }
   for e in g.world.enemies { if e.wind_until > g.world.now { changed = true; } }
   // A rolling cart is heard before it is seen: every cell it rolls rumbles; a hit hurts.
   if g.world.rolled != rolled {
@@ -1678,8 +1738,13 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     sound(g, "explosion", 1.0);
     changed = true;
   }
-  if rules::blasting(g.world) || len(g.world.enemies) > 0 || g.world.aiming { changed = true; }
-  if g.world.health + g.world.spirit < health {
+  if rules::blasting(g.world) || len(g.world.enemies) > 0 || g.world.aiming || len(g.sparks) > 0 { changed = true; }
+  // Wounded, the hero sways: the picture moves.
+  if hurt(g.world.health, g.world.k.health) { changed = true; }
+  if g.world.health + g.world.spirit < health && blocked {
+    // Half a blow came through the guard: heard, not staggered.
+    sound(g, "hit_hero", 0.5);
+  } else if g.world.health + g.world.spirit < health {
     sound(g, "hit_hero", 1.0);
     changed = true;
     // A bite: the enemies beside the hero, facing it, lunge.
@@ -1744,8 +1809,14 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   // held, a block; the moment it goes down, a parry.
   still = !g.keys.is_action_pressed("left") && !g.keys.is_action_pressed("right")
           && !g.keys.is_action_pressed("up") && !g.keys.is_action_pressed("down");
+  guarding = g.world.blocking;
   g.world.blocking = still && g.keys.is_action_pressed("pull");
-  if !g.won && still && g.keys.is_action_just_pressed("pull") { rules::parry(g.world); }
+  if g.world.blocking != guarding { changed = true; }
+  if !g.won && still && g.keys.is_action_just_pressed("pull") {
+    rules::parry(g.world);
+    motion::flick(g.motion, g.world.now);
+    changed = true;
+  }
   if !g.won && g.keys.is_action_just_pressed("drop") {
     if rules::drop(g.world) == rules::Step.Placed {
       g.moves += 1;
@@ -1987,7 +2058,7 @@ fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y
 // The picture of cell (x, y, z)'s terrain kind: a rail cell the piece of track its joins name
 // (what a cart follows is what is seen); a line (a fence) across or along its neighbours of
 // the same kind; a material's cell its own picture (its tile number); any other the kind's look.
-fn kind_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean) -> integer {
+pub fn kind_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: integer, upper: boolean) -> integer {
   k = tile_world::terrain(w.w, x, y, z);
   own = theme::tile_sprite(g.look, tile_world::tile(w.w, x, y, z));
   track = if rules::is_rail(w, k) && own < 0 { theme::track_sprite(g.look, rules::joins(w, x, y, z)) } else { -1 };
@@ -1995,6 +2066,14 @@ fn kind_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: 
   if theme::is_line(g.look, k) {
     across = tile_world::terrain(w.w, x - 1, y, z) == k || tile_world::terrain(w.w, x + 1, y, z) == k;
     return theme::line_sprite(g.look, k, across);
+  }
+  // A door to a place that is shut until something holds (C9, the barn) is drawn closed.
+  if k == rules::tr(w, "open_door") {
+    for d in g.file.doors {
+      if d.x == x && d.y == y && d.z == z && d.needs != "" && !rules::holds(w, d.needs) {
+        return theme::terrain_sprite(g.look, rules::tr(w, "door"), x, y, upper);
+      }
+    }
   }
   if own >= 0 { own } else { theme::terrain_sprite(g.look, k, x, y, upper) }
 }
@@ -2063,7 +2142,9 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     for mv in g.movers { if mv.id == e.id { m = mv.motion; } }
     pose = motion::pose(m, e.face_x, e.face_y, w.now);
     fine = motion::fine_pose(m, e.face_x, e.face_y, w.now);
-    // Winding up a blow (@GM-Combat), it draws back, further as the moment nears: the tell.
+    // Winding up a blow (@GM-Combat), it draws back, further as the moment nears: the tell.  Its
+    // weapon goes back as a swing's wind-up does — or, a sweep that cannot be parried, far back
+    // level: the two read apart.
     if e.wind_until > w.now {
       span = enemy_windup(w, e.kind);
       left = e.wind_until - w.now;
@@ -2072,15 +2153,25 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
       pose.y -= e.face_y * back;
       fine.x -= (e.face_x * back) as float;
       fine.y -= (e.face_y * back) as float;
+      frac = if span > 0 { ((span - left) as float) / (span as float) } else { 1.0 };
+      motion::windup(fine, e.face_x, e.face_y, frac, rules::sweeps(w, e.kind));
     }
+    // Left open by a parry: off balance, its weapon hanging — the moment for a riposte.
+    if e.open_until > w.now && !motion::busy(m, w.now) { motion::open(fine, e.face_x, e.face_y); }
+    if hurt(e.hp, rules::hp_of(w, e.kind)) { motion::wounded(fine, w.now, !motion::busy(m, w.now)); }
     out += [Figure { x: e.x, y: e.y, h: tile_world::rise(w.w, e.x, e.y, z), sprite: theme::enemy_sprite(g.look, e.kind),
                      item: e.item, low: false, face_x: e.face_x, face_y: e.face_y, pose: pose, fine: fine }];
   }
   if w.hero_z == z {
+    fine = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+    // Guarding (@GM-Combat): the weapon across the body, held through a blow's push (a brace).
+    braced = g.motion.act == motion::Act.Brace || !motion::busy(g.motion, w.now);
+    if w.blocking && braced { motion::guard(fine, w.face_x, w.face_y); }
+    if hurt(w.health, w.k.health) { motion::wounded(fine, w.now, !motion::busy(g.motion, w.now)); }
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
                      pose: motion::pose(g.motion, w.face_x, w.face_y, w.now),
-                     fine: motion::fine_pose(g.motion, w.face_x, w.face_y, w.now), shoulder: w.shoulder }];
+                     fine: fine, shoulder: w.shoulder }];
   }
   out
 }
@@ -2248,22 +2339,67 @@ fn draw_bow(g: Game) {
 
 // Each enemy's motion, from how it changed since it was last drawn: a step glides, a blow
 // staggers it away from the hero, a bite (beside the hero, facing it, the hero hurt) lunges.
-fn follow_enemies(g: Game) {
+// Weapons met (@GM-Combat): a spark between the hero and the cell it faces, from now.
+fn spark(g: Game, big: boolean) {
+  w = g.world;
+  g.sparks += [Spark { x: w.hero_x, y: w.hero_y, z: w.hero_z, fx: w.face_x, fy: w.face_y, start: w.now, big: big }];
+}
+
+// Wounded: a third of the full health or less (proposed), and still alive.
+fn hurt(health: integer, full: integer) -> boolean {
+  health > 0 && health * 3 <= full
+}
+
+// The sparks on layer z still showing — the blast's flash, small for a block, larger for a
+// parry, shrinking as it fades — and the ones over dropped.
+fn draw_sparks(g: Game, z: integer) {
+  w = g.world;
+  ts = g.look.tile_size;
+  kept: vector<Spark> = [];
+  for sp in g.sparks {
+    n = if sp.big { BIG_SPARK_MS } else { SPARK_MS };
+    e = w.now - sp.start;
+    if e < 0 || e >= n { continue; }
+    kept += [sp];
+    if sp.z != z { continue; }
+    top = if sp.big { 0.8 } else { 0.5 };
+    scale = top * (1.0 - 0.5 * (e as float) / (n as float));
+    cx = ((sp.x - g.cam_x) * ts + ts / 2 + sp.fx * ts / 2) as float;
+    // At the hands' height, the middle of the cell, on its own layer's lift (a tile a layer up) —
+    // not the last layer drawn's.
+    cy = ((sp.y - g.cam_y) * ts - sp.z * ts + ts / 2 + sp.fy * ts / 2) as float;
+    theme::put_scaled(g.surface, g.look, theme::blast_sprite(g.look, 0, 1), cx, cy, scale, 0);
+  }
+  g.sparks = kept;
+}
+
+/// How enemy `id` moves on screen (still when it has not been drawn yet).
+pub fn motion_of(g: const Game, id: integer) -> motion::Motion {
+  for mv in g.movers { if mv.id == id { return mv.motion; } }
+  motion::still()
+}
+
+pub fn follow_enemies(g: Game) {
   w = g.world;
   now = w.now;
   kept: vector<Mover> = [];
   for e in w.enemies {
-    mv = Mover { id: e.id, motion: motion::still(), x: e.x, y: e.y, hp: e.hp };
+    mv = Mover { id: e.id, motion: motion::still(), x: e.x, y: e.y, hp: e.hp, led: e.led };
     for o in g.movers {
       if o.id == e.id {
         mv.motion = o.motion;
         if o.x != e.x || o.y != e.y {
           motion::walk(mv.motion, now, e.x - o.x, e.y - o.y, 0, e.face_x, e.face_y);
+        } else if o.led != e.led {
+          // Starting to follow the hero, or staying: a nod — a hop in place.
+          motion::walk(mv.motion, now, 0, 0, 0, e.face_x, e.face_y);
         }
         if e.hp < o.hp {
           kx = if e.x > w.hero_x { 1 } else if e.x < w.hero_x { -1 } else { 0 };
           ky = if kx != 0 { 0 } else if e.y > w.hero_y { 1 } else { -1 };
-          motion::stagger(mv.motion, now, kx, ky, 0, 0, e.face_x, e.face_y);
+          // A riposte just struck reels it twice as far (@GM-Combat).
+          force = if now - g.riposted_at <= motion::STAGGER_MS { 2 } else { 1 };
+          motion::stagger(mv.motion, now, kx, ky, 0, 0, e.face_x, e.face_y, force);
         }
       }
     }
@@ -2304,6 +2440,7 @@ pub fn draw(g: Game) {
       draw_layer(g, w, z + 1, true, true, true, 0, front);
     }
   }
+  draw_sparks(g, z);
   draw_bow(g);
   draw_talk(g);
   if g.won {

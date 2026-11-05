@@ -839,10 +839,13 @@ pub struct Level {
   pub stepped_at: integer = -1000000,
   pub step_x: integer = 0,
   pub step_y: integer = 0,
-  /// How many blows enemies have wound up, struck, missed and had parried (the game plays them).
+  /// How many blows enemies have wound up, struck, missed, had parried and had blocked, and how
+  /// many ripostes the hero struck (the game plays and draws them).
   pub winds: integer = 0,
   pub misses: integer = 0,
   pub parries: integer = 0,
+  pub blocks: integer = 0,
+  pub ripostes: integer = 0,
   /// A potion's healing comes over time (owner): the health and the spirit still to come, a point
   /// of each every POTION_MS, the next at heal_due (0: none coming); `drunk` counts potions drunk.
   pub heal_left: integer = 0,
@@ -1385,7 +1388,10 @@ fn land(l: Level, dx: integer, dy: integer, heavy: boolean) -> Step {
     riposte = e.open_until > l.now;
     n = blow_on(l, foe);
     if heavy || lunge || side { n += 1; }
-    if riposte { n *= 2; }
+    if riposte {
+      n *= 2;
+      l.ripostes += 1;
+    }
     if e.wind_until > 0 && (heavy || riposte || (!ep.poise && (lunge || side))) {
       l.enemies[foe].wind_until = 0;
       l.enemies[foe].due = l.now + ep.bite_ms;
@@ -5612,6 +5618,7 @@ fn strike(l: Level, i: integer, p: const EnemyProps) {
     return;
   }
   if l.blocking && faces(l, e) {
+    l.blocks += 1;
     total = p.bite + l.block_carry;
     l.block_carry = total % 2 ?? 0;
     harm(l, total / 2 ?? 0);
@@ -5623,6 +5630,15 @@ fn strike(l: Level, i: integer, p: const EnemyProps) {
 /// An enemy kind's wind-up, in ms (@GM-Combat).
 pub fn windup_of(l: const Level, kind: text) -> integer {
   enemy_props(l, kind).windup_ms
+}
+
+/// An enemy kind's full health, and whether its blows are sweeps (for drawing them).
+pub fn hp_of(l: const Level, kind: text) -> integer {
+  enemy_props(l, kind).hp
+}
+
+pub fn sweeps(l: const Level, kind: text) -> boolean {
+  enemy_props(l, kind).sweep
 }
 
 /// Does the hero hold a bomb (thrown, not swung)?
@@ -5648,6 +5664,9 @@ pub fn parry(l: Level) {
       soonest = e.wind_until;
     }
   }
+  // None winding up beside the hero: it keeps its facing.  (An index of -1 reads the last enemy,
+  // so the test comes first.)
+  if best < 0 { return; }
   b = l.enemies[best] ?? return;
   l.face_x = b.x - l.hero_x;
   l.face_y = b.y - l.hero_y;

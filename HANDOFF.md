@@ -59,14 +59,15 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   ground.  Verified: `tests/motion.loft` (every number by hand) and the facing and swing tests in
   `tests/moves.loft` on both backends; eight mutations (hop, trailing, sweep, knock, chaining,
   rock, facing, swinging without a weapon) each fail their test.  `tools/anim.loft OUT_DIR`
-  films a scene through the game's own drawing.  Pictures:
+  films a scene through the game's own drawing; `... OUT_DIR guard` the block, the parry and the
+  riposte with their poses and sparks (DESIGN.md @GM-Combat, *How it is seen*).  Pictures:
   `TW_SHOT=f.png [TW_LEVEL=1] [TW_MOVES="..."] [TW_CREDITS=1] loft --native --lib libs main.loft`.
 - **Design docs:** `DESIGN.md` (the game: principle, rules agreed, slices) and `EDITOR.md` (the
   in-game editor: model, file format, places, keys, checks, platforms, order of work).
 
 ## State 2026-11-05
 
-345 tests (`loft --lib libs --tests tests`) and 29 checks (`loft --lib libs checks/game.loft`),
+350 tests (`loft --lib libs --tests tests`) and 30 checks (`loft --lib libs checks/game.loft`),
 on the interpreter and `--native`.  Every mechanic of BUILD.md's phases A–C is built, each with a
 house in the demo village; still open there: WORLD.md step 3's regions, bands and coverage table,
 and a tribe acting across places (C3, C4).  The next phase is D, the story's places.

@@ -251,6 +251,24 @@ first blow later.*
 - **Fair and readable** (DESIGN.md § The principle): every wind-up is drawn and heard, every timing
   is fixed (deterministic, the same each time), and hurt stays rarely killing: the windows are
   generous at first and the fight rooms are where they are tuned.
+- **How it is seen** (built: `motion.loft`, `game.loft`; every pose and number proposed, to change
+  once played).  Nothing on screen says what happened; the figures show it (§ What the player sees):
+  - *Guard* (K held): the weapon turned across the body, drawn in, the hero crouched and leaning
+    back.  A blow on it: a dull knock, a small spark where the weapons meet, the attacker's strike
+    seen, and the hero pushed back two pixels with the guard held — a brace, never the stagger of a
+    hit, even when half the blow came through (heard, softer).  Empty-handed, the crouch and lean
+    alone.
+  - *Parry* (K tapped): the weapon flicks out from across the body past the facing.  Turned aside:
+    a bright ring, a big spark, the attacker flung back twice as hard as a hit; it is then drawn
+    *open* — off balance, its weapon hanging out past its stroke — for as long as a riposte is
+    possible.  Too early or late, the flick meets nothing and the blow lands: the timing is taught
+    by seeing it.  No glint marks the window: the wind-up's draw-back, furthest at the end, is the
+    cue.
+  - *Riposte*: a heavy crack, the enemy reeling twice as far.
+  - *Wind-ups*: an enemy raises its weapon back as the hero's swing does; a sweep, which cannot be
+    parried, swings it far back level instead, leaning further — the two read apart.
+  - *Wounded*: any figure at a third of its health or less sags a pixel and, standing, sways.
+  - Not built, to try in play: a hit-stop (the figures held still for a moment at a parry).
 
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
@@ -818,6 +836,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## What the player sees
 
+- **What happens is shown by the world** (built, proposed): combat in § @GM-Combat's *How it is
+  seen*; a door shut until something holds (the barn) is drawn closed; a person who starts or
+  stops following the hero nods (a hop in place).
 - **Almost nothing on the screen** (owner, 2026-11-05).  The story game has a minimal UI: no time,
   seconds, moves or gold on screen, and most of the rest taken off too — how is still to be worked
   out.  The demo world keeps its status line as a test bench.  So a mechanic is presented by the

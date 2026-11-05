@@ -7,7 +7,10 @@
 //                                                    beside a rock, a chair and a stick; `rat`: a rat
 //                                                    comes at the hero, is struck and flees home;
 //                                                    `bow`: aim, shoot a bat over water and a spider
-//                                                    on a wall
+//                                                    on a wall; `guard`: K held through a rat's
+//                                                    bite (a block), tapped in its next wind-up (a
+//                                                    parry), a riposte — the hero wounded, a
+//                                                    cyclops winding up a sweep below
 use tile_world;
 use rules;
 use game;
@@ -19,8 +22,10 @@ fn main() {
   bomb = false;
   rat = false;
   bow = false;
+  guard = false;
   for a in arguments() {
-    if a == "bomb" { bomb = true; } else if a == "rat" { rat = true; } else if a == "bow" { bow = true; } else { dir = a; }
+    if a == "bomb" { bomb = true; } else if a == "rat" { rat = true; } else if a == "bow" { bow = true; }
+    else if a == "guard" { guard = true; } else { dir = a; }
   }
   m = game::new_game("..");
   if !m { println("the game does not load"); exit(1); }
@@ -79,6 +84,23 @@ fn main() {
     w.enemies[1].due = 100000;
     script = [(3, "t"), (6, "s"), (24, "t"), (28, "s"), (40, "s")];
   }
+  if guard {
+    tile_world::fill(w.w, 0, 0, 7, 5, 0, rules::tr(w, "floor"));
+    _ = tile_world::take(w.w, 3, 3, 0);
+    _ = tile_world::take(w.w, 3, 3, 0);
+    rules::put_hero(w, 1, 1, 0);
+    w.face_x = 1;
+    w.face_y = 0;
+    w.health = 2;
+    _ = rules::add_enemy(w, "rat", 2, 1, 0);
+    // Tough enough to outlive the riposte, so its open pose and its reel are seen.
+    w.enemies[0].hp = 20;
+    _ = rules::add_enemy(w, "cyclops", 2, 4, 0);
+    w.enemies[1].face_x = 1;
+    w.enemies[1].face_y = 0;
+    film_guard(g, dir);
+    return;
+  }
   n = 0;
   for f in 0..72 {
     for a in script {
@@ -98,4 +120,40 @@ fn main() {
     n += 1;
   }
   println("{n} frames in {dir}");
+}
+
+// The guard scene, played through the game's own keys and update (the reactions live there): K
+// pressed and held until the rat's bite has landed on it and a little longer; let go; K tapped
+// in the rat's next wind-up, 100 ms before it lands; a swing at the open rat — a riposte.  The
+// cyclops below, nothing beside it, winds up its sweep at the empty cell it faces.
+fn film_guard(g: game::Game, dir: text) {
+  up: vector<boolean> = [];
+  for _ in 0..256 { up += [false]; }
+  down = up;
+  down[107] = true;
+  t = 0;
+  held = true;
+  after_block = -1;
+  parried = -1;
+  for f in 0..90 {
+    w = g.world;
+    if held { g.keys.input_tick_from_state(down, 0.0, 0.0, 0, 0); }
+    else { g.keys.input_tick_from_state(up, 0.0, 0.0, 0, 0); }
+    if w.blocks > 0 && after_block < 0 { after_block = f; }
+    if after_block >= 0 && f == after_block + 8 { held = false; }
+    if !held && parried < 0 && w.blocks > 0 {
+      e = w.enemies[0];
+      if e && e.wind_until > 0 && e.wind_until - w.now <= 100 {
+        g.keys.input_tick_from_state(down, 0.0, 0.0, 0, 0);
+        parried = f;
+      }
+    }
+    if parried >= 0 && f == parried + 6 { game::swing(g); }
+    t += FRAME;
+    _ = game::update(g, FRAME, t);
+    game::draw(g);
+    name = "{dir}/frame_{if f < 10 { "00" } else if f < 100 { "0" } else { "" }}{f}.png";
+    if !game::snapshot(g, name, 3) { println("could not write {name}"); exit(1); }
+  }
+  println("blocked at frame {after_block}, parried at {parried}; {g.world.blocks} blocks, {g.world.parries} parries, {g.world.ripostes} ripostes");
 }
