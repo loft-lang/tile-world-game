@@ -75,6 +75,12 @@ pub const COLLAPSE_CELLS = 3;
 /// How far people see the hero (BUILD.md C2b; proposed): within SEE_CELLS in sight when it is lit
 /// — daylight, a flame near, its own torch — and within 2 in the dark, as the Kharn do.
 pub const SEE_CELLS = 6;
+
+/// The directed blast (DESIGN.md § Bombs; proposed numbers): its air goes DIRECT_REACH cells out of
+/// the dyke's open side (an ordinary blast reaches blast_radius); a stone falls on a free unstable
+/// cell (a cave-in, below) CAVE_MS after it is free.
+pub const DIRECT_REACH = 5;
+pub const CAVE_MS = 1000;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -103,6 +109,11 @@ struct TerrainProps {
   /// A standing beam (BUILD.md B2b): it holds the tunnel beyond it up; a pick takes it out — a
   /// beam left on its cell, the tunnel beyond collapsing into rubble.
   props: boolean = false,
+  /// A door held shut by a beam (owner, 2026-11-05), on the side it opens towards — which side
+  /// each one's beam is on, the level's `bars` say (tile_world holds sixteen terrain kinds, too
+  /// few for one a side): lifted from there it is `lifts_to` (a closed door) and a beam.
+  barred: boolean = false,
+  lifts_to: text = "",
   glyph: text
 }
 
@@ -353,6 +364,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
       hits: num(e, "hits", 1), drops: word(e, "drops", ""),
       saves: flag(e, "saves"), water: flag(e, "water"), rough: flag(e, "rough"), props: flag(e, "props"),
+      barred: flag(e, "barred"), lifts_to: word(e, "lifts_to", ""),
       glyph: word(e, "glyph", "?")
     }];
   }
@@ -518,6 +530,23 @@ pub struct Route {
   pub points: vector<RoutePoint>
 }
 
+/// A cell where the roof no longer holds (DESIGN.md § Bombs: a span widened by blasting keeps
+/// gathering stones): the next stone falls at `at`, -1 while something stands there.
+/// Where the beam of a door held shut lies: the door's cell and the side, "N", "E", "S" or "W".
+pub struct Bar {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub side: text
+}
+
+pub struct Fall {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub at: integer
+}
+
 pub struct Flame {
   pub x: integer,
   pub y: integer,
@@ -663,6 +692,10 @@ pub struct Level {
   pub facts: vector<text> = [],
   /// The people's days: who keeps to which points when (C3).
   pub routes: vector<Route> = [],
+  /// Where the roof no longer holds: a stone falls there whenever it is free.
+  pub falls: vector<Fall> = [],
+  /// The doors held shut by a beam, and the side each beam is on.
+  pub bars: vector<Bar> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -815,6 +848,8 @@ pub enum Step {
   Drank,
   /// The hero's pick did the mine's work: rubble into a cart, a beam out, a barricade apart.
   Picked,
+  /// The hero lifted the beam holding a door shut, from its side.
+  Lifted,
   /// A full cart bumped from the side tipped its load out.
   Unloaded,
   /// The hero struck an enemy (walking into it, or swinging at it).
@@ -1903,8 +1938,8 @@ fn follow_route(l: Level, i: integer, e: const Enemy, p: const EnemyProps, k: in
 }
 
 /// The cells that would not hold (owner, 2026-11-05: a cave has a dome, a tunnel walls beside it):
-/// one the hero could stand in, with something set on the layer right above it — a ceiling — and
-/// no wall (an opaque cell) among its eight neighbours.  A one-wide tunnel and a dome hold; a
+/// one the hero could stand in, with rock (an opaque cell) right above it — a ceiling — and no
+/// wall (an opaque cell) among its eight neighbours.  A one-wide tunnel and a dome hold; a
 /// span under a level ceiling, wider than a cell from its walls, does not.  The check for a
 /// drawn place (tools/stable.loft); the cave-in that will act on it is not built yet.
 pub fn unsupported(l: const Level) -> vector<(integer, integer, integer)> {
@@ -1915,20 +1950,25 @@ pub fn unsupported(l: const Level) -> vector<(integer, integer, integer)> {
         for i in 0..32 {
           x = c.0 * 32 + i;
           y = c.1 * 32 + j;
-          if !tile_world::is_set(l.w, x, y, z) || !walkable(l, tile_world::terrain(l.w, x, y, z)) { continue; }
-          if !tile_world::is_set(l.w, x, y, z + 1) || tile_world::terrain(l.w, x, y, z + 1) == VOID { continue; }
-          held = false;
-          for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-            k = tile_world::terrain(l.w, x + o.0, y + o.1, z);
-            p = l.k.terrain[k];
-            if p && p.opaque { held = true; }
-          }
-          if !held { out += [(x, y, z)]; }
+          if unsupported_at(l, x, y, z) { out += [(x, y, z)]; }
         }
       }
     }
   }
   out
+}
+
+// Does (x, y, z) not hold: a cell the hero could stand in, rock above it, no wall beside it?
+fn unsupported_at(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  if !tile_world::is_set(l.w, x, y, z) || !walkable(l, tile_world::terrain(l.w, x, y, z)) { return false; }
+  // A ceiling is rock: an opaque cell above (a floor or a bridge up there is no ceiling).
+  up = l.k.terrain[tile_world::terrain(l.w, x, y, z + 1)];
+  if !tile_world::is_set(l.w, x, y, z + 1) || !up || !up.opaque { return false; }
+  for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+    p = l.k.terrain[tile_world::terrain(l.w, x + o.0, y + o.1, z)];
+    if p && p.opaque { return false; }
+  }
+  true
 }
 
 /// Is fact `f` known?
@@ -2049,6 +2089,14 @@ fn mine_work(l: Level, thing: integer, tx: integer, ty: integer, z: integer, dx:
   p = l.k.things[thing];
   if thing == 0 || !p { return Step.Blocked; }
   alone = tile_world::top(l.w, tx, ty, z) == thing;
+  // A burning torch over a stone (owner): a bomb lying right behind the stone the hero walks into
+  // goes off at once — the only way to light one safely, the stone between (a full dyke directs
+  // the blast away from the hero).
+  if p.rubble && is_flame(l, l.hero_item) && is_bomb(l, tile_world::top(l.w, tx + dx, ty + dy, z))
+      && bomb_rolling_at(l, tx + dx, ty + dy, z) < 0 {
+    impact(l, tx + dx, ty + dy, z, l.now);
+    return Step.Lit;
+  }
   // Rubble, the pick held, an empty cart beside the hero: cleared into the cart (owner).
   if p.rubble && holds_pick(l) && alone {
     o = empty_cart_beside(l, dx, dy);
@@ -2184,6 +2232,7 @@ fn step_world(l: Level) {
   arrows_due(l);
   queued_blow(l);
   heal_due(l);
+  falls_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -2199,6 +2248,7 @@ fn next_due(l: const Level) -> integer {
   for f in l.flames { if f.until > l.now && (t < 0 || f.until < t) { t = f.until; } }
   if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
   if l.heal_due > l.now && (t < 0 || l.heal_due < t) { t = l.heal_due; }
+  for f in l.falls { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
   if l.queued && l.blow_until > l.now && (t < 0 || l.blow_until < t) { t = l.blow_until; }
   t
 }
@@ -2676,6 +2726,17 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // A well saves the situation (the game keeps it); the hero stays where it is.
   here = l.k.terrain[kind];
   if here && here.saves { return if clear_area(l) { Step.Saved } else { Step.Watched }; }
+  // A door held shut by a beam: from the beam's side the hero lifts it — a closed door, and a beam
+  // (in the hand when it is empty, else at its feet); from any other side it does not give.
+  bar = l.k.terrain[kind];
+  if bar && bar.barred {
+    if way_of(bar_side(l, tx, ty, z)) != (-dx, -dy) { return Step.Blocked; }
+    tile_world::set_terrain(l.w, tx, ty, z, terrain_id(l.k, bar.lifts_to));
+    beam = th(l, "beam");
+    if l.hero_item == 0 { l.hero_item = beam; }
+    else if tile_world::top(l.w, l.hero_x, l.hero_y, z) == 0 { tile_world::place(l.w, l.hero_x, l.hero_y, z, beam); }
+    return Step.Lifted;
+  }
   // A closed door opens; the hero stays where it is.
   open = opens_to(l, kind);
   if open != 0 {
@@ -3531,6 +3592,125 @@ pub fn blast_reach(l: const Level, x: integer, y: integer, z: integer) -> vector
   out
 }
 
+// The side the beam of the door held shut on (x, y, z) is on ("" for none listed).
+fn bar_side(l: const Level, x: integer, y: integer, z: integer) -> text {
+  for b in l.bars { if b.x == x && b.y == y && b.z == z { return b.side; } }
+  ""
+}
+
+// The side letter's way: "N" (0, -1), "E" (1, 0), "S" (0, 1), "W" (-1, 0).
+fn way_of(side: text) -> (integer, integer) {
+  if side == "N" { (0, -1) } else if side == "E" { (1, 0) } else if side == "S" { (0, 1) } else if side == "W" { (-1, 0) } else { (0, 0) }
+}
+
+// Is a stone (rubble: a rock) the big thing on (x, y, z)?
+fn stone_at(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  p = l.k.things[base(l, x, y, z)];
+  p && p.rubble
+}
+
+/// The way a full dyke round a bomb on (x, y, z) directs its blast (owner, 2026-11-05): the way
+/// (north, east, south, west, in that order) whose five cells round the bomb that are not ahead of
+/// it — behind, beside, and behind on the slant — all hold a stone, the cell straight ahead not:
+/// five stones, touching one another.  (0, 0) for none: a partial dyke directs nothing.
+pub fn dyke_way(l: const Level, x: integer, y: integer, z: integer) -> (integer, integer) {
+  for w in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    if stone_at(l, x + w.0, y + w.1, z) { continue; }
+    full = true;
+    for o in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
+      if o.0 * w.0 + o.1 * w.1 <= 0 && !stone_at(l, x + o.0, y + o.1, z) { full = false; }
+    }
+    if full { return w; }
+  }
+  (0, 0)
+}
+
+// Where a directed blast on (x, y, z) reaches, out the way `w`: as an ordinary one spreads, walls
+// stopping it, up to DIRECT_REACH steps — but only ahead of the bomb (the dyke holding the rest).
+fn directed_reach(l: const Level, x: integer, y: integer, z: integer, w: (integer, integer)) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [(x, y, 0)];
+  i = 0;
+  while i < len(out) {
+    c = out[i] ?? (x, y, 0);
+    i += 1;
+    if c.2 >= DIRECT_REACH { continue; }
+    if c.2 > 0 && opaque_kind(l, tile_world::terrain(l.w, c.0, c.1, z)) { continue; }
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      if (nx - x) * w.0 + (ny - y) * w.1 <= 0 { continue; }
+      if !hero_crosses(l, c.0, c.1, z, d.0, d.1) && !opaque_kind(l, tile_world::terrain(l.w, nx, ny, z)) { continue; }
+      seen = false;
+      for o in out { if o.0 == nx && o.1 == ny { seen = true; } }
+      if !seen { out += [(nx, ny, c.2 + 1)]; }
+    }
+  }
+  out
+}
+
+// A directed blast's work straight ahead (owner): the first wall within reach cracks — rubble, a
+// stone on floor (proposed) — or a door there (held shut or not) is blown out, open; one a blast.
+// Round a crack, the cells that no longer hold start to cave in.
+fn crack_ahead(l: Level, x: integer, y: integer, z: integer, w: (integer, integer)) {
+  for k in 1..=DIRECT_REACH {
+    cx = x + w.0 * k;
+    cy = y + w.1 * k;
+    kind = tile_world::terrain(l.w, cx, cy, z);
+    if !opaque_kind(l, kind) { continue; }
+    p = l.k.terrain[kind];
+    if p && (p.barred || p.opens_to != "") {
+      tile_world::set_terrain(l.w, cx, cy, z, tr(l, "open_door"));
+      return;
+    }
+    tile_world::set_terrain(l.w, cx, cy, z, tr(l, "floor"));
+    if tile_world::top(l.w, cx, cy, z) == 0 { tile_world::place(l.w, cx, cy, z, th(l, "rock")); }
+    cave_in_round(l, cx, cy, z);
+    return;
+  }
+}
+
+// Round a crack on (x, y, z): every cell within 2 that no longer holds keeps gathering stones.
+fn cave_in_round(l: Level, x: integer, y: integer, z: integer) {
+  for dy in -2..=2 {
+    for dx in -2..=2 {
+      cx = x + dx;
+      cy = y + dy;
+      if !unsupported_at(l, cx, cy, z) { continue; }
+      known = false;
+      for f in l.falls { if f.x == cx && f.y == cy && f.z == z { known = true; } }
+      if !known { l.falls += [Fall { x: cx, y: cy, z: z, at: -1 }]; }
+    }
+  }
+}
+
+// Is (x, y, z) free for a falling stone: nothing on it, no enemy, not the hero?
+fn fall_free(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  tile_world::top(l.w, x, y, z) == 0 && enemy_at(l, x, y, z) < 0 && !(l.hero_x == x && l.hero_y == y && l.hero_z == z)
+}
+
+// The cave-ins due by now: a stone falls on each free unstable cell CAVE_MS after it is free; one
+// where the hero stands strikes it (1) instead, and falls again a CAVE_MS later.
+fn falls_due(l: Level) {
+  for i in 0..len(l.falls) {
+    f = l.falls[i] ?? continue;
+    here = l.hero_x == f.x && l.hero_y == f.y && l.hero_z == f.z;
+    if f.at < 0 {
+      if fall_free(l, f.x, f.y, f.z) || here { l.falls[i].at = l.now + CAVE_MS; }
+      continue;
+    }
+    if f.at > l.now { continue; }
+    if here {
+      harm(l, 1);
+      l.falls[i].at = l.now + CAVE_MS;
+    } else if fall_free(l, f.x, f.y, f.z) {
+      tile_world::place(l.w, f.x, f.y, f.z, th(l, "rock"));
+      l.falls[i].at = -1;
+    } else {
+      l.falls[i].at = -1;
+    }
+  }
+}
+
 // The way something on (x, y) is pushed from a blast centred on (bx, by): along the axis it lies
 // further from the centre on; on an even diagonal the side the place prefers; at the centre
 // itself, back from the way it faces (the hero) or as the place prefers.
@@ -3589,7 +3769,11 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
       l.enemies[i].scare_y = y;
     }
   }
-  reach = blast_reach(l, x, y, z);
+  // A full dyke round the bomb directs it (owner): out of its open side only, further and harder;
+  // the dyke's stones hold.
+  way = if water { (0, 0) } else { dyke_way(l, x, y, z) };
+  directed = way != (0, 0);
+  reach = if directed { directed_reach(l, x, y, z, way) } else { blast_reach(l, x, y, z) };
   n = len(reach);
   hero_d = -1;
   k = n - 1;
@@ -3599,10 +3783,12 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
     cx = c.0;
     cy = c.1;
     d = c.2;
-    if l.hero_x == cx && l.hero_y == cy && l.hero_z == z { hero_d = d; }
+    // Directed, everything is struck one stronger: as if a step nearer.
+    sd = if directed && d > 0 { d - 1 } else { d };
+    if l.hero_x == cx && l.hero_y == cy && l.hero_z == z { hero_d = sd; }
     foe = enemy_at(l, cx, cy, z);
     if foe >= 0 && !enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).guard {
-      strike_enemy(l, foe, 4 - d);
+      strike_enemy(l, foe, 4 - sd);
     }
     t = tile_world::top(l.w, cx, cy, z);
     // Bombs within two go off a ripple later — lying, or rolling.
@@ -3648,10 +3834,12 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
     }
     // What lies and stands here is thrown away from the blast (not what hangs on a wall).
     if d >= 1 && !opaque_kind(l, tile_world::terrain(l.w, cx, cy, z)) {
-      a = away(l, x, y, cx, cy, z);
-      blast_moves(l, cx, cy, z, a.0, a.1, d, at);
+      a = if directed { way } else { away(l, x, y, cx, cy, z) };
+      blast_moves(l, cx, cy, z, a.0, a.1, sd, at);
     }
   }
+  // Directed, the first wall straight ahead cracks, or a door there is blown out.
+  if directed { crack_ahead(l, x, y, z, way); }
   if hero_d < 0 { return; }
   // The hero: a bomb it holds goes off a ripple later in its hands; a flame it holds goes out in
   // water; it is hurt 4 - d and pushed away 5 - d cells.
@@ -3666,7 +3854,7 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
     }
   }
   harm(l, 4 - hero_d);
-  a = away(l, x, y, l.hero_x, l.hero_y, z);
+  a = if directed { way } else { away(l, x, y, l.hero_x, l.hero_y, z) };
   blown(l, a.0, a.1, 5 - hero_d);
 }
 

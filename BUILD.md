@@ -96,6 +96,12 @@ its tests on both backends.
   hero's side untouched; a held flame lights a tar barrel (it burns as a torch does, then is gone);
   the lit barrel pushed against the barricade sets it burning, gone in 3 s; taken apart, its second
   beam goes beside it, else at the hero's feet.
+- **B2c. The directed blast and the cave-in — built** (the demo's *blasting* house;
+  `tests/blasting.loft`, `tests/places.loft`).  The owner's rules (DESIGN.md § Bombs): a full dyke
+  of five stones round a bomb directs it out of its open side, further and harder, the dyke
+  holding; lit over a stone with a burning torch, at once; it cracks the first wall ahead and blows
+  out a door, also one held shut by a beam (lifted from the beam's side, `bars` in the level);
+  a span it widens under rock keeps gathering stones.  The proposals taken are listed there.
 - **B3. The cart lift.**  A platform between layers carrying its stack, sent by a lever (or an
   arrow), moving only with its shaft clear, its rails joining the track at each stop.  Room: *the
   lift*.  Ruled first: its speed; riding it with no cart.  Red: a new `tests/lift.loft`.

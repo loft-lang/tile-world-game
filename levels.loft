@@ -251,6 +251,12 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
       home: d.field("home").as_bool() ?? false
     }];
   }
+  // The doors held shut by a beam (DESIGN.md § Bombs): each cell, and the side its beam is on.
+  bv = v.field("bars");
+  for i in 0..bv.len() {
+    b = bv.item(i);
+    l.bars += [rules::Bar { x: num(b.item(0), 0), y: num(b.item(1), 0), z: num(b.item(2), 0), side: b.item(3).as_text() }];
+  }
   // The people's days (C3): each by where they nest, its cycle and its points.
   rv = v.field("routes");
   for i in 0..rv.len() {
@@ -576,6 +582,16 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     out += "\n  ],";
   }
   if len(lf.talks) > 0 { out += "\n  \"talks\": {talk::json(lf.talks)},"; }
+  if len(lf.level.bars) > 0 {
+    out += "\n  \"bars\": [";
+    first = true;
+    for b in lf.level.bars {
+      out += if first { " " } else { ", " };
+      out += "[{b.x}, {b.y}, {b.z}, {quoted(b.side)}]";
+      first = false;
+    }
+    out += " ],";
+  }
   if len(lf.level.routes) > 0 {
     out += "\n  \"routes\": [";
     first = true;

@@ -674,7 +674,7 @@ fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
   w = g.world;
   if step == rules::Step.Blocked || step == rules::Step.Watched || step == rules::Step.Struggled {
     sound(g, "bump", 0.5);
-  } else if step == rules::Step.Took {
+  } else if step == rules::Step.Took || step == rules::Step.Lifted {
     sound(g, "pickup");
   } else if step == rules::Step.Chopped || step == rules::Step.Picked {
     sound(g, "chop");

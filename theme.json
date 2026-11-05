@@ -79,7 +79,8 @@
     "prop": { "upright": true,
       "under": "floor",
       "tile": "town:47"
-    }
+    },
+    "barred": { "upright": true, "tile": "world:78" }
   },
   "things": {
     "cart": {

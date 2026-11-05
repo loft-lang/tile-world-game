@@ -95,6 +95,10 @@ published.  It is not a required check.  Publishing waits for the owner's go.
   - DOME: a natural cave drawn with the kit's `domes` (walls stepping in a cell a layer, the north
     one straight for two); stairs up beside the way in, two layers, and a plank bridge across the
     cave to a chest.  `tools/stable.loft the_dome` says it holds.
+  - BLASTING: lift the beam of the way in; in the chamber put a bomb down, push five stones round
+    it (behind and beside, open ahead), take the torch and walk into the back stone: the north wall
+    cracks into a covered tunnel (a chest); three cracks side by side and its middle caves in, again
+    and again; a dyke facing the east door blows it open (a chest).
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

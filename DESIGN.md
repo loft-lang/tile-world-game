@@ -554,6 +554,18 @@ on water, and things pushed or blown into it are lost.
       holds (walls beside every cell); a dome holds (above its inner cells the cave goes on up, no
       ceiling there; above its edge cells the stepped-in wall, with a wall beside them); a tunnel
       blasted three wide does not (its middle has the level ceiling above and no wall beside).
+    - **Built** (BUILD.md B2c; `tests/blasting.loft`, the demo's blasting house), with these
+      proposals, to tune in play: a dyke is checked for the ways north, east, south, west in
+      turn; the directed blast strikes only the cells ahead, all pushed that way, out to 5 steps,
+      each as if a step nearer; lit over a stone it goes off at once, whatever set it off; the
+      first wall straight ahead cracks into a stone on floor, a door there (held shut or not) is
+      blown open; a beam lifted comes away whole (in the hand, else at the feet); a ceiling is
+      rock above (a floor or a bridge up there is none); a stone falls on a free unstable cell
+      1000 ms after it is free, and strikes the hero standing there (1).  The cave-in acts where a
+      crack leaves cells unsupported — within 2 of it — never on a place as it was drawn: the
+      early dungeons, flat under a cover of wall for their dark (the cyclops hall, the old mine,
+      the torch room), stay as they are; `tools/stable.loft` shows what blasting there would
+      bring down.
   - **Small items in the blast** (proposed).  They are light, so they fly further: speed 4 - d + 1,
     a cell a step, in the same "away".  They stop at the cell before a wall or a big thing; over
     a drop they fall (and come to rest, roll off, or are lost, as any falling item); landing on

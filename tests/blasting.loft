@@ -1,0 +1,139 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The directed blast and the cave-in (DESIGN.md § Bombs; the owner, 2026-11-05).  A full dyke — five
+// stones round a bomb, touching one another, open ahead — directs it: out of the open side only, a
+// reach of 5, everything one stronger; the dyke holds; the first wall straight ahead cracks (a
+// stone on floor) or a door there is blown out.  It is lit over a stone with a burning torch, and
+// goes off at once.  A partial dyke is an ordinary blast, its stones moved.  A door held shut by a
+// beam lifts from the beam's side.  A cell a crack leaves under rock with no wall beside it keeps
+// gathering stones.  Every number below is worked by hand.
+use tile_world;
+use rules;
+
+// A room x 1 .. 9, y 1 .. 9, walled round (0 and 10).
+fn room() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 10, 10, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 1, 1, 9, 9, 0, rules::tr(w, "floor"));
+  w
+}
+
+fn put(w: rules::Level, x: integer, y: integer, name: text) {
+  tile_world::place(w.w, x, y, 0, rules::th(w, name));
+}
+
+fn top(w: const rules::Level, x: integer, y: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, 0))
+}
+
+// A bomb on (x, y) and the stones of a dyke open to the north: beside it and the three behind.
+fn dyke_north(w: rules::Level, x: integer, y: integer, leave_out: integer) {
+  put(w, x, y, "bomb");
+  n = 0;
+  for c in [(x - 1, y), (x + 1, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)] {
+    n += 1;
+    if n != leave_out { put(w, c.0, c.1, "rock"); }
+  }
+}
+
+// The hero on (x, y), a burning torch in hand, facing north.
+fn hero_with_torch(w: rules::Level, x: integer, y: integer) {
+  rules::put_hero(w, x, y, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.now + 600000;
+}
+
+fn main() {
+  w = room();
+  dyke_north(w, 5, 5, 0);
+  assert(rules::dyke_way(w, 5, 5, 0) == (0, -1), "a full dyke, open to the north");
+}
+
+// The full dyke: the bomb on (5, 5), the dyke open north, the hero behind it on (5, 7) with the
+// torch, walking into the stone (5, 6): lit over it, the bomb goes off at once.  The hero, behind,
+// is not struck; the five stones hold; a rock two ahead (5, 3) — struck as one ahead, it slides
+// 3 - 1 = 2 — goes to (5, 1); and the first wall straight ahead (5, 0) cracks: floor, a stone on it.
+fn test_a_full_dyke_directs_the_blast() {
+  w = room();
+  dyke_north(w, 5, 5, 0);
+  put(w, 5, 3, "rock");
+  hero_with_torch(w, 5, 7);
+  assert(rules::walk(w, 0, -1) == rules::Step.Lit && w.blasted == 1, "lit over the stone, gone off");
+  assert(w.health == 6 && w.hero_y == 7, "behind the dyke: unhurt, unmoved: {w.health}");
+  for c in [(4, 5), (6, 5), (4, 6), (5, 6), (6, 6)] { assert(top(w, c.0, c.1) == "rock", "the dyke holds at {c.0},{c.1}"); }
+  assert(top(w, 5, 3) == "" && top(w, 5, 1) == "rock", "the rock ahead slid two: {top(w, 5, 2)} {top(w, 5, 1)}");
+  assert(rules::terrain_name(w.k, tile_world::terrain(w.w, 5, 0, 0)) == "floor" && top(w, 5, 0) == "rock", "the wall ahead cracked");
+}
+
+// The same blast with the dyke one stone short (the one behind on the right, (6, 6), left out): an
+// ordinary blast.  The hero, 2 away, is struck 4 - 2 = 2; the stones are moved; no wall cracks.
+fn test_a_partial_dyke_is_an_ordinary_blast() {
+  w = room();
+  dyke_north(w, 5, 5, 5);
+  put(w, 5, 3, "rock");
+  hero_with_torch(w, 5, 7);
+  assert(rules::dyke_way(w, 5, 5, 0) == (0, 0), "not a full dyke");
+  assert(rules::walk(w, 0, -1) == rules::Step.Lit, "lit over the stone");
+  assert(w.health == 4, "struck: {w.health}");
+  assert(top(w, 4, 5) == "" || top(w, 6, 5) == "", "its stones moved: {top(w, 4, 5)} {top(w, 6, 5)}");
+  assert(top(w, 5, 2) == "rock" && rules::terrain_name(w.k, tile_world::terrain(w.w, 5, 0, 0)) == "wall", "the rock moved one; no wall cracked");
+}
+
+// A door held shut by a beam on its south side (`bars`: S) in the north wall (5, 0): from inside, the
+// beam's side, it lifts — a closed door, the beam in the hand; from outside, north of it, it does
+// not give.  One held shut from the far side (N) a directed blast blows open.
+fn test_a_door_held_shut_by_a_beam() {
+  w = room();
+  tile_world::fill(w.w, 4, -3, 6, -1, 0, rules::tr(w, "floor"));
+  tile_world::set_terrain(w.w, 5, 0, 0, rules::tr(w, "barred"));
+  w.bars += [rules::Bar { x: 5, y: 0, z: 0, side: "S" }];
+  rules::put_hero(w, 5, -1, 0);
+  assert(rules::walk(w, 0, 1) == rules::Step.Blocked, "from outside it does not give");
+  rules::put_hero(w, 5, 1, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Lifted && w.hero_item == rules::th(w, "beam"), "lifted from the beam's side");
+  assert(rules::terrain_name(w.k, tile_world::terrain(w.w, 5, 0, 0)) == "door", "a closed door now");
+  v = room();
+  tile_world::set_terrain(v.w, 5, 0, 0, rules::tr(v, "barred"));
+  v.bars += [rules::Bar { x: 5, y: 0, z: 0, side: "N" }];
+  rules::put_hero(v, 5, 1, 0);
+  assert(rules::walk(v, 0, -1) == rules::Step.Blocked, "held from the far side");
+  dyke_north(v, 5, 5, 0);
+  hero_with_torch(v, 5, 7);
+  _ = rules::walk(v, 0, -1);
+  assert(rules::terrain_name(v.k, tile_world::terrain(v.w, 5, 0, 0)) == "open_door", "blown out");
+}
+
+// The cave-in: a one-wide tunnel (y 7) under rock (layer 1 over y 6 .. 8), its north wall (y 6)
+// between it and an open chamber (y 1 .. 5).  Directed blasts south from the chamber crack the wall
+// at (4, 6), (5, 6), (6, 6) in turn; after the first two every cell still has a wall beside it;
+// after the third, (5, 6) has none — and it keeps gathering stones: its own rubble cleared, a stone
+// falls on it 1000 ms later, and again after that one is cleared.
+fn test_a_widened_tunnel_keeps_caving_in() {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 10, 8, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 1, 1, 9, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 1, 7, 9, 7, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 6, 10, 8, 1, rules::tr(w, "wall"));
+  for x in [4, 5, 6] {
+    for y in [3, 4] { for c in [x - 1, x, x + 1] { _ = tile_world::take(w.w, c, y, 0); } }
+    put(w, x, 4, "bomb");
+    for c in [(x - 1, 4), (x + 1, 4), (x - 1, 3), (x, 3), (x + 1, 3)] { put(w, c.0, c.1, "rock"); }
+    hero_with_torch(w, x, 2);
+    assert(rules::walk(w, 0, 1) == rules::Step.Lit, "blast {x}");
+    assert(rules::terrain_name(w.k, tile_world::terrain(w.w, x, 6, 0)) == "floor", "the wall at {x}, 6 cracked");
+    assert(len(w.falls) == (if x < 6 { 0 } else { 1 }), "after {x}: {len(w.falls)} unstable");
+  }
+  f = w.falls[0]!;
+  assert(f.x == 5 && f.y == 6, "the middle no longer holds: {f.x},{f.y}");
+  rules::put_hero(w, 9, 1, 0);
+  _ = tile_world::take(w.w, 5, 6, 0);
+  rules::tick(w, 0);
+  rules::tick(w, 999);
+  assert(top(w, 5, 6) == "", "999: not yet");
+  rules::tick(w, 1);
+  assert(top(w, 5, 6) == "rock", "1000: a stone fell");
+  _ = tile_world::take(w.w, 5, 6, 0);
+  rules::tick(w, 1000);
+  assert(top(w, 5, 6) == "rock", "and again");
+}

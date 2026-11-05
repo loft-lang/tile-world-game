@@ -311,3 +311,38 @@ fn test_a_bridge_crosses_the_dome() {
   assert(w.hero_x == 15 && w.hero_z == 2, "across the bridge: {w.hero_x},{w.hero_y},{w.hero_z}");
   assert(rules::walk(w, 1, 0) == rules::Step.Opened && w.points == 1, "the chest beyond");
 }
+
+// The blasting house (DESIGN.md § Bombs).  In by the door held shut from the hero's side: its beam
+// lifted (into the hand).  In the chamber, a dyke built against the north wall — bomb (8, 6), stones
+// beside and behind it — lit over its back stone from (8, 8): the wall (8, 4) cracks into the
+// covered tunnel (a stone on floor), one crack, so nothing caves in.  Then one facing the east door,
+// held shut from the far side: bomb (12, 8), lit from (10, 8): the door blown out, the chest beyond.
+fn clear_chamber(w: rules::Level) {
+  for y in 5..=10 { for x in 3..=13 { while tile_world::top(w.w, x, y, 0) != 0 { _ = tile_world::take(w.w, x, y, 0); } } }
+}
+
+fn test_the_blasting_house() {
+  lf = place("the_blasting");
+  w = lf.level;
+  _ = rules::play(w, "w w w");
+  assert(w.hero_y == 12 && rules::walk(w, 0, -1) == rules::Step.Lifted && w.hero_item == rules::th(w, "beam"), "the way in: the beam lifted");
+  assert(rules::walk(w, 0, -1) == rules::Step.Opened, "and the door opens");
+  clear_chamber(w);
+  for c in [(8, 6, "bomb"), (7, 6, "rock"), (9, 6, "rock"), (7, 7, "rock"), (8, 7, "rock"), (9, 7, "rock")] {
+    tile_world::place(w.w, c.0, c.1, 0, rules::th(w, c.2));
+  }
+  rules::put_hero(w, 8, 8, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = w.now + 600000;
+  assert(rules::walk(w, 0, -1) == rules::Step.Lit && w.health == 6, "lit safely");
+  assert(kind_at(lf, 8, 4, 0) == "floor" && top_name(w, 8, 4) == "rock" && len(w.falls) == 0, "the north wall cracked, nothing caving in");
+  clear_chamber(w);
+  for c in [(12, 8, "bomb"), (11, 7, "rock"), (11, 8, "rock"), (11, 9, "rock"), (12, 7, "rock"), (12, 9, "rock")] {
+    tile_world::place(w.w, c.0, c.1, 0, rules::th(w, c.2));
+  }
+  rules::put_hero(w, 10, 8, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Lit && kind_at(lf, 14, 8, 0) == "open_door", "the east door blown out");
+  rules::put_hero(w, 13, 8, 0);
+  _ = rules::play(w, "d d");
+  assert(rules::walk(w, 1, 0) == rules::Step.Opened, "the chest beyond");
+}
