@@ -380,12 +380,14 @@ Each step is checked before the next starts; "checked" names what goes red.
 1. **Places and doors** (the game's logic).  Level files become place files, a door edge gains a
    destination, `order.json` and goals go; a start place and cell remain.  Checked by a scripted
    walk: out of one place through its front door, back in through its back door, every place's
-   state as left.  *Built for the demo village (HANDOFF.md); not yet: what follows the hero
-   through a door, doors in the editor.*
+   state as left.  *Built for the demo village (HANDOFF.md), with what follows the hero through
+   a door (BUILD.md C3c) and doors set in the editor (A2).*
 2. **The clock and whereabouts.**  A time of day; timed states as moments; whereabouts asked on
    entering a place; a held-up creature going on from where it stands.  Checked by asking the
    same moment twice and across a save and reload: the same answers; and by the hero following a
-   creature through a door and finding it on its way.
+   creature through a door and finding it on its way.  *Built in part: the clock (BUILD.md C1),
+   the world's people asked where they are on entering (C3), a save read back the same (C6); open:
+   a held-up creature going on from where it stands.*
 3. **Creatures' points and who can be near the hero.**  Points with hours over a period, walked
    between along the door graph, arriving on time; activities at the points; regions, the region graph and the coverage
    table; arrivals during a visit; the list of creatures off their period; recalculation when the
@@ -404,8 +406,11 @@ Each step is checked before the next starts; "checked" names what goes red.
    by a letter the hero sends on, whose change happens at the moment it arrives and not before;
    by a letter left beside the road, taken by the scripted passer-by at the moment the table
    gives and acted on after its scripted delay, or left alone when the hero took it first; the
-   same in every run and across a save and reload.  *Begun: a person's points by the place's
-   clock (`routes`, BUILD.md C3b); the rest open.*
+   same in every run and across a save and reload.  *Begun: a person's points by the clock
+   (`routes`, BUILD.md C3b), the world's people going from place to place through the door
+   straight to the next and found at their points on entering (C3), a guide, and a tribe raiding
+   within one place (C4); open: routes over the door graph, regions, the region graph and the
+   coverage table, pools and bands, ways back, letters, a tribe across places.*
 4. **The world from what exists**, in the developer's terms.  The five levels stitched together
    through a stretch of land outside (Kenney's Tiny Town and Tiny Farm sheets), each with a
    second way out; their rooms and corridors described as outlines with their words, the game
@@ -415,6 +420,9 @@ Each step is checked before the next starts; "checked" names what goes red.
    cell as it was.
 5. **Saves.**  The clock, the hero, each visited place's changes, the creatures interrupted and the
    pending consequences, written and read back.  Checked by a save, a restart and the same state.
+   *Built for what exists (BUILD.md C6): the clock, the hero, the facts and each visited place,
+   enemies at their homes; what is in motion is not saved, and the people are where their points
+   say.*
 6. **The Tanmatsu.**  Scale 3, `audio` on the device, saves in the FAT area, one place's files
    decoded at a time.  Checked on the device with the timing log: frame time, the time a door
    takes, the PSRAM a place takes.  Only the tiles the game uses go onto the device, reshuffled

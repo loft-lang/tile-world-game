@@ -71,19 +71,26 @@ on the interpreter and `--native`.  Every mechanic of BUILD.md's phases A–C is
 house in the demo village; still open there: WORLD.md step 3's regions, bands and coverage table,
 and a tribe acting across places (C3, C4).  The next phase is D, the story's places.
 
-- **Places and doors** (WORLD.md step 1, mostly): the game starts in the demo village
+- **Places and doors** (WORLD.md step 1): the game starts in the demo village
   (`levels/demo.json`), a house per mechanic room, doors both ways, every place kept as left,
   floor text (`labels`), R = the place as entered.  `TW_WORLD` picks the start place; the demo
-  stays its own world beside the story game to come (owner).  Not yet: what follows the hero
-  through a door (a pulled cart, an enemy close behind), one clock across places (each keeps its
-  own), doors in the editor.
-- **What is known and people's days, in part** (C2, C3): facts, carried through doors, a talk
-  starting at a known fact, a door marked `home` setting `snooped` when the hero is seen going in;
-  a person's points by the place's clock (`routes`).  Not yet: lines that set facts, one clock
-  across places, people walking between places.
+  stays its own world beside the story game to come (owner).  What follows the hero goes through a
+  door with it: a person led, a pulled thing, an enemy on its heels (C3c).  A door can `need` a
+  fact (SHUT until it holds) or `end` the game (the epilogue, C7).  Doors, text and the tags a
+  place serves are set in the editor's panel (A2, A3).
+- **What is known and people's days** (C1, C2, C3): one clock for the world; facts carried
+  through doors, lines that set and clear them, barks on conditions, goodwill; a person's points
+  by the clock (`routes`), and the world's people (`levels/people.json`) going from place to
+  place through the door straight to the next.  Not yet: WORLD.md step 3's regions, bands and coverage table.
+- **Saves** (C6): a well or fountain writes the game to `saves/`; `main.loft` reads it back
+  unless `TW_NEW` is set.
+- **A loft defect worked around:** loft#2404 (a struct held in a vector field, declared BELOW
+  its holder, turns an `x[i]!.f` temporary into an owner that frees the holder).  Reading a save
+  crashed on it; `Visited`, `Mover` and the other element structs of `Game` are declared above
+  `Game` in `game.loft`.  Keep new element structs above their holder until the fix
+  (fixed-pending-merge) reaches loft main.
 - **The engine's limits met:** tile_world keeps sixteen terrain kinds (four bits) — the door held
-  shut is one kind, its beam's side kept in the level's `bars`; one id is left (15).  Night is a
-  covered place until the clock (C1) exists.
+  shut is one kind, its beam's side kept in the level's `bars`; one id is left (15).
 - **Talk** (`talk.loft`, WORLD.md § Talking is moving): beside = talk, passing = bark; stay /
   bump / walk away while a line is said; gifts, take/give, `then`.
 - **Combat** (DESIGN.md @GM-Combat, BUILD.md B1b): built — wind-ups, dodge, block, parry and

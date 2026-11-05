@@ -37,6 +37,28 @@ Fenns who fled; and the hero himself, a soldier of the lord who fell.
 
 ## What play changes
 
-Once a talk can depend on what has happened (STORY.md § 6: shared facts): the pump running,
+A talk can depend on what has happened (STORY.md § 6: shared facts; built, BUILD.md C2): the pump running,
 tunnels drained, rope gone from Sable's spot, the lightning caught, the hero seen with Rennick,
 the Kharn sighted.  Every villager having an opinion on each is what makes the village alive.
+
+## What a line can do
+
+The words are the owner's; this is what the engine does with them (`talk.loft`, a place file's
+`talks`).  A line is `{ "<speaker>": "WHAT IS SAID" }`, and beside it:
+
+| Key | Does |
+|---|---|
+| `next`, `end`, `ms` | the line after it (by `id`), the talk ending after it, its time set by hand |
+| `bump`, `away` | the line for bumping someone taking part (one per figure: taking a side), and for walking away |
+| `take`, `give` | the figure takes what the hero holds (a gift: goodwill +1), or gives it a thing |
+| `then` | where the next talk starts, so a choice is remembered |
+| `sets` | a fact made known when the line is said (the alchemist's lore) |
+| `when` | on a bark: said only while it holds — a fact, `!fact`, `liked` or `disliked` (goodwill) |
+| `clear` | broken words: until that fact holds, every other word comes through as `..` (Urgha) |
+| `follows`, `stays` | the person follows the hero, through doors too, or stays where it is |
+| `guides` | `[x, y, z]`: the person walks the hero there, waiting when the hero falls behind; then `guided` is known |
+| `keeps` | whoever of that kind the hero leads stays here (the horse lent to the farm) |
+
+A talk itself has `barks` (lines said in passing, in turn), `gifts` (a thing held when bumping →
+its line), `facts` (a fact known → the line the talk starts at, e.g. `"stuck": "hint"`) and
+`recipes` (what the sack must hold → the line, taking it: two herbs and a mushroom, a potion).

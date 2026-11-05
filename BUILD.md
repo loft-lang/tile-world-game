@@ -181,8 +181,8 @@ share, so each is built once and shown in the test world first.
   in, the clock moves on to the next change of light (20:00 by day, 07:00 by night) and the
   temporary health goes (owner: sleep clears it).  Answered (proposed): a day is 20 minutes of
   play; it starts at 07:00; 4 cells refill a day, the last drained first, never one the hero or a
-  thing stands on.  Not yet: night drawn darker in the places that were drawn covered for it (the
-  night street keeps its cover), the ghost (B8), people's hours (C3).
+  thing stands on.  The ghost (B8) and people's hours (C3) now follow this clock.  Not yet: night
+  drawn darker in the places that were drawn covered for it (the night street keeps its cover).
 - **C2. Shared facts — built** (the *night* and *words* houses; `tests/talk.loft`).  A line that
   `sets` a fact; barks said only `when` a condition holds, and talks starting where one holds
   (`facts`) — a condition is a fact, `!fact`, `liked` or `disliked` (`rules::holds`); goodwill,

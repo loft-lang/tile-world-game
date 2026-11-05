@@ -26,10 +26,12 @@ K alone guards (pressed, a parry; held, a block) and held while moving pulls, L 
 hero holds, I aims.  Moving with the arrows instead, the left hand has the same on Space, Shift, X
 and T.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
-Walking into a well saves the situation; losing all health brings the hero back there, and B
-(twice, to confirm) goes back by choice.  R restarts the place as it
+Walking into a well or a fountain saves the situation and writes the game to `saves/`: starting
+the game again carries on from there (`TW_NEW=1` starts afresh).  Losing all health brings the
+hero back there, and B (twice, to confirm) goes back by choice.  R restarts the place as it
 was when the hero came in (a level on its own: from its start; N or Enter then goes to the next
-one when it is solved), Esc or Q quits.
+one when it is solved), Esc or Q quits.  Walking out through the gap in the village's east edge
+ends the game: stills of what follows, chosen by what the hero did (`levels/epilogue.json`).
 
 **E opens the editor** (EDITOR.md § 4) on the level being played:
 
@@ -37,7 +39,7 @@ one when it is solved), Esc or Q quits.
 |---|---|
 | arrows / WASD | move the cursor; the view follows it |
 | PgUp / PgDn | the layer up / down: the one below is drawn darker, the one above as outlines |
-| Tab / Shift+Tab | the next / previous entry of the palette along the bottom: void, the terrain kinds, the materials (theme.json), the things |
+| Tab / Shift+Tab | the next / previous entry of the palette along the bottom: void, the terrain kinds, the materials (theme.json), the things, the figures (every enemy and person) |
 | `1`..`9` | jump to a palette category (theme.json's `categories`: Outdoor, Water, Castle, House, Dungeon, Things) |
 | Space | paint the terrain, or put the thing on top of the cell's stack |
 | Backspace / Delete | take the top thing off; on a cell with none, unset it (its layer's ground, or void) |
@@ -58,8 +60,9 @@ one when it is solved), Esc or Q quits.
 | `kinds.json` | what each kind of terrain and thing DOES: walk, opaque, height, push/pull, rails, lift, walk-on effects, light — the rules read these, never a name |
 | `theme.json` | what each kind LOOKS like and sounds like: the sheets, tile size, font, a sprite per kind by name; the MATERIALS the editor paints with and their autotile sets |
 | `materials.loft` | materials: a kind with a look; tile numbers, variants by position, nine-slice autotiling |
-| `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff |
-| `levels/` | the places, one JSON file each (EDITOR.md § 2) — with their doors to other places and the text on their ground — and `order.json`: the start place and the editor's list |
+| `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff, combat, enemies and their habits, crafting, followers, tribes |
+| `talk.loft` | what people say: lines and barks, the choices while a line is said (stay, bump, walk away), gifts, recipes, and what a line sets, needs or starts (following, staying, guiding) |
+| `levels/` | the places, one JSON file each (EDITOR.md § 2) — with their doors to other places and the text on their ground — and `order.json`: the start place and the editor's list; `people.json`, the people who keep to points across places; `epilogue.json`, the stills the ending chooses from |
 | `levels.loft` | reads and writes level files; a level's goal decides when it is solved |
 | `theme.loft` | reads theme.json and draws a kind, a stack, the hero and text |
 | `editor.loft` | the editor's core: cursor, palette, paint, stack, erase, the markers, undo and redo — no picture, no keys |
@@ -74,7 +77,7 @@ one when it is solved), Esc or Q quits.
 | `tools/fill.loft`, `tools/map.loft`, `tools/stable.loft` | the drawing kit's tools: `loft --lib libs tools/fill.loft PLACE` fills a place in from its intent (ground, trails, blobs, domes, rooms, corridors, houses, slopes, items: intent.loft) and saves it; `tools/map.loft PLACE OUT.png [SCALE]` pictures the whole place, every layer in full light; `tools/stable.loft PLACE` lists the cells that would not hold (under a ceiling, no wall beside them) |
 | `tools/tags.loft` | the story's parts (`@ST-Decree`, STORY.md) and the gameplay mechanics wanted (`@GM-CartLift`, DESIGN.md) as tags, like loft's formal rules: `list`, `check` (the index, the paragraphs and every citation in step; exit 1 when not), `sites <tag>`; a place file names what it serves in its `serves` list |
 | `EDITOR.md` | the design of the in-game world editor |
-| `tests/` | the rules, played out: `loft --lib libs --tests tests` — `combat.loft` each fighting move timed by hand, `fights.loft` the fight rooms played by an attacker, a parrier and a dodger, `places.loft` the demo village's newer houses (fountain, cave-in, herbs, night, Sable, dome, blasting) played as a player would, `blasting.loft` the directed blast and the cave-in |
+| `tests/` | the rules, played out: `loft --lib libs --tests tests` — `combat.loft` each fighting move timed by hand, `fights.loft` the fight rooms played by an attacker, a parrier and a dodger, `places.loft` the demo village's newer houses (fountain, cave-in, herbs, night, Sable, dome, blasting, creatures, raid) played as a player would, `blasting.loft` the directed blast and the cave-in, `creatures.loft` each new creature's habit, `crafting.loft` the forge, the anvil and the artefact, `talk.loft` lines, barks on conditions, hints and broken words, `following.loft` followers through doors, people at their points and a guide, `tribe.loft` the barricade and the Kharn's raid |
 | `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |
 | `ART.md` | the game's own sheet: its layout, its style, how a tile is drawn |
