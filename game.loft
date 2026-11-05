@@ -75,6 +75,9 @@ pub struct Game {
   /// What the save was made at, for the note on coming back: "WELL", or "FOUNTAIN" (the mines'
   /// save points, a look of the well kind: STORY.md @ST-Fountains).
   pub saved_at: text = "WELL",
+  /// The clock (C1): the world's time in ms since day 0 began — one for every place — starting at
+  /// 07:00 of day 0.
+  pub clock: integer = 350000,
   previous_at: text = "WELL",
   previous_place: text,
   pub surface: integer,
@@ -378,6 +381,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
     g.world = g.file.level;
   }
   rules::carry_in(g.world, c);
+  keep_time(g);
   k = levels::door_named(g.file, there);
   if k >= 0 {
     dx = g.file.doors[k]!.x;
@@ -669,6 +673,53 @@ pub fn restart(g: Game) {
   sound(g, "begin");
 }
 
+/// A game day, in ms of play (C1; proposed, to tune in play): 20 minutes.  Night is from 20:00 to
+/// 06:00.
+pub const DAY_MS = 1200000;
+
+// The minute of the day the clock reads (0 .. 1439).
+fn minute_of_day(g: const Game) -> integer {
+  ((g.clock % DAY_MS ?? 0) * 1440 / DAY_MS) ?? 0
+}
+
+/// Is it night by the clock?
+pub fn is_night(g: const Game) -> boolean {
+  m = minute_of_day(g);
+  m >= 20 * 60 || m < 6 * 60
+}
+
+// The clock as the status line shows it: "07:30".
+fn clock_text(g: const Game) -> text {
+  m = minute_of_day(g);
+  h = m / 60 ?? 0;
+  mm = m % 60 ?? 0;
+  "{if h < 10 { "0" } else { "" }}{h}:{if mm < 10 { "0" } else { "" }}{mm}"
+}
+
+// The place keeps the world's time (C1): night or not, and the days it has seen since its last —
+// what refills by the day refills for them.
+fn keep_time(g: Game) {
+  g.world.night = is_night(g);
+  day = g.clock / DAY_MS ?? 0;
+  if day > g.world.day {
+    rules::refill(g.world, day - g.world.day);
+    g.world.day = day;
+  }
+}
+
+/// The hero sleeps (C1): the clock moves on to the next change of light — by day to 20:00, by night
+/// to 07:00 — and the world runs on through it.
+pub fn sleep(g: Game) {
+  m = minute_of_day(g);
+  to = if is_night(g) { 7 * 60 } else { 20 * 60 };
+  gap = if to > m { to - m } else { to + 1440 - m };
+  ms = gap * DAY_MS / 1440 ?? 0;
+  rules::tick(g.world, ms);
+  g.clock += ms;
+  keep_time(g);
+  g.note = "SLEPT TILL {clock_text(g)}";
+}
+
 // The sound a move makes, from what stood where the hero went before it moved.
 fn move_sound(g: Game, step: rules::Step, thing: integer, z_before: integer) {
   w = g.world;
@@ -732,6 +783,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   animate(g, step, ox, oy, oz, oh, dx, dy);
   if step == rules::Step.Read { g.note = chests_left(rules::closed(w)); }
   if step == rules::Step.Talked { talk_to(g, g.world.talk_to); }
+  if step == rules::Step.Slept { sleep(g); }
   if step == rules::Step.Saved {
     if g.has_save {
       g.previous = g.saved;
@@ -1107,6 +1159,8 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   parries = g.world.parries;
   misses = g.world.misses;
   rules::tick(g.world, ms);
+  g.clock += ms;
+  keep_time(g);
   if step_talks(g) { changed = true; }
   // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
   // is a swish.  While any enemy winds up, the picture moves.
@@ -1289,7 +1343,7 @@ fn ground_of(g: const Game, w: const rules::Level, z: integer, rows: integer, li
   steps = w.k.layer_height;
   if lit {
     out.shade = tile_world::shades(w.w, out.x0, out.y0, out.x0 + out.w - 1, out.y0 + out.h - 1, z,
-                                   rules::lights(w, z), rules::light_starts(w, z));
+                                   rules::lights(w, z), rules::light_starts(w, z), !w.night);
   }
   for j in 0..out.h {
     for i in 0..out.w {
@@ -1815,6 +1869,8 @@ fn status(g: Game, left: text) {
   ts = g.look.tile_size;
   y = (ROWS - 1) * ts;
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
+  // The time of day (C1), hours and minutes.
+  right = "{clock_text(g)} " + right;
   // The sack worn: what it holds of what it carries.
   held = rules::sack_room(w);
   if held.1 > 0 { right = "SACK {held.0}/{held.1} " + right; }

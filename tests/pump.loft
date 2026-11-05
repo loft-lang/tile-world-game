@@ -110,3 +110,23 @@ fn test_the_well_pump_and_the_wrong_crystal() {
   v.hero_item = rules::th(v, "charged_crystal");
   assert(rules::walk(v, 0, -1) == rules::Step.Lit && v.blasted == 1 && v.health < 6, "it goes off like a bomb: {v.health}");
 }
+
+// The daily refill (owner: the water refills without the pump, a bit a day): after the full charge
+// has drained the pool (the chest taken away), a day turns back four cells, the last drained first;
+// one the hero stands on stays dry for now, the next one back taking its turn.
+fn test_the_water_refills_a_bit_a_day() {
+  w = room();
+  w.hero_item = rules::th(w, "charged_crystal");
+  _ = rules::walk(w, 1, 0);
+  rules::tick(w, 20000);
+  assert(water_left(w) == 0 && len(w.drained) == 12, "all drained");
+  // The chest on (8, 4) taken away: a cell with a thing on it never refills.
+  _ = tile_world::take(w.w, 8, 4, 0);
+  last = w.drained[11]!;
+  rules::refill(w, 1);
+  assert(water_left(w) == 4 && kind(w, last.0, last.1) == "water", "a day: four back, the last drained first");
+  near = w.drained[len(w.drained) - 1]!;
+  rules::put_hero(w, near.0, near.1, 0);
+  rules::refill(w, 1);
+  assert(water_left(w) == 8 && kind(w, near.0, near.1) == "floor", "the hero's cell stays dry; four others");
+}

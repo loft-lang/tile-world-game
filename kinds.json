@@ -78,6 +78,7 @@
     "charged_crystal": { "id": 39, "height": 0, "walk_on": "take", "crystal": "large", "charge": 12, "spent_to": "crystal", "light": true, "glyph": "6" },
     "spare_crystal": { "id": 40, "height": 0, "walk_on": "take", "crystal": "large", "charge": 4, "spent_to": "crystal", "glyph": "7" },
     "small_crystal": { "id": 41, "height": 0, "walk_on": "take", "crystal": "small", "charged_to": "charged_small_crystal", "glyph": "8" },
+    "bed":    { "id": 46, "height": 1, "sleeps": true, "glyph": "A" },
     "lift_lever": { "id": 43, "height": 1, "calls_lift": true, "glyph": "$" },
     "charged_small_crystal": { "id": 42, "height": 0, "walk_on": "take", "crystal": "small", "charge": 1, "spent_to": "small_crystal", "glyph": "9" },
     "socket": { "id": 17, "height": 0, "holds": true, "glyph": "y" },

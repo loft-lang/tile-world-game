@@ -94,6 +94,10 @@ pub const LIFT_MS = 1000;
 /// (proposed, to tune in play).
 pub const RAFT_MIN = 3;
 pub const DRIFT_MS = 500;
+
+/// A day without the pump turns back REFILL_CELLS drained cells (owner: a bit a day, never locking
+/// the player in or out; the number proposed).
+pub const REFILL_CELLS = 4;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -269,6 +273,8 @@ struct ThingProps {
   raft_to: text = "",
   raft: boolean = false,
   fastens: boolean = false,
+  /// A bed (C1): walked into, the hero sleeps.
+  sleeps: boolean = false,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -448,7 +454,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       charged_to: word(e, "charged_to", ""), spent_to: word(e, "spent_to", ""), drains: flag(e, "drains"),
       well: flag(e, "well"), calls_lift: flag(e, "calls_lift"),
       floats_to: word(e, "floats_to", ""), afloat: flag(e, "afloat"), raft_to: word(e, "raft_to", ""),
-      raft: flag(e, "raft"), fastens: flag(e, "fastens"),
+      raft: flag(e, "raft"), fastens: flag(e, "fastens"), sleeps: flag(e, "sleeps"),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -786,6 +792,10 @@ pub struct Level {
   pub lifts: vector<Lift> = [],
   /// The rafts drifting.
   pub drifts: vector<Drift> = [],
+  /// The clock (C1): night now — the open sky gives no light — and the days this place has seen
+  /// (what refills by the day, it has refilled for).
+  pub night: boolean = false,
+  pub day: integer = 0,
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -940,6 +950,8 @@ pub enum Step {
   Picked,
   /// The hero lifted the beam holding a door shut, from its side.
   Lifted,
+  /// The hero lay down on a bed and slept: the game moves its clock on (C1).
+  Slept,
   /// A full cart bumped from the side tipped its load out.
   Unloaded,
   /// The hero struck an enemy (walking into it, or swinging at it).
@@ -2587,6 +2599,29 @@ fn drifts_due(l: Level) {
   }
 }
 
+// --- The clock (BUILD.md C1) ---
+
+/// `days` days pass without the pump: each turns back REFILL_CELLS of the drained cells, the last
+/// drained first (the ones nearest the pump stay dry longest), never one the hero or a thing stands
+/// on — that one stays drained for now.
+pub fn refill(l: Level, days: integer) {
+  water = tr(l, "water");
+  for _ in 0..days {
+    n = 0;
+    i = len(l.drained) - 1;
+    while n < REFILL_CELLS && i >= 0 {
+      c = l.drained[i] ?? (0, 0, 0);
+      free = tile_world::top(l.w, c.0, c.1, c.2) == 0 && !(l.hero_x == c.0 && l.hero_y == c.1 && l.hero_z == c.2);
+      if free {
+        tile_world::set_terrain(l.w, c.0, c.1, c.2, water);
+        _ = l.drained.remove(i);
+        n += 1;
+      }
+      i -= 1;
+    }
+  }
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -3180,6 +3215,13 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // barricade sets it burning; a full cart bumped from the side tips its load out.
   mine = mine_work(l, thing, tx, ty, z, dx, dy);
   if mine != Step.Blocked { return mine; }
+  // A bed (C1): the hero sleeps — the game's clock moves on to the next change of light — and the
+  // temporary health is gone (owner: sleep clears it).
+  bp = l.k.things[thing];
+  if bp && bp.sleeps {
+    l.spirit = 0;
+    return Step.Slept;
+  }
   // A lift's lever (B3): the lift called here, or sent on.
   lever = l.k.things[thing];
   if lever && lever.calls_lift { return if work_lift(l, tx, ty, z) { Step.Switched } else { Step.Blocked }; }
@@ -3401,7 +3443,7 @@ pub fn play(l: Level, moves: text) -> integer {
 
 /// Is the hero out in the open, under the sky?
 pub fn in_daylight(l: const Level) -> boolean {
-  tile_world::open_sky(l.w, l.hero_x, l.hero_y, l.hero_z)
+  !l.night && tile_world::open_sky(l.w, l.hero_x, l.hero_y, l.hero_z)
     && tile_world::terrain(l.w, l.hero_x, l.hero_y, l.hero_z) != VOID
 }
 
@@ -4686,7 +4728,7 @@ struct Shades {
 
 fn shades_round(l: const Level, x: integer, y: integer, z: integer, r: integer) -> Shades {
   Shades { x0: x - r, y0: y - r, w: 2 * r + 1,
-           v: tile_world::shades(l.w, x - r, y - r, x + r, y + r, z, lights(l, z), light_starts(l, z)) }
+           v: tile_world::shades(l.w, x - r, y - r, x + r, y + r, z, lights(l, z), light_starts(l, z), !l.night) }
 }
 
 fn no_shades() -> Shades {

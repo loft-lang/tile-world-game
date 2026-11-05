@@ -119,6 +119,9 @@ on the interpreter and `--native`.
   - THE LAKE: three beams from the shore into the water north of the jetty, the rope on the
     shoulders, walk into them — fastened; stand on the raft, walk to its east end and on into the
     water — it drifts to the island, the chest there.
+  - THE CLOCK: the time on the status line; the bed beside the village's start (SLEEP) sleeps till
+    20:00 — night: the street dark but for flames — and again till 07:00.  The game needs
+    tile_world 0.7.0 (loft-libs-world#41): `./fetch-libs.sh` once it is merged.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

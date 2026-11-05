@@ -1,7 +1,7 @@
 {
   "name": "the demo village",
   "camera": "follow",
-  "legend": { "#": "wall", ",": "grass", ":": "path", "*": "lake", "Q": "oak", "P": "pine", "W": "village_well", "G": "garden_fence", "R": "roof", "S": "slate_roof", "T": "stone_wall", "E": "house_door", "F": "stone_door" },
+  "legend": { ".": "floor", "#": "wall", ",": "grass", ":": "path", "*": "lake", "Q": "oak", "P": "pine", "W": "village_well", "G": "garden_fence", "R": "roof", "S": "slate_roof", "T": "stone_wall", "E": "house_door", "F": "stone_door" },
   "ground": [ ],
   "chunks": [
     { "cx": 0, "cy": 0, "z": 0, "rows": [
@@ -24,7 +24,7 @@
       "Q,****,::::::::::::::,,,,,,,,P,R",
       "Q,****,,,,,,,,:,,,,,,,,,,,,,,Q,R",
       "P,****,,Q,,,,,:,W,,,,,,,,,Q,,Q,#",
-      "Q,****,,,,,P,,:,,,,,,Q,,,,,,,P,,",
+      "Q,****,,,,,P,,:.,,,,,Q,,,,,,,P,,",
       "Q,,,,,,,,,,,,,,,,,,,,,,,,,,,,Q,:",
       "PQPPPQPQPPPQPQPPPQPQPPPQPQPPPQPP"
     ] },
@@ -78,7 +78,8 @@
     ] }
   ],
   "things": [
-    { "at": [10, 9, 0], "stack": ["stick"] }
+    { "at": [10, 9, 0], "stack": ["stick"] },
+    { "at": [15, 19, 0], "stack": ["bed"] }
   ],
   "tiles": [ [3, 4, 0, 330], [5, 4, 0, 330], [6, 4, 0, 330], [23, 4, 0, 330], [25, 4, 0, 330], [26, 4, 0, 330], [31, 4, 0, 330], [19, 13, 0, 330], [21, 13, 0, 330], [22, 13, 0, 330], [31, 18, 0, 330], [32, 4, 0, 330], [34, 4, 0, 330], [43, 4, 0, 330], [44, 4, 0, 330], [46, 4, 0, 330], [59, 4, 0, 330], [60, 4, 0, 330], [62, 4, 0, 330], [36, 12, 0, 330], [37, 12, 0, 330], [39, 12, 0, 330], [42, 12, 0, 330], [43, 12, 0, 330], [45, 12, 0, 330], [54, 12, 0, 330], [55, 12, 0, 330], [57, 12, 0, 330], [32, 18, 0, 330], [34, 18, 0, 330], [42, 18, 0, 330], [43, 18, 0, 330], [45, 18, 0, 330], [54, 18, 0, 330], [55, 18, 0, 330], [57, 18, 0, 330], [64, 12, 0, 330], [65, 12, 0, 330], [67, 12, 0, 330] ],
   "edges": [ ],
@@ -133,7 +134,8 @@
     { "at": [54, 16], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [59, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [64, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
-    { "at": [64, 10], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" } ] },
+    { "at": [64, 10], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" } ], "items": [
+    { "at": [15, 19], "z": 0, "stack": ["bed"] } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [4, 4, 0], "to": "first_climb", "door": "demo" },
@@ -188,7 +190,8 @@
     { "at": [58, 20, 0], "text": "SABLE" },
     { "at": [61, 20, 0], "text": "DOME" },
     { "at": [65, 6, 0], "text": "BLASTING" },
-    { "at": [66, 14, 0], "text": "PUMP" }
+    { "at": [66, 14, 0], "text": "PUMP" },
+    { "at": [15, 20, 0], "text": "SLEEP" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [

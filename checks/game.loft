@@ -33,7 +33,8 @@ fn main() {
   test_the_alchemist_takes_from_the_sack();
   test_a_torch_at_night_is_seen_going_in();
   test_sables_day_and_trap_in_the_game();
-  println("checks/game.loft: 20 passed");
+  test_day_and_night();
+  println("checks/game.loft: 21 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -215,7 +216,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 25 && len(g.file.labels) == 26, "twenty-five houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 25 && len(g.file.labels) == 27, "twenty-five houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -515,4 +516,20 @@ fn test_sables_day_and_trap_in_the_game() {
     t += 100;
   }
   assert(g.world.health < 6, "the cart came down: health {g.world.health}");
+}
+
+// The clock (C1): one for the world, from 07:00; the bed by the village's start: slept in by day,
+// the hero wakes at 20:00 — night: the open sky gives no light, the hero in the street unlit — and
+// slept in again, at 07:00 the next day.  The pump room, entered after days have passed, has
+// refilled for them.
+fn test_day_and_night() {
+  m = world();
+  if !m { assert(false, "the world starts"); return; }
+  g = m;
+  assert(!game::is_night(g) && rules::hero_lit(g.world), "07:00, day: lit");
+  rules::put_hero(g.world, 14, 19, 0);
+  game::move(g, 1, 0, false);
+  assert(game::is_night(g) && g.note == "SLEPT TILL 20:00" && g.world.night && !rules::hero_lit(g.world), "slept till night: {g.note}");
+  game::move(g, 1, 0, false);
+  assert(!game::is_night(g) && g.note == "SLEPT TILL 07:00" && g.clock / game::DAY_MS == 1, "and till the next morning: {g.note}");
 }

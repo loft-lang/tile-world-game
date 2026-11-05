@@ -1,0 +1,40 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Day and night (BUILD.md C1): by night the open sky gives no light — what lights the hero is what
+// gives light of itself (a torch) — and a bed lets the hero sleep, the temporary health gone with it
+// (owner).  The clock itself is the game's (checks/game.loft).
+use tile_world;
+use rules;
+
+fn field() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 6, 4, 0, rules::tr(w, "floor"));
+  rules::put_hero(w, 3, 2, 0);
+  w
+}
+
+fn main() {
+  w = field();
+  assert(rules::hero_lit(w), "out under the sky by day");
+}
+
+// By day the open sky lights the hero; by night not, and the light is gone from it; a burning torch
+// in hand lights it by night too.
+fn test_night_has_no_daylight() {
+  w = field();
+  assert(rules::hero_lit(w) && rules::in_daylight(w), "by day: lit");
+  w.night = true;
+  assert(!rules::hero_lit(w) && !rules::in_daylight(w), "by night: dark");
+  w.hero_item = rules::th(w, "burning_torch");
+  w.hero_until = 600000;
+  assert(rules::hero_lit(w), "a torch lights it");
+}
+
+// A bed: walked into, the hero sleeps (the game moves its clock on) — the temporary health gone.
+fn test_a_bed_is_slept_in() {
+  w = field();
+  tile_world::place(w.w, 4, 2, 0, rules::th(w, "bed"));
+  w.spirit = 2;
+  assert(rules::walk(w, 1, 0) == rules::Step.Slept && w.spirit == 0 && w.hero_x == 3, "slept, the spirit gone");
+}

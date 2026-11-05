@@ -158,9 +158,16 @@ its tests on both backends.
 WORLD.md's order of work, steps 2, 3 and 5, with what the story adds.  Each is a system all places
 share, so each is built once and shown in the test world first.
 
-- **C1. The clock.**  A time of day, one clock across places, night and day drawn; timed states as
-  moments (WORLD.md step 2).  Room: *the night room*, a lamp lit at dusk.  Red: the same moment
-  asked twice and across places giving the same answer.
+- **C1. The clock — built** (`tests/day.loft`, `checks/game.loft`).  One clock for the world,
+  every place keeping its time; night from 20:00 to 06:00, when the open sky gives no light
+  (tile_world 0.7.0's `daylight`, loft-libs-world#41) — so whoever sees by light (the Kharn, the
+  people) sees by what gives light of itself; the time on the status line.  A day without the pump
+  turns back drained cells (B4's refill), a place catching up the days on entering.  A bed: slept
+  in, the clock moves on to the next change of light (20:00 by day, 07:00 by night) and the
+  temporary health goes (owner: sleep clears it).  Answered (proposed): a day is 20 minutes of
+  play; it starts at 07:00; 4 cells refill a day, the last drained first, never one the hero or a
+  thing stands on.  Not yet: night drawn darker in the places that were drawn covered for it (the
+  night street keeps its cover), the ghost (B8), people's hours (C3).
 - **C2. Shared facts.**  A line that sets a fact, and lines, barks and talks that depend on facts;
   being seen (who saw the hero do what); goodwill, lost by snooping and won back by aid.  Room: two
   villagers, one who sees and one who is told.  Red: a talk test, a fact set by one and read by
