@@ -41,7 +41,8 @@ fn main() {
   test_the_dunns_bargain();
   test_a_save_read_back_is_the_same();
   test_the_epilogue_follows_the_facts();
-  println("checks/game.loft: 28 passed");
+  test_a_door_made_in_the_editor();
+  println("checks/game.loft: 29 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -698,4 +699,28 @@ fn test_the_epilogue_follows_the_facts() {
   assert(g.still == 1 && g.place == "demo", "the next still: {g.still}");
   for _ in 0..3 { _ = game::update(g, 6000, 0); }
   assert(g.still == 3, "THE END: {g.still}");
+}
+
+// The editor's doors and figures (A1, A2): in the words house, a door to the barn made on (3, 6)
+// and a rat put on (11, 5); back to play, the rat is there, and the hero, stepping onto the new
+// door, goes through it into the barn.
+fn test_a_door_made_in_the_editor() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_words"), "the words opens");
+  game::toggle_editor(g);
+  g.ed.x = 3;
+  g.ed.y = 6;
+  g.ed.z = 0;
+  game::edit(g, "door=the_barn");
+  g.ed.x = 11;
+  g.ed.y = 5;
+  game::edit(g, "figure=rat");
+  game::edit(g, "paint");
+  game::toggle_editor(g);
+  assert(rules::enemy_at(g.world, 11, 5, 0) >= 0, "the rat there");
+  rules::put_hero(g.world, 3, 5, 0);
+  game::move(g, 0, 1, false);
+  assert(g.place == "the_barn", "through the new door: {at(g)} {g.note}");
 }

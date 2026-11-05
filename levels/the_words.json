@@ -1,5 +1,6 @@
 {
   "name": "the words",
+  "serves": [ "@ST-Cyclopes", "@ST-Hints" ],
   "camera": "follow",
   "legend": { ".": "floor", "#": "wall", "d": "open_door" },
   "ground": [ ],

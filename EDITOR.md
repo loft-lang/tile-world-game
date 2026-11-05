@@ -146,7 +146,21 @@ layer and material.
 
 **The palette** sits along the bottom of the screen, drawn with the theme's own sprites.  Its
 categories are Outdoor, Water, Castle, House, Dungeon and Things, and `theme.json` assigns each
-material a category.
+material a category.  After the things come the **figures**: every kind of enemy and person in
+`kinds.json`, by name.  Space puts one on the cell (one there already is replaced), Backspace
+takes it off first, and undo brings it back.  It is saved in the place file's `enemies`.
+
+**The panel**, where the screen has a pointer, also holds the cursor's cell's **door** and
+**text**, and what the place **serves**:
+- DOOR TO: a place typed, then SET, makes the cell a door to it, coming out at that place's
+  door named after this one; SET with nothing takes the door away.  The cell keeps its terrain,
+  so paint a door's look on it.
+- TEXT: words typed, then SET, are written on the ground there; SET with nothing takes them
+  away.
+- SERVES: the place's tags; one clicked is taken away, one typed is added with ADD.
+
+`tools/tags.loft check` reads them.  The same edits by word, for scripts and pictures:
+`figure=rat`, `door=the_farm`, `text=TO_THE_FARM` (`_` a space), `serve=@ST-Hints`.
 
 **Stamps.**  A stamp is a saved rectangle of cells and things, across layers (a house with its
 roof, a tower with its stairs).  Stamps live in `stamps/<name>.json`, in the level format, so

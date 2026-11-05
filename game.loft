@@ -216,7 +216,11 @@ pub struct Game {
   pub ending: boolean = false,
   pub stills: vector<Still> = [],
   pub still: integer = 0,
-  pub still_ms: integer = 0
+  pub still_ms: integer = 0,
+  /// The editor panel's fields (A2, A3): the place a door leads to, the text to write, a tag.
+  pub door_field: text = "",
+  pub text_field: text = "",
+  pub tag_field: text = ""
 }
 
 
@@ -976,7 +980,7 @@ pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
   x = width - 124.0;
   y = 4.0;
   changed = false;
-  ui::panel(u, x, y, 120.0, 176.0 + 14.0 * (len(g.words) as float) + 30.0);
+  ui::panel(u, x, y, 120.0, 176.0 + 14.0 * (len(g.words) as float) + 30.0 + 94.0 + 14.0 * (len(g.file.serves) as float));
   ui::label(u, x + 4.0, y + 4.0, "LEVEL");
   if ui::button(u, "new", x + 76.0, y + 2.0, 40.0, 11.0, "NEW") {
     new_place(g);
@@ -1038,6 +1042,35 @@ pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
     for i in 0..len(g.file.intent.rooms) { if i != g.room_pick { rooms += [g.file.intent.rooms[i]]; } }
     g.file.intent.rooms = rooms;
     g.room_pick = -1;
+    changed = true;
+  }
+  // The cursor's cell a door to a place, text on it (A2): typed, then SET; empty takes it away.
+  fy = wy + 18.0;
+  ui::label(u, x + 4.0, fy, "DOOR TO");
+  door_entered = ui::field(u, "door_to", x + 4.0, fy + 10.0, 76.0, 12.0, g.door_field);
+  if ui::button(u, "door", x + 84.0, fy + 10.0, 32.0, 12.0, "SET") || door_entered {
+    g.note = if editor::set_door(g.ed, g.file, g.door_field, here(g)) { if g.door_field == "" { "NO DOOR" } else { "DOOR" } } else { "NOTHING THERE" };
+    changed = true;
+  }
+  ui::label(u, x + 4.0, fy + 26.0, "TEXT");
+  text_entered = ui::field(u, "text", x + 4.0, fy + 36.0, 76.0, 12.0, g.text_field);
+  if ui::button(u, "label", x + 84.0, fy + 36.0, 32.0, 12.0, "SET") || text_entered {
+    g.note = if editor::set_label(g.ed, g.file, g.text_field) { "TEXT" } else { "NOTHING THERE" };
+    changed = true;
+  }
+  // What the place serves (A3): a tag clicked is taken away; one typed is added.
+  ui::label(u, x + 4.0, fy + 52.0, "SERVES");
+  ty = fy + 62.0;
+  for t in g.file.serves {
+    if ui::button(u, "serves_{t}", x + 4.0, ty, 112.0, 12.0, t) {
+      _ = editor::serve(g.file, t);
+      changed = true;
+    }
+    ty += 14.0;
+  }
+  tag_entered = ui::field(u, "tag", x + 4.0, ty, 76.0, 12.0, g.tag_field);
+  if ui::button(u, "serve", x + 84.0, ty, 32.0, 12.0, "ADD") || tag_entered {
+    g.note = if editor::serve(g.file, g.tag_field) { "SERVES {g.tag_field}" } else { "NOT A TAG" };
     changed = true;
   }
   g.typing = ui::typing(u);
@@ -1488,7 +1521,24 @@ pub fn edit(g: Game, word: text) {
   else if word == "light" { g.lit = !g.lit; }
   else if word == "undo" { _ = editor::undo(g.ed, g.file); }
   else if word == "redo" { _ = editor::redo(g.ed, g.file); }
+  // A figure picked (A1), a door or text set on the cursor's cell (A2; `_` a space), a tag
+  // served (A3): `figure=rat`, `door=the_farm`, `text=TO_THE_FARM`, `serve=@ST-Hints`.
+  else if word.starts_with("figure=") { pick_figure(g, word[7..]); }
+  else if word.starts_with("door=") { _ = editor::set_door(g.ed, g.file, word[5..], here(g)); }
+  else if word.starts_with("text=") { _ = editor::set_label(g.ed, g.file, word[5..].replace("_", " ")); }
+  else if word.starts_with("serve=") { _ = editor::serve(g.file, word[6..]); }
   aim_editor(g);
+}
+
+// The name of the place being edited: in the world, the place; a level alone, its file's name.
+fn here(g: const Game) -> text {
+  if g.place != "" { return g.place; }
+  g.order[g.level] ?? ""
+}
+
+// Pick the palette's figure of `kind` (A1).
+fn pick_figure(g: Game, kind: text) {
+  for i in 0..len(g.ed.palette) { if g.ed.palette[i]!.figure == kind { g.ed.pick = i; } }
 }
 
 /// Write the level being edited to its file.  False when it could not be written.

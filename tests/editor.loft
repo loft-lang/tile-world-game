@@ -49,15 +49,15 @@ fn test_the_palette() {
   ed = editor::new_editor(lf);
   k = lf.level.k;
   n = len(rules::terrain_ids(k));
-  assert(len(ed.palette) == 1 + n + len(rules::thing_ids(k)), "every kind, got {len(ed.palette)}");
+  figures = rules::enemy_names(k);
+  assert(len(ed.palette) == 1 + n + len(rules::thing_ids(k)) + len(figures), "every kind and figure, got {len(ed.palette)}");
   assert(editor::name(k, editor::picked(ed)) == "floor", "the first terrain kind is picked");
   assert(editor::name(k, ed.palette[0] ?? editor::picked(ed)) == "void", "void first");
   assert(editor::name(k, ed.palette[1 + n] ?? editor::picked(ed)) == "cart", "then the things");
   editor::choose(ed, -1);
   editor::choose(ed, -1);
-  things = rules::thing_ids(k);
-  last = rules::thing_name(k, things[len(things) - 1] ?? 0);
-  assert(editor::name(k, editor::picked(ed)) == last, "back past void is the last thing, {last}: {ed.pick}");
+  last = figures[len(figures) - 1] ?? "";
+  assert(editor::name(k, editor::picked(ed)) == last, "back past void is the last figure, {last}: {ed.pick}");
   editor::choose(ed, 1);
   assert(ed.pick == 0, "and on again is void");
 }
@@ -374,4 +374,66 @@ fn test_paint_a_junction() {
   assert(tile_world::terrain(lf.level.w, 2, 2, 0) == rules::tr(lf.level, "rail") && tile_world::tile(lf.level.w, 2, 2, 0) == e.tile,
          "a rail with the junction's picture");
   assert(rules::joins(lf.level, 2, 2, 0) != 0 && editor::undo(ed, lf), "a piece; undone");
+}
+
+// Figures (A1): the palette's figures come after the things, by name; one painted on a cell is
+// there — a rat on (2, 1) — another painted over it takes its place, erase takes it away, undo
+// brings it back; saved and loaded back, it is in the place file's enemies.
+fn test_a_figure_placed_saved_and_loaded() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  k = lf.level.k;
+  n = len(lf.level.enemies);
+  while editor::picked(ed).figure != "rat" { editor::choose(ed, 1); }
+  ed.x = 2;
+  ed.y = 1;
+  ed.z = 0;
+  assert(editor::paint(ed, lf) && editor::figure_at(lf, 2, 1, 0) == "rat" && len(lf.level.enemies) == n + 1, "a rat");
+  while editor::picked(ed).figure != "spider" { editor::choose(ed, 1); }
+  assert(editor::paint(ed, lf) && editor::figure_at(lf, 2, 1, 0) == "spider" && len(lf.level.enemies) == n + 1, "a spider in its place");
+  assert(editor::erase(ed, lf) && editor::figure_at(lf, 2, 1, 0) == "", "erased");
+  assert(editor::undo(ed, lf) && editor::figure_at(lf, 2, 1, 0) == "spider", "undone: the spider back");
+  m = levels::load_with(levels::save_with(lf, materials::none()), k, materials::none());
+  if !m { assert(false, "loads back"); return; }
+  back = m;
+  assert(editor::figure_at(back, 2, 1, 0) == "spider", "saved and loaded back");
+}
+
+// Doors and text (A2): the cursor's cell made a door to the farm — named after it, coming out at
+// the farm's door named after this place — and text written on another; each saved and loaded
+// back; set again with nothing, gone.
+fn test_a_door_and_text_made() {
+  lf = first_climb();
+  ed = editor::new_editor(lf);
+  k = lf.level.k;
+  ed.x = 3;
+  ed.y = 1;
+  ed.z = 0;
+  assert(editor::set_door(ed, lf, "the_farm", "first_climb"), "a door");
+  ed.x = 4;
+  assert(editor::set_label(ed, lf, "TO THE FARM"), "text");
+  m = levels::load_with(levels::save_with(lf, materials::none()), k, materials::none());
+  if !m { assert(false, "loads back"); return; }
+  back = m;
+  d = levels::door_at(back, 3, 1, 0);
+  assert(d >= 0 && back.doors[d]!.to == "the_farm" && back.doors[d]!.door == "first_climb", "the door saved");
+  said = "";
+  for b in back.labels { if b.x == 4 && b.y == 1 { said = b.says; } }
+  assert(said == "TO THE FARM", "the text saved: {said}");
+  ed.x = 3;
+  assert(editor::set_door(ed, lf, "", "") && levels::door_at(lf, 3, 1, 0) < 0, "the door taken away");
+}
+
+// What a place serves (A3): a tag added, saved and loaded back; added again, taken away; not a
+// tag, refused.
+fn test_a_tag_served() {
+  lf = first_climb();
+  k = lf.level.k;
+  assert(editor::serve(lf, "@ST-Hints") && lf.serves.contains("@ST-Hints"), "added");
+  m = levels::load_with(levels::save_with(lf, materials::none()), k, materials::none());
+  if !m { assert(false, "loads back"); return; }
+  back = m;
+  assert(back.serves.contains("@ST-Hints"), "saved and loaded back");
+  assert(editor::serve(lf, "@ST-Hints") && !lf.serves.contains("@ST-Hints"), "taken away");
+  assert(!editor::serve(lf, "hints"), "not a tag");
 }

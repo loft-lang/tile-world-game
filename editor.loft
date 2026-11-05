@@ -22,7 +22,9 @@ pub struct Entry {
   pub material: integer,
   pub label: text,
   /// A painted piece (a junction): the kind with this picture (its tile number); 0 for none.
-  pub tile: integer
+  pub tile: integer,
+  /// A figure (A1): an enemy or person of this kind, put on the cell; "" for none.
+  pub figure: text = ""
 }
 
 // What one cell holds: whether it is set (else it reads as its layer's ground), its kind and
@@ -47,6 +49,7 @@ struct Marker {
 const CELL = 0;
 const START = 1;
 const GOAL = 2;
+const FIGURE = 3;
 
 // One cell an edit changed: it was `was` and is `now`.
 struct Change {
@@ -67,7 +70,10 @@ struct Edit {
   was_at: Marker,
   now_at: Marker,
   /// Made by hand, not filled in from the intent: the cells it changed are adjustments.
-  hand: boolean = true
+  hand: boolean = true,
+  /// A figure put or taken (A1): the kind on the cell before and after ("" for none).
+  figure_was: text = "",
+  figure_now: text = ""
 }
 
 pub struct Editor {
@@ -123,6 +129,8 @@ pub fn palette(k: const rules::Kinds, mats: const materials::Materials) -> vecto
     }
   }
   for id in rules::thing_ids(k) { out += [Entry { thing: true, id: id, material: -1, label: "", tile: 0 }]; }
+  // The figures (A1): every kind of enemy and person, by name.
+  for f in rules::enemy_names(k) { out += [Entry { thing: false, id: 0, material: -1, label: f, tile: 0, figure: f }]; }
   out
 }
 
@@ -150,6 +158,7 @@ pub fn picked(ed: const Editor) -> Entry {
 
 /// An entry's name, as kinds.json or theme.json has it; "void" for void.
 pub fn name(k: const rules::Kinds, e: const Entry) -> text {
+  if e.figure != "" { return e.figure; }
   if e.thing { return rules::thing_name(k, e.id); }
   if e.material >= 0 || e.tile != 0 { return e.label; }
   if e.id == tile_world::VOID { return "void"; }
@@ -534,9 +543,10 @@ fn logged(ed: Editor, lf: const levels::LevelFile, before: const vector<Cell>) -
 /// back to the kind's own), a material sets its kind and the tile it shows there, a thing goes
 /// on top of the cell's stack.  The neighbours are retiled.  False when nothing changed.
 pub fn paint(ed: Editor, lf: levels::LevelFile) -> boolean {
+  e = picked(ed);
+  if e.figure != "" { return figure_edit(ed, lf, e.figure); }
   w = lf.level.w;
   before = around(ed, w);
-  e = picked(ed);
   if e.thing {
     tile_world::place(w, ed.x, ed.y, ed.z, e.id);
   } else if e.tile != 0 {
@@ -567,6 +577,8 @@ pub fn raise(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
 /// it reads as its layer's ground again (void when the layer has none), and retile the
 /// neighbours.  False when nothing changed.
 pub fn erase(ed: Editor, lf: levels::LevelFile) -> boolean {
+  // A figure on the cell goes first (A1).
+  if figure_at(lf, ed.x, ed.y, ed.z) != "" { return figure_edit(ed, lf, ""); }
   w = lf.level.w;
   before = around(ed, w);
   if tile_world::top(w, ed.x, ed.y, ed.z) != 0 {
@@ -576,6 +588,69 @@ pub fn erase(ed: Editor, lf: levels::LevelFile) -> boolean {
     materials::retile(ed.mats, w, ed.x, ed.y, ed.z);
   }
   logged(ed, lf, before)
+}
+
+// --- Figures, doors, text and what a place serves (BUILD.md A1–A3) ---
+
+/// The figure on cell (x, y, z) of the place: its kind, "" for none.
+pub fn figure_at(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> text {
+  i = rules::enemy_at(lf.level, x, y, z);
+  if i < 0 { return ""; }
+  lf.level.enemies[i]!.kind
+}
+
+// Cell (x, y, z) holds a figure of `kind` ("" none), whatever it held: saved in the place file's
+// `enemies` with the rest.
+fn put_figure(lf: levels::LevelFile, x: integer, y: integer, z: integer, kind: text) {
+  i = rules::enemy_at(lf.level, x, y, z);
+  if i >= 0 { _ = lf.level.enemies.remove(i); }
+  if kind != "" { _ = rules::add_enemy(lf.level, kind, x, y, z); }
+}
+
+// Put a figure of `kind` on the cursor's cell ("" takes the one there away), as an edit to undo.
+fn figure_edit(ed: Editor, lf: levels::LevelFile, kind: text) -> boolean {
+  was = figure_at(lf, ed.x, ed.y, ed.z);
+  if was == kind { return false; }
+  put_figure(lf, ed.x, ed.y, ed.z, kind);
+  keep(ed, Edit { what: FIGURE, x: ed.x, y: ed.y, z: ed.z, cells: [], was_at: no_marker(), now_at: no_marker(),
+                  figure_was: was, figure_now: kind });
+  true
+}
+
+/// The cursor's cell a door (A2) to place `to`, coming out there at its door named `there` (the
+/// place's own name, as a door is named after where it leads); `to` "" takes the door there
+/// away.  The cell keeps its terrain: paint a door's look on it.
+pub fn set_door(ed: const Editor, lf: levels::LevelFile, to: text, there: text) -> boolean {
+  kept: vector<levels::Door> = [];
+  had = false;
+  for d in lf.doors { if d.x == ed.x && d.y == ed.y && d.z == ed.z { had = true; } else { kept += [d]; } }
+  if to != "" { kept += [levels::Door { name: to, x: ed.x, y: ed.y, z: ed.z, to: to, door: there, out: "" }]; }
+  lf.doors = kept;
+  had || to != ""
+}
+
+/// Text written on the ground at the cursor's cell (A2); `says` "" takes the text there away.
+pub fn set_label(ed: const Editor, lf: levels::LevelFile, says: text) -> boolean {
+  kept: vector<levels::Label> = [];
+  had = false;
+  for b in lf.labels { if b.x == ed.x && b.y == ed.y && b.z == ed.z { had = true; } else { kept += [b]; } }
+  if says != "" { kept += [levels::Label { x: ed.x, y: ed.y, z: ed.z, says: says }]; }
+  lf.labels = kept;
+  had || says != ""
+}
+
+/// What the place serves (A3): `tag` added, or taken away when it is there already.  False for a
+/// tag that is not one (`@` and a name).
+pub fn serve(lf: levels::LevelFile, tag: text) -> boolean {
+  if !tag.starts_with("@") || len(tag) < 2 { return false; }
+  if lf.serves.contains(tag) {
+    kept: vector<text> = [];
+    for t in lf.serves { if t != tag { kept += [t]; } }
+    lf.serves = kept;
+  } else {
+    lf.serves += [tag];
+  }
+  true
 }
 
 fn put_start(lf: levels::LevelFile, m: const Marker) {
@@ -620,6 +695,13 @@ pub fn set_goal(ed: Editor, lf: levels::LevelFile) -> boolean {
 // Put edit `e`'s side `after` (true: what it made, false: what it found) into `lf`, and the
 // cursor on the place it changed.
 fn apply(ed: Editor, lf: levels::LevelFile, e: const Edit, after: boolean) {
+  if e.what == FIGURE {
+    put_figure(lf, e.x, e.y, e.z, if after { e.figure_now } else { e.figure_was });
+    ed.x = e.x;
+    ed.y = e.y;
+    ed.z = e.z;
+    return;
+  }
   if e.what == CELL {
     for c in e.cells { put_cell(lf.level.w, c.x, c.y, c.z, if after { c.now } else { c.was }); }
   } else if e.what == START {

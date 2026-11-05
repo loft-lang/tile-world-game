@@ -57,13 +57,16 @@ Small editor steps that every later place needs; none changes the rules.
   profile and a chosen height; two shapes as one cave), `tests/places.loft` (the dome holds, a three-wide tunnel does not, the
   bridge crossed).  The cave-in that acts on unsupported cells: B2c.
 
-- **A1. Figures in the editor.**  Place and remove enemies and people (the kinds in kinds.json)
-  from the palette, saved in the place file's `enemies`.  Red: `tests/editor.loft`, a figure placed,
-  saved and loaded back.
-- **A2. Doors and text in the editor.**  Mark a cell as a door to another place and door, and
-  write text on the ground.  Red: a door made in the editor walked through in `checks/game.loft`.
-- **A3. What a place serves.**  The `serves` list shown and edited in the editor's panel.  Red: a
-  tag added in the editor, saved, and `tools/tags.loft check` reading it.
+- **A1. Figures in the editor — built** (`tests/editor.loft`).  The palette's figures, every kind
+  of enemy and person by name, after the things: painted, one is put on the cell (replacing one
+  there), erased first by Backspace, undone like any edit; saved in the place file's `enemies`.
+- **A2. Doors and text in the editor — built** (`tests/editor.loft`, `checks/game.loft`).  The
+  panel's DOOR TO and TEXT fields set the cursor's cell's door (to a place, coming out at its door
+  named after this one) and its text; the words `door=`, `text=` do the same.  A door made in the
+  editor, walked through in play.
+- **A3. What a place serves — built** (`tests/editor.loft`).  The panel's SERVES list: a tag
+  clicked is taken away, one typed added (`serve=`); saved, `tools/tags.loft check` reads it (the
+  words house now serves @ST-Cyclopes and @ST-Hints, added through it).
 
 Talks stay written by hand in the place files for now; they read as a script already.
 

@@ -2336,6 +2336,23 @@ fn tribes_due(l: Level) {
   }
 }
 
+/// The kinds of enemies and people `k` knows, by name in order (the editor's figures, A1).
+pub fn enemy_names(k: const Kinds) -> vector<text> {
+  out: vector<text> = [];
+  for p in k.enemies {
+    at = len(out);
+    for i in 0..len(out) { if at == len(out) && p.name < out[i]! { at = i; } }
+    rest: vector<text> = [];
+    for i in at..len(out) { rest += [out[i]!]; }
+    kept: vector<text> = [];
+    for i in 0..at { kept += [out[i]!]; }
+    kept += [p.name];
+    for r in rest { kept += [r]; }
+    out = kept;
+  }
+  out
+}
+
 /// Enemy i goes to (x, y, z) (C3).
 pub fn send_to(l: Level, i: integer, x: integer, y: integer, z: integer) {
   if i < 0 || i >= len(l.enemies) { return; }

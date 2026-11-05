@@ -148,6 +148,8 @@ on the interpreter and `--native`.
     `TW_NEW=1` starts afresh.
   - LEAVE (the gap in the village's east edge): walk out and the epilogue's stills follow from
     what is known — the bargain, snooping, being liked, Lark's path — then THE END.
+  - The editor (E): figures after the things in the palette; the panel's DOOR TO, TEXT and
+    SERVES (EDITOR.md § 4).
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.
