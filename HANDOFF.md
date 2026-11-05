@@ -116,6 +116,9 @@ on the interpreter and `--native`.
     there goes off like a bomb).
   - THE LIFT (rebuilt with a shaft): pull the cart up the spur onto the platform, stand on it,
     throw the lever beside it — up a layer together; the gallery's lever sends it back down.
+  - THE LAKE: three beams from the shore into the water north of the jetty, the rope on the
+    shoulders, walk into them — fastened; stand on the raft, walk to its east end and on into the
+    water — it drifts to the island, the chest there.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

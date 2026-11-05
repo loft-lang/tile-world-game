@@ -103,6 +103,8 @@
     "herb": "farm:80",
     "mushroom": "town:29",
     "pump": "dungeon:41",
+    "floating_beam": "town:106",
+    "raft_beam": "town:73",
     "lift_lever": "world:52",
     "well_pump": "town:104",
     "lightning_rod": "world:83",

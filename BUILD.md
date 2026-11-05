@@ -125,12 +125,14 @@ its tests on both backends.
   one the alchemist fills (a talk's gift).  Answered (proposed): a cell every 1500 ms; a full
   charge 12 cells, the spare 4; the well runs 60 s on a small one.  Not yet: the daily refill
   (needs the clock, C1).
-- **B5. The flotilla and the rope.**  Beams float where other things are lost; beams that touch
-  link as carts do; beams fastened with rope are stood on, a lone beam is not; pushing off drifts
-  the flotilla until it touches something.  Rope is carried on the shoulders beside what is held,
-  and does not block pushing or pulling.  Room: *the lake*.  Ruled first: how rope fastens (walked
-  into with rope, the beams beside), how many beams carry the hero.  Red: a new
-  `tests/flotilla.loft`.
+- **B5. The flotilla and the rope — built** (the demo's *lake* house, a jetty added;
+  `tests/flotilla.loft`).  Beams float where other things are lost — set into water from the
+  shore, or flung there by a blast; beams that touch link, as carts do; fastened with the rope worn
+  on the shoulders (walked into, the rope used up), they are a raft, stood on; a lone or loose beam
+  is not.  From the raft, open water walked into is pushed off into: the raft drifts that way, the
+  hero on it, until it touches something.  Answered (proposed): a raft carries the hero from 3
+  beams; one rope fastens every beam touching the one walked into; it drifts a cell every 500 ms;
+  pushing never moves items into water (rules as they were).
 - **B6. Crafting.**  A workbench (the smithy's anvil) turns things brought to it into another: the
   blunt sword into a sword; the artefact, from its pieces (a number the game counts, owner: a chest
   adds one) and the materials.  Room: *the smithy*.  Ruled

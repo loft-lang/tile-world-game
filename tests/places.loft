@@ -389,3 +389,26 @@ fn test_the_lift_house() {
 fn top_name_at(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
   rules::thing_name(w.k, tile_world::top(w.w, x, y, z))
 }
+
+// The lake house (B5): from the jetty (x 9 .. 12 on row 9) three beams set afloat north of it —
+// (10, 8), (11, 8), (12, 8) — fastened with the rope, stood on, pushed off east: the raft drifts
+// until its head meets the island (15, 8), two cells on — the hero, at the raft's east end, with it;
+// it steps across onto the island, to the chest.
+fn test_the_lake_house() {
+  lf = place("the_lake");
+  w = lf.level;
+  for x in [10, 11, 12] {
+    rules::put_hero(w, x, 9, 0);
+    w.hero_item = rules::th(w, "beam");
+    assert(rules::walk(w, 0, -1) == rules::Step.Placed, "a beam afloat at {x}, 8");
+  }
+  w.shoulder = rules::th(w, "rope");
+  rules::put_hero(w, 11, 9, 0);
+  assert(rules::walk(w, 0, -1) == rules::Step.Placed && rules::walk(w, 0, -1) == rules::Step.Walked, "fastened, stood on");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 12, "along the raft to its east end");
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed off east, open water ahead");
+  rules::tick(w, 5000);
+  assert(len(w.drifts) == 0 && w.hero_x == 14 && w.hero_y == 8, "stopped at the island: {w.hero_x},{w.hero_y}");
+  _ = rules::play(w, "d");
+  assert(w.hero_x == 15 && rules::walk(w, 1, 0) == rules::Step.Opened, "across, the chest");
+}

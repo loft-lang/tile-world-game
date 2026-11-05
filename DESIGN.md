@@ -82,7 +82,7 @@ machines to be entered.
 <a id="gm-cartlift"></a>**The cart lift** (owner, 2026-11-04): a lift that can carry mine carts.
 
 <a id="gm-flotilla"></a>**The flotilla** (owner, 2026-11-04): wood that can be pulled together into a
-flotilla to cross an underground lake.
+flotilla to cross an underground lake.  **Built** (BUILD.md B5).
 
 **Proposed rules, to be ruled by the owner** (each built from rules that exist; not built).
 

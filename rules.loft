@@ -89,6 +89,11 @@ pub const WELL_MS = 60000;
 
 /// A lift moves a layer every LIFT_MS (proposed, to tune in play).
 pub const LIFT_MS = 1000;
+
+/// A raft of RAFT_MIN beams or more carries the hero; pushed off, it drifts a cell every DRIFT_MS
+/// (proposed, to tune in play).
+pub const RAFT_MIN = 3;
+pub const DRIFT_MS = 500;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -256,6 +261,14 @@ struct ThingProps {
   well: boolean = false,
   /// A lift's lever (B3): thrown, it calls the lift to its layer, or sends it on from there.
   calls_lift: boolean = false,
+  /// The flotilla (B5, @GM-Flotilla): a thing that `floats_to` its floating form in water (a
+  /// beam), one `afloat` there, `raft_to` its fastened form (a raft beam, `raft`), and the rope that
+  /// `fastens` them.
+  floats_to: text = "",
+  afloat: boolean = false,
+  raft_to: text = "",
+  raft: boolean = false,
+  fastens: boolean = false,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -434,6 +447,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       holder: word(e, "holder", ""), crystal: word(e, "crystal", ""), charge: num(e, "charge", 0),
       charged_to: word(e, "charged_to", ""), spent_to: word(e, "spent_to", ""), drains: flag(e, "drains"),
       well: flag(e, "well"), calls_lift: flag(e, "calls_lift"),
+      floats_to: word(e, "floats_to", ""), afloat: flag(e, "afloat"), raft_to: word(e, "raft_to", ""),
+      raft: flag(e, "raft"), fastens: flag(e, "fastens"),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -593,6 +608,15 @@ pub struct Lift {
   pub stops: vector<integer>,
   pub to: integer = 0,
   pub due: integer = 0
+}
+
+/// A raft drifting (B5): its beams' cells, the layer, the way it goes, its next cell's time.
+pub struct Drift {
+  pub cells: vector<(integer, integer)>,
+  pub z: integer,
+  pub dx: integer,
+  pub dy: integer,
+  pub due: integer
 }
 
 pub struct Fall {
@@ -760,6 +784,8 @@ pub struct Level {
   pub strikes: integer = 0,
   /// The cart lifts.
   pub lifts: vector<Lift> = [],
+  /// The rafts drifting.
+  pub drifts: vector<Drift> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -1875,6 +1901,11 @@ fn shift(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer)
   i = flame_at(l, x, y, z);
   if r.0 == GONE {
     if i >= 0 { _ = l.flames.remove(i); }
+    // What floats (a beam) is not lost in water: it floats there (owner).
+    fp = l.k.things[t];
+    if fp && fp.floats_to != "" && water_at(l, x + dx, y + dy, z) && tile_world::top(l.w, x + dx, y + dy, z) == 0 {
+      tile_world::place(l.w, x + dx, y + dy, z, thing_id(l.k, fp.floats_to));
+    }
     return;
   }
   tile_world::place(l.w, r.1, r.2, r.3, t);
@@ -2436,6 +2467,126 @@ fn lifts_due(l: Level) {
   }
 }
 
+// --- The flotilla (BUILD.md B5, @GM-Flotilla) ---
+
+// Is something afloat on (x, y, z): a floating beam or a raft beam?
+fn afloat_at(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  p = l.k.things[tile_world::top(l.w, x, y, z)];
+  p && p.afloat
+}
+
+// The beams afloat touching (x, y, z) and one another (owner: beams that touch link, as carts do).
+fn raft_cells(l: const Level, x: integer, y: integer, z: integer) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  if !afloat_at(l, x, y, z) { return out; }
+  out += [(x, y)];
+  i = 0;
+  while i < len(out) {
+    c = out[i] ?? (x, y);
+    i += 1;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      nx = c.0 + d.0;
+      ny = c.1 + d.1;
+      if !afloat_at(l, nx, ny, z) { continue; }
+      seen = false;
+      for o in out { if o.0 == nx && o.1 == ny { seen = true; } }
+      if !seen { out += [(nx, ny)]; }
+    }
+  }
+  out
+}
+
+// Is the raft (x, y, z) belongs to fastened and big enough to carry the hero?
+fn carries(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  p = l.k.things[tile_world::top(l.w, x, y, z)];
+  if !p || !p.raft { return false; }
+  len(raft_cells(l, x, y, z)) >= RAFT_MIN
+}
+
+// Walking into water `kind` on (tx, ty, z), the way (dx, dy) (B5): a beam held is set afloat there;
+// with the rope on the shoulders a floating beam there is fastened, with every beam touching it,
+// into a raft (the rope used up); a raft of RAFT_MIN beams or more there is stepped onto; from a
+// raft, open water there is pushed off into — the raft drifts that way until it touches something.
+// Blocked otherwise (or on dry ground: nothing to do here).
+fn water_work(l: Level, kind: integer, tx: integer, ty: integer, z: integer, dx: integer, dy: integer) -> Step {
+  wp = l.k.terrain[kind];
+  if !wp || !wp.water { return Step.Blocked; }
+  held = l.k.things[l.hero_item];
+  if held && held.floats_to != "" && tile_world::top(l.w, tx, ty, z) == 0 {
+    tile_world::place(l.w, tx, ty, z, thing_id(l.k, held.floats_to));
+    l.hero_item = 0;
+    return Step.Placed;
+  }
+  here = l.k.things[tile_world::top(l.w, tx, ty, z)];
+  rope = l.k.things[l.shoulder];
+  if here && here.afloat && !here.raft && rope && rope.fastens {
+    for c in raft_cells(l, tx, ty, z) {
+      t = tile_world::top(l.w, c.0, c.1, z);
+      q = l.k.things[t];
+      if q && q.raft_to != "" {
+        _ = tile_world::take(l.w, c.0, c.1, z);
+        tile_world::place(l.w, c.0, c.1, z, thing_id(l.k, q.raft_to));
+      }
+    }
+    l.shoulder = 0;
+    return Step.Placed;
+  }
+  if here && here.raft && carries(l, tx, ty, z) {
+    arrive(l, tx, ty, z);
+    return Step.Walked;
+  }
+  on_raft = water_at(l, l.hero_x, l.hero_y, l.hero_z) && carries(l, l.hero_x, l.hero_y, l.hero_z);
+  if on_raft && tile_world::top(l.w, tx, ty, z) == 0 {
+    cells = raft_cells(l, l.hero_x, l.hero_y, z);
+    for dr in l.drifts {
+      for c in dr.cells { for e in cells { if c.0 == e.0 && c.1 == e.1 { return Step.Blocked; } } }
+    }
+    l.drifts += [Drift { cells: cells, z: z, dx: dx, dy: dy, due: l.now + DRIFT_MS }];
+    return Step.Pushed;
+  }
+  Step.Blocked
+}
+
+// The rafts drifting, due by now: a cell on, beams and the hero on them, while every cell ahead is
+// open water (free, or the raft's own); else it has touched something and stops.
+fn drifts_due(l: Level) {
+  i = 0;
+  while i < len(l.drifts) {
+    dr = l.drifts[i] ?? Drift { cells: [], z: 0, dx: 0, dy: 0, due: 0 };
+    if dr.due > l.now { i += 1; continue; }
+    ok = true;
+    for c in dr.cells {
+      nx = c.0 + dr.dx;
+      ny = c.1 + dr.dy;
+      own = false;
+      for e in dr.cells { if e.0 == nx && e.1 == ny { own = true; } }
+      if own { continue; }
+      if !water_at(l, nx, ny, dr.z) || tile_world::top(l.w, nx, ny, dr.z) != 0 || enemy_at(l, nx, ny, dr.z) >= 0 { ok = false; }
+    }
+    if !ok {
+      _ = l.drifts.remove(i);
+      continue;
+    }
+    rider = false;
+    for c in dr.cells { if c.0 == l.hero_x && c.1 == l.hero_y && dr.z == l.hero_z { rider = true; } }
+    beams: vector<integer> = [];
+    for c in dr.cells { beams += [tile_world::take(l.w, c.0, c.1, dr.z)]; }
+    moved: vector<(integer, integer)> = [];
+    for k in 0..len(dr.cells) {
+      c = dr.cells[k] ?? (0, 0);
+      tile_world::place(l.w, c.0 + dr.dx, c.1 + dr.dy, dr.z, beams[k] ?? 0);
+      moved += [(c.0 + dr.dx, c.1 + dr.dy)];
+    }
+    if rider {
+      l.hero_x += dr.dx;
+      l.hero_y += dr.dy;
+    }
+    l.drifts[i].cells = moved;
+    l.drifts[i].due = dr.due + DRIFT_MS;
+    i += 1;
+  }
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -2498,6 +2649,7 @@ fn step_world(l: Level) {
   falls_due(l);
   pumps_due(l);
   lifts_due(l);
+  drifts_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -2516,6 +2668,7 @@ fn next_due(l: const Level) -> integer {
   for f in l.falls { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
   for pm in l.pumping { if pm.due > l.now && (t < 0 || pm.due < t) { t = pm.due; } }
   for f in l.lifts { if f.to != f.z && f.due > l.now && (t < 0 || f.due < t) { t = f.due; } }
+  for dr in l.drifts { if dr.due > l.now && (t < 0 || dr.due < t) { t = dr.due; } }
   if l.storm > 0 {
     s = ((l.now / l.storm ?? 0) + 1) * l.storm;
     if t < 0 || s < t { t = s; }
@@ -3014,6 +3167,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
     tile_world::set_terrain(l.w, tx, ty, z, open);
     return Step.Opened;
   }
+  // Water (B5): a beam set afloat, beams fastened, a raft stood on, a raft pushed off.
+  float_step = water_work(l, kind, tx, ty, z, dx, dy);
+  if float_step != Step.Blocked { return float_step; }
   // Holding a pick, a standing beam is taken out (B2b): the tunnel beyond it comes down.
   if props_up(l, kind) && holds_pick(l) { return take_out_beam(l, tx, ty, z, dx, dy); }
   if !walkable(l, kind) { return Step.Blocked; }
@@ -4232,6 +4388,11 @@ fn put_item(l: Level, x: integer, y: integer, z: integer, r: (integer, integer, 
   i = flame_at(l, x, y, z);
   if r.0 == GONE {
     if i >= 0 { _ = l.flames.remove(i); }
+    // What floats (a beam) is not lost in water: it floats where it came down (owner).
+    fp = l.k.things[t];
+    if fp && fp.floats_to != "" && water_at(l, r.1, r.2, r.3) && tile_world::top(l.w, r.1, r.2, r.3) == 0 {
+      tile_world::place(l.w, r.1, r.2, r.3, thing_id(l.k, fp.floats_to));
+    }
     return;
   }
   tile_world::place(l.w, r.1, r.2, r.3, t);
