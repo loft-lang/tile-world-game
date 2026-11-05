@@ -80,3 +80,23 @@ fn test_what_goes_through_a_door() {
   _ = rules::set_followers(u, rules::Followers { enemies: [vi], thing: 0 }, 5, 1, 0);
   assert((u.enemies[0]!.x) == 5 && (u.enemies[0]!.y) == 1, "on the door's cell");
 }
+
+// A guide (C3, Lark): on (2, 1), going to (9, 1), the hero on (1, 1).  A step each 1400 ms while
+// the hero is within 4 — (6, 1) at 5600 — then, 5 ahead, it waits; the hero come up to (4, 1),
+// on again: (9, 1) at 14000, and the next time it acts, at 15400, it has guided the hero there —
+// its home still where it lives, (2, 1).
+fn test_a_guide_waits_for_the_hero() {
+  w = hall();
+  rules::put_hero(w, 1, 1, 0);
+  _ = rules::add_enemy(w, "villager", 2, 1, 0);
+  rules::send_to(w, 0, 9, 1, 0);
+  w.enemies[0].guiding = true;
+  rules::tick(w, 10000);
+  assert((w.enemies[0]!.x) == 6, "waits, 5 ahead: {w.enemies[0]!.x}");
+  rules::put_hero(w, 4, 1, 0);
+  rules::tick(w, 4000);
+  assert((w.enemies[0]!.x) == 9 && (w.enemies[0]!.guiding), "14000: there");
+  rules::tick(w, 1400);
+  e = w.enemies[0]!;
+  assert(!e.guiding && e.nest_x == 2 && rules::knows(w, "guided"), "15400: guided, its home where it lives");
+}

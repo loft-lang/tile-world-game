@@ -194,10 +194,18 @@ share, so each is built once and shown in the test world first.
   hero, not a window — within 6 cells in sight when the hero is lit, within 2 in the dark, as the
   Kharn do; a door marked `home` gone through while seen sets `snooped`.  Night before C1: the
   street is covered (a wall layer over it), so only flames light it; the rule is light alone.
-- **C3. People following points.**  Creatures and people at their points at their hours, walking
-  between places by the doors; a person brought to a place (the alchemist to Stormcap, the people
-  to the barricade).  WORLD.md step 3.  Room: a villager going to work and home.  Red: a scripted
-  day, each at their points.
+- **C3. People following points — built** (the *work* house; `tests/following.loft`,
+  `checks/game.loft`).  The world's people (`levels/people.json`): each a kind, points over a
+  cycle — a place, a cell, from when — and a talk that goes where it goes.  Entering a place
+  (WORLD.md step 2's whereabouts), the people whose point is there are at it; during a visit, one
+  whose point moves elsewhere walks to the door that leads there and goes from beside it, one whose
+  point moves here comes in by the door from its last place and walks to it.  A person brought
+  somewhere: led (C3c).  A guide (Lark): a line `guides` to a cell — it walks ahead while the hero
+  keeps within 4 cells and waits otherwise; there, `guided` is known and it goes back home.
+  Answered (proposed): only a door straight to the next place is walked to (no route over the door
+  graph yet — a person with none simply goes and comes); a person's talk starts over when it comes
+  back; the demo worker's cycle 60 s, the street from 0 and work from 30 s.  Still open: WORLD.md
+  step 3's regions, bands and coverage table.
 - **C3b. Sable in the way** (owner; STORY.md @ST-Rival).  The rival adventurer on his points: in
   the main mine by day, home by dusk; walkways he blocks so others go the long way, and his
   practical traps built from what exists — a runaway cart waiting at a lever on a slope, a bomb

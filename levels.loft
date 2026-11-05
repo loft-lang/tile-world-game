@@ -109,11 +109,11 @@ struct LegendChar {
   material: integer
 }
 
-fn num(v: const JsonValue, default: integer) -> integer {
+pub fn num(v: const JsonValue, default: integer) -> integer {
   if v.kind() == "JInteger" || v.kind() == "JNumber" { (v.as_number() as integer) ?? default } else { default }
 }
 
-fn str(v: const JsonValue, default: text) -> text {
+pub fn str(v: const JsonValue, default: text) -> text {
   if v.kind() == "JString" { v.as_text() } else { default }
 }
 

@@ -69,10 +69,10 @@
       ",,:,,,,:,P",
       ",,:,,,,:,P",
       "::::::::,P",
-      "SSSS,,,,,P",
-      "SSSS,,,,,P",
-      "TTFT,,,,,P",
-      ",,:,,,,,,P",
+      "SSSS,SSSSP",
+      "SSSS,SSSSP",
+      "TTFT,TTFTP",
+      ",,:,,,,:,P",
       "::::::::,P",
       "PPPPPPPPPP"
     ] }
@@ -117,7 +117,8 @@
     { "points": [[66, 13], [66, 15]], "z": 0, "as": "path" },
     { "points": [[66, 19], [66, 20]], "z": 0, "as": "path" },
     { "points": [[71, 5], [71, 7]], "z": 0, "as": "path" },
-    { "points": [[71, 13], [71, 15]], "z": 0, "as": "path" } ], "houses": [
+    { "points": [[71, 13], [71, 15]], "z": 0, "as": "path" },
+    { "points": [[71, 19], [71, 20]], "z": 0, "as": "path" } ], "houses": [
     { "at": [31, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [37, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [43, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
@@ -140,7 +141,8 @@
     { "at": [64, 10], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [64, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [69, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
-    { "at": [69, 10], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ], "items": [
+    { "at": [69, 10], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
+    { "at": [69, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ], "items": [
     { "at": [15, 19], "z": 0, "stack": ["bed"] } ] },
   "adjusted": [ ],
   "doors": [
@@ -171,7 +173,8 @@
     { "at": [66, 12, 0], "to": "the_pump_room", "door": "demo" },
     { "at": [66, 18, 0], "to": "the_creatures", "door": "demo" },
     { "at": [71, 4, 0], "to": "the_words", "door": "demo" },
-    { "at": [71, 12, 0], "to": "the_follow", "door": "demo" }
+    { "at": [71, 12, 0], "to": "the_follow", "door": "demo" },
+    { "at": [71, 18, 0], "to": "the_work", "door": "demo" }
   ],
   "labels": [
     { "at": [4, 6, 0], "text": "FIRST CLIMB" },
@@ -203,7 +206,8 @@
     { "at": [15, 20, 0], "text": "SLEEP" },
     { "at": [65, 20, 0], "text": "CREATURES" },
     { "at": [70, 6, 0], "text": "WORDS" },
-    { "at": [70, 14, 0], "text": "FOLLOW" }
+    { "at": [70, 14, 0], "text": "FOLLOW" },
+    { "at": [69, 20, 0], "text": "WORK" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [

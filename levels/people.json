@@ -1,0 +1,46 @@
+[
+  {
+    "name": "worker",
+    "kind": "villager",
+    "cycle": 60000,
+    "points": [
+      {
+        "place": "demo",
+        "at": [
+          68,
+          20,
+          0
+        ],
+        "from": 0
+      },
+      {
+        "place": "the_work",
+        "at": [
+          5,
+          2,
+          0
+        ],
+        "from": 30000
+      }
+    ],
+    "talks": [
+      {
+        "at": [
+          0,
+          0,
+          0
+        ],
+        "name": "worker",
+        "barks": [
+          "OFF TO WORK."
+        ],
+        "lines": [
+          {
+            "worker": "BUSY DAY.",
+            "end": true
+          }
+        ]
+      }
+    ]
+  }
+]

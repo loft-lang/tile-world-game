@@ -135,6 +135,9 @@ on the interpreter and `--native`.
   - FOLLOW: talk to the wanderer — it follows; pull the chair to the east door and go through:
     the chair, the wanderer (and the rat, if it is on your heels) come along; talk again there —
     it stays.
+  - WORK: the worker in the street by the work house (half a minute), then off to work through its
+    door (the other half), found there inside; Lark inside guides the hero to the chest, waiting
+    when it falls behind.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

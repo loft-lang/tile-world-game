@@ -37,7 +37,8 @@ fn main() {
   test_the_alchemist_teaches_the_lore();
   test_the_scholar_makes_urgha_understood();
   test_a_person_follows_through_doors();
-  println("checks/game.loft: 24 passed");
+  test_the_worker_keeps_to_its_day();
+  println("checks/game.loft: 25 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -219,7 +220,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 28 && len(g.file.labels) == 30, "twenty-eight houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 29 && len(g.file.labels) == 31, "twenty-nine houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -588,4 +589,29 @@ fn test_a_person_follows_through_doors() {
   assert(g.place == "the_follow" && len(g.file.talks) == 1, "home, one talk: {len(g.file.talks)}");
   o = talk::owner(g.file.talks[0]!, g.world);
   assert(o >= 0 && (g.world.enemies[o]!.kind) == "villager", "found at its new home");
+}
+
+// The worker's day (C3; levels/people.json, a cycle of 60 s): from 0 in the street at (68, 20) —
+// there on entering at 10 s; at 30 s off to work, walking to the work house's door, and gone from
+// the street by 40 s; the hero going in, finds the worker at work on (5, 2), its talk with it.
+fn test_the_worker_keeps_to_its_day() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  g.clock = 600000 + 10000;
+  assert(game::start_world(g, "demo"), "the demo opens");
+  i = rules::person_index(g.world, "worker");
+  assert(i >= 0 && (g.world.enemies[i]!.x) == 68 && (g.world.enemies[i]!.y) == 20, "10 s: in the street");
+  talks = 0;
+  for t in g.file.talks { if t.name == "worker" { talks += 1; } }
+  assert(talks == 1, "its talk here");
+  rules::put_hero(g.world, 40, 7, 0);
+  g.clock = 600000 + 30000;
+  for _ in 0..10 { _ = game::update(g, 1000, 0); }
+  assert(rules::person_index(g.world, "worker") < 0, "40 s: gone to work");
+  for t in g.file.talks { assert(t.name != "worker", "its talk gone with it"); }
+  d = levels::door_named(g.file, "the_work");
+  assert(game::go_through(g, d), "into the work house");
+  w = rules::person_index(g.world, "worker");
+  assert(w >= 0 && (g.world.enemies[w]!.x) == 5 && (g.world.enemies[w]!.y) == 2, "at work: at {at(g)}");
 }

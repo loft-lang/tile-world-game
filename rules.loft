@@ -99,6 +99,10 @@ pub const DRIFT_MS = 500;
 /// the player in or out; the number proposed).
 pub const REFILL_CELLS = 4;
 
+/// A guide walks on while the hero is within GUIDE_CELLS of it, and waits for it otherwise (C3,
+/// Lark; proposed).
+pub const GUIDE_CELLS = 4;
+
 /// A player is stuck (C2c; proposed) after STUCK_MS within STUCK_CELLS of one spot, or after
 /// STUCK_TRIES blocked tries at one cell in a row; moving STUCK_CELLS on clears it.
 pub const STUCK_MS = 120000;
@@ -878,6 +882,15 @@ pub struct Enemy {
   /// Led by the hero (C3: a person brought somewhere, a talk line `follows` to `stays`): it keeps
   /// beside the hero, and comes along through doors.
   pub led: boolean = false,
+  /// Going somewhere (C3): a cell it walks to, its home once there — a person's next point, the
+  /// door it leaves by; guiding (Lark), it walks only while the hero keeps up.  `person`: one of
+  /// the world's people (the game's `people`), by name, who keeps to points across places.
+  pub goal_set: boolean = false,
+  pub goal_x: integer = 0,
+  pub goal_y: integer = 0,
+  pub goal_z: integer = 0,
+  pub guiding: boolean = false,
+  pub person: text = "",
   /// Away (B8): out of its time and home — gone from the place till its time comes (the ghost by
   /// day): not met, not drawn.
   pub away: boolean = false,
@@ -2174,6 +2187,21 @@ pub fn knows(l: const Level, f: text) -> boolean {
 /// Fact `f` becomes known (once).
 pub fn learn(l: Level, f: text) {
   if !knows(l, f) { l.facts += [f]; }
+}
+
+/// Enemy i goes to (x, y, z) (C3).
+pub fn send_to(l: Level, i: integer, x: integer, y: integer, z: integer) {
+  if i < 0 || i >= len(l.enemies) { return; }
+  l.enemies[i].goal_set = true;
+  l.enemies[i].goal_x = x;
+  l.enemies[i].goal_y = y;
+  l.enemies[i].goal_z = z;
+}
+
+/// The enemy that is person `name` (C3), -1 for none.
+pub fn person_index(l: const Level, name: text) -> integer {
+  for i in 0..len(l.enemies) { if l.enemies[i].person == name { return i; } }
+  -1
 }
 
 // --- Following through a door (BUILD.md C3c) ---
@@ -5562,6 +5590,35 @@ fn enemy_act(l: Level, i: integer) {
       lw = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, false, no_shades());
       if lw.2 > 1 {
         enemy_step(l, i, lw.0, lw.1, p.move_ms);
+        return;
+      }
+    }
+    l.enemies[i].due = e.due + p.move_ms;
+    return;
+  }
+  // Going somewhere (C3): there, one of the world's people makes it its home (its point), anyone
+  // else goes back to where it lives (its talk finds it by its home); guiding, it waits for the
+  // hero to keep up.
+  if e.goal_set {
+    if e.x == e.goal_x && e.y == e.goal_y && e.z == e.goal_z {
+      l.enemies[i].goal_set = false;
+      if e.person != "" {
+        l.enemies[i].nest_x = e.x;
+        l.enemies[i].nest_y = e.y;
+        l.enemies[i].nest_z = e.z;
+      }
+      if e.guiding {
+        l.enemies[i].guiding = false;
+        learn(l, "guided");
+      }
+      l.enemies[i].due = e.due + p.move_ms;
+      return;
+    }
+    behind = e.z != l.hero_z || steps_apart(e.x, e.y, l.hero_x, l.hero_y) > GUIDE_CELLS;
+    if !(e.guiding && behind) && e.z == e.goal_z {
+      gw = enemy_way(l, p, e.x, e.y, e.z, e.goal_x, e.goal_y, false, no_shades());
+      if gw.2 > 0 {
+        enemy_step(l, i, gw.0, gw.1, p.move_ms);
         return;
       }
     }

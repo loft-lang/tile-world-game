@@ -91,6 +91,12 @@ pub struct Line {
   /// The person starts following the hero (C3: brought somewhere), or stays where it is.
   pub follows: boolean = false,
   pub stays: boolean = false,
+  /// The person guides the hero to (guide_x, guide_y, guide_z) (C3, Lark): it walks ahead while
+  /// the hero keeps up.
+  pub guides: boolean = false,
+  pub guide_x: integer = 0,
+  pub guide_y: integer = 0,
+  pub guide_z: integer = 0,
   /// Broken words (C2d, Urgha): until this holds, the line comes through in part — every other
   /// word heard as `..`.
   pub clear: text = ""
@@ -152,7 +158,7 @@ fn line_named(lines: const vector<Line>, id: text) -> integer {
 }
 
 // The keys a line has beside its speaker's.
-const LINE_KEYS = "id ms next away then end take give bump sets when clear follows stays";
+const LINE_KEYS = "id ms next away then end take give bump sets when clear follows stays guides";
 
 // What a line says and who says it: a bare text is its own figure's; else the one key that is not
 // one of LINE_KEYS is the speaker (its own figure by `own`, or "them"), its value what it says.
@@ -186,6 +192,8 @@ fn line_from(e: const JsonValue, own: text) -> Line {
     next_id: word(e, "next"), away_id: word(e, "away"), then_id: word(e, "then"),
     next: -1, away: -1, then: -1, end: flag(e, "end"), take: flag(e, "take"), give: word(e, "give"), sets: word(e, "sets"), when: word(e, "when"), clear: word(e, "clear"),
     follows: flag(e, "follows"), stays: flag(e, "stays"),
+    guides: e.field("guides").len() == 3, guide_x: num(e.field("guides").item(0), 0),
+    guide_y: num(e.field("guides").item(1), 0), guide_z: num(e.field("guides").item(2), 0),
     bumps: bumps_of(e.field("bump"), own)
   }
 }
@@ -277,7 +285,7 @@ fn bumps_json(t: const Talk, bs: const vector<Bump>) -> text {
 // has nothing else, else its id, its speaker with what is said, and what is set.
 fn line_json(t: const Talk, l: const Line) -> text {
   plain = l.id == "" && l.by == "" && l.ms == 0 && l.next_id == "" && l.away_id == "" && l.then_id == ""
-          && !l.end && !l.take && l.give == "" && len(l.bumps) == 0 && l.sets == "" && l.when == "" && l.clear == "" && !l.follows && !l.stays;
+          && !l.end && !l.take && l.give == "" && len(l.bumps) == 0 && l.sets == "" && l.when == "" && l.clear == "" && !l.follows && !l.stays && !l.guides;
   if plain { return quoted(l.says); }
   who = if l.by != "" { l.by } else if t.name != "" { t.name } else { "them" };
   out = "{{ ";
@@ -295,6 +303,7 @@ fn line_json(t: const Talk, l: const Line) -> text {
   if l.clear != "" { out += ", \"clear\": {quoted(l.clear)}"; }
   if l.follows { out += ", \"follows\": true"; }
   if l.stays { out += ", \"stays\": true"; }
+  if l.guides { out += ", \"guides\": [{l.guide_x}, {l.guide_y}, {l.guide_z}]"; }
   if len(l.bumps) > 0 { out += ", \"bump\": {bumps_json(t, l.bumps)}"; }
   out + " }}"
 }
@@ -429,6 +438,10 @@ fn begin(t: const Talk, l: rules::Level, i: integer, n: integer, taking: boolean
   if line.sets != "" { rules::learn(l, line.sets); }
   if line.follows { l.enemies[i].led = true; }
   if line.stays { l.enemies[i].led = false; }
+  if line.guides {
+    rules::send_to(l, i, line.guide_x, line.guide_y, line.guide_z);
+    l.enemies[i].guiding = true;
+  }
   if line.give != "" {
     th = rules::thing_id(l.k, line.give);
     if th != 0 {

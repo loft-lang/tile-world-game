@@ -53,6 +53,28 @@ const KEY_CTRL = 133;
 /// How long the swing key is held for a heavy swing (@GM-Combat; proposed, to tune in play).
 pub const HEAVY_HOLD_MS = 500;
 
+/// One of the world's people (C3; `levels/people.json`): its kind, the points it keeps to over its
+/// cycle — each a place, a cell and from when in the cycle — and its talk (none or one), which
+/// goes where it goes.  Entering a place, the people whose point is there are there, at it; during
+/// a visit, one whose point moves elsewhere walks to the door that leads there and goes, and one
+/// whose point moves here comes in by the door from its last place and walks to it (proposed:
+/// the door straight to that place; a person with none goes and comes at its point).
+pub struct PersonPoint {
+  pub place: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub from: integer
+}
+
+pub struct Person {
+  pub name: text,
+  pub kind: text,
+  pub cycle: integer,
+  pub points: vector<PersonPoint>,
+  pub talks: vector<talk::Talk>
+}
+
 /// A talk that went with its person to another place (C3: a person brought somewhere): written in
 /// place `from`'s file at (fx, fy, fz), now in place `place`, anchored at the person's new home.
 pub struct MovedTalk {
@@ -155,7 +177,9 @@ pub struct Game {
   /// sooner a light one (@GM-Combat).
   swing_down_at: integer = -1,
   /// The talks that went with their people to other places (C3).
-  pub moved_talks: vector<MovedTalk> = []
+  pub moved_talks: vector<MovedTalk> = [],
+  /// The world's people and their points (C3).
+  pub people: vector<Person> = []
 }
 
 /// A place the hero has left, as it left it.
@@ -268,6 +292,7 @@ pub fn new_game(dir: text) -> Game? {
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
     just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0
   };
+  g.people = load_people(dir);
   for e in sound_events() {
     parts = e.split(':');
     name = parts[0];
@@ -371,6 +396,7 @@ pub fn start_world(g: Game, place: text) -> boolean {
   g.entered_by = "";
   g.has_arrived = false;
   restart(g);
+  move_people(g, true);
   g.arrived = g.world;
   g.has_arrived = true;
   true
@@ -399,7 +425,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   leaving: vector<talk::Talk> = [];
   for t in g.file.talks {
     o = talk::owner(t, g.world);
-    if o >= 0 && (g.world.enemies[o]!.led) { leaving += [t]; }
+    if o >= 0 && (g.world.enemies[o]!.led) && (g.world.enemies[o]!.person) == "" { leaving += [t]; }
   }
   f = rules::take_followers(g.world);
   from = g.place;
@@ -435,6 +461,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
       bring_talk(g, from, t, mv.3, mv.4, mv.5);
     }
   }
+  move_people(g, true);
   g.entered_by = there;
   g.arrived = g.world;
   g.has_arrived = true;
@@ -449,6 +476,117 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   aim(g);
   sound(g, "door_open");
   true
+}
+
+// The world's people, from `levels/people.json` (none when there is no such file).
+fn load_people(dir: text) -> vector<Person> {
+  out: vector<Person> = [];
+  v = json_parse(file("{dir}/levels/people.json").content() ?? "");
+  for i in 0..v.len() {
+    p = v.item(i);
+    pts: vector<PersonPoint> = [];
+    pv = p.field("points");
+    for j in 0..pv.len() {
+      q = pv.item(j);
+      at = q.field("at");
+      pts += [PersonPoint { place: levels::str(q.field("place"), ""), x: levels::num(at.item(0), 0),
+                            y: levels::num(at.item(1), 0), z: levels::num(at.item(2), 0),
+                            from: levels::num(q.field("from"), 0) }];
+    }
+    out += [Person { name: levels::str(p.field("name"), ""), kind: levels::str(p.field("kind"), "villager"),
+                     cycle: levels::num(p.field("cycle"), 0), points: pts, talks: talk::from_json(p.field("talks")) }];
+  }
+  out
+}
+
+// The point person `p` keeps to now and the one before it: the last whose `from` the time in its
+// cycle has reached (before the first, the last of the cycle before).
+fn person_points(g: const Game, p: const Person) -> (integer, integer) {
+  n = len(p.points);
+  cyc = if p.cycle > 0 { p.cycle } else { DAY_MS };
+  phase = g.clock % cyc ?? 0;
+  k = n - 1;
+  for j in 0..n { if p.points[j]!.from <= phase { k = j; } }
+  (k, (k + n - 1) % n ?? 0)
+}
+
+// The door of the place open that leads to `place`, -1 for none.
+fn door_to(g: const Game, place: text) -> integer {
+  for i in 0..len(g.file.doors) { if g.file.doors[i]!.to == place { return i; } }
+  -1
+}
+
+// Keep the world's people where their points say (C3).  `entering`: the place has just opened —
+// the people whose point is here are put at it, the others are not here; otherwise those leaving
+// walk to their door and go from beside it, those coming arrive by theirs.  One the hero leads
+// goes with the hero instead.  Each one's talk is here while it is, at its home.
+fn move_people(g: Game, entering: boolean) {
+  if entering {
+    kept: vector<rules::Enemy> = [];
+    for e in g.world.enemies { if e.person == "" || e.led { kept += [e]; } }
+    g.world.enemies = kept;
+  }
+  for p in g.people {
+    if len(p.points) == 0 { continue; }
+    pts = person_points(g, p);
+    now = p.points[pts.0]!;
+    before = p.points[pts.1]!;
+    i = rules::person_index(g.world, p.name);
+    if i >= 0 && (g.world.enemies[i]!.led) { continue; }
+    if i >= 0 {
+      e = g.world.enemies[i]!;
+      if now.place == g.place {
+        if !e.goal_set && (e.nest_x != now.x || e.nest_y != now.y || e.nest_z != now.z) {
+          rules::send_to(g.world, i, now.x, now.y, now.z);
+        }
+      } else {
+        d = door_to(g, now.place);
+        dx = if d >= 0 { g.file.doors[d]!.x } else { e.x };
+        dy = if d >= 0 { g.file.doors[d]!.y } else { e.y };
+        far = (if e.x > dx { e.x - dx } else { dx - e.x }) + (if e.y > dy { e.y - dy } else { dy - e.y });
+        if d < 0 || far <= 1 {
+          _ = g.world.enemies.remove(i);
+        } else if !e.goal_set || e.goal_x != dx || e.goal_y != dy {
+          rules::send_to(g.world, i, dx, dy, g.file.doors[d]!.z);
+        }
+      }
+    } else if now.place == g.place {
+      d = if entering || before.place == g.place { -1 } else { door_to(g, before.place) };
+      sx = if d >= 0 { g.file.doors[d]!.x } else { now.x };
+      sy = if d >= 0 { g.file.doors[d]!.y } else { now.y };
+      sz = if d >= 0 { g.file.doors[d]!.z } else { now.z };
+      if rules::enemy_at(g.world, sx, sy, sz) >= 0 || (g.world.hero_x == sx && g.world.hero_y == sy && g.world.hero_z == sz) {
+        continue;
+      }
+      _ = rules::add_enemy(g.world, p.kind, sx, sy, sz);
+      j = len(g.world.enemies) - 1;
+      g.world.enemies[j].person = p.name;
+      if sx != now.x || sy != now.y || sz != now.z { rules::send_to(g.world, j, now.x, now.y, now.z); }
+    }
+  }
+  // Each one's talk here while it is, at its home.
+  talks: vector<talk::Talk> = [];
+  for t in g.file.talks { if !is_person(g, t.name) { talks += [t]; } }
+  for p in g.people {
+    i = rules::person_index(g.world, p.name);
+    if i < 0 { continue; }
+    e = g.world.enemies[i]!;
+    for t in p.talks {
+      n = t;
+      n.name = p.name;
+      n.x = e.nest_x;
+      n.y = e.nest_y;
+      n.z = e.nest_z;
+      talks += [n];
+    }
+  }
+  g.file.talks = talks;
+}
+
+fn is_person(g: const Game, name: text) -> boolean {
+  if name == "" { return false; }
+  for p in g.people { if p.name == name { return true; } }
+  false
 }
 
 // Talk `t` of place `from` goes with its person to the place now open, anchored at (x, y, z):
@@ -758,6 +896,7 @@ fn clock_text(g: const Game) -> text {
 // The place keeps the world's time (C1): night or not, and the days it has seen since its last —
 // what refills by the day refills for them.
 fn keep_time(g: Game) {
+  move_people(g, false);
   g.world.night = is_night(g);
   day = g.clock / DAY_MS ?? 0;
   if day > g.world.day {

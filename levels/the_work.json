@@ -1,0 +1,70 @@
+{
+  "name": "the work",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "###############",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#.............#",
+      "#######d#######"
+    ] }
+  ],
+  "things": [
+    { "at": [1, 1, 0], "stack": ["table"] },
+    { "at": [3, 1, 0], "stack": ["chair"] },
+    { "at": [4, 1, 0], "stack": ["table"] },
+    { "at": [5, 1, 0], "stack": ["chair"] },
+    { "at": [7, 1, 0], "stack": ["table"] },
+    { "at": [8, 1, 0], "stack": ["chair"] },
+    { "at": [9, 1, 0], "stack": ["table"] },
+    { "at": [11, 1, 0], "stack": ["chair"] },
+    { "at": [12, 1, 0], "stack": ["chest"] },
+    { "at": [13, 1, 0], "stack": ["chair"] },
+    { "at": [1, 2, 0], "stack": ["chair"] },
+    { "at": [4, 2, 0], "stack": ["anvil"] },
+    { "at": [13, 2, 0], "stack": ["table"] },
+    { "at": [1, 3, 0], "stack": ["chair"] },
+    { "at": [13, 3, 0], "stack": ["table"] },
+    { "at": [1, 4, 0], "stack": ["table"] },
+    { "at": [13, 4, 0], "stack": ["chair"] },
+    { "at": [1, 5, 0], "stack": ["table"] },
+    { "at": [13, 5, 0], "stack": ["chair"] },
+    { "at": [1, 6, 0], "stack": ["chair"] },
+    { "at": [1, 7, 0], "stack": ["chair"] },
+    { "at": [4, 7, 0], "stack": ["chair"] },
+    { "at": [5, 7, 0], "stack": ["table"] },
+    { "at": [6, 7, 0], "stack": ["chair"] },
+    { "at": [8, 7, 0], "stack": ["table"] },
+    { "at": [9, 7, 0], "stack": ["chair"] },
+    { "at": [10, 7, 0], "stack": ["table"] },
+    { "at": [12, 7, 0], "stack": ["chair"] },
+    { "at": [13, 7, 0], "stack": ["table"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["villager", 2, 5, 0] ],
+  "intent": { "seed": 75, "rooms": [
+    { "x": 0, "y": 0, "w": 15, "h": 9, "z": 0, "words": ["furnished"] } ], "corridors": [ ], "trails": [
+    { "points": [[7, 8]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [12, 1], "z": 0, "stack": ["chest"] },
+    { "at": [4, 2], "z": 0, "stack": ["anvil"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [7, 8, 0], "to": "demo", "door": "the_work" }
+  ],
+  "talks": [
+    { "at": [2, 5, 0], "name": "lark", "lines": [
+        { "lark": "COME, I KNOW A WAY.", "then": "there", "end": true, "guides": [12, 2, 0] },
+        { "id": "there", "lark": "NOBODY ELSE KNOWS IT.", "end": true } ] }
+  ],
+  "start": [7, 7, 0],
+  "goal": { "type": "" }
+}
