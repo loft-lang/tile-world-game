@@ -140,6 +140,10 @@ on the interpreter and `--native`.
     when it falls behind.
   - FARM: the barn (east) SHUT; talk to the horse — it follows; Dunn's offer: bump him while he
     makes it — struck, the horse stays and the barn opens (a bed); walk away — asked again.
+  - RAID: a villager with an axe closes the gap with the pile's beams (a cell every 6 s); lead
+    the other one there and it goes twice as fast.  The Kharn (west) eat a prey every 20 s; at one
+    left one scouts, at none (80 s) all come — the barricade turns them back and they leave.  End
+    a rat on their side and they come sooner.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

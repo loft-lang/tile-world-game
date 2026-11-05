@@ -243,13 +243,21 @@ share, so each is built once and shown in the test world first.
   no longer following.  The barn's door `needs` the bargain: shut (SHUT) until it holds; a bed
   inside.  Answered (proposed): the horse taken back by speaking to it again, the bargain and the
   bed kept; the words are placeholders for the owner's.
-- **C4. A group acting together.**  The Kharn as a tribe: prey counted down by the clock and by
-  what has happened to the monsters; nervous scouting outside the mine; the attack; turned back
-  by a defended place, they leave.  Room: a small tribe, a small village, a barricade.  Red: the
-  attack at the moment the prey runs out, and a retreat that holds.
-- **C5. A barricade built by its people.**  People with an axe and time turning beams into a
-  barricade at an entrance; more hands, faster.  Red: the barricade's size after a set time, for
-  two numbers of hands.
+- **C4. A group acting together — built** (the *raid* house; `tests/tribe.loft`).  The Kharn as
+  a tribe (a place's `tribe`): its members the place's enemies of its kind; its prey counted down
+  by the clock (one eaten every `eat_ms`) and by what happens to the monsters (one of its
+  `prey_kinds` ended, one less); at one left, one member scouts towards the cell it raids and
+  turns back within 3 cells of it; at none, all attack it.  Arriving with a barricade on that
+  cell, they turn back, and once all are home they leave for good — the retreat holds.
+  Answered (proposed): the numbers; a defended place is a barricade on the raided cell; not
+  turned back, they fight as cyclopes do.  Still open: a tribe across places (their mine, the
+  village), scouting seen from outside.
+- **C5. A barricade built by its people — built** (the *raid* house; `tests/tribe.loft`).  A
+  place's `works`: the cells in the order built and a pile of beams.  Every 2000 ms each person
+  holding an axe within 4 cells of its first cell adds a unit; 3 units turn a beam from the pile
+  into a barricade on the next free cell.  More hands, faster: after 8000 ms one hand has built
+  one cell, two hands two.  The hero brings more hands by leading them (C3).  Answered
+  (proposed): the numbers.
 - **C6. Saves.**  The clock, the hero, each place's changes, the facts (WORLD.md step 5).  Red: a
   save, a restart, the same state.
 - **C6b. The fountains as save points** (owner; STORY.md @ST-Fountains).  The strange fountains

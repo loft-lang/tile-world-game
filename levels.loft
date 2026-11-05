@@ -259,6 +259,26 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     b = bv.item(i);
     l.bars += [rules::Bar { x: num(b.item(0), 0), y: num(b.item(1), 0), z: num(b.item(2), 0), side: b.item(3).as_text() }];
   }
+  // The barricades to build (C5): their cells in order, and the pile of beams.
+  kv = v.field("works");
+  for i in 0..kv.len() {
+    wk = kv.item(i);
+    cs: vector<(integer, integer, integer)> = [];
+    cv = wk.field("cells");
+    for j in 0..cv.len() { cs += [(num(cv.item(j).item(0), 0), num(cv.item(j).item(1), 0), num(cv.item(j).item(2), 0))]; }
+    pl = wk.field("pile");
+    l.works += [rules::Work { cells: cs, pile_x: num(pl.item(0), 0), pile_y: num(pl.item(1), 0), pile_z: num(pl.item(2), 0) }];
+  }
+  // A group acting together (C4): its kind, prey, how often it eats, its prey's kinds, its raid.
+  tv = v.field("tribe");
+  if tv.kind() == "JObject" {
+    pk: vector<text> = [];
+    pv = tv.field("prey_kinds");
+    for j in 0..pv.len() { pk += [pv.item(j).as_text()]; }
+    rd = tv.field("raid");
+    l.tribes += [rules::Tribe { kind: str(tv.field("kind"), ""), prey: num(tv.field("prey"), 0), eat_ms: num(tv.field("eat_ms"), 0),
+                                prey_kinds: pk, raid_x: num(rd.item(0), 0), raid_y: num(rd.item(1), 0), raid_z: num(rd.item(2), 0) }];
+  }
   // What lies under the water (B4), and the place's storm (a strike every so many ms).
   wv = v.field("beneath");
   for i in 0..wv.len() {
@@ -625,6 +645,23 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       first = false;
     }
     out += " ],";
+  }
+  if len(lf.level.works) > 0 {
+    out += "\n  \"works\": [";
+    first = true;
+    for wk in lf.level.works {
+      out += if first { " " } else { ", " };
+      cs = "";
+      for c in wk.cells { cs += if cs == "" { "[{c.0}, {c.1}, {c.2}]" } else { ", [{c.0}, {c.1}, {c.2}]" }; }
+      out += "{{ \"cells\": [{cs}], \"pile\": [{wk.pile_x}, {wk.pile_y}, {wk.pile_z}] }}";
+      first = false;
+    }
+    out += " ],";
+  }
+  for tb in lf.level.tribes {
+    pk = "";
+    for pn in tb.prey_kinds { pk += if pk == "" { quoted(pn) } else { ", {quoted(pn)}" }; }
+    out += "\n  \"tribe\": {{ \"kind\": {quoted(tb.kind)}, \"prey\": {tb.prey}, \"eat_ms\": {tb.eat_ms}, \"prey_kinds\": [{pk}], \"raid\": [{tb.raid_x}, {tb.raid_y}, {tb.raid_z}] }},";
   }
   if len(lf.level.bars) > 0 {
     out += "\n  \"bars\": [";

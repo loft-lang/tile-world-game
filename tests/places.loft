@@ -428,3 +428,20 @@ fn test_the_creatures_house() {
   rules::tick(w, 5000);
   for e in w.enemies { if e.kind == "ghost" { assert(!e.away, "by night it is there"); } }
 }
+
+// The raid house (C4, C5): one hand at the gap builds its three cells by 18 s (a cell each 6 s);
+// the prey (4, one eaten each 20 s) runs out at 80 s and the Kharn come — to a barricade: turned
+// back, and by 2 minutes gone.
+fn test_the_raid_house() {
+  lf = place("the_raid");
+  w = lf.level;
+  armed = 0;
+  for e in w.enemies { if e.kind == "villager" && e.item == rules::th(w, "axe") { armed += 1; } }
+  assert(armed == 2, "two villagers with an axe: {armed}");
+  rules::tick(w, 18000);
+  assert(w.works[0]!.built == 3, "18 s: the gap closed: {w.works[0]!.built}");
+  rules::tick(w, 62000);
+  assert(w.tribes[0]!.state == 2, "80 s: the attack");
+  rules::tick(w, 40000);
+  assert(w.tribes[0]!.state == 4, "2 minutes: turned back, gone: {w.tribes[0]!.state}");
+}

@@ -99,6 +99,18 @@ pub const DRIFT_MS = 500;
 /// the player in or out; the number proposed).
 pub const REFILL_CELLS = 4;
 
+/// A barricade (C5; proposed): every BUILD_MS each person holding an axe within WORK_CELLS of its
+/// first cell adds a unit of work; BEAM_UNITS make a beam from the pile a barricade on its next
+/// cell.  More hands, faster.
+pub const BUILD_MS = 2000;
+pub const BEAM_UNITS = 3;
+pub const WORK_CELLS = 4;
+
+/// A tribe (C4; proposed) scouts once its prey is down to SCOUT_PREY, the scout turning back
+/// within SCOUT_CELLS of the cell it raids; at none, it attacks.
+pub const SCOUT_PREY = 1;
+pub const SCOUT_CELLS = 3;
+
 /// A guide walks on while the hero is within GUIDE_CELLS of it, and waits for it otherwise (C3,
 /// Lark; proposed).
 pub const GUIDE_CELLS = 4;
@@ -628,6 +640,33 @@ pub struct Bar {
   pub side: text
 }
 
+/// A barricade being built (C5): its cells in the order they are built, the pile of beams it is
+/// made of, the work done toward the next beam, how many are built, and when the hands next add.
+pub struct Work {
+  pub cells: vector<(integer, integer, integer)>,
+  pub pile_x: integer,
+  pub pile_y: integer,
+  pub pile_z: integer,
+  pub units: integer = 0,
+  pub built: integer = 0,
+  pub due: integer = -1
+}
+
+/// A group acting together (C4, the Kharn): its members — the place's enemies of `kind` — its
+/// prey left, one eaten every `eat_ms`, the kinds that are its prey, the cell it raids, and how
+/// far it has come: 0 at home, 1 scouting, 2 attacking, 3 turned back, 4 gone.
+pub struct Tribe {
+  pub kind: text,
+  pub prey: integer,
+  pub eat_ms: integer,
+  pub prey_kinds: vector<text>,
+  pub raid_x: integer,
+  pub raid_y: integer,
+  pub raid_z: integer,
+  pub state: integer = 0,
+  pub next_eat: integer = -1
+}
+
 /// A pump running (B4): where it stands, the cells it has still to drain, when the next goes.
 pub struct Pumping {
   pub x: integer,
@@ -823,6 +862,9 @@ pub struct Level {
   pub falls: vector<Fall> = [],
   /// The doors held shut by a beam, and the side each beam is on.
   pub bars: vector<Bar> = [],
+  /// The barricades being built (C5) and the groups acting together (C4).
+  pub works: vector<Work> = [],
+  pub tribes: vector<Tribe> = [],
   /// The pumps running, what lies under the water, the cells drained (in order), and the place's
   /// storm: a lightning strike every `storm` ms (0: none), until the weather (C1) drives it.
   pub pumping: vector<Pumping> = [],
@@ -2189,6 +2231,111 @@ pub fn learn(l: Level, f: text) {
   if !knows(l, f) { l.facts += [f]; }
 }
 
+// --- A barricade built by its people (BUILD.md C5) ---
+
+// Every BUILD_MS the hands at a barricade add their work; each BEAM_UNITS of it turns a beam from
+// the pile into a barricade on the next cell — while beams are left and the cell is clear.
+fn works_due(l: Level) {
+  axe = th(l, "axe");
+  bar = th(l, "barricade");
+  beam = th(l, "beam");
+  for k in 0..len(l.works) {
+    w = l.works[k]!;
+    if len(w.cells) == 0 || w.built >= len(w.cells) { continue; }
+    if w.due < 0 {
+      l.works[k].due = l.now + BUILD_MS;
+      continue;
+    }
+    if w.due > l.now { continue; }
+    c0 = w.cells[0]!;
+    hands = 0;
+    for e in l.enemies {
+      if e.item == axe && !e.away && e.z == c0.2 && steps_apart(e.x, e.y, c0.0, c0.1) <= WORK_CELLS { hands += 1; }
+    }
+    units = w.units + hands;
+    built = w.built;
+    while units >= BEAM_UNITS && built < len(w.cells) && tile_world::top(l.w, w.pile_x, w.pile_y, w.pile_z) == beam {
+      c = w.cells[built]!;
+      if tile_world::top(l.w, c.0, c.1, c.2) != 0 || enemy_at(l, c.0, c.1, c.2) >= 0 { break; }
+      _ = tile_world::take(l.w, w.pile_x, w.pile_y, w.pile_z);
+      tile_world::place(l.w, c.0, c.1, c.2, bar);
+      units -= BEAM_UNITS;
+      built += 1;
+    }
+    l.works[k].units = if units > BEAM_UNITS { BEAM_UNITS } else { units };
+    l.works[k].built = built;
+    l.works[k].due = w.due + BUILD_MS;
+  }
+}
+
+// --- A group acting together (BUILD.md C4) ---
+
+// The tribes' clock: a prey eaten every eat_ms; at SCOUT_PREY one member scouts towards the cell
+// it raids and turns back near it; at none, all attack it.  Arriving there with a barricade on
+// it, they turn back, and once all are home they leave for good — the retreat holds.
+fn tribes_due(l: Level) {
+  for k in 0..len(l.tribes) {
+    t = l.tribes[k]!;
+    if t.state >= 4 || t.kind == "" { continue; }
+    next = if t.next_eat < 0 { l.now + t.eat_ms } else { t.next_eat };
+    prey = t.prey;
+    while prey > 0 && t.eat_ms > 0 && next <= l.now {
+      prey -= 1;
+      next += t.eat_ms;
+    }
+    l.tribes[k].prey = prey;
+    l.tribes[k].next_eat = next;
+    state = t.state;
+    if state == 0 && prey > 0 && prey <= SCOUT_PREY {
+      state = 1;
+      for i in 0..len(l.enemies) {
+        if l.enemies[i].kind == t.kind {
+          send_to(l, i, t.raid_x, t.raid_y, t.raid_z);
+          break;
+        }
+      }
+    }
+    if state == 1 {
+      for i in 0..len(l.enemies) {
+        e = l.enemies[i]!;
+        if e.kind == t.kind && e.goal_set && e.goal_x == t.raid_x && e.goal_y == t.raid_y
+           && steps_apart(e.x, e.y, t.raid_x, t.raid_y) <= SCOUT_CELLS {
+          send_to(l, i, e.nest_x, e.nest_y, e.nest_z);
+        }
+      }
+    }
+    if state <= 1 && prey <= 0 {
+      state = 2;
+      for i in 0..len(l.enemies) { if l.enemies[i].kind == t.kind { send_to(l, i, t.raid_x, t.raid_y, t.raid_z); } }
+    }
+    if state == 2 && tile_world::top(l.w, t.raid_x, t.raid_y, t.raid_z) == th(l, "barricade") {
+      there = false;
+      for e in l.enemies {
+        if e.kind == t.kind && e.z == t.raid_z && steps_apart(e.x, e.y, t.raid_x, t.raid_y) <= 1 { there = true; }
+      }
+      if there {
+        state = 3;
+        for i in 0..len(l.enemies) {
+          e = l.enemies[i]!;
+          if e.kind == t.kind { send_to(l, i, e.nest_x, e.nest_y, e.nest_z); }
+        }
+      }
+    }
+    if state == 3 {
+      home = true;
+      // Each one home once it has reached its home (its goal cleared there; it may roam after).
+      for e in l.enemies { if e.kind == t.kind && e.goal_set { home = false; } }
+      if home {
+        kept: vector<Enemy> = [];
+        for e in l.enemies { if e.kind != t.kind { kept += [e]; } }
+        l.enemies = kept;
+        state = 4;
+      }
+    }
+    l.tribes[k].state = state;
+  }
+}
+
 /// Enemy i goes to (x, y, z) (C3).
 pub fn send_to(l: Level, i: integer, x: integer, y: integer, z: integer) {
   if i < 0 || i >= len(l.enemies) { return; }
@@ -2921,6 +3068,8 @@ pub fn tick(l: Level, ms: integer) {
 // Everything due by now: rolling carts, bombs and fuses, arrows, enemies, flames burning out.
 fn step_world(l: Level) {
   if alive(l) { notice_stay(l); }
+  works_due(l);
+  tribes_due(l);
   start_rolls(l);
   roll_due(l);
   start_bomb_rolls(l);
@@ -2951,6 +3100,8 @@ fn next_due(l: const Level) -> integer {
   for pm in l.pumping { if pm.due > l.now && (t < 0 || pm.due < t) { t = pm.due; } }
   for f in l.lifts { if f.to != f.z && f.due > l.now && (t < 0 || f.due < t) { t = f.due; } }
   for dr in l.drifts { if dr.due > l.now && (t < 0 || dr.due < t) { t = dr.due; } }
+  for wk in l.works { if wk.built < len(wk.cells) && wk.due > l.now && (t < 0 || wk.due < t) { t = wk.due; } }
+  for tb in l.tribes { if tb.state < 2 && tb.prey > 0 && tb.next_eat > l.now && (t < 0 || tb.next_eat < t) { t = tb.next_eat; } }
   stuck_at = l.stay_since + STUCK_MS;
   if l.stay_since >= 0 && stuck_at > l.now && (t < 0 || stuck_at < t) { t = stuck_at; }
   if l.storm > 0 {
@@ -5860,6 +6011,10 @@ pub fn strike_enemy(l: Level, i: integer, damage: integer) {
     _ = l.enemies.remove(i);
     l.killed += 1;
     if held != 0 { leave(l, held, x, y, z, fx, fy); }
+    // One of a tribe's prey ended (C4): it has one less to hunt.
+    for k in 0..len(l.tribes) {
+      if l.tribes[k].prey > 0 && l.tribes[k].prey_kinds.contains(e.kind) { l.tribes[k].prey -= 1; }
+    }
     // What is hunted leaves its meat (B7).
     mp = enemy_props(l, e.kind);
     if mp.meat != "" { leave(l, thing_id(l.k, mp.meat), x, y, z, fx, fy); }

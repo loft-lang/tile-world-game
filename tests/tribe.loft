@@ -1,0 +1,108 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A barricade built by its people and a group acting together (BUILD.md C5, C4; the numbers
+// proposed): hands with an axe add a unit of work every 2000 ms, 3 units make a beam from the pile
+// a barricade on the next cell; the Kharn eat a prey every so often, scout at one left and attack
+// at none, and a barricade on the cell they raid turns them back for good.
+use tile_world;
+use rules;
+
+// A hall x 0 .. 29, y 0 .. 4, walled.
+fn hall() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, -1, -1, 30, 5, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 29, 4, 0, rules::tr(w, "floor"));
+  w
+}
+
+// A barricade across x 20 at y 1 .. 3, built from (20, 1) down; a pile of three beams on (22, 0);
+// `hands` villagers with an axe beside it, on (21, 1) and (21, 3); the hero far off.
+fn site(hands: integer) -> rules::Level {
+  w = hall();
+  rules::put_hero(w, 0, 4, 0);
+  for _ in 0..3 { tile_world::place(w.w, 22, 0, 0, rules::th(w, "beam")); }
+  w.works += [rules::Work { cells: [(20, 1, 0), (20, 2, 0), (20, 3, 0)], pile_x: 22, pile_y: 0, pile_z: 0 }];
+  for k in 0..hands {
+    _ = rules::add_enemy(w, "villager", 21, 1 + 2 * k, 0);
+    rules::arm_enemy(w, k, "axe");
+  }
+  w
+}
+
+fn built(w: const rules::Level) -> integer {
+  n = 0;
+  for y in 1..=3 { if tile_world::top(w.w, 20, y, 0) == rules::th(w, "barricade") { n += 1; } }
+  n
+}
+
+fn main() {
+  w = site(1);
+  assert(len(w.works) == 1, "a barricade to build");
+}
+
+// More hands, faster: the first work at 2000.  One hand — units 1, 2, 3 at 2000, 4000, 6000: a
+// cell at 6000, and at 8000 still one.  Two hands — 2, 4 (a cell, 1 left), 3 (a cell) at 2000, 4000,
+// 6000; at 8000 two built.  The beams come off the pile: one left of three.
+fn test_more_hands_build_faster() {
+  one = site(1);
+  rules::tick(one, 5999);
+  assert(built(one) == 0, "one hand, 5999: none");
+  rules::tick(one, 2001);
+  assert(built(one) == 1, "one hand, 8000: one: {built(one)}");
+  two = site(2);
+  rules::tick(two, 8000);
+  assert(built(two) == 2, "two hands, 8000: two: {built(two)}");
+  n = 0;
+  while tile_world::top(two.w, 22, 0, 0) == rules::th(two, "beam") {
+    _ = tile_world::take(two.w, 22, 0, 0);
+    n += 1;
+  }
+  assert(n == 1, "one beam left on the pile: {n}");
+}
+
+// The Kharn: two cyclopes at home on (2, 1) and (2, 3), 3 prey, one eaten every 10000 ms, raiding
+// (17, 2); the hero far off on (29, 4).  At 20000 one prey left: one scouts; at 29999 not yet
+// attacking; at 30000 none left, all go for (17, 2).
+fn kharn() -> rules::Level {
+  w = hall();
+  rules::put_hero(w, 29, 4, 0);
+  _ = rules::add_enemy(w, "cyclops", 2, 1, 0);
+  _ = rules::add_enemy(w, "cyclops", 2, 3, 0);
+  w.tribes += [rules::Tribe { kind: "cyclops", prey: 3, eat_ms: 10000, prey_kinds: ["rat"], raid_x: 17, raid_y: 2, raid_z: 0 }];
+  w
+}
+
+fn test_the_attack_comes_when_the_prey_runs_out() {
+  w = kharn();
+  rules::tick(w, 19999);
+  assert(w.tribes[0]!.state == 0 && w.tribes[0]!.prey == 2, "19999: at home, 2 prey");
+  rules::tick(w, 1);
+  assert(w.tribes[0]!.state == 1 && (w.enemies[0]!.goal_set) && !(w.enemies[1]!.goal_set), "20000: one scouts");
+  rules::tick(w, 9999);
+  assert(w.tribes[0]!.state == 1, "29999: not yet");
+  rules::tick(w, 1);
+  assert(w.tribes[0]!.state == 2 && w.tribes[0]!.prey == 0, "30000: the attack");
+  for e in w.enemies { assert(e.goal_set && e.goal_x == 17, "all for (17, 2)"); }
+  // A rat ended (a prey of theirs) brings it sooner: at 0, 2 prey left — the attack at 20000.
+  v = kharn();
+  _ = rules::add_enemy(v, "rat", 27, 0, 0);
+  rules::strike_enemy(v, 2, 9);
+  rules::tick(v, 20000);
+  assert(v.tribes[0]!.state == 2, "one prey less: the attack at 20000");
+}
+
+// A barricade on (17, 2): come up to it, they turn back, home, and leave — and do not come back.
+fn test_a_defended_place_turns_them_back() {
+  w = kharn();
+  tile_world::place(w.w, 17, 2, 0, rules::th(w, "barricade"));
+  rules::tick(w, 30000);
+  rules::tick(w, 30000);
+  assert(w.tribes[0]!.state >= 3, "turned back: {w.tribes[0]!.state}");
+  rules::tick(w, 30000);
+  n = 0;
+  for e in w.enemies { if e.kind == "cyclops" { n += 1; } }
+  assert(w.tribes[0]!.state == 4 && n == 0, "gone: {n}");
+  rules::tick(w, 60000);
+  assert(w.tribes[0]!.state == 4 && len(w.enemies) == 0, "and they stay gone");
+}
