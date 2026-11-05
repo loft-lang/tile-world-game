@@ -71,6 +71,17 @@ struct Mover {
   hp: integer
 }
 
+/// A still of the epilogue (C7; `levels/epilogue.json`): shown when every condition in `when`
+/// holds as the hero walks away — a place, the cell it is centred on, and what it says.
+pub struct Still {
+  pub when: vector<text>,
+  pub says: text,
+  pub place: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer
+}
+
 /// One of the world's people (C3; `levels/people.json`): its kind, the points it keeps to over its
 /// cycle — each a place, a cell and from when in the cycle — and its talk (none or one), which
 /// goes where it goes.  Entering a place, the people whose point is there are there, at it; during
@@ -199,7 +210,13 @@ pub struct Game {
   /// The world's people and their points (C3).
   pub people: vector<Person> = [],
   /// Where the game is saved at a well or fountain (C6); "" — the checks, a picture — none.
-  pub save_dir: text = ""
+  pub save_dir: text = "",
+  /// The epilogue (C7): its stills, the one shown (its number; past the last, THE END) and for
+  /// how long it has been.
+  pub ending: boolean = false,
+  pub stills: vector<Still> = [],
+  pub still: integer = 0,
+  pub still_ms: integer = 0
 }
 
 
@@ -483,6 +500,76 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   aim(g);
   sound(g, "door_open");
   true
+}
+
+// --- The epilogue (BUILD.md C7) ---
+
+/// How long a still of the epilogue is shown before the next (a key goes on sooner).
+pub const STILL_MS = 6000;
+
+/// The stills of the epilogue that hold for the world as the hero leaves it: in the order
+/// `levels/epilogue.json` lists them, each whose every condition holds (`rules::holds`).
+pub fn epilogue(g: const Game) -> vector<Still> {
+  out: vector<Still> = [];
+  v = json_parse(file("{g.dir}/levels/epilogue.json").content() ?? "");
+  for i in 0..v.len() {
+    e = v.item(i);
+    when: vector<text> = [];
+    wv = e.field("when");
+    for j in 0..wv.len() { when += [wv.item(j).as_text()]; }
+    holds = true;
+    for c in when { if !rules::holds(g.world, c) { holds = false; } }
+    if !holds { continue; }
+    at = e.field("at");
+    out += [Still { when: when, says: levels::str(e.field("says"), ""), place: levels::str(e.field("place"), ""),
+                    x: levels::num(at.item(0), 0), y: levels::num(at.item(1), 0), z: levels::num(at.item(2), 0) }];
+  }
+  out
+}
+
+/// The hero walks away (a door that `ends`): the epilogue's stills for the world as it is now.
+pub fn begin_ending(g: Game) {
+  g.stills = epilogue(g);
+  g.ending = true;
+  show_still(g, 0);
+  sound(g, "win", 1.0);
+}
+
+// Still `n` shown: its place drawn as it is in the files, the view centred on its cell, nobody in
+// it (the hero out of sight); past the last, THE END.
+fn show_still(g: Game, n: integer) {
+  g.still = n;
+  g.still_ms = 0;
+  if n >= len(g.stills) { return; }
+  s = g.stills[n]!;
+  if s.place == "" { return; }
+  m = levels::load_with(file("{g.dir}/levels/{s.place}.json").content() ?? "", g.kinds, g.mats);
+  if !m { return; }
+  g.file = m;
+  g.world = g.file.level;
+  rules::put_hero(g.world, -100000, -100000, s.z);
+  g.cam_x = s.x - COLS / 2;
+  g.cam_y = s.y - s.z - (ROWS - 1) / 2;
+}
+
+fn draw_still(g: Game) {
+  tiles::clear(g.surface, 0);
+  ts = g.look.tile_size;
+  half = ts / 2;
+  if g.still >= len(g.stills) {
+    write(g, "THE END", (W - 7 * ts) / 2, (ROWS / 2 - 1) * ts);
+    return;
+  }
+  s = g.stills[g.still]!;
+  if s.place != "" { draw_layer(g, g.world, s.z, false, false, true, 0); }
+  rows = talk::wrap(s.says, (W - 8) / half ?? 20);
+  bh = len(rows) * (half + 1) + 6;
+  y = ROWS * ts - bh;
+  tiles::rect(g.surface, 0, y, W, bh, BUBBLE_FILL);
+  for r in 0..len(rows) {
+    row = rows[r] ?? "";
+    theme::write_small(g.surface, g.look, row, ((W - len(row) * half) / 2 ?? 0) as float, (y + 3 + r * (half + 1)) as float, 0);
+  }
 }
 
 // --- Saves (BUILD.md C6, WORLD.md step 5) ---
@@ -1157,6 +1244,10 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   // A step onto a door takes the hero through it, to the place it leads to.
   moved = g.world.hero_x != ox || g.world.hero_y != oy || g.world.hero_z != oz;
   door = levels::door_at(g.file, g.world.hero_x, g.world.hero_y, g.world.hero_z);
+  if moved && door >= 0 && rules::alive(g.world) && g.file.doors[door]!.ends {
+    begin_ending(g);
+    return;
+  }
   if moved && door >= 0 && rules::alive(g.world) && go_through(g, door) { return; }
   aim(g);
 }
@@ -1484,6 +1575,12 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.editing { return update_editor(g, now); }
+  // The epilogue: a still for STILL_MS, or until a key; the last stays.
+  if g.ending {
+    g.still_ms += ms;
+    if g.still < len(g.stills) && (g.still_ms >= STILL_MS || (ms > 0 && any_key(g))) { show_still(g, g.still + 1); }
+    return true;
+  }
   changed = false;
   frame = g.world.now / theme::FRAME_MS;
   held = g.world.hero_item;
@@ -2131,6 +2228,10 @@ fn follow_enemies(g: Game) {
 pub fn draw(g: Game) {
   if g.editing {
     draw_editor(g);
+    return;
+  }
+  if g.ending {
+    draw_still(g);
     return;
   }
   follow_enemies(g);

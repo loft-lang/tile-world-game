@@ -274,8 +274,14 @@ share, so each is built once and shown in the test world first.
   basin a terrain of its own (`basin`, dungeon:31), the pouring spout a wall's look.  Answered
   (proposed): a dry fountain is never filled — it only stands in the way, a sign that one was
   there; coming back the game says BACK AT FOUNTAIN.
-- **C7. The epilogue.**  The player walks away; stills of what follows, chosen by the facts.  Red:
-  the stills for a set of facts.
+- **C7. The epilogue — built** (`checks/game.loft`).  A door that `ends` (the village's LEAVE gap
+  in its east edge): walking through, the hero walks away.  The stills (`levels/epilogue.json`),
+  each shown when every condition in its `when` holds (`rules::holds`: facts, `!fact`, `liked`,
+  `disliked`) — a place drawn as it is in its file, nobody in it, the view centred on a cell, and
+  a caption; one after another, 6 s each or a key sooner, then THE END.  Answered (proposed): the
+  stills show the places as drawn, not as the hero left them; the five stills there are
+  placeholders — the epilogue's words are the owner's.  The small letters have no comma or
+  apostrophe: captions do without.
 
 ## Phase D — the story world, place by place
 

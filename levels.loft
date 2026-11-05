@@ -67,7 +67,9 @@ pub struct Door {
   /// Someone's home (BUILD.md C2b): going in while seen is snooping (rules::seen_by_people).
   pub home: boolean = false,
   /// Shut until this holds (C9: the barn, open once the bargain is struck; `rules::holds`).
-  pub needs: text = ""
+  pub needs: text = "",
+  /// Walking through it, the hero walks away: the game ends in its epilogue (C7).
+  pub ends: boolean = false
 }
 
 /// Text written on the map, centred on cell (x, y) of layer z.
@@ -250,7 +252,8 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     doors += [Door {
       name: str(d.field("name"), to), x: num(at.item(0), 0), y: num(at.item(1), 0), z: num(at.item(2), 0),
       to: to, door: str(d.field("door"), ""), out: str(d.field("out"), ""),
-      home: d.field("home").as_bool() ?? false, needs: str(d.field("needs"), "")
+      home: d.field("home").as_bool() ?? false, needs: str(d.field("needs"), ""),
+      ends: d.field("ends").as_bool() ?? false
     }];
   }
   // The doors held shut by a beam (DESIGN.md § Bombs): each cell, and the side its beam is on.
@@ -607,6 +610,7 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
       if d.out != "" { out += ", \"out\": {quoted(d.out)}"; }
       if d.home { out += ", \"home\": true"; }
       if d.needs != "" { out += ", \"needs\": {quoted(d.needs)}"; }
+      if d.ends { out += ", \"ends\": true"; }
       out += " }}";
       first = false;
     }

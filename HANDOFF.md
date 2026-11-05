@@ -146,6 +146,8 @@ on the interpreter and `--native`.
     a rat on their side and they come sooner.
   - Saves: drink at a well or fountain (SAVED), quit, start again — play goes on from there;
     `TW_NEW=1` starts afresh.
+  - LEAVE (the gap in the village's east edge): walk out and the epilogue's stills follow from
+    what is known — the bargain, snooping, being liked, Lark's path — then THE END.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

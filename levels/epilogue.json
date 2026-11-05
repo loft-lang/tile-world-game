@@ -1,0 +1,61 @@
+[
+  {
+    "when": [],
+    "says": "THE HERO WALKS AWAY FROM ORBURY DOWN THE ROAD TO THE EAST.",
+    "place": "demo",
+    "at": [
+      52,
+      7,
+      0
+    ]
+  },
+  {
+    "when": [
+      "bargain"
+    ],
+    "says": "THE HORSE GROWS OLD AT THE FARM OF THE DUNNS AND IS WELL FED.",
+    "place": "the_farm",
+    "at": [
+      4,
+      3,
+      0
+    ]
+  },
+  {
+    "when": [
+      "snooped"
+    ],
+    "says": "IN THE VILLAGE THEY STILL TALK OF THE NIGHT VISITOR.",
+    "place": "the_night_street",
+    "at": [
+      8,
+      7,
+      0
+    ]
+  },
+  {
+    "when": [
+      "liked",
+      "!snooped"
+    ],
+    "says": "THE VILLAGE REMEMBERS A FRIEND.",
+    "place": "demo",
+    "at": [
+      40,
+      15,
+      0
+    ]
+  },
+  {
+    "when": [
+      "guided"
+    ],
+    "says": "LARK'S PATH STAYS A SECRET.",
+    "place": "the_work",
+    "at": [
+      12,
+      2,
+      0
+    ]
+  }
+]

@@ -40,7 +40,8 @@ fn main() {
   test_the_worker_keeps_to_its_day();
   test_the_dunns_bargain();
   test_a_save_read_back_is_the_same();
-  println("checks/game.loft: 27 passed");
+  test_the_epilogue_follows_the_facts();
+  println("checks/game.loft: 28 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -222,7 +223,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 31 && len(g.file.labels) == 33, "thirty-one houses, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 32 && len(g.file.labels) == 34, "thirty-one houses and the way out, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -261,13 +262,14 @@ fn test_a_place_left_keeps_its_state() {
 }
 
 // Every door of the village leads into a place with a door back to it, and that door brings the
-// hero out in front of the house it went into.
+// hero out in front of the house it went into — but the way out, which ends the game (C7).
 fn test_every_house_has_a_way_back() {
   m = world();
   if !m { assert(false, "the world starts"); return; }
   g = m;
   n = len(g.file.doors);
   for i in 0..n {
+    if g.file.doors[i]!.ends { continue; }
     to = g.file.doors[i]!.to;
     x = g.file.doors[i]!.x;
     y = g.file.doors[i]!.y;
@@ -673,4 +675,27 @@ fn test_a_save_read_back_is_the_same() {
   f = levels::door_named(g.file, "the_farm");
   assert(game::go_through(g, f), "into the farm");
   assert(tile_world::top(g.world.w, 9, 5, 0) == rules::th(g.world, "chair"), "the farm as it was left");
+}
+
+// The epilogue (C7): the stills for a set of facts — with the bargain struck and the hero seen
+// snooping, the road east, the horse, the night visitor (not the friend, not Lark's path); then
+// out by the LEAVE gap in the village's east edge: the stills in turn, 6 s each, then THE END.
+fn test_the_epilogue_follows_the_facts() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "demo"), "the demo opens");
+  rules::learn(g.world, "bargain");
+  rules::snoop(g.world);
+  s = game::epilogue(g);
+  places = "";
+  for st in s { places += "{st.place} "; }
+  assert(places == "demo the_farm the_night_street ", "the stills: {places}");
+  rules::put_hero(g.world, 77, 15, 0);
+  game::move(g, 1, 0, false);
+  assert(g.ending && g.still == 0 && len(g.stills) == 3, "walked away: {at(g)}");
+  _ = game::update(g, 6000, 0);
+  assert(g.still == 1 && g.place == "demo", "the next still: {g.still}");
+  for _ in 0..3 { _ = game::update(g, 6000, 0); }
+  assert(g.still == 3, "THE END: {g.still}");
 }

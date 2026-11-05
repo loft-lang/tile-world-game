@@ -68,7 +68,7 @@
       "##E#,TTFT,TTFTP",
       ",,:,,,,:,,,,:,P",
       ",,:,,,,:,,,,:,P",
-      ":::::::::::::,P",
+      ":::::::::::::::",
       "SSSS,SSSS,,,,,P",
       "SSSS,SSSS,,,,,P",
       "TTFT,TTFT,,,,,P",
@@ -120,7 +120,8 @@
     { "points": [[71, 13], [71, 15]], "z": 0, "as": "path" },
     { "points": [[71, 19], [71, 20]], "z": 0, "as": "path" },
     { "points": [[76, 5], [76, 7]], "z": 0, "as": "path" },
-    { "points": [[76, 13], [76, 15]], "z": 0, "as": "path" } ], "houses": [
+    { "points": [[76, 13], [76, 15]], "z": 0, "as": "path" },
+    { "points": [[77, 15], [78, 15]], "z": 0, "as": "path" } ], "houses": [
     { "at": [31, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
     { "at": [37, 2], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [43, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
@@ -180,7 +181,8 @@
     { "at": [71, 12, 0], "to": "the_follow", "door": "demo" },
     { "at": [71, 18, 0], "to": "the_work", "door": "demo" },
     { "at": [76, 4, 0], "to": "the_farm", "door": "demo" },
-    { "at": [76, 12, 0], "to": "the_raid", "door": "demo" }
+    { "at": [76, 12, 0], "to": "the_raid", "door": "demo" },
+    { "at": [78, 15, 0], "to": "", "door": "", "ends": true }
   ],
   "labels": [
     { "at": [4, 6, 0], "text": "FIRST CLIMB" },
@@ -215,7 +217,8 @@
     { "at": [70, 14, 0], "text": "FOLLOW" },
     { "at": [69, 20, 0], "text": "WORK" },
     { "at": [75, 6, 0], "text": "FARM" },
-    { "at": [75, 14, 0], "text": "RAID" }
+    { "at": [75, 14, 0], "text": "RAID" },
+    { "at": [76, 14, 0], "text": "LEAVE" }
   ],
   "talks": [
     { "at": [10, 18, 0], "name": "elder", "bump": "poke", "barks": [ "HI THERE.", "WHAT BRINGS YOU HERE?" ], "gifts": { "stick": "thanks" }, "lines": [
