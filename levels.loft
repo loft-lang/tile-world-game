@@ -264,6 +264,17 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     l.beneath += [rules::Beneath { x: num(b.item(0), 0), y: num(b.item(1), 0), z: num(b.item(2), 0), kind: b.item(3).as_text() }];
   }
   l.storm = num(v.field("storm"), 0);
+  // The cart lifts (B3): each shaft, the layer its platform is at, its stops.
+  lv2 = v.field("lifts");
+  for i in 0..lv2.len() {
+    e = lv2.item(i);
+    at = e.field("at");
+    sv: vector<integer> = [];
+    ss = e.field("stops");
+    for j in 0..ss.len() { sv += [num(ss.item(j), 0)]; }
+    z0 = num(e.field("z"), 0);
+    l.lifts += [rules::Lift { x: num(at.item(0), 0), y: num(at.item(1), 0), z: z0, stops: sv, to: z0, due: 0 }];
+  }
   // The people's days (C3): each by where they nest, its cycle and its points.
   rv = v.field("routes");
   for i in 0..rv.len() {
@@ -600,6 +611,18 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     out += " ],";
   }
   if lf.level.storm > 0 { out += "\n  \"storm\": {lf.level.storm},"; }
+  if len(lf.level.lifts) > 0 {
+    out += "\n  \"lifts\": [";
+    first = true;
+    for f in lf.level.lifts {
+      out += if first { " " } else { ", " };
+      st = "";
+      for s in f.stops { st += if st == "" { "{s}" } else { ", {s}" }; }
+      out += "{{ \"at\": [{f.x}, {f.y}], \"z\": {f.z}, \"stops\": [{st}] }}";
+      first = false;
+    }
+    out += " ],";
+  }
   if len(lf.level.bars) > 0 {
     out += "\n  \"bars\": [";
     first = true;

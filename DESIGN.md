@@ -128,7 +128,7 @@ Tiny Ski's 78–80); it also
     (a chest, a cart, a lever), found as the water goes — the flooded part's reward.
   - Scenario: a room whose far half is water over a chest, the pump on the dry side; one room
     with a second pump that drains the water off a rail, opening a cart's way.
-- **The cart lift.**
+- **The cart lift.**  **Built** (BUILD.md B3).
   - **In the Old Seam it joins all the levels** (owner, 2026-11-04), but the lowest are not reached
     by it until the pump has run several times: its stop there is under water till then
     (@GM-Flooded).

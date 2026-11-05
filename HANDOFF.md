@@ -113,6 +113,8 @@ on the interpreter and `--native`.
     beneath comes up; the spent crystal on the rod is charged at the next strike (a 20 s storm),
     and drains twelve more; the alchemist fills the small crystal for the well pump (a large one
     there goes off like a bomb).
+  - THE LIFT (rebuilt with a shaft): pull the cart up the spur onto the platform, stand on it,
+    throw the lever beside it — up a layer together; the gallery's lever sends it back down.
   Screenshots: `TW_WORLD=<place> TW_SHOT=out.png TW_MOVES="w ~300 a ~300"` — `~N` lets the glide
   of each step finish (without it the hero is drawn where the moves began).
   `tests/places.loft` plays each; `checks/game.loft` through the game.

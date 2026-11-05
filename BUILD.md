@@ -102,9 +102,14 @@ its tests on both backends.
   holding; lit over a stone with a burning torch, at once; it cracks the first wall ahead and blows
   out a door, also one held shut by a beam (lifted from the beam's side, `bars` in the level);
   a span it widens under rock keeps gathering stones.  The proposals taken are listed there.
-- **B3. The cart lift.**  A platform between layers carrying its stack, sent by a lever (or an
-  arrow), moving only with its shaft clear, its rails joining the track at each stop.  Room: *the
-  lift*.  Ruled first: its speed; riding it with no cart.  Red: a new `tests/lift.loft`.
+- **B3. The cart lift — built** (the demo's *lift* house; `tests/lift.loft`).  Its platform is a
+  rail cell in the shaft on the layer it is at, the shaft open (void) at its other stops — so the
+  track joins it at each stop, and a drop in the shaft is there where the platform is not (owner:
+  fine, not from all sides); its stops in the level's `lifts`.  A lever beside the shaft calls it
+  to its layer, or sends it on from there to the next stop down (from the bottom, up); it carries
+  what stands on the platform and the hero riding it; a stop under water is passed by (owner: the
+  lowest reached only once the pump has run); it moves only with its shaft clear.  Answered
+  (proposed): a layer every 1000 ms; riding it with no cart, yes.
 - **B4. The pump and its crystals — built** (the demo's *pump* house; `tests/pump.loft`).  A
   crystal cannot be harmed (an item: a blast flings it).  Put into the mine's pump, a charged one
   gives it its charge at once and is left spent; the pump drains the water joined to it, nearest

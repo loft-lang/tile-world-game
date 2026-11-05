@@ -1,0 +1,84 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The cart lift (BUILD.md B3, DESIGN.md @GM-CartLift; the numbers proposed): its platform is a rail
+// cell in the shaft on the layer it is at, the shaft open (void) at its other stops; a lever beside
+// it calls it there, or sends it on to the next stop down (from the bottom, up); it moves a layer
+// every 1000 ms carrying what stands on it — a cart, the hero riding — passes a stop under water
+// by (owner), and moves only with its shaft clear.
+use tile_world;
+use rules;
+
+// Two layers: on layer 0 floor x 1 .. 7, y 1 .. 5, a track y 3 x 1 .. 4 to the shaft (5, 3) — the
+// platform there — and its lever on (5, 4); on layer 1 a gallery x 5 .. 7, y 2 .. 4 over rock, its
+// track (6, 3), (7, 3), the shaft open on (5, 3), its lever on (5, 4).
+fn mine() -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 8, 6, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 1, 1, 7, 5, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 1, 3, 5, 3, 0, rules::tr(w, "rail"));
+  tile_world::fill(w.w, 0, 0, 8, 6, 1, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 5, 2, 7, 4, 1, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 6, 3, 7, 3, 1, rules::tr(w, "rail"));
+  tile_world::set_terrain(w.w, 5, 3, 1, rules::VOID);
+  tile_world::place(w.w, 5, 4, 0, rules::th(w, "lift_lever"));
+  tile_world::place(w.w, 5, 4, 1, rules::th(w, "lift_lever"));
+  w.lifts += [rules::Lift { x: 5, y: 3, z: 0, stops: [0, 1], to: 0, due: 0 }];
+  w
+}
+
+fn top(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, z))
+}
+
+fn main() {
+  w = mine();
+  assert(len(w.lifts) == 1, "a lift");
+}
+
+// A cart on the platform; the lever thrown from (6, 4): at 999 still below, at 1000 the platform and
+// its cart on layer 1, the shaft open where it was.
+fn test_the_lift_carries_a_cart_up() {
+  w = mine();
+  tile_world::place(w.w, 5, 3, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 6, 4, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Switched, "the lever thrown");
+  rules::tick(w, 999);
+  assert(top(w, 5, 3, 0) == "cart", "999: still below");
+  rules::tick(w, 1);
+  assert(top(w, 5, 3, 1) == "cart" && tile_world::terrain(w.w, 5, 3, 0) == rules::VOID
+         && rules::terrain_name(w.k, tile_world::terrain(w.w, 5, 3, 1)) == "rail", "1000: up, the shaft open below");
+  // Called back from the gallery's lever, it comes down: the lever there sends it on, down.
+  rules::put_hero(w, 6, 4, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Switched, "sent down from above");
+  rules::tick(w, 1000);
+  assert(top(w, 5, 3, 0) == "cart" && w.lifts[0]!.z == 0, "down again");
+}
+
+// Riding: the hero standing on the cart on the platform throws the lever beside it and goes up too.
+fn test_the_hero_rides_the_lift() {
+  w = mine();
+  tile_world::place(w.w, 5, 3, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 5, 3, 0);
+  assert(w.hero_h == 1, "on the cart");
+  assert(rules::walk(w, 0, 1) == rules::Step.Switched, "the lever beside the platform");
+  rules::tick(w, 1000);
+  assert(w.hero_z == 1 && w.hero_x == 5 && w.hero_y == 3 && top(w, 5, 3, 1) == "cart", "up with it: {w.hero_z}");
+}
+
+// A stop under water is passed by: a third stop below, on layer -1, its shaft cell water — sent
+// from layer 0, the lift goes up instead (the next stop down not open).  And with the shaft not
+// clear — floor set in it on layer 1 — it does not move.
+fn test_a_stop_under_water_and_a_shaft_not_clear() {
+  w = mine();
+  tile_world::set_terrain(w.w, 5, 3, -1, rules::tr(w, "water"));
+  w.lifts[0].stops = [-1, 0, 1];
+  rules::put_hero(w, 6, 4, 0);
+  _ = rules::walk(w, -1, 0);
+  rules::tick(w, 1000);
+  assert(w.lifts[0]!.z == 1, "past the flooded stop: up");
+  v = mine();
+  tile_world::set_terrain(v.w, 5, 3, 1, rules::tr(v, "floor"));
+  rules::put_hero(v, 6, 4, 0);
+  assert(rules::walk(v, -1, 0) == rules::Step.Blocked, "the shaft not clear");
+}

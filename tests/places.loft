@@ -368,3 +368,24 @@ fn test_the_pump_room() {
   rules::tick(w, 20000 - w.now);
   assert(top_name(w, 3, 8) == "charged_crystal", "charged by the strike");
 }
+
+// The lift house (B3): the cart brought onto the platform (10, 7), the hero standing on it; the
+// lever beside it (9, 7) thrown: up to layer 1 together.  There the hero steps off north onto the
+// gallery's track and pulls the cart off the platform after it.
+fn test_the_lift_house() {
+  lf = place("the_lift");
+  w = lf.level;
+  _ = tile_world::take(w.w, 4, 10, 0);
+  tile_world::place(w.w, 10, 7, 0, rules::th(w, "cart"));
+  rules::put_hero(w, 10, 7, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Switched, "the lever thrown from the cart");
+  rules::tick(w, 1000);
+  assert(w.hero_z == 1 && top_name_at(w, 10, 7, 1) == "cart", "up together");
+  _ = rules::walk(w, 0, -1);
+  assert(w.hero_y == 6 && w.hero_z == 1, "off, onto the gallery's track");
+  assert(rules::pull(w, 0, -1) == rules::Step.Pulled && top_name_at(w, 10, 6, 1) == "cart", "the cart pulled off the platform");
+}
+
+fn top_name_at(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, z))
+}

@@ -86,6 +86,9 @@ pub const CAVE_MS = 1000;
 /// running WELL_MS (proposed, to tune in play).
 pub const PUMP_MS = 1500;
 pub const WELL_MS = 60000;
+
+/// A lift moves a layer every LIFT_MS (proposed, to tune in play).
+pub const LIFT_MS = 1000;
 pub const BARRICADE_BURN_MS = 3000;
 pub const LUNGE_MS = 150;
 pub const HEAVY_RECOVER_MS = 800;
@@ -251,6 +254,8 @@ struct ThingProps {
   spent_to: text = "",
   drains: boolean = false,
   well: boolean = false,
+  /// A lift's lever (B3): thrown, it calls the lift to its layer, or sends it on from there.
+  calls_lift: boolean = false,
   /// It shoots arrows (a bow).
   shoots: boolean,
   /// What a potion gives walked over: `heal` health up to the start's, `spirit` temporary health.
@@ -428,7 +433,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       burns_away: flag(e, "burns_away"), forage: flag(e, "forage"), carries: num(e, "carries", 0),
       holder: word(e, "holder", ""), crystal: word(e, "crystal", ""), charge: num(e, "charge", 0),
       charged_to: word(e, "charged_to", ""), spent_to: word(e, "spent_to", ""), drains: flag(e, "drains"),
-      well: flag(e, "well"),
+      well: flag(e, "well"), calls_lift: flag(e, "calls_lift"),
       heals: num(e, "heals", 0), money: num(e, "money", 0),
       glyph: word(e, "glyph", "?")
     }];
@@ -576,6 +581,18 @@ pub struct Beneath {
   pub y: integer,
   pub z: integer,
   pub kind: text
+}
+
+/// A cart lift (B3, @GM-CartLift): its shaft on (x, y), the layer its platform is at — a rail cell
+/// there, the shaft open (void) at its other stops — the stops it serves, and where it is going
+/// (`to`, the next layer at `due`; `to` == z when still).
+pub struct Lift {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub stops: vector<integer>,
+  pub to: integer = 0,
+  pub due: integer = 0
 }
 
 pub struct Fall {
@@ -741,6 +758,8 @@ pub struct Level {
   pub drained: vector<(integer, integer, integer)> = [],
   pub storm: integer = 0,
   pub strikes: integer = 0,
+  /// The cart lifts.
+  pub lifts: vector<Lift> = [],
   /// The one the hero last walked into that talks (its id), and how often it has (the game says
   /// what is said).
   pub talk_to: integer = 0,
@@ -2344,6 +2363,79 @@ fn lightning(l: Level) {
   }
 }
 
+// --- The cart lift (BUILD.md B3, @GM-CartLift) ---
+
+// A lift's lever on (x, y, z) thrown: the lift whose shaft is beside it — still, and with a stop on
+// this layer — is called here when it is elsewhere, or, when here, sent on to the next stop down
+// (from the bottom, the next up).  A stop under water is passed by (owner: the lowest is reached
+// only once the pump has run); it moves only with its shaft clear.  Answers whether it set off.
+fn work_lift(l: Level, x: integer, y: integer, z: integer) -> boolean {
+  for i in 0..len(l.lifts) {
+    f = l.lifts[i] ?? continue;
+    if steps_apart(f.x, f.y, x, y) != 1 || f.to != f.z { continue; }
+    here = false;
+    for s in f.stops { if s == z { here = true; } }
+    if !here { continue; }
+    target = z;
+    if f.z == z {
+      target = f.z;
+      below = -1000000;
+      above = 1000000;
+      for s in f.stops {
+        if !lift_stop_open(l, f, s) { continue; }
+        if s < f.z && s > below { below = s; }
+        if s > f.z && s < above { above = s; }
+      }
+      if below > -1000000 { target = below; } else if above < 1000000 { target = above; }
+    }
+    if target == f.z || !lift_stop_open(l, f, target) || !shaft_clear(l, f, target) { return false; }
+    l.lifts[i].to = target;
+    l.lifts[i].due = l.now + LIFT_MS;
+    return true;
+  }
+  false
+}
+
+// Is lift f's stop on layer s usable: its shaft cell there not under water?
+fn lift_stop_open(l: const Level, f: const Lift, s: integer) -> boolean {
+  !water_at(l, f.x, f.y, s)
+}
+
+// Is the shaft clear from lift f's layer to `to`: every cell between, and the stop, open (void)?
+fn shaft_clear(l: const Level, f: const Lift, to: integer) -> boolean {
+  d = if to > f.z { 1 } else { -1 };
+  k = f.z + d;
+  while k != to + d {
+    if tile_world::terrain(l.w, f.x, f.y, k) != VOID || tile_world::top(l.w, f.x, f.y, k) != 0 { return false; }
+    k += d;
+  }
+  true
+}
+
+// The lifts due by now: a layer on, carrying what stands on the platform and the hero on it.
+fn lifts_due(l: Level) {
+  for i in 0..len(l.lifts) {
+    f = l.lifts[i] ?? continue;
+    if f.to == f.z || f.due > l.now { continue; }
+    nz = f.z + (if f.to > f.z { 1 } else { -1 });
+    // What stands on the platform, bottom first, moves with it — and a flame with what burns.
+    st: vector<integer> = [];
+    while tile_world::top(l.w, f.x, f.y, f.z) != 0 { st += [tile_world::take(l.w, f.x, f.y, f.z)]; }
+    tile_world::set_terrain(l.w, f.x, f.y, nz, tr(l, "rail"));
+    k = len(st) - 1;
+    while k >= 0 {
+      tile_world::place(l.w, f.x, f.y, nz, st[k] ?? 0);
+      k -= 1;
+    }
+    j = flame_at(l, f.x, f.y, f.z);
+    if j >= 0 { l.flames[j].z = nz; }
+    tile_world::set_terrain(l.w, f.x, f.y, f.z, VOID);
+    if l.hero_x == f.x && l.hero_y == f.y && l.hero_z == f.z { l.hero_z = nz; }
+    l.lifts[i].z = nz;
+    l.lifts[i].due = if nz == f.to { 0 } else { f.due + LIFT_MS };
+  }
+}
+
 // --- Strength and time ---
 
 /// Put down what the hero holds where it stands — on the floor, or on the big thing (a rest thing:
@@ -2405,6 +2497,7 @@ fn step_world(l: Level) {
   heal_due(l);
   falls_due(l);
   pumps_due(l);
+  lifts_due(l);
   enemies_due(l);
   burn_out(l);
 }
@@ -2422,6 +2515,7 @@ fn next_due(l: const Level) -> integer {
   if l.heal_due > l.now && (t < 0 || l.heal_due < t) { t = l.heal_due; }
   for f in l.falls { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
   for pm in l.pumping { if pm.due > l.now && (t < 0 || pm.due < t) { t = pm.due; } }
+  for f in l.lifts { if f.to != f.z && f.due > l.now && (t < 0 || f.due < t) { t = f.due; } }
   if l.storm > 0 {
     s = ((l.now / l.storm ?? 0) + 1) * l.storm;
     if t < 0 || s < t { t = s; }
@@ -2930,6 +3024,9 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   // barricade sets it burning; a full cart bumped from the side tips its load out.
   mine = mine_work(l, thing, tx, ty, z, dx, dy);
   if mine != Step.Blocked { return mine; }
+  // A lift's lever (B3): the lift called here, or sent on.
+  lever = l.k.things[thing];
+  if lever && lever.calls_lift { return if work_lift(l, tx, ty, z) { Step.Switched } else { Step.Blocked }; }
   // A holder of crystals (B4): a pump, the village's well pump, a lightning rod.
   mach = crystal_work(l, thing, tx, ty, z);
   if mach != Step.Blocked { return mach; }
