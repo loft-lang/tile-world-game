@@ -20,12 +20,13 @@ if ! grep -q 'LOFT_BROWSER' libs/screen/c/screen.c 2>/dev/null; then
 fi
 mkdir -p "$out"
 "$LOFT" --native-c --html "$out/index.html" --lib libs main.loft
+cp guide.html "$out/guide.html"
 if ! grep -q 'theme.json' "$out/index.html"; then
   echo "the page carries none of the game's files: $LOFT is too old (set LOFT to a newer loft)" >&2
   exit 1
 fi
 
-echo "Open on any machine on this network:"
+echo "Open on any machine on this network (the guide: guide.html beside it):"
 for ip in $(hostname -I); do
   case "$ip" in
     *:*) echo "  http://[$ip]:$port/" ;;

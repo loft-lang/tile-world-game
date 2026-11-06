@@ -71,6 +71,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `camera.loft` | where the view stands: `follow` and `rooms` while playing, the cursor kept in sight while editing |
 | `game.loft` | the game: picture (`tiles`, Kenney's Tiny packs), sounds (`audio`, Kenney's sound packs), controls (`input`) |
 | `main.loft` | the loop: shows the picture with `screen`, reads the keys from the window or the machine's keyboard |
+| `guide.html` | how to play and edit, for players: `./play-web.sh` serves it beside the game as `guide.html` |
 | `render3d.loft` | the first-person view, in a browser page: the place as geometry with the 2D's pictures, cards, the held item (`graphics`) |
 | `DESIGN.md` | what the game should become, slice by slice |
 | `STORY.md` | the story game, designed before it is built: the owner's story, people, monsters and endings, what the engine offers them, and engine notes kept apart |

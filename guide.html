@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tile_world guide</title>
+<style>
+  :root {
+    --bg: #f6efe2;
+    --panel: #fffaf1;
+    --ink: #2b2230;
+    --muted: #6b5f6e;
+    --line: #e2d5bf;
+    --accent: #c8642f;
+    --accent-ink: #ffffff;
+    --slate: #5b6b8c;
+    --grass: #4f8f43;
+    --key-bg: #ffffff;
+    --key-edge: #bfae93;
+    --note-bg: #fff3d6;
+    --note-edge: #e4c27a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1922;
+      --panel: #26212d;
+      --ink: #efe7f2;
+      --muted: #b2a6b8;
+      --line: #3a3343;
+      --accent: #e8834c;
+      --accent-ink: #1d1922;
+      --slate: #9db0d6;
+      --grass: #8fcf7f;
+      --key-bg: #312b3a;
+      --key-edge: #4c4357;
+      --note-bg: #3a3122;
+      --note-edge: #7a6332;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1d1922;
+    --panel: #26212d;
+    --ink: #efe7f2;
+    --muted: #b2a6b8;
+    --line: #3a3343;
+    --accent: #e8834c;
+    --accent-ink: #1d1922;
+    --slate: #9db0d6;
+    --grass: #8fcf7f;
+    --key-bg: #312b3a;
+    --key-edge: #4c4357;
+    --note-bg: #3a3122;
+    --note-edge: #7a6332;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { padding: 8px 0 20px; border-bottom: 2px solid var(--line); margin-bottom: 8px; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.3rem; margin: 40px 0 10px; color: var(--accent); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  p { margin: 8px 0; }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  .play {
+    display: inline-block; background: var(--accent); color: var(--accent-ink);
+    padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600;
+  }
+  nav { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; font-size: 0.95rem; }
+  nav a { color: var(--slate); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 6px; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { white-space: nowrap; width: 1%; }
+  kbd {
+    display: inline-block; min-width: 1.6em; padding: 1px 6px; margin: 1px 1px;
+    font: 600 0.85rem ui-monospace, "SFMono-Regular", Menlo, monospace; text-align: center;
+    background: var(--key-bg); border: 1px solid var(--key-edge); border-bottom-width: 3px; border-radius: 5px;
+  }
+  .note { background: var(--note-bg); border: 1px solid var(--note-edge); border-radius: 8px; padding: 10px 14px; margin: 14px 0; }
+  .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 10px 0; }
+  .place { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .place b { color: var(--grass); letter-spacing: 0.04em; }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .status td:first-child { white-space: normal; width: 34%; }
+  .yes { color: var(--grass); font-weight: 600; }
+  .not { color: var(--accent); font-weight: 600; }
+  code { font: 0.9em ui-monospace, "SFMono-Regular", Menlo, monospace; }
+  footer { margin-top: 48px; padding-top: 14px; border-top: 2px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+  @media (max-width: 560px) {
+    h1 { font-size: 1.55rem; }
+    th, td { padding: 7px 8px; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>tile_world</h1>
+  <p class="lead">How to play the game, and how to change it with its editor.</p>
+  <a class="play" href="index.html">Play the game</a>
+  <nav>
+    <a href="#start">Getting started</a>
+    <a href="#keys">Playing</a>
+    <a href="#fp">First person</a>
+    <a href="#saving">Health and saving</a>
+    <a href="#places">Places to try</a>
+    <a href="#editor">Editing</a>
+    <a href="#status">What works yet</a>
+  </nav>
+</header>
+
+<h2 id="start">Getting started</h2>
+<p>Any key skips the credits. You start in <b>the demo village</b>: each house shows one mechanic,
+its name written on the ground in front of it. Walk onto a door to go in or out; every place stays as
+you left it. The game explains nothing — watch what the world does; its rules hold everywhere.</p>
+
+<h2 id="keys">Playing</h2>
+<table>
+  <tr><th>Keys</th><th>Does</th></tr>
+  <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows</td><td>Walk. Walking into things pushes, opens, climbs and talks.</td></tr>
+  <tr><td><kbd>J</kbd> or <kbd>Space</kbd></td><td>Swing what you hold. Hold the key for a heavy swing; a bow shoots, a bomb is thrown.</td></tr>
+  <tr><td><kbd>K</kbd> or <kbd>Shift</kbd></td><td>Guard: tap to parry, hold to block. Held while walking, it pulls what is in front of you.</td></tr>
+  <tr><td><kbd>L</kbd> or <kbd>X</kbd></td><td>Put down what you hold.</td></tr>
+  <tr><td><kbd>I</kbd> or <kbd>T</kbd></td><td>Aim.</td></tr>
+  <tr><td><kbd>B</kbd> <kbd>B</kbd></td><td>Back to the last well or fountain.</td></tr>
+  <tr><td><kbd>R</kbd></td><td>Restart the place as it was when you came in.</td></tr>
+  <tr><td><kbd>M</kbd></td><td>Zoom in on the hero, and back out.</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>Switch to the first-person view and back (browser only).</td></tr>
+  <tr><td><kbd>E</kbd></td><td>Open the editor on the place you are in.</td></tr>
+  <tr><td><kbd>Esc</kbd> or <kbd>Q</kbd></td><td>Quit (in a browser, reload to play again).</td></tr>
+</table>
+
+<h2 id="fp">First person</h2>
+<p><kbd>F1</kbd> shows the same place from the hero's eyes, with what you hold in front of you.</p>
+<table>
+  <tr><th>Keys</th><th>Does</th></tr>
+  <tr><td><kbd>W</kbd> or <kbd>↑</kbd></td><td>Walk the way you look.</td></tr>
+  <tr><td><kbd>S</kbd> or <kbd>↓</kbd></td><td>Step back, still looking ahead. With <kbd>K</kbd> held, you pull what is in front of you.</td></tr>
+  <tr><td><kbd>A</kbd><kbd>D</kbd> or <kbd>←</kbd><kbd>→</kbd></td><td>Turn left or right on the spot.</td></tr>
+  <tr><td><kbd>F1</kbd></td><td>Back to the 2D view.</td></tr>
+</table>
+<p>The other keys work as in 2D. Try it in <b>CAVES</b> (the village's south-east corner): a sword lies
+two steps into the tunnel.</p>
+
+<h2 id="saving">Health and saving</h2>
+<ul>
+  <li>The hearts at the bottom right are your health; falls and blows cost some.</li>
+  <li>Walking into a <b>well</b> or <b>fountain</b> saves; losing all health brings you back there.</li>
+  <li>The save stays in this browser. To start afresh, clear this site's data.</li>
+  <li>The gap in the village's east edge ends the game.</li>
+</ul>
+
+<h2 id="places">Places to try</h2>
+<div class="places">
+  <div class="place"><b>FOUNTAIN</b><br>Walk into the green basin to save, then let the rats beyond bite.</div>
+  <div class="place"><b>CAVE-IN</b><br>Take the pick, strike the rock with the cart behind, and push the full cart to the niche.</div>
+  <div class="place"><b>BLASTING</b><br>Lift the beam, put a bomb down, pack stones round it, and light it from a distance.</div>
+  <div class="place"><b>HERBS</b><br>Wear the sack, forage, and bring two herbs and a mushroom to the alchemist.</div>
+  <div class="place"><b>NIGHT</b><br>Go into the dark house without a torch — then with one.</div>
+  <div class="place"><b>DOME</b><br>A cave five layers high: stairs up, and a plank bridge to a chest.</div>
+  <div class="place"><b>CAVES</b><br>Winding tunnels, a round cave with 45-degree rock, and a sword. Press F1 here.</div>
+  <div class="place"><b>CYCLOPS HALL</b><br>Cyclopes see you only in light — or up close.</div>
+</div>
+
+<h2 id="editor">Editing</h2>
+<p><kbd>E</kbd> edits the place you are in: a cursor, a palette along the bottom, and a panel on the
+right for the mouse. <kbd>P</kbd> play-tests your edits on a copy; <kbd>E</kbd> returns.</p>
+
+<h3>Keys</h3>
+<table>
+  <tr><th>Keys</th><th>Does</th></tr>
+  <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows</td><td>Move the cursor; the view follows it.</td></tr>
+  <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>The layer up or down.</td></tr>
+  <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Next or previous palette entry (terrain, materials, things, creatures).</td></tr>
+  <tr><td><kbd>1</kbd> … <kbd>9</kbd></td><td>Jump to a palette category.</td></tr>
+  <tr><td><kbd>Space</kbd></td><td>Paint the terrain, or put the thing on top of the cell's stack.</td></tr>
+  <tr><td><kbd>Backspace</kbd> <kbd>Delete</kbd></td><td>Take the top thing off, or clear the cell.</td></tr>
+  <tr><td><kbd>F</kbd></td><td>Fill the connected area under the cursor.</td></tr>
+  <tr><td><kbd>R</kbd>, <kbd>R</kbd></td><td>Mark a corner, then paint the rectangle to the cursor.</td></tr>
+  <tr><td><kbd>I</kbd></td><td>Pick what is under the cursor.</td></tr>
+  <tr><td><kbd>C</kbd> <kbd>V</kbd></td><td>Copy the marked box; paste it at the cursor.</td></tr>
+  <tr><td><kbd>]</kbd> <kbd>[</kbd></td><td>Raise or lower the cell a step (a slope).</td></tr>
+  <tr><td><kbd>/</kbd></td><td>Cut a wall at 45 degrees; press again to turn the cut.</td></tr>
+  <tr><td><kbd>H</kbd> <kbd>G</kbd></td><td>Hero's start here; goal here.</td></tr>
+  <tr><td><kbd>L</kbd></td><td>The place's light on or off.</td></tr>
+  <tr><td><kbd>K</kbd></td><td>Checks: the way to the goal, chests out of reach (hints only).</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo and redo.</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save the place.</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open the next place in the game's list.</td></tr>
+</table>
+<div class="note">Desktop only for now: <kbd>Shift</kbd>+<kbd>[</kbd> / <kbd>]</kbd> lower or raise a
+ceiling, and <kbd>Shift</kbd>+<kbd>/</kbd> turns a cut back.</div>
+
+<h3>The panel (with a mouse)</h3>
+<ul>
+  <li><b>LEVEL</b> — the place's name; <b>SAVE</b>, <b>NEW</b>, <b>PLAY</b>.</li>
+  <li><b>LEVELS</b> — click one to open it.</li>
+  <li><b>BUILD</b> — <b>ROOM</b> or <b>HALL</b>, then drag on the map. Click a room to pick it and switch its words (rubble…); <b>FILL</b> fills the place in, <b>DROP</b> removes the room. Hand-painted cells are kept.</li>
+  <li><b>DOOR TO</b> — a place's name and <b>SET</b> make the cursor's cell a door there.</li>
+  <li><b>TEXT</b> — words on the ground at the cursor. <b>SERVES</b> — the place's tags.</li>
+</ul>
+
+<h3>Where your work goes</h3>
+<p>Saved places stay in this browser (as <code>levels/&lt;name&gt;.json</code>) and survive a reload;
+there is no export yet. On the desktop they go into the game's <code>levels/</code> folder.</p>
+
+<h2 id="status">What works yet</h2>
+<table class="status">
+  <tr><th>Part</th><th>State</th></tr>
+  <tr><td>Playing the demo village</td><td><span class="yes">Works</span></td></tr>
+  <tr><td>First person (<kbd>F1</kbd>)</td><td><span class="yes">Works</span> — no speech bubbles yet</td></tr>
+  <tr><td>Editing, keys and panel</td><td><span class="yes">Works</span> — but for the Shift keys above</td></tr>
+  <tr><td>Saving edits</td><td><span class="yes">Works</span> — in this browser only</td></tr>
+  <tr><td>Export and import of places</td><td><span class="not">Not yet</span></td></tr>
+  <tr><td>Phones and touch screens</td><td><span class="not">Not yet</span> — it needs a keyboard</td></tr>
+</table>
+
+<footer>
+  Pictures and sounds by <a href="https://kenney.nl">Kenney</a> (CC0), with kind regards; the torches,
+  tar barrel, sockets and horse are the game's own, also CC0.
+</footer>
+</main>
+</body>
+</html>
