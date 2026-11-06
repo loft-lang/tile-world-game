@@ -2480,8 +2480,7 @@ pub fn seen_by_people(l: const Level) -> boolean {
   for e in l.enemies {
     if e.z != l.hero_z || !enemy_props(l, e.kind).talks { continue; }
     n = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
-    if n <= (if lit { SEE_CELLS } else { 2 })
-        && tile_world::line_of_sight(l.w, e.x, e.y, l.hero_x, l.hero_y, e.z) {
+    if n <= (if lit { SEE_CELLS } else { 2 }) && hero_line(l, e.x, e.y, e.z) {
       return true;
     }
   }
@@ -5452,13 +5451,21 @@ fn heal(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 
 fn sees_hero(l: const Level, e: const Enemy, sight: integer) -> boolean {
   e.z == l.hero_z && alive(l) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= sight
-    && tile_world::line_of_sight(l.w, e.x, e.y, l.hero_x, l.hero_y, e.z)
+    && hero_line(l, e.x, e.y, e.z)
 }
 
 // Is the hero beside enemy e, across an edge things cross?
 fn beside_hero(l: const Level, e: const Enemy) -> boolean {
   e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1
     && tile_world::crossable(l.w, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y)
+}
+
+/// The sight line between the hero and (x, y) on layer z, the same both ways (owner, 2026-11-06):
+/// what the hero's picture shows (`in_view`: a wall stops it, and so do two walls touching at a
+/// corner), with nothing opaque on that same line from the hero — a closed door, an opaque thing.
+/// Whoever sees the hero sees it along this line, so an enemy that spots the hero is drawn.
+pub fn hero_line(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  z == l.hero_z && in_view(l, x, y) && tile_world::line_of_sight(l.w, l.hero_x, l.hero_y, x, y, z)
 }
 
 /// Does the hero see (x, y) on its own layer, as the picture shows it: a straight line from the
@@ -5519,8 +5526,7 @@ fn walled(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: i
 pub fn clear_area(l: const Level) -> boolean {
   for e in l.enemies {
     if enemy_props(l, e.kind).guard || enemy_props(l, e.kind).talks || e.z != l.hero_z { continue; }
-    if steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= l.k.clear_area
-        && tile_world::line_of_sight(l.w, l.hero_x, l.hero_y, e.x, e.y, e.z) {
+    if steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= l.k.clear_area && hero_line(l, e.x, e.y, e.z) {
       return false;
     }
   }

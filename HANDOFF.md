@@ -114,6 +114,9 @@ and a tribe acting across places (C3, C4).  The next phase is D, the story's pla
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  - ONE SIGHT LINE (2026-11-06, DESIGN.md § What the player sees): enemies, people, a well's
+    clear area and guards see the hero only along the hero's own line (`rules::hero_line`); an
+    enemy that spots the hero is drawn.  Tuning the line itself (both ways) is left to play.
   - CAVES (2026-11-06, DESIGN.md § Slanted rock): a winding tunnel into a round cave, a second
     tunnel into a dome climbing three layers with a crag joined below — every rock face cut at 45
     degrees where it turns.  `tools/stable.loft the_caves` says it holds.  The dome, the lake, the

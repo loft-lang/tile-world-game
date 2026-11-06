@@ -920,6 +920,17 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
   (`rules::in_view`; two walls touching at their corners stop it too).  Only walls: a door, a
   tree, a thing never hides anything, so nothing pops in and out of view as things move.  The
   terrain is always drawn, and so is the light a hidden flame casts.
+- **One sight line, both ways** (owner, 2026-11-06, built: `rules::hero_line`,
+  `tests/cyclops.loft`).  An enemy, a person, the clear area of a well or a guard see the hero
+  only along the hero's own line: the one the picture is drawn by, traced from the hero, with
+  anything opaque on it (a closed door) stopping it too.  So an enemy that spots the hero is on
+  the screen, and one the screen hides — behind two pillars touching at a corner — does not spot
+  it.  Their own limits come on top: how far they see, in light or in the dark.  Measured over a
+  13 x 13 room with every placement of one wall and of two walls touching at a corner (75 200
+  cases), the two answers now agree everywhere; before, an enemy saw an unseen hero in 604 of
+  them (the corner gap, and a line traced from the other end) and was unseen-yet-seen-by-the-hero
+  in 240.  An enemy looking at another enemy (a hunter's prey) keeps its own line.  Whether the
+  line itself should be tuned (for hero and enemies alike) is for play to tell.
 
 ### Slanted rock: walls at 45 degrees (owner, built: `intent.loft`, `theme.loft`, `tests/slants.loft`)
 
@@ -944,12 +955,9 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
   the half stays open onto what lies below.
 - **Only rock is cut.**  The rule cuts rock, never floor, so a corner where the floor bulges out
   into the rock stays square.
-- **Sight at a cut corner.**  What the hero sees drawn already stops between two walls that touch
-  only at a corner (`rules::in_view`, § What the player sees).  An enemy's sight
-  (`tile_world::line_of_sight`) does not: it would see through a wall one cell thick running at 45
-  degrees, its cells touching only at their corners.  A derived rim is never that thin — it covers
-  every neighbour of the cave's floor — so no place has one yet; a hand-drawn thin diagonal wall
-  (the test bed below) needs `line_of_sight` to stop there first.
+- **Sight at a cut corner.**  Two walls touching only at a corner stop the hero's line (§ What the
+  player sees, one sight line both ways), so a 45-degree wall one cell thick hides what is behind
+  it, from the hero and from the enemies alike.
 
 ### A square test bed for dryopea's walls (owner, 2026-11-06: agreed, not built)
 

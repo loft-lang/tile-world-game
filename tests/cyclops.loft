@@ -356,3 +356,26 @@ fn test_each_leaves_its_own() {
   rules::strike_enemy(w, 0, 10);
   assert(top_is(w, 3, 0, "bow") && top_is(w, 1, 0, ""), "the hunter its bow, where it stood");
 }
+
+// One sight line for the hero and an enemy (owner, 2026-11-06; rules::hero_line): a cyclops spots the
+// hero exactly when the hero's picture shows the cyclops.  A daylit hall 13 x 13, the hero on
+// (3, 6), two pillars touching at the corner beside it, (4, 6) and (3, 7).  Behind them, on (6, 9),
+// the picture hides the cyclops, so it does not see the hero at 800 — the line traced from the
+// cyclops went past the corner and it did.  On (5, 5) the picture shows it — the hero's line runs
+// (4, 5) — so it sees the hero at 800; the line traced from the cyclops ran into the pillar on
+// (4, 6) and it did not.  The control: on (6, 9) with no pillars it sees the hero at 800.  (Each is
+// within its sight of 8, counted in steps: 6 and 3.)
+fn test_a_cyclops_sees_the_hero_along_the_heros_own_line() {
+  for c in [(6, 9, true, 0), (5, 5, true, 1), (6, 9, false, 1)] {
+    w = hall(13, 13, false);
+    rules::put_hero(w, 3, 6, 0);
+    if c.2 {
+      tile_world::set_terrain(w.w, 4, 6, 0, rules::tr(w, "wall"));
+      tile_world::set_terrain(w.w, 3, 7, 0, rules::tr(w, "wall"));
+    }
+    _ = rules::add_enemy(w, "cyclops", c.0, c.1, 0);
+    assert(rules::in_view(w, c.0, c.1) == (c.3 == 1), "({c.0}, {c.1}) pillars {c.2}: the picture shows it: {c.3 == 1}");
+    until(w, 800);
+    assert(w.spotted == c.3, "({c.0}, {c.1}) pillars {c.2}: spotted {w.spotted}, not {c.3}");
+  }
+}
