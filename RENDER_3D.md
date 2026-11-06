@@ -11,7 +11,14 @@ as cardboard cut-outs standing in it.  An experiment (owner, 2026-11-05): a desi
 plan the game depends on.
 
 It runs where OpenGL does: the desktop (OpenGL 3.3) and the browser (WebGL2).  The Tanmatsu keeps
-the 2D renderer; it would need real work to allow anything close to 3D (owner).  This is plain
+the 2D renderer; it would need real work to allow anything close to 3D (owner) — and is where an
+early-phone style of 3D is to be tried later (§ Later).
+
+**Scope since 2026-11-06 (owner):** a *pure* 3D version — the world model built in full, every
+angle it holds (the 45-degree slants, the slopes, the ceilings), the current pictures as its
+textures — wanted soon; the Looking Glass tile model (Ultima Underworld, System Shock) is the
+comparison, on stacked layers.  Then two later steps: the same places mapped onto the hex grid, as
+an import tool for the hex editor, and the phone-style experiment on the Tanmatsu (§ Later).  This is plain
 OpenGL and shaders, through the `graphics` library.  TANMATSU.md § One world, drawn at more than
 one fidelity is the frame: the world draws nothing, and each machine draws it with the renderer
 it can afford.
@@ -57,6 +64,9 @@ properties is built the same way.
 | A standing beam, a held-shut door (`barred`) | as a wall or a door, with their pictures | their tiles |
 | A roof (a material of kind `wall` with a roof autotile, on the layer over a house) | one slope facing south, as the 2D's pictures show it (§ Roofs) | the autotile pieces, row by row |
 | The walls between cells (`edges` in `kinds.json`: wall, door, window, fence) | a thin panel (⅛) on the cell boundary | the matching terrain's picture; `theme.json` has no edge looks yet, so they are proposed there: `edges: { wall: …, door: …, window: …, fence: … }` |
+| A slanted cell (`tile_world::slant`, DESIGN.md § Slanted rock) | its kind's geometry cut along the diagonal: a wall becomes a triangular prism one layer high, its two whole sides and its cut face standing on the cell's half away from the open corner; the open half is the neighbour's ground (a triangle at that neighbour's height), and under a ceiling its ceiling too | the sides as a wall's; the cut face takes the face picture stretched along the diagonal (1.41 units for 16 texels); the top the wall's top, cut as the 2D cuts it |
+| A sloped top on a slanted or whole wall | the top's four corners at the cell's rise as the ground's are (`corner`): a rock face on a hillside ramps instead of standing in flat steps | the top picture, bent as the ground's is |
+| A ceiling (§ Ceilings) | a quad facing down at the underside of the first set cell above a space, lowered by the drop of the topmost open cell beneath it; its corners from the neighbours' drops, as a ground's from their rises | the rock's `upper` picture (proposed; `theme.json` may name a `ceiling` look) |
 | Void | nothing | — |
 | Floor text (`labels`) | a decal on the ground, lifted a hair above it | the font's tiles at half size, as `draw_labels` writes them |
 
@@ -87,6 +97,29 @@ along the roof's north edge, falling south to the eaves.  So in 3D:
 
 Kenney's sheet also has gable fronts (town:63, 67) that the 2D does not use; a roof turned the
 other way would want them, and none is drawn so yet.
+
+### Ceilings
+
+The world holds a ceiling for every cell (owner, 2026-11-06; `tile_world::ceiling`, 0.9.0): how
+many steps it hangs below the floor of the layer above, 0 — its underside — when nothing says
+otherwise.  The 2D draws none and no rule reads it; it is modelled so this renderer can draw what
+the Looking Glass games did with theirs — a low passage, a sloping ceiling, a vault — on stacked
+layers, where theirs had one height map.
+
+- **Which cell holds it.**  A space's ceiling is the underside of the first set cell above it,
+  lowered by the drop of the topmost open cell beneath that: under a dome three layers high the
+  ceiling over the floor cell (x, y, 0) is held by (x, y, 2), an empty cell.  A cell under the open
+  sky has no ceiling, whatever it holds.
+- **Slopes and vaults** come from the neighbours, as the ground's do: a corner's height is the mean
+  of the drops of the open cells sharing it (within a step of each other; a bigger difference is a
+  step in the ceiling, its side a quad like a bank's).
+- **Set by hand** in the editor: Shift+`[` lowers the ceiling over the cursor a step, Shift+`]`
+  raises it (0 .. 3; a layer is 4), saved in a place's `ceilings`.  **Derived** for domes as a vault
+  — the dome's ceiling height in steps rather than layers, so its ceiling curves instead of
+  stepping — is a step of this renderer (below): until something draws it, nothing is derived.
+- **Seen** only from below: the fixed camera from the south draws only the hero's layer and those
+  below under a ceiling (§ The camera), so ceilings show when a camera can look up at them — the
+  pure 3D version's question (§ Later).
 
 ## Everything else: cardboard
 
@@ -211,9 +244,30 @@ is checked by a program and looked at.
    the 2D's cell exactly; at the 3D camera's angle, a hero behind two walls in a row, and behind a
    wall two layers high, is still seen in part.
 6. **Effects, bubbles, the editor switch.**
+6b. **The angles: slants, sloped tops, ceilings.**  Checked: a slanted wall's prism seen from
+   straight above is the 2D's cut picture pixel for pixel (step 1's oracle); a ceiling's corners
+   equal the drops' means by hand on a small place; the dome derives its vault, and the dome house
+   is looked at from a camera that sees up.
 7. **The browser.**  WebGL2 through `loft-gl-wasm.js`, which turns the `330 core` shaders into
    `300 es`: one set of shaders for both.
 8. **Frame time** on the desktop and in the browser, in the demo village.
+
+## Later
+
+- **A camera that looks up** (to decide with the owner).  The pure 3D version asks for every angle
+  the world holds to be seen, and a ceiling is seen only from below.  Proposed: beside the fixed
+  camera from the south (decided), a second one, free or at the hero's eyes, as the Looking Glass
+  games had; the walls-in-front cut-away is the fixed camera's only, and cards turn to face it.
+- **The hex grid: an import tool.**  The same places mapped onto the hex grid (`loft-libs-world`'s
+  `hex_world` and the packages round it) for the more complex hex editor (owner): a square cell's
+  kind, rise, slant and ceiling turned into hex cells, so a place made here opens there.  Its
+  design waits for this renderer: the 3D model is the common ground the two grids are mapped
+  through.
+- **The Tanmatsu: an early-phone style of 3D** (owner: an experiment, after this one).  No GPU:
+  the techniques of the phones before one — low polygon counts, fixed-point transforms, a software
+  rasteriser drawing affine-textured spans, flat or per-vertex light — tried on the same world
+  model.  This renderer is not ported there; the world model and its textures are what the two
+  share.
 
 ## What it asks of the libraries
 

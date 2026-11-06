@@ -15,6 +15,7 @@
 //     "edges": [ [2, 1, 0, "N", "wall"], [3, 1, 0, "W", "door"] ],
 //     "rises": [ [5, 5, 0, 2] ],
 //     "slants": [ [4, 0, 0, "SE"] ],
+//     "ceilings": [ [5, 5, 0, 1] ],
 //     "enemies": [ ["rat", 7, 3, 0] ],
 //     "doors": [ { "at": [1, 8, 0], "to": "world", "door": "first_climb" } ],
 //     "labels": [ { "at": [6, 3, 0], "text": "THE CELLAR" } ],
@@ -27,7 +28,9 @@
 // purpose (a pit in the ground).  `tiles` lists only the set cells whose tile number is not 0;
 // `edges` each cell's north and west edge that is not empty (an E or S side reads as the
 // neighbour's W or N); `rises` the cells that rise; `slants` the cells cut at 45 degrees, each with
-// the corner its open half looks into ("NE", "SE", "SW", "NW"; written only when a place has any).  Saving writes the world in a fixed order,
+// the corner its open half looks into ("NE", "SE", "SW", "NW"; written only when a place has any);
+// `ceilings` the cells whose ceiling hangs lower, in steps below the layer above (likewise only when
+// there are any; drawn by the 3D renderer, RENDER_3D.md § Ceilings).  Saving writes the world in a fixed order,
 // so the same level always writes the same file.
 //
 // A DOOR joins this place to another (WORLD.md § The world): walking onto its cell takes the
@@ -233,6 +236,11 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   for i in 0..slants.len() {
     r = slants.item(i);
     tile_world::set_slant(l.w, num(r.item(0), 0), num(r.item(1), 0), num(r.item(2), 0), slant_of(str(r.item(3), "")));
+  }
+  ceilings = v.field("ceilings");
+  for i in 0..ceilings.len() {
+    r = ceilings.item(i);
+    tile_world::set_ceiling(l.w, num(r.item(0), 0), num(r.item(1), 0), num(r.item(2), 0), num(r.item(3), 0));
   }
   // Enemies, each at its nest (a level without any writes no `enemies`).
   ens = v.field("enemies");
@@ -481,6 +489,7 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
   edges: vector<(integer, integer, integer, text, integer)> = [];
   rises: vector<(integer, integer, integer, integer)> = [];
   slants: vector<(integer, integer, integer, integer)> = [];
+  ceilings: vector<(integer, integer, integer, integer)> = [];
   // The legend lists only the kinds the level uses, so a file does not change when kinds.json
   // gains a kind.
   used: vector<text> = [];
@@ -509,6 +518,8 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
           if up != 0 { rises += [(x, y, z, up)]; }
           sl = tile_world::slant(l.w, x, y, z);
           if sl != 0 { slants += [(x, y, z, sl)]; }
+          cl = tile_world::ceiling(l.w, x, y, z);
+          if cl != 0 { ceilings += [(x, y, z, cl)]; }
         }
         rows += [row.trim_end()];
       }
@@ -606,6 +617,16 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     for r in slants {
       out += if first { " " } else { ", " };
       out += "[{r.0}, {r.1}, {r.2}, {quoted(slant_name(r.3))}]";
+      first = false;
+    }
+    out += " ],";
+  }
+  if len(ceilings) > 0 {
+    out += "\n  \"ceilings\": [";
+    first = true;
+    for r in ceilings {
+      out += if first { " " } else { ", " };
+      out += "[{r.0}, {r.1}, {r.2}, {r.3}]";
       first = false;
     }
     out += " ],";

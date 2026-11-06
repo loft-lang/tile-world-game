@@ -79,6 +79,8 @@ A level holds one place: the cells of each layer, the things, and the markers.
 - `rises`: `[x, y, z, steps]`, a cell's own height.
 - `slants`: `[x, y, z, way]`, a cell drawn cut at 45 degrees, `way` the corner its open half looks
   into (`"NE"`, `"SE"`, `"SW"`, `"NW"`); only in a place that has any (DESIGN.md § Slanted rock).
+- `ceilings`: `[x, y, z, steps]`, how far the ceiling over a cell hangs below the layer above; only
+  in a place that has any.  Drawn by the 3D renderer only (RENDER_3D.md § Ceilings).
 
 **Goals are data:**
 
@@ -136,6 +138,7 @@ layer and material.
 | Space | paint the material, or put the thing on top of the cell's stack |
 | Backspace / Delete | take the top thing off; on an empty cell, clear the terrain to void |
 | `]` / `[` | raise / lower the cell a step (a slope): 0 .. 3, a step higher is the layer above; undone like any edit, saved in `rises` |
+| Shift+`[` / Shift+`]` | lower / raise the ceiling over the cell a step (0 .. 3 below the layer above; an empty cell too); the 2D does not draw it, so the note says where it is; undone like any edit, saved in `ceilings` |
 | `/` / Shift+`/` | turn the cell's slant to the next / previous way — none, NE, SE, SW, NW — a 45-degree picture, the cell stays its kind; undone like any edit, saved in `slants` |
 | `F` | fill: flood the connected area of the cursor's material with the palette's |
 | `R` (hold Shift + move) | rectangle: paint the rectangle from where Shift was pressed |

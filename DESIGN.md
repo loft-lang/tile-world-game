@@ -297,7 +297,9 @@ on water, and things pushed or blown into it are lost.
   more; until wells and safe points exist, R restarts the level.  The three-layer fall stays
   deadly on purpose; levels keep big heights out of their beginnings (§ The principle).  Built (slice 2). A bomb that drops a level
   explodes on landing.
-- **Ceilings.** A cell has a ceiling when the layer above it is not void.
+- **Ceilings.** A cell has a ceiling when the layer above it is not void.  How low it hangs, in
+  steps, is kept per cell for the 3D renderer (RENDER_3D.md § Ceilings); the 2D draws none and no
+  rule reads it.
   - The ceiling is never drawn.
   - The hero cannot climb up through a ceiling (built, slice 2), and neither can a spider.
 - **Terrain kinds.**

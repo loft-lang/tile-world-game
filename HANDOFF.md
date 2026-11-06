@@ -15,6 +15,7 @@ machine (`~/workspace`).
 
 | PR | What |
 |---|---|
+| loft-libs-world#43 (merged) | tile_world 0.9.0: `set_ceiling` / `ceiling` — how far a cell's ceiling hangs below the layer above, for the 3D renderer (RENDER_3D.md § Ceilings) |
 | loft-libs-world#42 (merged) | tile_world 0.8.0: `set_slant` / `slant` — a cell drawn at 45 degrees, a picture only (DESIGN.md § Slanted rock) |
 | loft-libs-graphics#66 (merged) | tiles 0.4.0: `draw_ground` — a tile bent to its four corner lifts and lit by four corner shades, dithered |
 | loft-libs-graphics#68 (merged) | tiles 0.5.0: `draw_turned` — a tile turned about a pixel, every pixel kept (the figures' lean and swing) |
@@ -114,6 +115,10 @@ and a tribe acting across places (C3, C4).  The next phase is D, the story's pla
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  - CEILINGS (2026-11-06, RENDER_3D.md § Ceilings): modelled per cell (tile_world 0.9.0), set in
+    the editor with Shift+`[` / Shift+`]`, saved in `ceilings`; drawn by nothing yet.  RENDER_3D.md
+    now carries the pure 3D scope: slants as prisms, sloped tops, ceilings, and the later steps (a
+    camera that looks up — to decide —, the hex import tool, the Tanmatsu's early-phone 3D).
   - ONE SIGHT LINE (2026-11-06, DESIGN.md § What the player sees): enemies, people, a well's
     clear area and guards see the hero only along the hero's own line (`rules::hero_line`); an
     enemy that spots the hero is drawn.  Tuning the line itself (both ways) is left to play.

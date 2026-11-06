@@ -28,14 +28,16 @@ pub struct Entry {
 }
 
 // What one cell holds: whether it is set (else it reads as its layer's ground), its kind and
-// tile, its stack, bottom first, its rise (a slope's step) and its slant (a 45-degree face).
+// tile, its stack, bottom first, its rise (a slope's step), its slant (a 45-degree face) and its
+// ceiling (steps below the layer above; an empty cell can hold one too).
 struct Cell {
   set: boolean,
   kind: integer,
   tile: integer,
   stack: vector<integer>,
   rise: integer,
-  slant: integer = 0
+  slant: integer = 0,
+  ceiling: integer = 0
 }
 
 // A start or a goal: the goal's kind ("layer", "cell", ...) and its cell.
@@ -205,7 +207,8 @@ fn cell_of(w: const tile_world::World, x: integer, y: integer, z: integer) -> Ce
   Cell {
     set: tile_world::is_set(w, x, y, z), kind: tile_world::terrain(w, x, y, z),
     tile: tile_world::tile(w, x, y, z), stack: tile_world::things(w, x, y, z),
-    rise: tile_world::rise(w, x, y, z), slant: tile_world::slant(w, x, y, z)
+    rise: tile_world::rise(w, x, y, z), slant: tile_world::slant(w, x, y, z),
+    ceiling: tile_world::ceiling(w, x, y, z)
   }
 }
 
@@ -219,6 +222,7 @@ fn put_cell(w: tile_world::World, x: integer, y: integer, z: integer, c: const C
   for t in c.stack { tile_world::place(w, x, y, z, t); }
   if c.set { tile_world::set_rise(w, x, y, z, c.rise); }
   tile_world::set_slant(w, x, y, z, if c.set { c.slant } else { 0 });
+  tile_world::set_ceiling(w, x, y, z, c.ceiling);
 }
 
 fn no_marker() -> Marker {
@@ -250,7 +254,7 @@ fn keep(ed: Editor, e: const Edit) {
 // its picture beside a neighbour's edit?
 fn sets_cell(c: const Change) -> boolean {
   c.was.set != c.now.set || c.was.kind != c.now.kind || c.was.stack != c.now.stack || c.was.rise != c.now.rise
-    || c.was.slant != c.now.slant
+    || c.was.slant != c.now.slant || c.was.ceiling != c.now.ceiling
 }
 
 /// The cells set by hand: the level file's, and every cell an applied hand edit set since —
@@ -339,7 +343,8 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     for t in f.more { stack += [rules::thing_id(k, t)]; }
     put_cell(w, f.x, f.y, f.z, Cell { set: true, kind: kind, tile: 0, stack: stack,
                                      rise: if f.rise >= 0 { f.rise } else { was.rise },
-                                     slant: if f.slant >= 0 { f.slant } else { was.slant } });
+                                     slant: if f.slant >= 0 { f.slant } else { was.slant },
+                                     ceiling: was.ceiling });
   }
   for f in todo {
     mi = materials::named(ed.mats, f.terrain);
@@ -575,6 +580,19 @@ pub fn raise(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
   if r < 0 || r >= lf.level.k.layer_height { return false; }
   before = around(ed, w);
   tile_world::set_rise(w, ed.x, ed.y, ed.z, r);
+  logged(ed, lf, before)
+}
+
+/// Raise the ceiling over the cursor's cell a step (`step` 1) or lower it (-1): how far it hangs
+/// below the floor of the layer above, 0 .. layer_height - 1 (RENDER_3D.md § Ceilings).  The 2D
+/// draws no ceiling; the 3D renderer does.  An empty cell holds one too — on a dome's upper layers
+/// the topmost open cell of a column carries the ceiling over it.  False when nothing changed.
+pub fn lower_ceiling(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
+  w = lf.level.w;
+  c = tile_world::ceiling(w, ed.x, ed.y, ed.z) + step;
+  if c < 0 || c >= lf.level.k.layer_height { return false; }
+  before = around(ed, w);
+  tile_world::set_ceiling(w, ed.x, ed.y, ed.z, c);
   logged(ed, lf, before)
 }
 

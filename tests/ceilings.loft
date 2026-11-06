@@ -1,0 +1,83 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Ceilings (RENDER_3D.md § Ceilings): how far the ceiling over a cell hangs below the layer above,
+// kept in the world for the 3D renderer — the 2D draws none, and no rule reads it.  Saved and read
+// back, raised and lowered in the editor within the layer and undone, held by an empty cell too, and
+// kept by a fill.  Every value is worked out by hand.
+use tile_world;
+use rules;
+use levels;
+use editor;
+use intent;
+
+fn place(it: const intent::Intent) -> levels::LevelFile {
+  k = rules::kinds();
+  levels::LevelFile {
+    name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }, intent: it
+  }
+}
+
+fn main() {
+  lf = place(intent::no_intent());
+  assert(lf.level.k.layer_height == 4, "a layer is 4 steps");
+}
+
+// A ceiling is saved as its steps and read back; a place with none writes no `ceilings`.  An empty
+// cell's ceiling (an open cell on a layer above) is saved too.
+fn test_a_ceiling_is_saved_and_read_back() {
+  lf = place(intent::no_intent());
+  w = lf.level.w;
+  tile_world::set_terrain(w, 2, 1, 0, rules::tr(lf.level, "floor"), 0);
+  assert(!levels::save(lf).contains("ceilings"), "none: no `ceilings`");
+  tile_world::set_ceiling(w, 2, 1, 0, 2);
+  tile_world::set_ceiling(w, 3, 1, 1, 1);
+  saved = levels::save(lf);
+  assert(saved.contains("\"ceilings\": [ [2, 1, 0, 2], [3, 1, 1, 1] ]"), "written: {saved}");
+  back = levels::load(saved, lf.level.k) ?? place(intent::no_intent());
+  assert(tile_world::ceiling(back.level.w, 2, 1, 0) == 2 && tile_world::ceiling(back.level.w, 3, 1, 1) == 1, "read back");
+  assert(rules::walkable(back.level, tile_world::terrain(back.level.w, 2, 1, 0)), "the floor still a floor");
+}
+
+// Shift+[ lowers the ceiling a step, down to 3 (a layer is 4: one more would close it); Shift+]
+// raises it back to 0 and no further; undo puts the last step back.  An empty cell takes one.
+fn test_the_editor_lowers_and_raises_a_ceiling() {
+  lf = place(intent::no_intent());
+  w = lf.level.w;
+  tile_world::set_terrain(w, 3, 3, 0, rules::tr(lf.level, "floor"), 0);
+  ed = editor::new_editor(lf);
+  ed.x = 3;
+  ed.y = 3;
+  steps: vector<integer> = [];
+  for _ in 0..3 {
+    assert(editor::lower_ceiling(ed, lf, 1), "lowered");
+    steps += [tile_world::ceiling(w, 3, 3, 0)];
+  }
+  assert(steps == [1, 2, 3], "1, 2, 3 steps down: {steps}");
+  assert(!editor::lower_ceiling(ed, lf, 1) && tile_world::ceiling(w, 3, 3, 0) == 3, "not to 4");
+  assert(editor::lower_ceiling(ed, lf, -1) && tile_world::ceiling(w, 3, 3, 0) == 2, "raised to 2");
+  assert(editor::undo(ed, lf) && tile_world::ceiling(w, 3, 3, 0) == 3, "undone: 3");
+  ed.x = 7;
+  ed.z = 1;
+  assert(editor::lower_ceiling(ed, lf, 1) && tile_world::ceiling(w, 7, 3, 1) == 1, "an empty cell on layer 1 takes one");
+  assert(editor::lower_ceiling(ed, lf, -1) && tile_world::ceiling(w, 7, 3, 1) == 0, "and back to 0");
+  assert(!editor::lower_ceiling(ed, lf, -1), "not above 0");
+}
+
+// A ceiling set by hand on a cell the intent fills (the tunnel's floor at (4, 0)) is kept through a
+// fill, the cell's terrain and slant filled in round it.
+fn test_a_fill_keeps_a_ceiling() {
+  it = intent::Intent { seed: 3, rooms: [], corridors: [],
+    trails: [intent::Trail { points: [intent::Point { x: 0, y: 0 }, intent::Point { x: 4, y: 0 }, intent::Point { x: 4, y: 4 }],
+                             z: 0, what: "floor", width: 1, rim: "wall" }] };
+  lf = place(it);
+  ed = editor::new_editor(lf);
+  w = lf.level.w;
+  tile_world::set_ceiling(w, 4, 0, 0, 2);
+  tile_world::set_ceiling(w, 3, 1, 0, 1);
+  assert(editor::refill(ed, lf, []), "filled");
+  assert(tile_world::ceiling(w, 4, 0, 0) == 2, "the floor's ceiling kept: {tile_world::ceiling(w, 4, 0, 0)}");
+  assert(tile_world::ceiling(w, 3, 1, 0) == 1 && tile_world::slant(w, 3, 1, 0) == tile_world::NORTH_EAST,
+         "the rim's corner: its slant derived, its ceiling kept");
+}
