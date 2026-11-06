@@ -19,6 +19,12 @@
 // where they meet: a path through a grove, a house on the grass; and a tunnel (a trail with a rim)
 // opens a doorway where it meets a cave's or a room's wall.
 //
+// Natural rock — a cave's walls on every layer, a blob's or a tunnel's rim — is cut at 45 degrees
+// where it turns a corner (DESIGN.md § Slanted rock): a rock cell whose two neighbours on one
+// corner's side are inside the shape, and whose other two are not, gets a SLANT looking into that
+// corner.  A picture only — the cell stays rock for every rule — so a cave reads round, not as
+// stairs.  Built walls (a room's, a corridor's, a house's) stay whole.
+//
 // Applying the cells, and the cells set by hand that a fill keeps, is the editor's (editor.loft).
 
 /// A room: the outline from (x, y), `w` by `h` cells with its walls, on layer z, and its words.
@@ -167,8 +173,15 @@ pub struct Word {
   pub along_walls: boolean
 }
 
+/// The ways a slant looks (tile_world's values): the corner its open half lies in; 0 is none.
+pub const NORTH_EAST = 1;
+pub const SOUTH_EAST = 2;
+pub const SOUTH_WEST = 3;
+pub const NORTH_WEST = 4;
+
 /// A cell the intent implies: its terrain (a kind's or a material's name), the thing on it ("" for
-/// none), and its rise (-1: left as it is).
+/// none), its rise (-1: left as it is) and its slant (-1: left as it is; natural rock gets 0 or
+/// the way it looks).
 pub struct Fill {
   pub key: integer,
   pub x: integer,
@@ -178,7 +191,8 @@ pub struct Fill {
   pub thing: text,
   pub rise: integer = -1,
   /// Things stacked on `thing`, bottom first (an item's).
-  pub more: vector<text> = []
+  pub more: vector<text> = [],
+  pub slant: integer = -1
 }
 
 pub fn no_intent() -> Intent {
@@ -467,19 +481,80 @@ struct Candidate {
 }
 
 // The cells, as they are worked out.
+// The side tables of a Grid, each its own record type: two keyed collections of one record type in
+// one struct are one record set in loft (the linked group), so a `hash<Fill[key]>` beside `cells`
+// would hold exactly what `cells` holds.
+struct Base {
+  const key: integer,
+  terrain: text
+}
+
+struct Rock {
+  const key: integer,
+  x: integer,
+  y: integer,
+  z: integer,
+  terrain: text
+}
+
+struct Inside {
+  const key: integer
+}
+
 struct Grid {
   cells: hash<Fill[key]>,
   doors: vector<integer>,
   held: vector<integer>,
   /// The cells a blob scattered a terrain on, with the blob's own terrain: what a house's door
   /// front is cleared back to.
-  bases: hash<Fill[key]> = []
+  bases: hash<Base[key]> = [],
+  /// The natural rock cells (a cave's wall, a rim), each with its rock's name, and the cells inside
+  /// those shapes on each layer: what `add_slants` cuts at the corners.
+  natural: hash<Rock[key]> = [],
+  opens: hash<Inside[key]> = []
 }
 
 fn set(g: Grid, x: integer, y: integer, z: integer, terrain: text) {
   k = key_of(x, y, z);
   c = g.cells[k];
   if c { c.terrain = terrain; } else { g.cells += [Fill { key: k, x: x, y: y, z: z, terrain: terrain, thing: "" }]; }
+}
+
+// Cell (x, y, z) is natural rock of `rock`: a cave's wall, a rim.
+fn rock(g: Grid, x: integer, y: integer, z: integer, rock: text) {
+  set(g, x, y, z, rock);
+  k = key_of(x, y, z);
+  n = g.natural[k];
+  if n { n.terrain = rock; } else { g.natural += [Rock { key: k, x: x, y: y, z: z, terrain: rock }]; }
+}
+
+// Cell (x, y, z) is inside a natural shape: a cave's room on that layer, a blob, a tunnel.
+fn open_at(g: Grid, x: integer, y: integer, z: integer) {
+  k = key_of(x, y, z);
+  if !g.opens[k] { g.opens += [Inside { key: k }]; }
+}
+
+// Cut each natural rock cell still standing at its corner: its two neighbours on one corner's side
+// inside the shape (and not this rock), the other two not — the way it looks; else whole (0).
+fn add_slants(g: Grid) {
+  for n in g.natural {
+    c = g.cells[n.key];
+    if !c || c.terrain != n.terrain { continue; }
+    no = inside_of(g, n.x, n.y - 1, n.z, n.terrain);
+    ea = inside_of(g, n.x + 1, n.y, n.z, n.terrain);
+    so = inside_of(g, n.x, n.y + 1, n.z, n.terrain);
+    we = inside_of(g, n.x - 1, n.y, n.z, n.terrain);
+    c.slant = if no && ea && !so && !we { NORTH_EAST }
+              else if so && ea && !no && !we { SOUTH_EAST }
+              else if so && we && !no && !ea { SOUTH_WEST }
+              else if no && we && !so && !ea { NORTH_WEST }
+              else { 0 };
+  }
+}
+
+fn inside_of(g: const Grid, x: integer, y: integer, z: integer, rock: text) -> boolean {
+  if !g.opens[key_of(x, y, z)] { return false; }
+  terrain_at(g, x, y, z) != rock
 }
 
 fn terrain_at(g: const Grid, x: integer, y: integer, z: integer) -> text {
@@ -817,12 +892,12 @@ fn add_caves(g: Grid, domes: const vector<Dome>, seed: integer) {
           n = height_at(all, x, y);
           open = n > k;
           if k == 0 {
-            if n > 0 { set(g, x, y, z0, what); }
-            else if near_height(all, x, y, 0) && terrain_at(g, x, y, z0) != what { set(g, x, y, z0, wall); }
+            if n > 0 { set(g, x, y, z0, what); open_at(g, x, y, z0); }
+            else if near_height(all, x, y, 0) && terrain_at(g, x, y, z0) != what { rock(g, x, y, z0, wall); }
             continue;
           }
-          if open { continue; }
-          if n == k || near_height(all, x, y, k) { set(g, x, y, z0 + k, wall); }
+          if open { open_at(g, x, y, z0 + k); continue; }
+          if n == k || near_height(all, x, y, k) { rock(g, x, y, z0 + k, wall); }
         }
       }
     }
@@ -855,9 +930,10 @@ fn add_blob(g: Grid, b: const Blob, seed: integer) {
   }
   for c in cells { set(g, c.0, c.1, b.z, b.what); }
   if b.rim != "" {
+    for c in cells { open_at(g, c.0, c.1, b.z); }
     for c in cells {
       for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-        if terrain_at(g, c.0 + d.0, c.1 + d.1, b.z) == "" { set(g, c.0 + d.0, c.1 + d.1, b.z, b.rim); }
+        if terrain_at(g, c.0 + d.0, c.1 + d.1, b.z) == "" { rock(g, c.0 + d.0, c.1 + d.1, b.z, b.rim); }
       }
     }
   }
@@ -867,7 +943,7 @@ fn add_blob(g: Grid, b: const Blob, seed: integer) {
       if (mix(seed, c.0, c.1, b.z, 200 + si) % 100)! < e.per_100 && terrain_at(g, c.0, c.1, b.z) == b.what {
         set(g, c.0, c.1, b.z, e.what);
         k = key_of(c.0, c.1, b.z);
-        if !g.bases[k] { g.bases += [Fill { key: k, x: c.0, y: c.1, z: b.z, terrain: b.what, thing: "" }]; }
+        if !g.bases[k] { g.bases += [Base { key: k, terrain: b.what }]; }
       }
     }
   }
@@ -887,9 +963,10 @@ fn add_trail(g: Grid, t: const Trail) {
     set(g, c.0, c.1, t.z, t.what);
   }
   if t.rim != "" {
+    for c in cells { open_at(g, c.0, c.1, t.z); }
     for c in cells {
       for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-        if terrain_at(g, c.0 + d.0, c.1 + d.1, t.z) == "" { set(g, c.0 + d.0, c.1 + d.1, t.z, t.rim); }
+        if terrain_at(g, c.0 + d.0, c.1 + d.1, t.z) == "" { rock(g, c.0 + d.0, c.1 + d.1, t.z, t.rim); }
       }
     }
   }
@@ -974,6 +1051,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
   for r in it.rooms {
     if r.w >= 3 && r.h >= 3 { scatter(g, r, words, it.seed); }
   }
+  add_slants(g);
   out: vector<Fill> = [];
   for c in g.cells { out += [c]; }
   out.sort_by(|f| { f.key });

@@ -32,6 +32,7 @@
   "tiles": [ ],
   "edges": [ ],
   "rises": [ ],
+  "slants": [ [13, 2, 0, "NW"], [25, 7, 0, "SE"], [2, 10, 0, "NW"] ],
   "intent": { "seed": 5, "rooms": [
     { "x": 8, "y": 6, "w": 9, "h": 7, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
     { "points": [[12, 12], [12, 16]], "z": 0, "as": "floor", "rim": "wall" },

@@ -164,3 +164,22 @@ fn test_the_hunters_hall_has_cover_and_a_way_through() {
   for y in 1..17 { for x in 1..6 { if tile_world::top(w.w, x, y, 0) == rules::thing_id(w.k, "rock") { rocks += 1; } } }
   assert(rocks >= 5, "cover: {rocks} rocks");
 }
+
+// The cell in front of a house's door is kept free: on a grove that scatters a tree on every cell,
+// it goes back to the grove's own ground — grass at (4, 6), in front of the door at (4, 5) of the
+// house 3 wide from (3, 3); the cell beside it keeps its tree.  (The blob's record of the ground
+// under its trees is a record type of its own: kept beside the cells in one struct as the cells'
+// own type, it was the cells, and the door's front stayed a tree.)
+fn test_a_door_front_on_a_grove_is_its_ground() {
+  it = intent::Intent { seed: 4, rooms: [], corridors: [],
+    blobs: [intent::Blob { x: 0, y: 0, w: 9, h: 9, z: 0, what: "grass", rim: "", scatter: [intent::Scatter { what: "oak", per_100: 100 }] }],
+    houses: [intent::House { x: 3, y: 3, w: 3, h: 3, z: 0, roof: "roof", wall: "stone_wall", door: "house_door", door_at: -1 }] };
+  front = "";
+  beside = "";
+  for f in intent::derive(it, []) {
+    if f.x == 4 && f.y == 6 && f.z == 0 { front = f.terrain; }
+    if f.x == 2 && f.y == 6 && f.z == 0 { beside = f.terrain; }
+  }
+  assert(front == "grass", "the door's front is the grove's ground: {front}");
+  assert(beside == "oak", "beside it a tree: {beside}");
+}

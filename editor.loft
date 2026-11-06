@@ -28,13 +28,14 @@ pub struct Entry {
 }
 
 // What one cell holds: whether it is set (else it reads as its layer's ground), its kind and
-// tile, its stack, bottom first, and its rise (a slope's step).
+// tile, its stack, bottom first, its rise (a slope's step) and its slant (a 45-degree face).
 struct Cell {
   set: boolean,
   kind: integer,
   tile: integer,
   stack: vector<integer>,
-  rise: integer
+  rise: integer,
+  slant: integer = 0
 }
 
 // A start or a goal: the goal's kind ("layer", "cell", ...) and its cell.
@@ -204,7 +205,7 @@ fn cell_of(w: const tile_world::World, x: integer, y: integer, z: integer) -> Ce
   Cell {
     set: tile_world::is_set(w, x, y, z), kind: tile_world::terrain(w, x, y, z),
     tile: tile_world::tile(w, x, y, z), stack: tile_world::things(w, x, y, z),
-    rise: tile_world::rise(w, x, y, z)
+    rise: tile_world::rise(w, x, y, z), slant: tile_world::slant(w, x, y, z)
   }
 }
 
@@ -217,6 +218,7 @@ fn put_cell(w: tile_world::World, x: integer, y: integer, z: integer, c: const C
   while tile_world::top(w, x, y, z) != 0 { _ = tile_world::take(w, x, y, z); }
   for t in c.stack { tile_world::place(w, x, y, z, t); }
   if c.set { tile_world::set_rise(w, x, y, z, c.rise); }
+  tile_world::set_slant(w, x, y, z, if c.set { c.slant } else { 0 });
 }
 
 fn no_marker() -> Marker {
@@ -248,6 +250,7 @@ fn keep(ed: Editor, e: const Edit) {
 // its picture beside a neighbour's edit?
 fn sets_cell(c: const Change) -> boolean {
   c.was.set != c.now.set || c.was.kind != c.now.kind || c.was.stack != c.now.stack || c.was.rise != c.now.rise
+    || c.was.slant != c.now.slant
 }
 
 /// The cells set by hand: the level file's, and every cell an applied hand edit set since —
@@ -308,7 +311,8 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     for t in f.more { stack += [rules::thing_id(k, t)]; }
     same_terrain = if mi >= 0 { materials::at(ed.mats, w, f.x, f.y, f.z) == mi } else { was.kind == kind && was.tile == 0 };
     rise = if f.rise >= 0 { f.rise } else { was.rise };
-    if was.set && same_terrain && was.stack == stack && was.rise == rise { continue; }
+    slant = if f.slant >= 0 { f.slant } else { was.slant };
+    if was.set && same_terrain && was.stack == stack && was.rise == rise && was.slant == slant { continue; }
     todo += [f];
   }
   if len(todo) == 0 { return false; }
@@ -334,7 +338,8 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     if f.thing != "" { stack += [rules::thing_id(k, f.thing)]; }
     for t in f.more { stack += [rules::thing_id(k, t)]; }
     put_cell(w, f.x, f.y, f.z, Cell { set: true, kind: kind, tile: 0, stack: stack,
-                                     rise: if f.rise >= 0 { f.rise } else { was.rise } });
+                                     rise: if f.rise >= 0 { f.rise } else { was.rise },
+                                     slant: if f.slant >= 0 { f.slant } else { was.slant } });
   }
   for f in todo {
     mi = materials::named(ed.mats, f.terrain);
@@ -570,6 +575,18 @@ pub fn raise(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
   if r < 0 || r >= lf.level.k.layer_height { return false; }
   before = around(ed, w);
   tile_world::set_rise(w, ed.x, ed.y, ed.z, r);
+  logged(ed, lf, before)
+}
+
+/// Turn the cursor's cell to its next slant (`step` 1: none, north-east, south-east, south-west,
+/// north-west, round to none; -1 the other way): a 45-degree face, which corner its open half
+/// looks into — a picture only, the cell stays its kind (DESIGN.md § Slanted rock).  False when
+/// the cell is not set.
+pub fn turn_slant(ed: Editor, lf: levels::LevelFile, step: integer) -> boolean {
+  w = lf.level.w;
+  if !tile_world::is_set(w, ed.x, ed.y, ed.z) { return false; }
+  before = around(ed, w);
+  tile_world::set_slant(w, ed.x, ed.y, ed.z, ((tile_world::slant(w, ed.x, ed.y, ed.z) + step) % 5 + 5) % 5 ?? 0);
   logged(ed, lf, before)
 }
 

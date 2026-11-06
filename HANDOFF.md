@@ -15,6 +15,7 @@ machine (`~/workspace`).
 
 | PR | What |
 |---|---|
+| loft-libs-world#42 (merged) | tile_world 0.8.0: `set_slant` / `slant` — a cell drawn at 45 degrees, a picture only (DESIGN.md § Slanted rock) |
 | loft-libs-graphics#66 (merged) | tiles 0.4.0: `draw_ground` — a tile bent to its four corner lifts and lit by four corner shades, dithered |
 | loft-libs-graphics#68 (merged) | tiles 0.5.0: `draw_turned` — a tile turned about a pixel, every pixel kept (the figures' lean and swing) |
 | loft-libs-graphics#69 (merged) | tiles 0.5.1: `categories`, which the registry requires of a new package.  **Published** 2026-10-30 (registry 53cdc19, signed with the local key on the owner's go); the GitHub release `tiles-v0.5.0` exists but never reached the index |
@@ -113,6 +114,11 @@ and a tribe acting across places (C3, C4).  The next phase is D, the story's pla
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  - CAVES (2026-11-06, DESIGN.md § Slanted rock): a winding tunnel into a round cave, a second
+    tunnel into a dome climbing three layers with a crag joined below — every rock face cut at 45
+    degrees where it turns.  `tools/stable.loft the_caves` says it holds.  The dome, the lake, the
+    workings and the flooded hall were filled in again and got their slants; places drawn by hand
+    (no intent) have none until slanted with `/` in the editor.
   - DOME: a wide dome (31 by 23, raised to 5 layers) with a crag's gallery joined to its south-east,
     one cave; stairs up beside the way in, two layers, and a plank bridge across to a chest.
     `tools/stable.loft the_dome` says it holds.  (After an intent change that removes cells, draw a

@@ -12,6 +12,7 @@ use game;
 use motion;
 use theme;
 use talk;
+use tiles;
 
 fn main() {
   assert(game::new_game("..") != null, "the game loads from its directory");
@@ -28,6 +29,7 @@ fn main() {
   test_r_in_a_room_is_the_room_as_entered();
   test_floor_text_is_walked_over();
   test_walking_up_to_the_elder();
+  test_a_slanted_wall_is_drawn_cut();
   test_the_right_hand_acts();
   test_a_potion_is_carried_and_drunk_with_the_keys();
   test_a_fountain_saves_like_a_well();
@@ -45,7 +47,7 @@ fn main() {
   test_the_epilogue_follows_the_facts();
   test_a_door_made_in_the_editor();
   test_a_block_and_a_parry_are_seen();
-  println("checks/game.loft: 30 passed");
+  println("checks/game.loft: 31 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -227,7 +229,7 @@ fn test_the_world_starts_in_the_village() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(at(g) == "demo 14,19,0", "in the village: {at(g)}");
-  assert(len(g.file.doors) == 32 && len(g.file.labels) == 34, "thirty-one houses and the way out, each named: {len(g.file.doors)} {len(g.file.labels)}");
+  assert(len(g.file.doors) == 33 && len(g.file.labels) == 35, "thirty-two houses and the way out, each named: {len(g.file.doors)} {len(g.file.labels)}");
 }
 
 // Up the road to the stone house and onto its door: the cellar, standing inside its door (1, 3)
@@ -796,4 +798,38 @@ fn test_a_block_and_a_parry_are_seen() {
   assert(g.world.parries == 1 && big && g.world.health == 6, "turned aside, a big spark: {g.world.parries} {big} {g.world.health}");
   mo = game::motion_of(g, rat);
   assert(mo.act == motion::Act.Stagger && mo.strength == 2 && (g.world.enemies[r]!.open_until) > g.world.now, "the rat flung back, open");
+}
+
+// A wall's picture cut at 45 degrees (DESIGN.md § Slanted rock), made from its own when the theme
+// loads: open to the south-east, its north-west half is the wall's (pixel (2, 2) as the whole
+// picture draws it), the cell's south-east corner shows what was under it (pixel (13, 13)), and
+// the cut runs along the diagonal (15, 0) .. (0, 15) in the picture's darkest colour.  The four
+// ways are four pictures; a picture with no cut (the floor) stays itself.
+fn test_a_slanted_wall_is_drawn_cut() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  k = rules::kinds();
+  wall = theme::terrain_sprite(g.look, rules::terrain_id(k, "wall"), 0, 0, false);
+  ways: vector<integer> = [];
+  for t in [tile_world::NORTH_EAST, tile_world::SOUTH_EAST, tile_world::SOUTH_WEST, tile_world::NORTH_WEST] {
+    s = theme::slant_sprite(g.look, wall, t);
+    assert(s != wall && !ways.contains(s), "a picture of its own for way {t}");
+    ways += [s];
+  }
+  floor = theme::terrain_sprite(g.look, rules::terrain_id(k, "floor"), 0, 0, false);
+  assert(theme::slant_sprite(g.look, floor, tile_world::SOUTH_EAST) == floor, "the floor has no cut");
+  back = 2016;
+  whole = tiles::surface(16, 16) ?? 0;
+  tiles::clear(whole, back);
+  theme::put(whole, wall, 0, 0, 0);
+  wp = tiles::pixels(whole, 16, 16);
+  cut = tiles::surface(16, 16) ?? 0;
+  tiles::clear(cut, back);
+  theme::put(cut, theme::slant_sprite(g.look, wall, tile_world::SOUTH_EAST), 0, 0, 0);
+  cp = tiles::pixels(cut, 16, 16);
+  assert(cp[2 * 16 + 2] == wp[2 * 16 + 2] && cp[2 * 16 + 2] != back, "the north-west half is the wall");
+  assert(cp[13 * 16 + 13] == back && wp[13 * 16 + 13] != back, "the south-east corner is open");
+  line = cp[0 * 16 + 15];
+  for i in 0..16 { assert(cp[i * 16 + 15 - i] == line && line != back, "the cut along the diagonal, at ({15 - i}, {i})"); }
 }

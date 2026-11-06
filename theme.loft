@@ -5,12 +5,22 @@
 // A sprite is written "sheet:tile" ("dungeon:48") and held as one integer, the sheet's handle
 // times 4096 plus the tile, -1 for none.
 use tiles;
+use imaging;
 use ui;
 use rules;
 
 struct Sheet {
   const name: text,
-  handle: integer
+  handle: integer,
+  path: text = ""
+}
+
+/// A picture an upright kind can show, cut at 45 degrees (DESIGN.md § Slanted rock): `first` is
+/// its north-east cut — its open half the north-east corner — and the south-east, south-west and
+/// north-west cuts follow it.
+struct SlantLook {
+  const sprite: integer,
+  first: integer
 }
 
 struct TerrainLook {
@@ -105,7 +115,9 @@ pub struct Theme {
   pub heart: integer,
   font: integer,
   digits: integer,
-  letters: integer
+  letters: integer,
+  /// The slanted pictures, made from the upright kinds' own when the theme loads.
+  slants: hash<SlantLook[sprite]> = []
 }
 
 fn num(v: const JsonValue, name: text, default: integer) -> integer {
@@ -163,7 +175,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
   for name in sheets.keys() {
     h = tiles::sheet_from_png("{dir}/{sheets.field(name).as_text()}", ts, ts);
     if !h { return null; }
-    th.sheets += [Sheet { name: name, handle: h }];
+    th.sheets += [Sheet { name: name, handle: h, path: "{dir}/{sheets.field(name).as_text()}" }];
     th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
@@ -230,7 +242,91 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
       grip_x: num(e, "grip_x", ts / 2 - 1), grip_y: num(e, "grip_y", ts - 3)
     }];
   }
+  if !add_slants(th, v, k) { return null; }
   th
+}
+
+// Every picture an upright kind can show — its look's tile, variants and picture from above, and
+// the pictures of the materials of an upright kind, autotile pieces included — cut four ways: one
+// sheet beside each sheet they come from, so it keeps that sheet's colours.  False when a sheet
+// does not load again.
+fn add_slants(th: Theme, v: const JsonValue, k: const rules::Kinds) -> boolean {
+  want: vector<integer> = [];
+  for look in th.terrain {
+    if !look.upright { continue; }
+    for s in [look.tile, look.upper] { if s >= 0 && !want.contains(s) { want += [s]; } }
+    for s in look.variants { if s >= 0 && !want.contains(s) { want += [s]; } }
+  }
+  mats = v.field("materials");
+  sets = v.field("autotiles");
+  for name in mats.keys() {
+    e = mats.field(name);
+    look = th.terrain[rules::terrain_id(k, word(e, "kind"))];
+    if !look || !look.upright { continue; }
+    names: vector<text> = [word(e, "tile")];
+    vars = e.field("variants");
+    for i in 0..vars.len() { names += [vars.item(i).as_text()]; }
+    set = sets.field(word(e, "autotile"));
+    for piece in set.keys() { names += [set.field(piece).as_text()]; }
+    for n in names {
+      s = sprite(th, n);
+      if s >= 0 && !want.contains(s) { want += [s]; }
+    }
+  }
+  ts = th.tile_size;
+  for sh in th.sheets {
+    mine: vector<integer> = [];
+    for s in want { if s / 4096 == sh.handle { mine += [s]; } }
+    if len(mine) == 0 { continue; }
+    img = file(sh.path).png() ?? return false;
+    cols = img.width / ts ?? 0;
+    bytes: vector<u8> = [0 as u8; len(mine) * 4 * ts * ts * 4];
+    for i in 0..len(mine) {
+      t = (mine[i] ?? 0) % 4096 ?? 0;
+      ox = (t % cols ?? 0) * ts;
+      oy = (t / cols ?? 0) * ts;
+      // The cut line is the picture's darkest colour, so it stays within the sheet's colours.
+      dark = imaging::Pixel { r: 0, g: 0, b: 0 };
+      best = 1000;
+      for y in 0..ts {
+        for x in 0..ts {
+          p = img.data[(oy + y) * img.width + ox + x] ?? continue;
+          if p.a >= 128 && p.r + p.g + p.b < best { best = p.r + p.g + p.b; dark = p; }
+        }
+      }
+      for way in 0..4 {
+        // NE, SE, SW, NW: which corner is open.
+        east = way < 2;
+        south = way == 1 || way == 2;
+        for y in 0..ts {
+          for x in 0..ts {
+            p = img.data[(oy + y) * img.width + ox + x] ?? continue;
+            dx = if east { x } else { ts - 1 - x };
+            dy = if south { y } else { ts - 1 - y };
+            past = dx + dy - (ts - 1);
+            q = if past > 0 || p.a < 128 { imaging::Pixel { r: 0, g: 0, b: 0, a: 0 } } else if past == 0 { dark } else { p };
+            at = ((i * ts + y) * 4 * ts + way * ts + x) * 4;
+            bytes[at] = q.r as u8;
+            bytes[at + 1] = q.g as u8;
+            bytes[at + 2] = q.b as u8;
+            bytes[at + 3] = q.a as u8;
+          }
+        }
+      }
+    }
+    h = tiles::sheet(bytes, 4 * ts, len(mine) * ts, ts, ts) ?? return false;
+    for i in 0..len(mine) { th.slants += [SlantLook { sprite: mine[i] ?? 0, first: h * 4096 + i * 4 }]; }
+  }
+  true
+}
+
+/// Sprite `s` cut at 45 degrees with its open half in corner `toward` (tile_world's NORTH_EAST ..
+/// NORTH_WEST); `s` itself when it has no cut picture or `toward` is none.
+pub fn slant_sprite(th: const Theme, s: integer, toward: integer) -> integer {
+  if s < 0 || toward < 1 || toward > 4 { return s; }
+  c = th.slants[s];
+  if !c { return s; }
+  c.first + toward - 1
 }
 
 /// Draw sprite `s` on `surface` at (px, py), at a shade; nothing for -1.

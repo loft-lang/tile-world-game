@@ -70,9 +70,9 @@
       ",,:,,,,:,,,,:,P",
       ":::::::::::::::",
       "SSSS,SSSS,,,,,P",
-      "SSSS,SSSS,,,,,P",
-      "TTFT,TTFT,,,,,P",
-      ",,:,,,,:,,,,,,P",
+      "SSSS,SSSS,SSSSP",
+      "TTFT,TTFT,SSSSP",
+      ",,:,,,,:,,TTFTP",
       ":::::::::::::,P",
       "PPPPPPPPPPPPPPP"
     ] }
@@ -147,7 +147,8 @@
     { "at": [69, 10], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [69, 16], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
     { "at": [74, 2], "size": [4, 3], "z": 0, "roof": "roof", "wall": "wood_wall", "door": "house_door" },
-    { "at": [74, 10], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ], "items": [
+    { "at": [74, 10], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" },
+    { "at": [74, 17], "size": [4, 3], "z": 0, "roof": "slate_roof", "wall": "stone_wall", "door": "stone_door" } ], "items": [
     { "at": [15, 19], "z": 0, "stack": ["bed"] } ] },
   "adjusted": [ ],
   "doors": [
@@ -182,6 +183,7 @@
     { "at": [71, 18, 0], "to": "the_work", "door": "demo" },
     { "at": [76, 4, 0], "to": "the_farm", "door": "demo" },
     { "at": [76, 12, 0], "to": "the_raid", "door": "demo" },
+    { "at": [76, 19, 0], "to": "the_caves", "door": "demo" },
     { "at": [78, 15, 0], "to": "", "door": "", "ends": true }
   ],
   "labels": [
@@ -209,6 +211,7 @@
     { "at": [61, 14, 0], "text": "NIGHT" },
     { "at": [58, 20, 0], "text": "SABLE" },
     { "at": [61, 20, 0], "text": "DOME" },
+    { "at": [74, 20, 0], "text": "CAVES" },
     { "at": [65, 6, 0], "text": "BLASTING" },
     { "at": [66, 14, 0], "text": "PUMP" },
     { "at": [15, 20, 0], "text": "SLEEP" },

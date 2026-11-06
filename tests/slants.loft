@@ -1,0 +1,142 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Slanted rock (DESIGN.md § Slanted rock): natural rock cut at 45 degrees where it turns a corner,
+// a picture only.  The intent cuts a rim's corner cell and leaves built walls whole; a slant is
+// saved and read back, turned by hand in the editor and undone, kept by a fill over a hand-set
+// one; a slanted wall stays a wall.  Every cell is worked out by hand.
+use tile_world;
+use rules;
+use levels;
+use editor;
+use intent;
+
+// A tunnel: a trail one cell wide from (0, 0) east to (4, 0), then south to (4, 4), with a rim of
+// wall.  Its rim's only cell with both neighbours of one corner inside the tunnel, and the other
+// two rock, is (3, 1): the inside of the bend, open to the north-east.
+fn tunnel() -> intent::Intent {
+  intent::Intent { seed: 3, rooms: [], corridors: [],
+    trails: [intent::Trail { points: [intent::Point { x: 0, y: 0 }, intent::Point { x: 4, y: 0 }, intent::Point { x: 4, y: 4 }],
+                             z: 0, what: "floor", width: 1, rim: "wall" }] }
+}
+
+fn place(it: const intent::Intent) -> levels::LevelFile {
+  k = rules::kinds();
+  levels::LevelFile {
+    name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+    goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 }, intent: it
+  }
+}
+
+fn fill_at(fills: const vector<intent::Fill>, x: integer, y: integer, z: integer) -> intent::Fill {
+  for f in fills { if f.x == x && f.y == y && f.z == z { return f; } }
+  intent::Fill { key: 0, x: x, y: y, z: z, terrain: "", thing: "", slant: -9 }
+}
+
+fn main() {
+  assert(len(intent::derive(tunnel(), [])) > 0, "the tunnel derives");
+}
+
+// The rim's cell inside the bend opens to the north-east; every other rim cell is whole (0: a
+// fill makes it so), the tunnel's floor is left as it is (-1).
+fn test_a_rim_is_cut_inside_its_bend() {
+  fills = intent::derive(tunnel(), []);
+  c = fill_at(fills, 3, 1, 0);
+  assert(c.terrain == "wall" && c.slant == intent::NORTH_EAST, "(3, 1): {c.terrain} {c.slant}");
+  cut = 0;
+  for f in fills {
+    if f.slant > 0 { cut += 1; }
+    if f.terrain == "wall" && f.slant < 0 { assert(false, "rim ({f.x}, {f.y}) has no slant answer"); }
+  }
+  assert(cut == 1, "one cell cut, not {cut}");
+  for p in [(5, 0), (5, -1), (-1, 0), (3, 4), (5, 4)] {
+    w = fill_at(fills, p.0, p.1, 0);
+    assert(w.terrain == "wall" && w.slant == 0, "({p.0}, {p.1}) whole: {w.terrain} {w.slant}");
+  }
+  assert(fill_at(fills, 4, 0, 0).slant == -1 && fill_at(fills, 4, 0, 0).terrain == "floor", "the floor left as it is");
+}
+
+// A room's walls are built, never cut — its corners included.
+fn test_built_walls_stay_whole() {
+  it = intent::Intent { seed: 3, rooms: [intent::Room { x: 0, y: 0, w: 5, h: 4, z: 0, words: [] }], corridors: [] };
+  for f in intent::derive(it, []) {
+    assert(f.slant == -1, "room cell ({f.x}, {f.y}) {f.terrain}: {f.slant}");
+  }
+}
+
+// A cave is cut on every layer it climbs: on its floor and above.  Every cut cell is its wall, and
+// both its neighbours on the open corner's side are inside the cave (not wall) on that layer.
+fn test_a_cave_is_cut_on_every_layer() {
+  it = intent::Intent { seed: 11, rooms: [], corridors: [],
+    domes: [intent::Dome { x: 0, y: 0, w: 21, h: 15, z: 0 }] };
+  fills = intent::derive(it, []);
+  at: hash<intent::Fill[key]> = [];
+  for f in fills { at += [f]; }
+  low = 0;
+  high = 0;
+  for f in fills {
+    if f.slant <= 0 { continue; }
+    assert(f.terrain == "wall", "a cut cell is wall: ({f.x}, {f.y}, {f.z}) {f.terrain}");
+    dy = if f.slant == intent::NORTH_EAST || f.slant == intent::NORTH_WEST { -1 } else { 1 };
+    dx = if f.slant == intent::NORTH_EAST || f.slant == intent::SOUTH_EAST { 1 } else { -1 };
+    for n in [(f.x, f.y + dy), (f.x + dx, f.y)] {
+      o = at[intent::key_of(n.0, n.1, f.z)];
+      assert(!o || o.terrain != "wall", "({f.x}, {f.y}, {f.z}) opens onto rock at ({n.0}, {n.1})");
+    }
+    if f.z == 0 { low += 1; } else { high += 1; }
+  }
+  assert(low >= 4 && high >= 4, "cut on the floor ({low}) and above it ({high})");
+}
+
+// A slant is saved as its corner's name and read back; a place with none writes no `slants`.
+fn test_a_slant_is_saved_and_read_back() {
+  lf = place(intent::no_intent());
+  w = lf.level.w;
+  tile_world::set_terrain(w, 2, 1, 0, rules::tr(lf.level, "wall"), 0);
+  plain = levels::save(lf);
+  assert(!plain.contains("slants"), "none: no `slants`");
+  tile_world::set_slant(w, 2, 1, 0, tile_world::SOUTH_WEST);
+  saved = levels::save(lf);
+  assert(saved.contains("\"slants\": [ [2, 1, 0, \"SW\"] ]"), "written: {saved}");
+  back = levels::load(saved, lf.level.k) ?? place(intent::no_intent());
+  assert(tile_world::slant(back.level.w, 2, 1, 0) == tile_world::SOUTH_WEST, "read back");
+  assert(!rules::walkable(back.level, tile_world::terrain(back.level.w, 2, 1, 0)), "still a wall");
+}
+
+// `/` turns the cursor's cell round the four ways and back to whole; Shift+`/` the other way;
+// undo puts the slant back; a cell that is not set is not turned.
+fn test_the_editor_turns_a_slant() {
+  lf = place(intent::no_intent());
+  w = lf.level.w;
+  tile_world::set_terrain(w, 3, 3, 0, rules::tr(lf.level, "wall"), 0);
+  ed = editor::new_editor(lf);
+  ed.x = 3;
+  ed.y = 3;
+  ways: vector<integer> = [];
+  for _ in 0..5 {
+    assert(editor::turn_slant(ed, lf, 1), "turned");
+    ways += [tile_world::slant(w, 3, 3, 0)];
+  }
+  assert(ways == [1, 2, 3, 4, 0], "NE, SE, SW, NW, whole: {ways}");
+  assert(editor::turn_slant(ed, lf, -1) && tile_world::slant(w, 3, 3, 0) == tile_world::NORTH_WEST, "back to NW");
+  assert(editor::undo(ed, lf) && tile_world::slant(w, 3, 3, 0) == 0, "undone: whole");
+  ed.x = 9;
+  assert(!editor::turn_slant(ed, lf, 1), "an unset cell is not turned");
+}
+
+// A fill writes the derived slant; a slant set by hand stays through the next fill, and taking the
+// adjustment away gives the derived one back.
+fn test_a_fill_keeps_a_hand_set_slant() {
+  lf = place(tunnel());
+  ed = editor::new_editor(lf);
+  assert(editor::refill(ed, lf, []), "filled");
+  w = lf.level.w;
+  assert(tile_world::slant(w, 3, 1, 0) == tile_world::NORTH_EAST, "derived: NE at (3, 1)");
+  ed.x = 5;
+  ed.y = 0;
+  assert(editor::turn_slant(ed, lf, -1) && tile_world::slant(w, 5, 0, 0) == tile_world::NORTH_WEST, "set by hand");
+  _ = editor::refill(ed, lf, []);
+  assert(tile_world::slant(w, 5, 0, 0) == tile_world::NORTH_WEST, "kept through a fill");
+  editor::unadjust(ed, lf, 5, 0, 0);
+  assert(editor::refill(ed, lf, []) && tile_world::slant(w, 5, 0, 0) == 0, "released: whole again");
+}

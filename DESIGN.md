@@ -303,7 +303,8 @@ on water, and things pushed or blown into it are lost.
 - **Terrain kinds.**
   - Floor and rails.
   - Water: blocks walking, but bats fly over it.
-  - Wall: rough walls are climbable by spiders; smooth walls (optional) are not.
+  - Wall: rough walls are climbable by spiders; smooth walls (optional) are not.  A wall can be
+    slanted: drawn at 45 degrees, still a whole wall (§ Slanted rock).
   - Fence: the hero climbs over it like a height-1 step. Nothing is pushed or pulled across it,
     and it stops trains. Bats fly over it. Built (slice 2) as a terrain cell and as an edge
     between two cells; bats wait for enemies.
@@ -919,6 +920,47 @@ the rules stay cell by cell, and it runs on the world clock, so it is the same a
   (`rules::in_view`; two walls touching at their corners stop it too).  Only walls: a door, a
   tree, a thing never hides anything, so nothing pops in and out of view as things move.  The
   terrain is always drawn, and so is the light a hidden flame casts.
+
+### Slanted rock: walls at 45 degrees (owner, built: `intent.loft`, `theme.loft`, `tests/slants.loft`)
+
+- **A picture only** (owner).  A slanted cell is its kind for every rule: rock is not walked into,
+  stops sight and light, and holds up what stands on it from the layer above — a small ledge.  The
+  slant only says how it is drawn: one picture, cut along a diagonal, in one of four ways — which
+  corner its open half looks into (north-east, south-east, south-west, north-west).
+- **Kept in the world.**  `tile_world` (0.8.0) holds a cell's slant beside its edges and its
+  rise, so saves, stamps and copy and paste carry it; a place file lists its slanted cells in
+  `slants`.
+- **Derived where rock is natural.**  A cave's walls on every layer it climbs, and the rim of a
+  blob or a tunnel, are cut where they turn a corner: a rock cell whose two neighbours on one
+  corner's side are inside the shape, and whose other two are not, looks into that corner.  A
+  round cave reads round instead of as stairs, a tunnel's bend is cut on its inside, a pillar
+  becomes a diamond.  Built walls — a room's, a corridor's, a house's — stay whole.  A slant is a
+  derived detail like any other: `/` in the editor turns a cell to the next way (Shift+`/` back),
+  that cell is then set by hand, and a fill keeps it until the adjustment is taken away.
+- **Drawn from the pictures there are.**  When the theme loads, every picture an upright kind can
+  show — its look's, and its materials', autotile pieces included — is cut four ways: the open
+  half made clear, the cut drawn in the picture's darkest colour.  No new art.  Under the open
+  half the ground of the neighbour on that side is drawn; on a layer above, with no ground there,
+  the half stays open onto what lies below.
+- **Only rock is cut.**  The rule cuts rock, never floor, so a corner where the floor bulges out
+  into the rock stays square.
+- **Sight at a cut corner.**  What the hero sees drawn already stops between two walls that touch
+  only at a corner (`rules::in_view`, § What the player sees).  An enemy's sight
+  (`tile_world::line_of_sight`) does not: it would see through a wall one cell thick running at 45
+  degrees, its cells touching only at their corners.  A derived rim is never that thin — it covers
+  every neighbour of the cave's floor — so no place has one yet; a hand-drawn thin diagonal wall
+  (the test bed below) needs `line_of_sight` to stop there first.
+
+### A square test bed for dryopea's walls (owner, 2026-11-06: agreed, not built)
+
+The 16 x 16 tile model can test dryopea's rules without its 3-D engine.  Its one geometric hurdle is
+dryopea's *a curved wall is stronger than a straight one*; with slanted cells the square grid can
+draw a wall in all eight directions.  The agreed rule: a wall cell is CURVED when the wall's
+direction two cells back differs from its direction two cells ahead, and it is stronger seen from
+the outside of the bend (from the inside it counts as straight, never weaker).  Measured on the
+two-step check: a 3-wide side between two 45-degree cells counts curved all along (the octagon);
+circles of radius 3, 5 and 8 cells count 100 %, 85 % and 72 % of their cells curved, radius 12
+about half; a straight wall, square or at 45 degrees, none.
 
 ## Slices
 
