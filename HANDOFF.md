@@ -115,6 +115,9 @@ and a tribe acting across places (C3, C4).  The next phase is D, the story's pla
   - NIGHT: in the dark street go into the house — nothing; with the torch — the neighbour saw it.
   - SABLE: his day (dig, then home, a 60 s demo day), his two rocks in the short way, and the cart
     held by a rock on the terrace — push the rock off and step away at once, or be run down.
+  - FIRST-PERSON VIEW (2026-11-06, RENDER_3D.md § The first-person view): `render3d.loft`, F1 in a
+    browser page; the game's code unchanged but a few lines in main.loft.  CAVES' tunnel has a sword
+    two steps in.  `checks/view3d.loft`.  Open: talk bubbles, the screen library's tap latch.
   - CEILINGS (2026-11-06, RENDER_3D.md § Ceilings): modelled per cell (tile_world 0.9.0), set in
     the editor with Shift+`[` / Shift+`]`, saved in `ceilings`; drawn by nothing yet.  RENDER_3D.md
     now carries the pure 3D scope: slants as prisms, sloped tops, ceilings, and the later steps (a

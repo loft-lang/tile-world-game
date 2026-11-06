@@ -25,6 +25,8 @@ WASD move, and the right hand acts: J swings (held, a heavy swing; a bow shoots,
 K alone guards (pressed, a parry; held, a block) and held while moving pulls, L puts down what the
 hero holds, I aims.  Moving with the arrows instead, the left hand has the same on Space, Shift, X
 and T.
+In a browser (`./play-web.sh`), F1 switches to the first-person view and back (RENDER_3D.md § The
+first-person view): forward and back walk the way the hero looks, left and right turn.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
 Walking into a well or a fountain saves the situation and writes the game to `saves/`: starting
 the game again carries on from there (`TW_NEW=1` starts afresh).  Losing all health brings the
@@ -69,6 +71,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `camera.loft` | where the view stands: `follow` and `rooms` while playing, the cursor kept in sight while editing |
 | `game.loft` | the game: picture (`tiles`, Kenney's Tiny packs), sounds (`audio`, Kenney's sound packs), controls (`input`) |
 | `main.loft` | the loop: shows the picture with `screen`, reads the keys from the window or the machine's keyboard |
+| `render3d.loft` | the first-person view, in a browser page: the place as geometry with the 2D's pictures, cards, the held item (`graphics`) |
 | `DESIGN.md` | what the game should become, slice by slice |
 | `STORY.md` | the story game, designed before it is built: the owner's story, people, monsters and endings, what the engine offers them, and engine notes kept apart |
 | `BUILD.md` | building the story game in small safe steps: tools, mechanics (each in a room of the test world first), the world's systems, then the places |
@@ -79,7 +82,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `EDITOR.md` | the design of the in-game world editor |
 | `RENDER_3D.md` | an experiment: the game in 3D on OpenGL and WebGL — the environment as geometry with the pictures as textures, everything else as cardboard cut-outs; desktop and browser only |
 | `tests/` | the rules, played out: `loft --lib libs --tests tests` — `combat.loft` each fighting move timed by hand, `fights.loft` the fight rooms played by an attacker, a parrier and a dodger, `places.loft` the demo village's newer houses (fountain, cave-in, herbs, night, Sable, dome, blasting, creatures, raid) played as a player would, `blasting.loft` the directed blast and the cave-in, `creatures.loft` each new creature's habit, `crafting.loft` the forge, the anvil and the artefact, `talk.loft` lines, barks on conditions, hints and broken words, `following.loft` followers through doors, people at their points and a guide, `tribe.loft` the barricade and the Kharn's raid |
-| `checks/` | the game itself (safe points), as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft` |
+| `checks/` | the game itself (safe points) and the first-person view's faces, as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft`, `checks/view3d.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |
 | `ART.md` | the game's own sheet: its layout, its style, how a tile is drawn |
 | `INTERACTIONS.md` | where the rules meet: what needs a ruling, what could be unfair, and the puzzles it opens |

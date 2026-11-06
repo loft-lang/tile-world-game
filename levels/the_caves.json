@@ -183,6 +183,7 @@
     ] }
   ],
   "things": [
+    { "at": [16, 24, 0], "stack": ["sword"] }
   ],
   "tiles": [ ],
   "edges": [ ],
@@ -194,7 +195,8 @@
     { "points": [[16, 27]], "z": 0, "as": "open_door" } ], "domes": [
     { "at": [21, 2], "size": [15, 13], "z": 0, "as": "floor", "height": 3 },
     { "at": [22, 14], "size": [12, 8], "z": 0, "as": "floor", "shape": "crag" } ], "blobs": [
-    { "at": [2, 4], "size": [17, 15], "z": 0, "as": "floor", "rim": "wall" } ] },
+    { "at": [2, 4], "size": [17, 15], "z": 0, "as": "floor", "rim": "wall" } ], "items": [
+    { "at": [16, 24], "z": 0, "stack": ["sword"] } ] },
   "adjusted": [ ],
   "doors": [
     { "at": [16, 27, 0], "to": "demo", "door": "the_caves" }

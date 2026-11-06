@@ -1,0 +1,132 @@
+// The first-person view's place (render3d.loft): its faces from what the cells hold, checked by
+// hand on a small place.  A plain program, as checks/game.loft is (loft#2234: the tiles shim).
+// Run with `loft --lib libs checks/view3d.loft`.  Nothing here opens a window.
+//
+// A floor x 0 .. 8, y 0 .. 8 on layer 0, the hero on (1, 1) facing north.  Every face's corners are
+// (x, y, z, u, v): x east, y up in layers, z south.
+use tile_world;
+use rules;
+use game;
+use render3d;
+
+fn place() -> game::Game {
+  g = game::new_game("..")!;
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 8, 8, 0, rules::tr(w, "floor"));
+  g.world = w;
+  rules::put_hero(g.world, 1, 1, 0);
+  g.world.face_x = 0;
+  g.world.face_y = -1;
+  g
+}
+
+// The faces that touch cell (x, y) on layer z's span: every corner inside the cell's box.
+fn of_cell(fs: const vector<render3d::Face>, x: integer, y: integer, z: integer) -> vector<render3d::Face> {
+  out: vector<render3d::Face> = [];
+  for f in fs {
+    inside = true;
+    n = len(f.at) / 5 ?? 0;
+    for c in 0..n {
+      fx = f.at[c * 5] ?? -9.0;
+      fy = f.at[c * 5 + 1] ?? -9.0;
+      fz = f.at[c * 5 + 2] ?? -9.0;
+      if fx < (x as float) - 0.001 || fx > ((x + 1) as float) + 0.001 || fz < (y as float) - 0.001
+          || fz > ((y + 1) as float) + 0.001 || fy < (z as float) - 0.001 || fy > ((z + 1) as float) + 0.001 {
+        inside = false;
+      }
+    }
+    if inside { out += [f]; }
+  }
+  out
+}
+
+fn corners(f: const render3d::Face) -> integer { len(f.at) / 5 ?? 0 }
+
+fn main() {
+  test_a_wall_is_a_box();
+  test_a_slanted_wall_is_a_prism();
+  test_a_ceiling_hangs_at_its_drop();
+  test_a_slope_bends_the_floor();
+  println("checks/view3d.loft: 4 passed");
+}
+
+// A whole wall on (4, 4) among floor: four sides and a top, each four corners; no floor under it.
+fn test_a_wall_is_a_box() {
+  g = place();
+  tile_world::set_terrain(g.world.w, 4, 4, 0, rules::tr(g.world, "wall"), 0);
+  fs = of_cell(render3d::faces(g), 4, 4, 0);
+  quads = 0;
+  tops = 0;
+  for f in fs {
+    if corners(f) == 4 { quads += 1; }
+    flat = true;
+    for c in 0..4 { if (f.at[c * 5 + 1] ?? 0.0) < 0.999 { flat = false; } }
+    if flat { tops += 1; }
+  }
+  // Its four neighbours' floors also touch its box on an edge — at y 0, outside the wall's
+  // faces: of_cell keeps faces wholly inside the box, and a neighbour's floor is not.
+  assert(len(fs) == 5 && quads == 5, "four sides and a top: {len(fs)} faces, {quads} of 4 corners");
+  assert(tops == 1, "one at the top (y 1): {tops}");
+}
+
+// A wall on (4, 4) slanted open to the north-east: its solid half is the triangle NW, SW, SE.  Its
+// two whole sides (west and south), its cut face from NW (4, 4) to SE (5, 5), the floor's triangle
+// in the open half (from the floor beside), and its top triangle: five faces, two of 3 corners.
+fn test_a_slanted_wall_is_a_prism() {
+  g = place();
+  tile_world::set_terrain(g.world.w, 4, 4, 0, rules::tr(g.world, "wall"), 0);
+  tile_world::set_slant(g.world.w, 4, 4, 0, tile_world::NORTH_EAST);
+  fs = of_cell(render3d::faces(g), 4, 4, 0);
+  tri = 0;
+  cut = false;
+  for f in fs {
+    if corners(f) == 3 { tri += 1; }
+    if corners(f) == 4 {
+      // The cut face: a corner at (4, ., 4) and one at (5, ., 5).
+      a = false;
+      b = false;
+      for c in 0..4 {
+        x = f.at[c * 5] ?? 0.0;
+        z = f.at[c * 5 + 2] ?? 0.0;
+        if x == 4.0 && z == 4.0 { a = true; }
+        if x == 5.0 && z == 5.0 { b = true; }
+      }
+      if a && b { cut = true; }
+    }
+  }
+  assert(len(fs) == 5 && tri == 2, "two sides, the cut, the open half's floor and the top: {len(fs)} faces, {tri} triangles");
+  assert(cut, "the cut runs from (4, 4) to (5, 5)");
+}
+
+// Under rock (a wall over the whole place on layer 1), the floor cell (6, 6) with its ceiling 2
+// steps down — and its eight neighbours too, so every corner's mean is 2 — has its ceiling at 0.5.
+fn test_a_ceiling_hangs_at_its_drop() {
+  g = place();
+  tile_world::fill(g.world.w, 0, 0, 8, 8, 1, rules::tr(g.world, "wall"));
+  for y in 5..8 { for x in 5..8 { tile_world::set_ceiling(g.world.w, x, y, 0, 2); } }
+  fs = of_cell(render3d::faces(g), 6, 6, 0);
+  low = 0;
+  for f in fs {
+    all = true;
+    for c in 0..corners(f) { if (f.at[c * 5 + 1] ?? 0.0) != 0.5 { all = false; } }
+    if all { low += 1; }
+  }
+  assert(low == 1, "one face at 0.5, the ceiling: {low} of {len(fs)}");
+}
+
+// A cell rising a step beside flat floor: its corners shared with flat cells within a step take
+// the mean — (4, 4) at rise 1 alone, so each of its corners is the mean of 1 and three 0s, ¼ of a
+// step: 1/16 of a layer.
+fn test_a_slope_bends_the_floor() {
+  g = place();
+  tile_world::set_rise(g.world.w, 4, 4, 0, 1);
+  fs = of_cell(render3d::faces(g), 4, 4, 0);
+  ok = false;
+  for f in fs {
+    if corners(f) != 4 { continue; }
+    all = true;
+    for c in 0..4 { if (f.at[c * 5 + 1] ?? 0.0) != 0.0625 { all = false; } }
+    if all { ok = true; }
+  }
+  assert(ok, "the floor's corners at 1/16: {len(fs)} faces");
+}

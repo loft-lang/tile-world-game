@@ -26,6 +26,48 @@ it can afford.
 Every choice below that is not the owner's is **proposed**, or a **default** taken to change later
 (§ Defaults).
 
+## Why it matters (owner, 2026-11-06)
+
+The mode looks like a gimmick, and is the opposite: it is the step that takes an indie developer
+from a concept tested in 2D to a game they can sell.  The pictures stay simple, but a 3D game
+reaches an audience a 2D one does not, and the developer gets room to play in it — the same world
+model, the same rules, seen as a place.  Through the hex-world conversion (§ Later) it opens a
+further dimension: the hex tools, more precise layers, and models exported from Blender and the
+like.  The game already held an almost-3D world (layers, rises, slants, ceilings); this view makes
+that official.
+
+## The first-person view (built, 2026-11-06)
+
+Built first, ahead of the steps below (owner): `render3d.loft`, in a browser page only, beside the
+2D game.  **F1** switches between the two where the frame is drawn by a page's GPU; the desktop and
+the Tanmatsu stay 2D, and the editor is always 2D (E switches the view off).
+
+- **What is seen:** the place round the hero (12 cells each way, two layers up and down) from the
+  hero's eyes, its facing eased as it turns.  Floors at their rise, bent at the corners as the 2D
+  bends its ground, with banks to lower ground; walls as boxes; slanted walls as prisms with their
+  cut face and the floor and ceiling of their open half; ceilings at their drop, bent the same way;
+  the undersides of floors and rock above the hero.  Trees, fences, open doors and things are cards
+  turned to the eye (an item on the floor half a cell, furniture a little under one, a figure 0.85);
+  the enemies and people glide to their cells.  The light is the rules' (`tile_world::shades`), and
+  the distance fades into the sky by day or night under the open sky, into the dark under rock.
+- **In front:** what the hero holds — a sword, an axe, a torch — at the bottom right, swaying as it
+  stands, bobbing as it walks, turned by the swing as the 2D turns it.  Empty hands show nothing.
+- **Over it:** the note and the hearts, on the game's own surface.  Talk bubbles are not drawn yet.
+- **The keys:** forward walks the way the hero looks; back steps back still looking ahead (with
+  pull held, it pulls what is in front); left and right turn on the spot.  They are turned into the
+  2D game's keys before it reads them, so the game's code is the 2D game's (owner: keep it so).
+- **The pictures:** each, the first time it is needed, is drawn by the theme onto a small
+  offscreen surface, read back and put in a 1024 x 1024 atlas — the 2D's colours exactly, and the
+  theme untouched.
+- **Checked:** `checks/view3d.loft` (a box, a prism, a ceiling at its drop, a bent floor, by hand,
+  both backends); pictures taken in headless Chromium in the village and the caves.
+- **Not yet:** talk bubbles, ramps for stairs, a door's panel (a door is a box), a figure's held
+  card, culling (every face is drawn; a place round the hero is a few thousand faces).
+
+A key pressed and released between two frames is not seen: `screen` keeps which keys are down, not
+the presses, and the game reads that once a frame.  At 60 frames a second a tap spans several
+frames; a slow frame can lose one.  The cure is `screen`'s — a press latched until the next poll.
+
 ## What stays and what is new
 
 - **Unchanged:** the rules (`rules.loft`), talk, places and doors (`levels.loft`), the editor's

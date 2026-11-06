@@ -8,6 +8,7 @@ use tiles;
 use audio;
 use input;
 use ui;
+use render3d;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
 // N ms of the game pass (a step's glide ends, the world runs on), as a play script's `~N` does.
@@ -236,6 +237,9 @@ fn main() {
   // The editor's widgets, where the screen has a pointer: drawn over the frame at half the game's
   // zoom, so their 8-unit letters are as large on any screen as the game's own.
   widgets = ui::new_ui(game::ui_font(game), ui::plain_style());
+  // The first-person view (render3d.loft): V in a browser page; what the GPU holds for it.
+  v3 = render3d::view();
+  gpu = render3d::gpu();
   pointing = screen::has_pointer();
   aim(game, view, size);
   game::draw(game);
@@ -250,7 +254,7 @@ fn main() {
     btn = screen::buttons();
     typed_now = screen::typed();
     if window_keys {
-      game.keys.input_tick_from_state(screen::keys(), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
+      game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, screen::keys()), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
     } else {
       game.keys.input_tick_device();
     }
@@ -268,7 +272,13 @@ fn main() {
     touched = panel && (at_ptr.0 != was_at.0 || at_ptr.1 != was_at.1 || btn != was_buttons || typed_now != "");
     was_at = at_ptr;
     was_buttons = btn;
-    if game::update(game, now - last, now) || resized || zooming || touched || panel_changed {
+    changed = game::update(game, now - last, now);
+    render3d::after(v3, game);
+    if v3.on && !game.editing {
+      aim(game, view, size);
+      render3d::draw(v3, gpu, game, changed || resized, now);
+      present(game, size, timing);
+    } else if changed || resized || zooming || touched || panel_changed || render3d::went_off(v3) {
       panel_changed = false;
       aim(game, view, size);
       at = ticks();

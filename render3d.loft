@@ -1,0 +1,840 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The first-person view (RENDER_3D.md § The first-person view): the hero's place seen from the
+// hero's eyes, in a browser page, as a gimmick beside the 2D game (owner, 2026-11-06).  A key switches
+// it on and off — F1 — where the frame is drawn by a page's GPU; the desktop and the Tanmatsu stay 2D.
+//
+// It reads the world the 2D draws and changes nothing in play: the rules, the moves and the fights
+// are the 2D game's.  The place is built from what each cell holds — a floor at its rise, its
+// slopes from the corners as the 2D bends its ground, a wall as a box, a slanted wall as a prism
+// (DESIGN.md § Slanted rock), a ceiling at its drop (RENDER_3D.md § Ceilings) — with the 2D's own
+// pictures as textures.  Things, trees and figures are cards turned to the eye.  What the hero
+// holds is drawn in front, swaying as it walks and swinging as it strikes.
+//
+// The pictures reach the GPU through the theme's own drawing: each one, the first time it is
+// needed, is drawn onto a small offscreen surface, read back and put in the atlas — so the 3D
+// shows what the 2D shows, its colours included, and the theme is not touched.
+//
+// The keys, while it is on: forward walks the way the hero looks, back steps back still looking
+// ahead (with pull held, it pulls what is in front), left and right turn on the spot.  They are
+// turned into the 2D game's keys before it reads them (`steer`), so the game itself is unchanged.
+use tile_world;
+use rules;
+use theme;
+use game;
+use motion;
+use materials;
+use tiles;
+use graphics;
+
+// A picture's side in pixels, and the atlas: SLOTS x SLOTS pictures, AT texels a side.
+const TS = 16;
+const SLOTS = 64;
+const AT = 1024;
+// What is built round the hero: cells each way, and layers above and below its own.
+const REACH = 12;
+const LAYERS = 2;
+// A rise step, in layers (a layer is 4 steps).
+const STEP = 0.25;
+// The eye, in layers above the hero's feet; the field of view; how far the dark lets one see.
+const EYE = 0.6;
+const FIELD = 70.0;
+const FOG = 10.0;
+// What the distance fades into: the sky by day and by night where the hero stands under it, the
+// dark under rock; and how far one sees outside.
+const SKY = (0.58, 0.75, 0.9);
+const NIGHT_SKY = (0.04, 0.05, 0.12);
+const FAR_SKY = 15.0;
+// How fast the view turns to the hero's facing, in degrees a millisecond.
+const TURN = 0.6;
+// The key the offscreen picture is cleared to: what is left of it is transparent (RGB565 magenta).
+const CLEAR = 63519;
+
+// The raw key codes the steering reads (as `screen::keys()` numbers them).
+const K_W = 119;
+const K_A = 97;
+const K_S = 115;
+const K_D = 100;
+const K_UP = 128;
+const K_DOWN = 129;
+const K_LEFT = 130;
+const K_RIGHT = 131;
+// F1 switches the view (screen's codes: F1 .. F12 are 135 .. 146).
+const K_SWITCH = 135;
+
+const VERTEX: text = `
+#version 330 core
+layout(location = 0) in vec3 pos;
+layout(location = 1) in vec3 shade;
+layout(location = 2) in vec2 uv;
+uniform mat4 mvp;
+uniform vec3 eye;
+uniform float fogd;
+out vec2 v_uv;
+out float v_light;
+out float v_fog;
+void main() {{
+  gl_Position = mvp * vec4(pos, 1.0);
+  v_uv = uv;
+  v_light = shade.x;
+  v_fog = clamp(1.25 - length(pos - eye) / fogd, 0.0, 1.0);
+}}
+`;
+
+const FRAGMENT: text = `
+#version 330 core
+uniform sampler2D atlas;
+uniform vec3 fogc;
+in vec2 v_uv;
+in float v_light;
+in float v_fog;
+out vec4 frag;
+void main() {{
+  vec4 c = texture(atlas, v_uv);
+  if (c.a < 0.5) discard;
+  frag = vec4(mix(fogc, c.rgb * v_light, v_fog), 1.0);
+}}
+`;
+
+/// A face of the place: a sprite on a flat polygon of 3 or 4 corners, each corner five numbers —
+/// its x, y, z (x east, y up in layers, z south) and where it lies on the picture (u right, v
+/// down, 0 .. 1) — and the light it is seen in (1 is full).
+pub struct Face {
+  pub sprite: integer,
+  pub at: vector<float>,
+  pub light: float
+}
+
+// Where a picture sits in the atlas: its slot.
+struct Pic {
+  const sprite: integer,
+  slot: integer
+}
+
+// An enemy as drawn: where it is, easing to its cell.
+struct Seen {
+  const id: integer,
+  x: float,
+  y: float
+}
+
+/// What the GPU holds: the page's window, the shader, the atlas and three meshes — the place, the
+/// cards, what the hero holds.  Kept apart from the view's state, by the caller, and handed in
+/// read-only: a GL object is released once, by its one owner.
+pub struct Gl {
+  win: graphics::Window,
+  shader: graphics::Shader,
+  atlas: graphics::Texture,
+  place: graphics::GpuMesh,
+  cards: graphics::GpuMesh,
+  hand: graphics::GpuMesh
+}
+
+/// What the GPU holds, for the caller to keep: none until the view is first switched on.
+pub struct Gpu {
+  gls: vector<Gl> = []
+}
+
+/// Nothing on the GPU yet.
+pub fn gpu() -> Gpu {
+  Gpu {}
+}
+
+/// The first-person view's state: whether it is on, the atlas's pictures, the turn shown, the
+/// enemies as drawn, the keys of the last frame.  What the GPU holds is the caller's (`Gl`).
+pub struct View3D {
+  pub on: boolean = false,
+  pics: hash<Pic[sprite]> = [],
+  slots: integer = 0,
+  scratch: integer = 0,
+  yaw: float = 0.0,
+  seen: hash<Seen[id]> = [],
+  last: integer = 0,
+  was: vector<boolean> = [],
+  keep_face: boolean = false,
+  face_x: integer = 0,
+  face_y: integer = 0,
+  place: vector<single> = [],
+  built: boolean = false,
+  went_off: boolean = false
+}
+
+/// A view, off.
+pub fn view() -> View3D {
+  View3D {}
+}
+
+// --- The keys ---
+
+fn down(keys: const vector<boolean>, k: integer) -> boolean {
+  keys[k] ?? false
+}
+
+/// F1 pressed: switch the view on or off.  It comes on only where the frame is a page's (a
+/// GPU-drawn display surface) and not in the editor; the GPU side is opened the first time.
+/// Answers whether it changed, so the caller draws the 2D again when it went off.
+pub fn toggle(v: View3D, gpu: Gpu, g: game::Game, keys: const vector<boolean>) -> boolean {
+  pressed = down(keys, K_SWITCH) && !down(v.was, K_SWITCH);
+  if g.editing && v.on {
+    v.on = false;
+    return true;
+  }
+  if !pressed || g.typing || g.editing { return false; }
+  if !v.on && !tiles::on_display(g.surface) { return false; }
+  if !v.on && len(gpu.gls) == 0 && !open(v, gpu) { return false; }
+  v.on = !v.on;
+  v.built = false;
+  v.yaw = (motion::facing(g.world.face_x, g.world.face_y)) as float;
+  true
+}
+
+// The GPU side: the page's canvas as a window, the shader, an empty atlas, the meshes.
+fn open(v: View3D, gpu: Gpu) -> boolean {
+  win = graphics::open_fullscreen("tile world") ?? return false;
+  sh = win.shader(VERTEX, FRAGMENT) ?? return false;
+  atlas = win.texture(AT, AT);
+  atlas.filter(true);
+  zero: vector<single> = [0.0 as single; 24];
+  m_place = win.upload(zero, 8);
+  m_cards = win.upload(zero, 8);
+  m_hand = win.upload(zero, 8);
+  gpu.gls += [Gl { win: win, shader: sh, atlas: atlas, place: m_place, cards: m_cards, hand: m_hand }];
+  v.scratch = tiles::surface(TS, TS) ?? 0;
+  true
+}
+
+/// The keys the 2D game reads, from the keys pressed: forward is the hero's facing, back the way
+/// behind it (the facing put back after the step, `after`), and left or right turn the hero on the
+/// spot.  Every other key passes as it is.
+pub fn steer(v: View3D, g: game::Game, keys: const vector<boolean>) -> vector<boolean> {
+  out: vector<boolean> = [];
+  for k in keys { out += [k]; }
+  fwd = down(keys, K_W) || down(keys, K_UP);
+  back = down(keys, K_S) || down(keys, K_DOWN);
+  left = down(keys, K_A) || down(keys, K_LEFT);
+  right = down(keys, K_D) || down(keys, K_RIGHT);
+  was_left = down(v.was, K_A) || down(v.was, K_LEFT);
+  was_right = down(v.was, K_D) || down(v.was, K_RIGHT);
+  v.was = [];
+  for k in keys { v.was += [k]; }
+  for k in [K_W, K_A, K_S, K_D, K_UP, K_DOWN, K_LEFT, K_RIGHT] { if k < len(out) { out[k] = false; } }
+  fx = g.world.face_x;
+  fy = g.world.face_y;
+  if left && !was_left && !fwd && !back {
+    g.world.face_x = fy;
+    g.world.face_y = -fx;
+    return out;
+  }
+  if right && !was_right && !fwd && !back {
+    g.world.face_x = -fy;
+    g.world.face_y = fx;
+    return out;
+  }
+  if fwd && key_of(fx, fy) < len(out) { out[key_of(fx, fy)] = true; }
+  else if back && key_of(-fx, -fy) < len(out) {
+    out[key_of(-fx, -fy)] = true;
+    v.keep_face = true;
+    v.face_x = fx;
+    v.face_y = fy;
+  }
+  out
+}
+
+/// The keys the game reads this frame, from the keys pressed: F1 switches the view (`toggle`); while
+/// it is on they are steered (`steer`), else they pass as they are.
+pub fn keys(v: View3D, gpu: Gpu, g: game::Game, pressed: const vector<boolean>) -> vector<boolean> {
+  was_on = v.on;
+  if toggle(v, gpu, g, pressed) && was_on { v.went_off = true; }
+  if v.on { return steer(v, g, pressed); }
+  track(v, pressed);
+  out: vector<boolean> = [];
+  for k in pressed { out += [k]; }
+  out
+}
+
+/// Did the view just go off (the 2D frame must be drawn again)?  Answers once.
+pub fn went_off(v: View3D) -> boolean {
+  off = v.went_off;
+  v.went_off = false;
+  off
+}
+
+/// After the 2D game's tick: a step back leaves the hero looking ahead.
+pub fn after(v: View3D, g: game::Game) {
+  if !v.keep_face { return; }
+  g.world.face_x = v.face_x;
+  g.world.face_y = v.face_y;
+  v.keep_face = false;
+}
+
+/// Remember the keys of a frame the view was off, so switching on does not read a held key as
+/// just pressed.
+pub fn track(v: View3D, keys: const vector<boolean>) {
+  v.was = [];
+  for k in keys { v.was += [k]; }
+}
+
+// The play key of one of the four ways.
+fn key_of(dx: integer, dy: integer) -> integer {
+  if dx > 0 { K_D } else if dx < 0 { K_A } else if dy > 0 { K_S } else { K_W }
+}
+
+// --- The place ---
+
+// The light of a shade (0 at a light .. 7 the darkest): what the 2D's shaded palettes give.
+fn light_of(shade: integer) -> float {
+  [1.0, 0.86, 0.72, 0.6, 0.5, 0.42, 0.35, 0.3][shade] ?? 0.3
+}
+
+// Is (x, y, z) a solid cell: terrain that stands up and stops sight (a wall, a door), whole or
+// slanted?
+fn solid(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> boolean {
+  k = tile_world::terrain(w.w, x, y, z);
+  k != tile_world::VOID && theme::upright(g.look, k) && tile_world::opaque(w.w, x, y, z)
+}
+
+fn whole(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> boolean {
+  solid(g, w, x, y, z) && tile_world::slant(w.w, x, y, z) == 0
+}
+
+// Is (x, y, z) ground: set, and not standing up?
+fn ground(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> boolean {
+  k = tile_world::terrain(w.w, x, y, z);
+  k != tile_world::VOID && !theme::upright(g.look, k)
+}
+
+// The height of corner (cx, cy) of ground cell (x, y, z), in layers: the mean rise of the ground
+// cells sharing it within a step of this one, as the 2D bends its ground (game.loft `corner_of`).
+fn corner_h(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer,
+            cx: integer, cy: integer) -> float {
+  r0 = tile_world::rise(w.w, x, y, z);
+  sum = 0;
+  n = 0;
+  for d in [(cx - 1, cy - 1), (cx, cy - 1), (cx - 1, cy), (cx, cy)] {
+    if !ground(g, w, x + d.0, y + d.1, z) { continue; }
+    r = tile_world::rise(w.w, x + d.0, y + d.1, z);
+    if r - r0 <= 1 && r0 - r <= 1 {
+      sum += r;
+      n += 1;
+    }
+  }
+  (z as float) + STEP * (if n == 0 { r0 as float } else { ((sum as float) / (n as float))! })
+}
+
+// The height of corner (cx, cy) of the ceiling over open cell (x, y, z): the underside of the
+// layer above, lowered by the mean drop of the open cells under that ceiling sharing the corner.
+fn ceiling_h(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer,
+             cx: integer, cy: integer) -> float {
+  d0 = tile_world::ceiling(w.w, x, y, z);
+  sum = 0;
+  n = 0;
+  for d in [(cx - 1, cy - 1), (cx, cy - 1), (cx - 1, cy), (cx, cy)] {
+    nx = x + d.0;
+    ny = y + d.1;
+    if solid(g, w, nx, ny, z) || !solid(g, w, nx, ny, z + 1) { continue; }
+    dd = tile_world::ceiling(w.w, nx, ny, z);
+    if dd - d0 <= 1 && d0 - dd <= 1 {
+      sum += dd;
+      n += 1;
+    }
+  }
+  ((z + 1) as float) - STEP * (if n == 0 { d0 as float } else { ((sum as float) / (n as float))! })
+}
+
+// The picture a ground or standing cell shows as its floor: its own when it is ground; for one that
+// stands up, what it stands on (its material's `under`, else its kind's), as the 2D draws it.
+fn floor_sprite(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> integer {
+  k = tile_world::terrain(w.w, x, y, z);
+  if !theme::upright(g.look, k) { return game::kind_sprite(g, w, x, y, z, false); }
+  mu = materials::under_tile(g.mats, w.w, x, y, z);
+  if mu != 0 { return theme::tile_sprite(g.look, mu); }
+  under = theme::under(g.look, k);
+  if under != 0 { theme::terrain_sprite(g.look, under, x, y, false) } else { -1 }
+}
+
+// A face from its corners: (x, y, z, u, v) each.
+fn face(out: vector<Face>, sprite: integer, corners: const vector<(float, float, float, float, float)>,
+        light: float) {
+  if sprite < 0 { return; }
+  at: vector<float> = [];
+  for c in corners { at += [c.0, c.1, c.2, c.3, c.4]; }
+  out += [Face { sprite: sprite, at: at, light: light }];
+}
+
+// The shades of layer z over the square round (cx, cy), row by row: the rules' light.
+fn shades_of(w: const rules::Level, cx: integer, cy: integer, z: integer) -> vector<integer> {
+  tile_world::shades(w.w, cx - REACH - 1, cy - REACH - 1, cx + REACH + 1, cy + REACH + 1, z,
+                     rules::lights(w, z), rules::light_starts(w, z), !w.night)
+}
+
+fn shade_at(sh: const vector<integer>, cx: integer, cy: integer, x: integer, y: integer) -> float {
+  side = 2 * REACH + 3;
+  i = x - (cx - REACH - 1);
+  j = y - (cy - REACH - 1);
+  if i < 0 || j < 0 || i >= side || j >= side { return light_of(7); }
+  light_of(sh[j * side + i] ?? 7)
+}
+
+// The corners of cell (x, y) in the four ways, as (x, z): NW, NE, SE, SW.
+fn corner_xz(x: integer, y: integer, i: integer) -> (float, float) {
+  fx = x as float;
+  fy = y as float;
+  if i == 0 { (fx, fy) } else if i == 1 { (fx + 1.0, fy) } else if i == 2 { (fx + 1.0, fy + 1.0) } else { (fx, fy + 1.0) }
+}
+
+// The corner index (NW 0, NE 1, SE 2, SW 3) a slant's open half lies in.
+fn open_corner(toward: integer) -> integer {
+  if toward == tile_world::NORTH_EAST { 1 } else if toward == tile_world::SOUTH_EAST { 2 }
+  else if toward == tile_world::SOUTH_WEST { 3 } else { 0 }
+}
+
+/// Every face of the place round the hero, on the hero's layer and LAYERS above and below: the
+/// floors at their rise and slopes, the banks between them, the walls' sides, tops and undersides,
+/// the slanted walls' prisms with the ground and ceiling of their open half, the ceilings at their
+/// drop.  Cards (things, trees, figures) are not faces: `cards` makes them each frame.
+pub fn faces(g: const game::Game) -> vector<Face> {
+  w = g.world;
+  out: vector<Face> = [];
+  cx = w.hero_x;
+  cy = w.hero_y;
+  for z in w.hero_z - LAYERS..=w.hero_z + LAYERS {
+    sh = shades_of(w, cx, cy, z);
+    below = shades_of(w, cx, cy, z - 1);
+    above = shades_of(w, cx, cy, z + 1);
+    for y in cy - REACH..=cy + REACH {
+      for x in cx - REACH..=cx + REACH {
+        k = tile_world::terrain(w.w, x, y, z);
+        if k == tile_world::VOID { continue; }
+        here = shade_at(sh, cx, cy, x, y);
+        if solid(g, w, x, y, z) {
+          walls(g, w, out, x, y, z, sh, below, above, cx, cy);
+          continue;
+        }
+        fz = z as float;
+        fx = x as float;
+        fy = y as float;
+        // The floor: its own picture, or what a standing thing stands on; bent to its corners.
+        s = floor_sprite(g, w, x, y, z);
+        if ground(g, w, x, y, z) {
+          h0 = corner_h(g, w, x, y, z, 0, 0);
+          h1 = corner_h(g, w, x, y, z, 1, 0);
+          h2 = corner_h(g, w, x, y, z, 1, 1);
+          h3 = corner_h(g, w, x, y, z, 0, 1);
+          face(out, s, [(fx, h0, fy, 0.0, 0.0), (fx + 1.0, h1, fy, 1.0, 0.0), (fx + 1.0, h2, fy + 1.0, 1.0, 1.0),
+                        (fx, h3, fy + 1.0, 0.0, 1.0)], here);
+          // A bank down to lower ground beside, on each of the four sides.
+          banks(g, w, out, s, x, y, z, here, [h0, h1, h2, h3]);
+          // Seen from below (a bridge, a ledge over open space, above the hero): its underside, a
+          // hair under the floor so the two never fight for a pixel.
+          if z > w.hero_z && tile_world::terrain(w.w, x, y, z - 1) == tile_world::VOID {
+            u = fz - 0.01;
+            face(out, s, [(fx, u, fy + 1.0, 0.0, 1.0), (fx + 1.0, u, fy + 1.0, 1.0, 1.0), (fx + 1.0, u, fy, 1.0, 0.0),
+                          (fx, u, fy, 0.0, 0.0)], here * 0.7);
+          }
+        } else {
+          face(out, s, [(fx, fz, fy, 0.0, 0.0), (fx + 1.0, fz, fy, 1.0, 0.0), (fx + 1.0, fz, fy + 1.0, 1.0, 1.0),
+                        (fx, fz, fy + 1.0, 0.0, 1.0)], here);
+        }
+        // The ceiling over an open cell under rock.
+        if whole(g, w, x, y, z + 1) {
+          up = game::kind_sprite(g, w, x, y, z + 1, true);
+          c0 = ceiling_h(g, w, x, y, z, 0, 0);
+          c1 = ceiling_h(g, w, x, y, z, 1, 0);
+          c2 = ceiling_h(g, w, x, y, z, 1, 1);
+          c3 = ceiling_h(g, w, x, y, z, 0, 1);
+          face(out, up, [(fx, c3, fy + 1.0, 0.0, 1.0), (fx + 1.0, c2, fy + 1.0, 1.0, 1.0), (fx + 1.0, c1, fy, 1.0, 0.0),
+                         (fx, c0, fy, 0.0, 0.0)], here * 0.8);
+        }
+      }
+    }
+  }
+  out
+}
+
+// The banks of ground cell (x, y, z) with corner heights h (NW, NE, SE, SW): where the ground
+// beside is lower at the shared edge, a side down to it.
+fn banks(g: const game::Game, w: const rules::Level, out: vector<Face>, s: integer, x: integer, y: integer,
+         z: integer, light: float, h: const vector<float>) {
+  // Each side: the neighbour, this cell's two corners on it (in order), the neighbour's two.
+  for e in [(0, -1, 0, 1, 3, 2), (1, 0, 1, 2, 0, 3), (0, 1, 2, 3, 1, 0), (-1, 0, 3, 0, 2, 1)] {
+    nx = x + e.0;
+    ny = y + e.1;
+    if !ground(g, w, nx, ny, z) { continue; }
+    a = h[e.2] ?? 0.0;
+    b = h[e.3] ?? 0.0;
+    na = corner_h(g, w, nx, ny, z, if e.4 == 1 || e.4 == 2 { 1 } else { 0 }, if e.4 >= 2 { 1 } else { 0 });
+    nb = corner_h(g, w, nx, ny, z, if e.5 == 1 || e.5 == 2 { 1 } else { 0 }, if e.5 >= 2 { 1 } else { 0 });
+    if a <= na + 0.01 && b <= nb + 0.01 { continue; }
+    pa = corner_xz(x, y, e.2);
+    pb = corner_xz(x, y, e.3);
+    face(out, s, [(pa.0, a, pa.1, 0.0, 0.0), (pb.0, b, pb.1, 1.0, 0.0), (pb.0, nb, pb.1, 1.0, 1.0),
+                  (pa.0, na, pa.1, 0.0, 1.0)], light * 0.7);
+  }
+}
+
+// A solid cell's faces: a whole one is a box — a side toward every neighbour that is not whole
+// rock, its top where the layer above is open, its underside over an empty cell at that cell's
+// ceiling drop; a slanted one a prism with its cut face, and the ground and ceiling of its open half.
+fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integer, y: integer, z: integer,
+         sh: const vector<integer>, below: const vector<integer>, above: const vector<integer>,
+         cx: integer, cy: integer) {
+  side = game::kind_sprite(g, w, x, y, z, false);
+  top = game::kind_sprite(g, w, x, y, z, true);
+  fz = z as float;
+  toward = tile_world::slant(w.w, x, y, z);
+  open = if toward == 0 { -1 } else { open_corner(toward) };
+  // The corners of its solid part, in order round it.
+  part: vector<integer> = [];
+  for i in 0..4 { if i != open { part += [i]; } }
+  // Its sides on the cell's edges: an edge (i, i + 1) is a side when both its corners are solid.
+  for i in 0..4 {
+    j = (i + 1) % 4 ?? 0;
+    if i == open || j == open { continue; }
+    nx = x + (if i == 1 { 1 } else if i == 3 { -1 } else { 0 });
+    ny = y + (if i == 0 { -1 } else if i == 2 { 1 } else { 0 });
+    if whole(g, w, nx, ny, z) { continue; }
+    a = corner_xz(x, y, i);
+    b = corner_xz(x, y, j);
+    face(out, side, [(a.0, fz + 1.0, a.1, 0.0, 0.0), (b.0, fz + 1.0, b.1, 1.0, 0.0), (b.0, fz, b.1, 1.0, 1.0),
+                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, cx, cy, nx, ny));
+  }
+  // The cut face, along the diagonal between the two corners beside the open one.
+  if open >= 0 {
+    i = (open + 1) % 4 ?? 0;
+    j = (open + 3) % 4 ?? 0;
+    a = corner_xz(x, y, i);
+    b = corner_xz(x, y, j);
+    face(out, side, [(a.0, fz + 1.0, a.1, 0.0, 0.0), (b.0, fz + 1.0, b.1, 1.0, 0.0), (b.0, fz, b.1, 1.0, 1.0),
+                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, cx, cy, x, y));
+    // The open half: the ground beside under it, the rock above over it.
+    o = corner_xz(x, y, open);
+    tri = [corner_xz(x, y, j), o, corner_xz(x, y, i)];
+    beside = open_ground(g, w, x, y, z, toward);
+    if beside >= 0 {
+      corners: vector<(float, float, float, float, float)> = [];
+      for c in tri { corners += [(c.0, fz, c.1, c.0 - (x as float), c.1 - (y as float))]; }
+      face(out, beside, corners, shade_at(sh, cx, cy, x, y));
+    }
+    if whole(g, w, x, y, z + 1) {
+      corners: vector<(float, float, float, float, float)> = [];
+      for c in [tri[2] ?? (0.0, 0.0), tri[1] ?? (0.0, 0.0), tri[0] ?? (0.0, 0.0)] {
+        corners += [(c.0, fz + 1.0, c.1, c.0 - (x as float), c.1 - (y as float))];
+      }
+      face(out, game::kind_sprite(g, w, x, y, z + 1, true), corners, shade_at(sh, cx, cy, x, y) * 0.8);
+    }
+  }
+  // The top, where the layer above is open; the underside, over open space below.
+  if tile_world::terrain(w.w, x, y, z + 1) == tile_world::VOID {
+    corners: vector<(float, float, float, float, float)> = [];
+    for i in part {
+      c = corner_xz(x, y, i);
+      corners += [(c.0, fz + 1.0, c.1, c.0 - (x as float), c.1 - (y as float))];
+    }
+    face(out, top, corners, shade_at(above, cx, cy, x, y));
+  }
+  // Over an empty cell (a dome's open layers) its underside is the ceiling there; over a floor, the
+  // floor's own ceiling is (bent at its corners), so this is not drawn twice.
+  if z > w.hero_z && tile_world::terrain(w.w, x, y, z - 1) == tile_world::VOID {
+    drop = (tile_world::ceiling(w.w, x, y, z - 1) as float) * STEP;
+    corners: vector<(float, float, float, float, float)> = [];
+    i = len(part) - 1;
+    while i >= 0 {
+      c = corner_xz(x, y, part[i] ?? 0);
+      corners += [(c.0, fz - drop, c.1, c.0 - (x as float), c.1 - (y as float))];
+      i -= 1;
+    }
+    face(out, top, corners, shade_at(below, cx, cy, x, y) * 0.8);
+  }
+}
+
+// The ground picture beside a slanted cell's open half: of its neighbour north or south on that
+// side, else east or west — the first that is ground; -1 for none.
+fn open_ground(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer, toward: integer) -> integer {
+  dy = if toward == tile_world::NORTH_EAST || toward == tile_world::NORTH_WEST { -1 } else { 1 };
+  dx = if toward == tile_world::NORTH_EAST || toward == tile_world::SOUTH_EAST { 1 } else { -1 };
+  for n in [(x, y + dy), (x + dx, y)] {
+    if ground(g, w, n.0, n.1, z) { return game::kind_sprite(g, w, n.0, n.1, z, false); }
+  }
+  -1
+}
+
+// --- Cards ---
+
+// How tall a card stands, in layers: a tree or a fence a whole cell, a figure a little less, a
+// thing by its height in the rules — an item lying on the floor half a cell, furniture a little
+// under a cell.
+const TALL = 1.0;
+const FIGURE = 0.85;
+const ITEM = 0.5;
+const FURNITURE = 0.8;
+
+// A card: a picture `size` high and wide standing upright on (bx, by, bz), turned to face the eye
+// looking `yaw`.
+fn card(out: vector<Face>, sprite: integer, bx: float, by: float, bz: float, yaw: float, light: float,
+        size: float = TALL) {
+  rad = yaw * PI / 180.0;
+  rx = cos(rad) * 0.5 * size;
+  rz = sin(rad) * 0.5 * size;
+  face(out, sprite, [(bx - rx, by + size, bz - rz, 0.0, 0.0), (bx + rx, by + size, bz + rz, 1.0, 0.0),
+                     (bx + rx, by, bz + rz, 1.0, 1.0), (bx - rx, by, bz - rz, 0.0, 1.0)], light);
+}
+
+/// The cards round the hero: what stands up but does not stop sight (a tree, a fence, an open
+/// door), the stacks of things, and the enemies and people, each eased to its cell.  Not the hero.
+pub fn cards(v: View3D, g: const game::Game, ms: integer) -> vector<Face> {
+  w = g.world;
+  out: vector<Face> = [];
+  cx = w.hero_x;
+  cy = w.hero_y;
+  // Each layer's light, kept for its enemies below.
+  layer_sh: vector<vector<integer>> = [];
+  for z in w.hero_z - LAYERS..=w.hero_z + LAYERS {
+    sh = shades_of(w, cx, cy, z);
+    layer_sh += [sh];
+    for y in cy - REACH..=cy + REACH {
+      for x in cx - REACH..=cx + REACH {
+        k = tile_world::terrain(w.w, x, y, z);
+        if k == tile_world::VOID { continue; }
+        light = shade_at(sh, cx, cy, x, y);
+        base = (z as float) + STEP * (tile_world::rise(w.w, x, y, z) as float);
+        if theme::upright(g.look, k) && !tile_world::opaque(w.w, x, y, z) {
+          card(out, game::kind_sprite(g, w, x, y, z, false), (x as float) + 0.5, base, (y as float) + 0.5, v.yaw, light);
+        }
+        h = base;
+        for t in tile_world::things(w.w, x, y, z) {
+          th = rules::thing_height(w, t);
+          size = if th == 0 { ITEM } else { FURNITURE };
+          card(out, theme::thing_sprite_at(g.look, t, w.now, rules::low(w, x, y, z)), (x as float) + 0.5, h,
+               (y as float) + 0.5, v.yaw, light, size);
+          h += if th == 0 { 0.05 } else { STEP * (th as float) };
+        }
+      }
+    }
+  }
+  // The enemies and people, gliding to their cells as the 2D's do.
+  k = ((ms as float) / 140.0)!;
+  k = if k > 1.0 { 1.0 } else { k };
+  for e in w.enemies {
+    if e.away || e.z < w.hero_z - LAYERS || e.z > w.hero_z + LAYERS { continue; }
+    if !v.seen[e.id] { v.seen += [Seen { id: e.id, x: e.x as float, y: e.y as float }]; }
+    at = v.seen[e.id]!;
+    ex = e.x as float;
+    ey = e.y as float;
+    // Gone far in one go (a door, a fall): there at once.
+    if (at.x - ex) * (at.x - ex) + (at.y - ey) * (at.y - ey) > 4.0 {
+      at.x = ex;
+      at.y = ey;
+    }
+    at.x += (ex - at.x) * k;
+    at.y += (ey - at.y) * k;
+    esh = layer_sh[e.z - (w.hero_z - LAYERS)] ?? [];
+    ebase = (e.z as float) + STEP * (tile_world::rise(w.w, e.x, e.y, e.z) as float);
+    card(out, theme::enemy_sprite(g.look, e.kind), at.x + 0.5, ebase, at.y + 0.5, v.yaw, shade_at(esh, cx, cy, e.x, e.y),
+         FIGURE);
+  }
+  out
+}
+
+// --- The hand ---
+
+/// What the hero holds, in front of the eye: its picture at the bottom right of the view, swaying
+/// as the hero stands and bobbing as it walks, turned as the 2D turns it when it swings (the swing's
+/// angle from the facing), pushed up by its reach.  In the view's own units (-1 .. 1 each way).
+pub fn hand(g: const game::Game, aspect: float) -> vector<Face> {
+  w = g.world;
+  out: vector<Face> = [];
+  if w.hero_item == 0 { return out; }
+  s = theme::thing_sprite_at(g.look, w.hero_item, w.now, rules::hero_low(w));
+  if s < 0 { return out; }
+  p = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+  swing = p.weapon - (motion::facing(w.face_x, w.face_y) as float);
+  while swing > 180.0 { swing -= 360.0; }
+  while swing < -180.0 { swing += 360.0; }
+  t = (w.now as float) / 1000.0;
+  walking = p.x * p.x + p.y * p.y > 0.01;
+  bob = if walking { 0.04 * sin(t * 14.0) } else { 0.0 };
+  sway = 3.0 * sin(t * 1.7);
+  angle = (swing * 0.7 + sway - 12.0) * PI / 180.0;
+  size = 0.95;
+  // The grip: the picture's bottom middle, at the hand.
+  hx = 0.52;
+  hy = -1.0 + bob + p.reach / 40.0;
+  corners: vector<(float, float, float, float, float)> = [];
+  for c in [(-0.5, 1.0, 0.0, 0.0), (0.5, 1.0, 1.0, 0.0), (0.5, 0.0, 1.0, 1.0), (-0.5, 0.0, 0.0, 1.0)] {
+    px = c.0 * size;
+    py = c.1 * size;
+    rx = px * cos(angle) + py * sin(angle);
+    ry = -px * sin(angle) + py * cos(angle);
+    corners += [(hx + (rx / aspect)!, hy + ry, 0.0, c.2, c.3)];
+  }
+  hs = tile_world::shades(w.w, w.hero_x, w.hero_y, w.hero_x, w.hero_y, w.hero_z,
+                          rules::lights(w, w.hero_z), rules::light_starts(w, w.hero_z), !w.night);
+  face(out, s, corners, light_of(hs[0] ?? 7));
+  out
+}
+
+// --- The GPU ---
+
+// The slot of sprite s in the atlas, its picture drawn there the first time; -1 when full.
+fn slot_of(v: View3D, gl: const Gl, s: integer) -> integer {
+  p = v.pics[s];
+  if p { return p.slot; }
+  if v.slots >= SLOTS * SLOTS || v.scratch == 0 { return -1; }
+  n = v.slots;
+  v.slots += 1;
+  tiles::clear(v.scratch, CLEAR);
+  theme::put(v.scratch, s, 0, 0, 0);
+  px = tiles::pixels(v.scratch, TS, TS);
+  data: vector<integer> = [];
+  for c in px {
+    p565 = c as integer;
+    if p565 == CLEAR {
+      data += [0];
+    } else {
+      r = ((p565 >> 11) & 31) * 255 / 31 ?? 0;
+      gg = ((p565 >> 5) & 63) * 255 / 63 ?? 0;
+      b = (p565 & 31) * 255 / 31 ?? 0;
+      data += [graphics::rgba(r, gg, b, 255)];
+    }
+  }
+  gl.atlas.put((n % SLOTS ?? 0) * TS, (n / SLOTS ?? 0) * TS, graphics::Canvas { width: TS, height: TS, data: data });
+  v.pics += [Pic { sprite: s, slot: n }];
+  n
+}
+
+// The faces as triangles, 8 numbers a vertex: position, light (in the normal's place), the
+// picture's place in the atlas.
+fn vertices(v: View3D, gl: const Gl, fs: const vector<Face>) -> vector<single> {
+  out: vector<single> = [];
+  e = 0.02;
+  for f in fs {
+    n = v.pics[f.sprite];
+    slot = if n { n.slot } else { slot_of(v, gl, f.sprite) };
+    if slot < 0 { continue; }
+    sx = ((slot % SLOTS ?? 0) * TS) as float;
+    sy = ((slot / SLOTS ?? 0) * TS) as float;
+    corners = len(f.at) / 5 ?? 0;
+    for t in 1..corners - 1 {
+      for c in [0, t, t + 1] {
+        i = c * 5;
+        u = (sx + e + (f.at[i + 3] ?? 0.0) * ((TS as float) - 2.0 * e)) / (AT as float);
+        vv = (sy + e + (f.at[i + 4] ?? 0.0) * ((TS as float) - 2.0 * e)) / (AT as float);
+        out += [(f.at[i] ?? 0.0) as single, (f.at[i + 1] ?? 0.0) as single, (f.at[i + 2] ?? 0.0) as single,
+                f.light as single, 0.0 as single, 0.0 as single, u! as single, vv! as single];
+      }
+    }
+  }
+  out
+}
+
+// 4x4 matrices, column-major.
+fn mul(a: const vector<float>, b: const vector<float>) -> vector<float> {
+  out: vector<float> = [];
+  for c in 0..4 {
+    for r in 0..4 {
+      s = 0.0;
+      for k in 0..4 { s += (a[k * 4 + r] ?? 0.0) * (b[c * 4 + k] ?? 0.0); }
+      out += [s];
+    }
+  }
+  out
+}
+
+fn perspective(fovy: float, aspect: float, near: float, far: float) -> vector<float> {
+  f = (1.0 / tan(fovy * PI / 360.0))!;
+  [(f / aspect)!, 0.0, 0.0, 0.0,
+   0.0, f, 0.0, 0.0,
+   0.0, 0.0, ((far + near) / (near - far))!, -1.0,
+   0.0, 0.0, ((2.0 * far * near) / (near - far))!, 0.0]
+}
+
+// The view from eye (ex, ey, ez) looking `yaw` degrees from north towards the east, level.
+fn look(ex: float, ey: float, ez: float, yaw: float) -> vector<float> {
+  rad = yaw * PI / 180.0;
+  fx = sin(rad);
+  fz = -cos(rad);
+  sx = cos(rad);
+  sz = sin(rad);
+  [sx, 0.0, -fx, 0.0,
+   0.0, 1.0, 0.0, 0.0,
+   sz, 0.0, -fz, 0.0,
+   -(sx * ex + sz * ez), -ey, fx * ex + fz * ez, 1.0]
+}
+
+/// The view, drawn: the place (built again when the game says the frame changed, or the hero
+/// moved on), the cards, what the hero holds, and over them the hearts and the note on the game's
+/// own surface.  `changed` is what the game's tick answered.
+pub fn draw(v: View3D, gpu: const Gpu, g: game::Game, changed: boolean, now: integer) {
+  ms = if v.last == 0 { 16 } else { now - v.last };
+  v.last = now;
+  w = g.world;
+  // Turn towards the facing, the short way round.
+  target = motion::facing(w.face_x, w.face_y) as float;
+  d = target - v.yaw;
+  while d > 180.0 { d -= 360.0; }
+  while d < -180.0 { d += 360.0; }
+  turn = TURN * (ms as float);
+  v.yaw += if d > turn { turn } else if d < -turn { -turn } else { d };
+  p = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+  ex = (w.hero_x as float) + 0.5 + p.x / (TS as float);
+  ez = (w.hero_y as float) + 0.5 + p.y / (TS as float);
+  ey = (w.hero_z as float) + STEP * (w.hero_h as float) + EYE + p.hop / 64.0;
+  for gl in gpu.gls {
+    ww = gl.win.width();
+    wh = gl.win.height();
+    aspect = if wh > 0 { ((ww as float) / (wh as float))! } else { 1.0 };
+    if changed || !v.built {
+      v.place = vertices(v, gl, faces(g));
+      gl.place.update(v.place);
+      v.built = true;
+    }
+    cs = vertices(v, gl, cards(v, g, ms));
+    hs = vertices(v, gl, hand(g, aspect));
+    sky = tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z);
+    fog = if !sky { (0.0, 0.0, 0.0) } else if w.night { NIGHT_SKY } else { SKY };
+    gl.win.viewport(0, 0, ww, wh);
+    gl.win.clear(graphics::rgba(((fog.0 * 255.0) as integer), ((fog.1 * 255.0) as integer), ((fog.2 * 255.0) as integer), 255));
+    gl.win.enable(graphics::GL_DEPTH_TEST);
+    gl.win.depth_write(true);
+    gl.atlas.bind(0);
+    gl.shader.set_int("atlas", 0);
+    gl.shader.set_mat4("mvp", mul(perspective(FIELD, aspect, 0.05, 40.0), look(ex, ey, ez, v.yaw)));
+    gl.shader.set_vec3("eye", ex, ey, ez);
+    gl.shader.set_float("fogd", if sky { FAR_SKY } else { FOG });
+    gl.shader.set_vec3("fogc", fog.0, fog.1, fog.2);
+    if len(v.place) > 0 { gl.place.draw(gl.shader); }
+    if len(cs) > 0 {
+      gl.cards.update(cs);
+      gl.cards.draw(gl.shader);
+    }
+    // What is held: in the view's own units, over everything.
+    gl.win.disable(graphics::GL_DEPTH_TEST);
+    if len(hs) > 0 {
+      gl.shader.set_mat4("mvp", [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+      gl.shader.set_vec3("eye", 0.0, 0.0, 0.0);
+      gl.shader.set_float("fogd", 1000.0);
+      gl.hand.update(hs);
+      gl.hand.draw(gl.shader);
+    }
+    // The page's context as tiles expects it: no depth test, no culling, no blending, all of it.
+    gl.win.disable(graphics::GL_CULL_FACE);
+    gl.win.disable(graphics::GL_BLEND);
+    gl.win.viewport(0, 0, ww, wh);
+  }
+  overlay(g);
+}
+
+// The hearts and the note over the view, on the game's surface and in its units: the note at the
+// bottom left, the heart and the health at the bottom right, as the 2D's status line has them.
+fn overlay(g: game::Game) {
+  w = g.world;
+  y = game::H - TS;
+  hearts = if w.spirit > 0 { "{w.health}+{w.spirit}" } else { "{w.health}" };
+  half = TS / 2;
+  line = game::COLS * 2;
+  text_y = (y + half / 2) as float;
+  if g.note != "" { theme::write_small(g.surface, g.look, g.note, 0.0, text_y, 0); }
+  theme::put(g.surface, g.look.heart, (line - len(hearts) - 2) * half, y, 0);
+  theme::write_small(g.surface, g.look, hearts, ((line - len(hearts)) * half) as float, text_y, 0);
+}
