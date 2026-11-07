@@ -245,6 +245,10 @@ are built (2026-11-07); the rest is designed.
   again, back on the tiles.
 
 *Locked on* (owner)
+- **Hit with no target, the hero locks on to the one that hit it** (owner, 2026-11-07): a blow
+  landing on a hero that has no enemy locked turns the lock onto the attacker, so a fight begun
+  from behind or the side is faced at once.  Proposed: an arrow's shooter too, when the hero sees
+  it; a lock already held is kept.
 - With no target the hero walks; its sword is held at its right, a shield, when it has one,
   against its body.
 - With a target the hero faces it, its point raised to it, and WASD are moves against it: **W**

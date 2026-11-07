@@ -105,7 +105,10 @@ its tests on both backends.
      sees).  Still open: Tab's lock for the sword (it is the bow's aim as built: the first target in
      line).
   2. **Locked on**: W, S, A and D against the target; the weapon's eight ways; the 3D page passes
-     the locked keys on as they are.  Red: a move each way, a diagonal target, the lock lost.
+     the locked keys on as they are; Tab's choice within the arc the hero faces (owner), the bow
+     able to hit a target off the line; hit with no target, the lock turns onto the attacker
+     (owner).  Red: a move each way, a diagonal target, the lock lost, a blow from behind locking
+     on.
   3. **The point and the lunge**: a ready point fills its tile, stepping onto it hurts and flings;
      the lunge between tiles and its settling; no lunge beside an enemy; a walk into an enemy no
      blow.  Red: the standoff holds untouched; the distances, by hand.
