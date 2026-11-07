@@ -75,6 +75,7 @@ already designed and built (owner, 2026-11-04).
 | [`@GM-CartLift`](#gm-cartlift) | a lift that can carry mine carts |
 | [`@GM-Flotilla`](#gm-flotilla) | wood pulled together to cross an underground lake |
 | [`@GM-Combat`](#gm-combat) | moves and swings of both sides, combined: light and heavy, dodge, parry |
+| [`@GM-Fencing`](#gm-fencing) | fencing by moving, with one extra key: lunge, block, dodge, swing, collide |
 
 <a id="gm-flooded"></a>**The flooded part** (owner, 2026-11-04): part of a mine is flooded and needs
 machines to be entered.
@@ -269,6 +270,28 @@ first blow later.*
     parried, swings it far back level instead, leaning further — the two read apart.
   - *Wounded*: any figure at a third of its health or less sags a pixel and, standing, sways.
   - Not built, to try in play: a hit-stop (the figures held still for a moment at a parry).
+
+<a id="gm-fencing"></a>**Fencing by moving** (owner, 2026-11-07; designed, not built): a movement-based fencing system with
+only one extra key, E.
+- **Carried.**  Walking with a sword in hand, the hero holds it at the side: that prevents injury,
+  and a sword held out looks hostile to others.
+- **On guard.**  With a target, as with the bow (the target lock, § Bow), the hero holds the sword
+  point forward.
+- **Lunge.**  Just a step forward lunges at the target.
+- **Block.**  Steps backward hold the sword in a block.
+- **Dodge.**  Steps to the sides dodge.
+- **Swing.**  E swings the sword, but at the same time keeps the hero's front exposed to lunges.
+  Held longer, the swing is wider, for a heavier blow.
+- **Collision.**  When an enemy's sword is at the same spot, the weapons collide, and that makes
+  both of them unusable for an attack; the widest swing needs the most time before it is usable
+  again.
+
+*Against what is built (engine side, not leading).*  @GM-Combat as built takes its actions from
+keys: J swings (held for the heavy swing), K held blocks and K tapped parries, and a lunge is a
+step and a swing within 150 ms.  Here the step itself is the action: forward lunges, back blocks,
+sideways dodges, and E is the only swing.  The built side-step dodge and the heavy swing carry
+over; the key guard, the timed parry with its riposte, and the lunge's swing are what this design
+replaces or leaves open.
 
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
