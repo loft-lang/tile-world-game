@@ -1,0 +1,34 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The play log (playlog.loft), without a network: key names, and lines waiting for the socket in
+// the order written while no server answers.  The lines reaching the play server over a real
+// WebSocket are checked by checks/playlog.sh (a server and a client in two processes).
+use playlog;
+
+fn main() {
+  assert(playlog::key_name(101) == "E" && playlog::key_name(9) == "Tab", "key names");
+}
+
+fn test_key_names() {
+  assert(playlog::key_name(113) == "Q" && playlog::key_name(27) == "Esc" && playlog::key_name(137) == "F3"
+         && playlog::key_name(128) == "Up" && playlog::key_name(132) == "Shift", "the keys the game uses");
+}
+
+// Nobody listening: the log is on (a socket to send to), and the lines wait, in order, a key's
+// going down and coming up each a line.
+fn test_lines_wait_for_the_socket() {
+  lg = playlog::open("", "ws://127.0.0.1:47824/ws");
+  assert(lg.on, "on: a socket to send to");
+  playlog::write(lg, "clock 300  bat#2 moved (3,6,0)->(2,6,0)  next 420");
+  down: vector<boolean> = [];
+  for _ in 0..256 { down += [false]; }
+  down[113] = true;
+  assert(!playlog::keys(lg, 400, down, 143), "Q down, not F9");
+  down[113] = false;
+  _ = playlog::keys(lg, 450, down, 143);
+  down[143] = true;
+  assert(playlog::keys(lg, 500, down, 143), "F9 down: answered");
+  playlog::send(lg);
+  assert(playlog::waiting(lg) == 4 && lg.sent == 0, "four waiting, none sent: {playlog::waiting(lg)}");
+}

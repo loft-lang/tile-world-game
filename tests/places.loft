@@ -62,8 +62,7 @@ fn top_name(w: const rules::Level, x: integer, y: integer) -> text {
 fn test_the_pick_clears_rubble_into_a_cart() {
   lf = place("the_cave_in");
   w = lf.level;
-  _ = rules::walk(w, 0, -1);
-  _ = rules::take(w);
+  _ = rules::take_step(w, 0, -1);
   assert(top_name(w, 2, 6) == "" && w.hero_item == rules::th(w, "pick"), "the pick taken");
   _ = rules::walk(w, 1, 0);
   _ = rules::walk(w, 1, 0);
@@ -120,8 +119,7 @@ fn test_a_standing_beam_taken_out_brings_the_tunnel_down() {
   lf = place("the_cave_in");
   w = lf.level;
   rules::put_hero(w, 5, 6, 0);
-  _ = rules::walk(w, 1, 0);
-  _ = rules::take(w);
+  _ = rules::take_step(w, 1, 0);
   assert(w.hero_item == rules::th(w, "beam"), "the loose beam taken");
   rules::put_hero(w, 8, 6, 0);
   w.hero_item = rules::th(w, "pick");
@@ -151,8 +149,7 @@ fn test_a_lit_barrel_burns_the_barricade() {
   w = lf.level;
   rules::tick(w, 0);
   rules::put_hero(w, 15, 6, 0);
-  _ = rules::walk(w, 1, 0);
-  _ = rules::take(w);
+  _ = rules::take_step(w, 1, 0);
   assert(w.hero_item == rules::th(w, "burning_torch"), "the burning torch");
   rules::put_hero(w, 13, 6, 0);
   assert(rules::walk(w, -1, 0) == rules::Step.Lit && top_name(w, 12, 6) == "lit_barrel", "the barrel lit");
@@ -177,31 +174,26 @@ fn test_the_sack_holds_what_is_foraged() {
   lf = place("the_herb_patch");
   w = lf.level;
   rules::put_hero(w, 7, 10, 0);
-  _ = rules::walk(w, -1, 0);
-  _ = rules::take(w);
+  _ = rules::take_step(w, -1, 0);
   assert(w.shoulder == rules::th(w, "sack") && top_name(w, 6, 10) == "", "the sack worn");
   w.hero_item = rules::th(w, "pick");
   for c in [(3, 3), (5, 2), (12, 3), (13, 6), (4, 7), (11, 8)] {
     rules::put_hero(w, c.0, c.1 + 1, 0);
-    _ = rules::walk(w, 0, -1);
-    _ = rules::take(w);
+    _ = rules::take_step(w, 0, -1);
   }
   assert(rules::sack_room(w) == (6, 6) && w.hero_item == rules::th(w, "pick"), "six in the sack, the pick still held: {rules::sack_room(w).0}");
   tile_world::place(w.w, 2, 2, 0, rules::th(w, "herb"));
   rules::put_hero(w, 2, 3, 0);
-  _ = rules::walk(w, 0, -1);
-  assert(rules::take(w) == rules::Step.Swapped, "full: Q swaps");
+  assert(rules::take_step(w, 0, -1) == rules::Step.Swapped, "full: Q swaps");
   assert(rules::sack_room(w).0 == 6 && w.hero_item == rules::th(w, "herb"), "full: the seventh taken in the hand, the pick left lying");
   rules::put_hero(w, 9, 10, 0);
-  _ = rules::walk(w, 1, 0);
-  assert(rules::take(w) == rules::Step.Blocked, "Q on the rope, the sack worn: nothing");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Blocked, "Q on the rope, the sack worn: nothing");
   assert(w.shoulder == rules::th(w, "sack") && top_name(w, 10, 10) == "rope", "the rope stays: never worn beside the sack");
   w.hero_item = 0;
   rules::put_hero(w, 9, 9, 0);
   assert(rules::drop(w) == rules::Step.Placed && w.shoulder == 0 && top_name(w, 9, 9) == "sack", "the sack put down");
   _ = rules::walk(w, 1, 0);
-  _ = rules::walk(w, -1, 0);
-  _ = rules::take(w);
+  _ = rules::take_step(w, -1, 0);
   assert(w.shoulder == rules::th(w, "sack") && rules::sack_room(w).0 == 6, "worn again, still holding six");
 }
 

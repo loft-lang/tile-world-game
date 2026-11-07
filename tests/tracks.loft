@@ -94,8 +94,7 @@ fn test_a_cart_derails_past_an_open_end() {
   assert(rules::walk(w, 1, 0) == rules::Step.Pushed, "pushed off the end");
   assert(at(w, 4, 0) == "derailed_cart,stick," && at(w, 3, 0) == "", "derailed, its stick kept: {at(w, 4, 0)}");
   rules::put_hero(w, 3, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_x == 4 && w.hero_h == 1, "never moved again: climbed");
-  assert(rules::take(w) == rules::Step.Took, "Q");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_x == 4 && w.hero_h == 1, "Q, then climbed: it never moved again");
   assert(at(w, 4, 0) == "derailed_cart," && w.hero_item == rules::th(w, "stick"), "and its stick taken up there");
   for after in ["wall", "rock"] {
     v = yard();

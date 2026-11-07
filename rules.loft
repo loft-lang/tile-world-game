@@ -883,6 +883,10 @@ pub struct Level {
   pub winds: integer = 0,
   /// How many cries enemies have given opening a template (a bat's chirp as it swoops: heard).
   pub cries: integer = 0,
+  /// The play log (TW_LOG, main.loft): on, every act of every enemy and person is written here at
+  /// its moment on the clock; the game takes the lines out and writes them to the file.
+  pub log_on: boolean = false,
+  pub log: vector<text> = [],
   pub misses: integer = 0,
   pub parries: integer = 0,
   pub blocks: integer = 0,
@@ -2145,42 +2149,32 @@ fn takeable(l: const Level, t: integer) -> boolean {
   is_potion(l, t) || effect == "take" || effect == "shoulder"
 }
 
-/// Q (owner, 2026-11-07): take a small item, or put the held one down.  The item underfoot is
-/// taken, else the one in the cell faced (on the hero's layer, across an edge it crosses).
+/// Q (owner, 2026-11-07): take the small item before the hero — in the cell it faces, never the one
+/// it stands on — or put the held one down there.
 /// - Forage goes into the sack worn while it has room, whatever the hand holds.
 /// - The rope or the sack goes onto the shoulders when they are free; with the other worn, it
 ///   stays where it lies.
 /// - Anything else into the hand: an empty one takes it (Took); a full one puts what it holds down
 ///   in its place (Swapped).
-/// - Nothing to take: what the hand holds is put down (`drop`: Placed), or with empty hands what
-///   is on the shoulders.
+/// - Nothing to take there: what the hand holds — with empty hands, what is on the shoulders — is
+///   put down there (`put_down`: Placed).
+/// Blocked across an edge the hero does not cross, or with nothing to take or put down.
 pub fn take(l: Level) -> Step {
   l.queued = false;
   if !alive(l) { return Step.Blocked; }
-  x = l.hero_x;
-  y = l.hero_y;
   z = l.hero_z;
+  if !hero_crosses(l, l.hero_x, l.hero_y, z, l.face_x, l.face_y) { return Step.Blocked; }
+  x = l.hero_x + l.face_x;
+  y = l.hero_y + l.face_y;
   t = tile_world::top(l.w, x, y, z);
-  if !takeable(l, t) || (walk_on(l, t) == "shoulder" && l.shoulder != 0 && !forages(l, t)) {
-    fx = x + l.face_x;
-    fy = y + l.face_y;
-    ft = tile_world::top(l.w, fx, fy, z);
-    if takeable(l, ft) && hero_crosses(l, x, y, z, l.face_x, l.face_y)
-        && !(walk_on(l, ft) == "shoulder" && l.shoulder != 0) {
-      x = fx;
-      y = fy;
-      t = ft;
-    } else {
-      return drop(l);
-    }
-  }
+  if !takeable(l, t) { return put_down(l); }
   if forages(l, t) {
     _ = tile_world::take(l.w, x, y, z);
     l.sack += [t];
     return Step.Took;
   }
   if walk_on(l, t) == "shoulder" {
-    if l.shoulder != 0 { return drop(l); }
+    if l.shoulder != 0 { return Step.Blocked; }
     _ = tile_world::take(l.w, x, y, z);
     l.shoulder = t;
     return Step.Took;
@@ -2196,6 +2190,50 @@ pub fn take(l: Level) -> Step {
     return Step.Swapped;
   }
   Step.Took
+}
+
+/// Put down what the hero holds — with empty hands, what is on its shoulders — in the cell before
+/// it: on its floor, or on a big thing that bears it (a table) with nothing on it; over a drop it
+/// falls, as an item pushed off does.  Placed, or Blocked: nothing to put down, a wall, an enemy,
+/// something already there, nowhere for it to land.
+pub fn put_down(l: Level) -> Step {
+  t = if l.hero_item != 0 { l.hero_item } else { l.shoulder };
+  if t == 0 { return Step.Blocked; }
+  x = l.hero_x;
+  y = l.hero_y;
+  z = l.hero_z;
+  dx = l.face_x;
+  dy = l.face_y;
+  if !hero_crosses(l, x, y, z, dx, dy) || enemy_at(l, x + dx, y + dy, z) >= 0 { return Step.Blocked; }
+  k = tile_world::terrain(l.w, x + dx, y + dy, z);
+  at = (NO_ROOM, x, y, z);
+  if k == VOID {
+    at = fall(l, x + dx, y + dy, z - 1, dx, dy, 0);
+  } else if walkable(l, k) && !blocks_things(l, k) {
+    on = tile_world::things(l.w, x + dx, y + dy, z);
+    top = tile_world::top(l.w, x + dx, y + dy, z);
+    if top == 0 || (len(on) == 1 && rests(l, top)) { at = (LANDS, x + dx, y + dy, z); }
+  }
+  if at.0 != LANDS { return Step.Blocked; }
+  tile_world::place(l.w, at.1, at.2, at.3, t);
+  if l.hero_item != 0 {
+    set_down(l, t, at.1, at.2, at.3, l.hero_until);
+    l.hero_item = 0;
+    l.hero_until = 0;
+  } else {
+    l.shoulder = 0;
+  }
+  Step.Placed
+}
+
+/// Q facing (dx, dy), then the step there: what walking over an item did before Q (the scripts and
+/// tests use it).  Answers what Q did.
+pub fn take_step(l: Level, dx: integer, dy: integer) -> Step {
+  l.face_x = dx;
+  l.face_y = dy;
+  st = take(l);
+  _ = walk(l, dx, dy);
+  st
 }
 
 // Does thing `t` go into the sack worn: a thing foraged, the sack on the shoulders, room in it?
@@ -3954,8 +3992,9 @@ fn pull_step(l: Level, dx: integer, dy: integer) -> Step {
 // --- Playing ---
 
 /// Play a line of moves: `w` `a` `s` `d` walk north, west, south and east; `pw` `pa` `ps` `pd`
-/// pull; `q` takes a small item or puts the held one down (`take`); `x` puts down what the hero
-/// holds; `f` uses it (shoots a bow, throws a bomb, swings a
+/// pull; `q` takes the small item before the hero or puts the held one down (`take`); `qw` `qa`
+/// `qs` `qd` take that way and step there (`take_step`); `x` puts down what the hero holds where
+/// it stands; `f` uses it (shoots a bow, throws a bomb, swings a
 /// weapon); `~N` lets N ms of the world clock pass.  Moves are separated by spaces; anything else
 /// is skipped.  Answers how many moves were not Blocked.
 pub fn play(l: Level, moves: text) -> integer {
@@ -3968,6 +4007,13 @@ pub fn play(l: Level, moves: text) -> integer {
     }
     if t == "q" {
       if take(l) != Step.Blocked { done += 1; }
+      continue;
+    }
+    if t.starts_with("q") && len(t) == 2 {
+      qd = t[1..];
+      qx = if qd == "a" { -1 } else if qd == "d" { 1 } else { 0 };
+      qy = if qd == "w" { -1 } else if qd == "s" { 1 } else { 0 };
+      if take_step(l, qx, qy) != Step.Blocked { done += 1; }
       continue;
     }
     // `~N`: N ms of the world clock pass (rolling, burning, enemies acting).
@@ -5638,8 +5684,100 @@ fn enemies_due(l: Level) {
       }
     }
     if first < 0 { return; }
+    if !l.log_on {
+      enemy_act(l, first);
+      continue;
+    }
+    // The play log: what the act changed, at its moment (`was` a copy taken before it).
+    was = snap(l.enemies[first] ?? no_enemy());
+    health = l.health + l.spirit;
     enemy_act(l, first);
+    log_act(l, was, at, health);
   }
+}
+
+// What the play log compares of an enemy before and after an act: a copy, field by field (a
+// struct read from the list is the list's own, and would change with it).
+struct Snap {
+  id: integer,
+  kind: text,
+  x: integer,
+  y: integer,
+  z: integer,
+  face_x: integer,
+  face_y: integer,
+  hp: integer,
+  wind_until: integer,
+  tpl: integer,
+  tpl_step: integer,
+  aim_x: integer,
+  aim_y: integer,
+  open_until: integer,
+  talk_line: integer,
+  bark_line: integer,
+  away: boolean,
+  item: integer,
+  scared_until: integer,
+  search_until: integer
+}
+
+fn snap(e: const Enemy) -> Snap {
+  Snap { id: e.id + 0, kind: "{e.kind}", x: e.x + 0, y: e.y + 0, z: e.z + 0, face_x: e.face_x + 0, face_y: e.face_y + 0,
+         hp: e.hp + 0, wind_until: e.wind_until + 0, tpl: e.tpl + 0, tpl_step: e.tpl_step + 0, aim_x: e.aim_x + 0,
+         aim_y: e.aim_y + 0, open_until: e.open_until + 0, talk_line: e.talk_line + 0, bark_line: e.bark_line + 0,
+         away: e.away, item: e.item + 0, scared_until: e.scared_until + 0, search_until: e.search_until + 0 }
+}
+
+// One line of the play log: the clock, then what happened.
+fn log_line(l: Level, at: integer, what: text) {
+  if l.log_on { l.log += ["clock {at}  {what}"]; }
+}
+
+// Enemy `was` (as it was before) acted at `at`: what changed — where it is and faces, its health,
+// a wind-up begun and where it aims, its template and step, left open, a talk line or a bark,
+// gone away, the hero hurt — and when it acts next.
+fn log_act(l: Level, was: const Snap, at: integer, health: integer) {
+  now = no_enemy();
+  found = false;
+  for e in l.enemies {
+    if e.id == was.id {
+      now = e;
+      found = true;
+    }
+  }
+  who = "{was.kind}#{was.id}";
+  if !found {
+    log_line(l, at, "{who} gone");
+    return;
+  }
+  parts = "";
+  if now.x != was.x || now.y != was.y || now.z != was.z { parts += " moved ({was.x},{was.y},{was.z})->({now.x},{now.y},{now.z})"; }
+  if now.face_x != was.face_x || now.face_y != was.face_y { parts += " faces ({now.face_x},{now.face_y})"; }
+  if now.hp != was.hp { parts += " hp {was.hp}->{now.hp}"; }
+  if now.wind_until != was.wind_until {
+    parts += if now.wind_until > 0 { " winds up until {now.wind_until} aimed ({now.aim_x},{now.aim_y})" } else { " wind-up over" };
+  }
+  if now.tpl != was.tpl || now.tpl_step != was.tpl_step {
+    if now.tpl >= 0 {
+      tp = l.k.templates[now.tpl] ?? Template { name: "?", aggressive: false, apart_min: 0, apart_max: 0, rest_ms: 0, steps: [] };
+      st = tp.steps[now.tpl_step] ?? TStep { act: "end", ms: 0, n: 0 };
+      parts += " template {tp.name}, next step {now.tpl_step} ({st.act})";
+    } else if was.tpl >= 0 {
+      parts += " template over, rests until {now.tpl_rest}";
+    }
+  }
+  if now.aim_x != was.aim_x || now.aim_y != was.aim_y { parts += " aims ({now.aim_x},{now.aim_y})"; }
+  if now.open_until != was.open_until && now.open_until > at { parts += " open until {now.open_until}"; }
+  if now.talk_line != was.talk_line { parts += " says line {now.talk_line}"; }
+  if now.bark_line != was.bark_line && now.bark_line >= 0 { parts += " barks {now.bark_line}"; }
+  if now.away != was.away { parts += if now.away { " away" } else { " back" }; }
+  if now.item != was.item { parts += " holds {thing_name(l.k, now.item)}"; }
+  if now.scared_until != was.scared_until { parts += " scared until {now.scared_until}"; }
+  if now.search_until != was.search_until { parts += " searches ({now.search_x},{now.search_y}) until {now.search_until}"; }
+  h = l.health + l.spirit;
+  if h != health { parts += " hero health {health}->{h}"; }
+  if parts == "" { parts = " waits"; }
+  log_line(l, at, "{who}{parts}  next {now.due}");
 }
 
 // Enemy i steps (dx, dy) and acts again `wait` later.
@@ -6017,8 +6155,10 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
     next_step(l, i);
     on_aim = l.hero_x == e.aim_x && l.hero_y == e.aim_y && l.hero_z == e.z;
     if on_aim && beside_hero(l, l.enemies[i] ?? e) {
+      log_line(l, e.due, "{e.kind}#{e.id} {s.act}s for {s.n} on ({e.aim_x},{e.aim_y}): the hero is there");
       template_blow(l, i, p, s.n, e.due);
     } else {
+      log_line(l, e.due, "{e.kind}#{e.id} {s.act}s on ({e.aim_x},{e.aim_y}): missed, the hero at ({l.hero_x},{l.hero_y})");
       l.misses += 1;
     }
     l.enemies[i].due = e.due + s.ms;
@@ -6419,6 +6559,10 @@ fn enemy_act(l: Level, i: integer) {
 /// there) — one bomb of a bomber's, the one in its hand.
 pub fn strike_enemy(l: Level, i: integer, damage: integer) {
   hp = (l.enemies[i].hp ?? 0) - damage;
+  if l.log_on {
+    se = l.enemies[i] ?? no_enemy();
+    log_line(l, l.now, "{se.kind}#{se.id} struck for {damage}: hp {se.hp}->{if hp < 0 { 0 } else { hp }}{if hp <= 0 { ", ended" } else { "" }}");
+  }
   if hp <= 0 {
     // (`l.enemies[i]` reads the list: what it held is read before it is removed.)
     e = l.enemies[i] ?? no_enemy();

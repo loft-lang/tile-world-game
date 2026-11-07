@@ -25,6 +25,7 @@
   "aim": "battle:61",
   "blast": ["world:63", "world:64", "world:65"],
   "hero": "dungeon:97",
+  "hero_back": "world:96",
   "heart": "battle:195",
   "terrain": {
     "floor": {

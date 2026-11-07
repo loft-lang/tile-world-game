@@ -1,0 +1,124 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+// The play log: every key going down or up — by name, with the wall time since the game started,
+// the world's clock and how long it was held — and every line the game gathers (each act of every
+// enemy and person at its moment, the hero's changes, blows struck), plus slow frames.  Each line
+// goes where the log is open:
+// - to a file (TW_LOG=<file>, ./play-log.sh), written as it happens through one handle (each write
+//   follows the last), so it is readable while the game runs;
+// - over a WebSocket to the play server (tools/playserver.loft, ./play-web.sh), which writes it to
+//   logs/ on the machine serving the page: a game in a browser is logged where it can be read.
+//   Lines wait in order while the socket is not up (the client reconnects by itself);
+// - to the console, each line starting `LOG`, while F9 has it on.
+use web;
+
+/// Where a game in a browser sends its log: the play server that served the page.
+pub const LOG_URL = "ws://localhost:8080/ws";
+/// Lines kept waiting for the socket at most; the oldest go first past it.
+pub const PENDING_MAX = 20000;
+
+pub struct PlayLog {
+  /// Lines are gathered (to a file or the socket); `console`: echoed there too (F9).
+  pub on: boolean,
+  pub console: boolean,
+  to_file: boolean,
+  out: File,
+  start: integer,
+  keys: vector<boolean>,
+  down_at: vector<integer>,
+  ws: web::WsHandler?,
+  pending: vector<text>,
+  /// Lines the socket has taken.
+  pub sent: integer
+}
+
+/// The log, to the file at `path` ("" for none) and over a WebSocket to `url` ("" for none).
+pub fn open(path: text, url: text) -> PlayLog {
+  lg = PlayLog { on: false, console: false, to_file: path != "", out: file(if path == "" { "play.log" } else { path }),
+                 start: ticks() / 1000, keys: [], down_at: [], ws: null, pending: [], sent: 0 };
+  for _ in 0..256 {
+    lg.keys += [false];
+    lg.down_at += [0];
+  }
+  if lg.to_file {
+    if lg.out.write("# tile_world play log: wall ms since start, the world's clock (ms), what happened\n").ok() {
+      println("logging play to {path}");
+    } else {
+      println("could not write the play log to {path}");
+      lg.to_file = false;
+    }
+  }
+  if url != "" { lg.ws = web::ws_handler(url); }
+  lg.on = lg.to_file || lg.ws != null;
+  lg
+}
+
+/// Write a line: the wall time since the start, then the text.
+pub fn write(lg: PlayLog, line: text) {
+  if !lg.on && !lg.console { return; }
+  stamped = "{ticks() / 1000 - lg.start}  {line}";
+  if lg.console { println("LOG {stamped}"); }
+  if !lg.on { return; }
+  if lg.to_file { _ = lg.out.write("{stamped}\n"); }
+  if lg.ws != null {
+    lg.pending += ["1:{stamped}"];
+    if len(lg.pending) > PENDING_MAX { _ = lg.pending.remove(0); }
+  }
+}
+
+/// Hand the waiting lines to the socket, in order, while it takes them.  Call once a frame.
+pub fn send(lg: PlayLog) {
+  h = lg.ws ?? return;
+  while len(lg.pending) > 0 {
+    if !h.send(lg.pending[0] ?? "") { return; }
+    _ = lg.pending.remove(0);
+    lg.sent += 1;
+  }
+}
+
+/// Lines waiting for the socket.
+pub fn waiting(lg: const PlayLog) -> integer {
+  len(lg.pending)
+}
+
+/// A key's name for the log.
+pub fn key_name(code: integer) -> text {
+  if code == 8 { return "Backspace"; }
+  if code == 9 { return "Tab"; }
+  if code == 13 { return "Enter"; }
+  if code == 27 { return "Esc"; }
+  if code == 32 { return "Space"; }
+  if code == 128 { return "Up"; }
+  if code == 129 { return "Down"; }
+  if code == 130 { return "Left"; }
+  if code == 131 { return "Right"; }
+  if code == 132 { return "Shift"; }
+  if code == 133 { return "Ctrl"; }
+  if code >= 135 && code <= 146 { return "F{code - 134}"; }
+  if code == 147 { return "Delete"; }
+  if code == 151 { return "PgUp"; }
+  if code == 152 { return "PgDn"; }
+  if code > 32 && code < 127 { return "{code as character}".to_uppercase(); }
+  "key {code}"
+}
+
+/// The keys this frame against the last, at the world's `clock`: each change a line.  Answers
+/// whether `code` just went down (for F9).
+pub fn keys(lg: PlayLog, clock: integer, down: const vector<boolean>, code: integer) -> boolean {
+  pressed = false;
+  wall = ticks() / 1000;
+  for k in 0..256 {
+    now_down = down[k] ?? false;
+    if now_down == (lg.keys[k] ?? false) { continue; }
+    lg.keys[k] = now_down;
+    if now_down {
+      if k == code { pressed = true; }
+      lg.down_at[k] = wall;
+      write(lg, "clock {clock}  key {key_name(k)} ({k}) down");
+    } else {
+      write(lg, "clock {clock}  key {key_name(k)} ({k}) up, held {wall - (lg.down_at[k] ?? wall)} ms");
+    }
+  }
+  pressed
+}

@@ -1,7 +1,17 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
-State on 2026-10-29 (evening), for picking the work up in a fresh session.  Paths are on the owner's
+State on 2026-11-07 (evening), for picking the work up in a fresh session.  Paths are on the owner's
 machine (`~/workspace`).
+
+**2026-11-07, in short.**  The fight designed again (DESIGN.md @GM-Combat, TEMPLATES.md, BUILD.md
+B1c) and its first steps built: the new keys (Q takes and puts down before the hero, E uses, Tab
+aims, Esc quits, F2 the editor, F3 free roaming); enemy templates, the bat's swoop first; the
+hero's facing seen (a lean, its back facing north); looking down through an opening; the play log
+(`playlog.loft`) — to a file on a desktop, and from a browser over a WebSocket to the loft play
+server (`./play-web.sh`, `tools/playserver.loft`) that writes it to `logs/`.  Open next: Tab's lock
+for any enemy in front of the hero (owner: within the arc it faces, the bow able to hit it),
+then the rat's leap.  Tests: `loft --lib libs --tests tests`, `checks/game.loft`,
+`checks/playlog.sh`, all with `~/workspace/loft/target/release/loft`.
 
 ## Where things are
 
@@ -18,6 +28,17 @@ not build the checks (its native code generator emits one function twice).  That
 local to its whole function: a loop variable may not reuse a local's name, and a local reusing an
 earlier loop's name read back wrong once (the raft's drift: its beams placed nowhere).  Every such
 pair was renamed (`each_*`, `loop_*` and the like) — keep new loop names unique in a function.
+
+**2026-11-07: the play log over a WebSocket** (`playlog.loft`, `tools/playserver.loft`,
+`./play-web.sh`, `checks/playlog.sh`) uses `web` and `server` from loft-libs-net `main` (0.5.0,
+0.7.6).  Their natives are loft's `net` component: run `make components` in `~/workspace/loft`
+first (it writes `target/components/libloft_net.dylib`), and re-run `./fetch-libs.sh` if a
+`libs/web/native-auto` from before that is left — a stale one fails to link the WebSocket client.
+Found on the way: a WebSocket server and a `web` client in ONE process never connect (the server
+sees the client connect, the client never sees it open, and retries) — across two processes they
+do at once; so the check runs the server and the client as two.  The `Server` side of `run` has no
+responder that takes headers; the play server answers through `Request::respond_with_headers`
+(it acts on the connection the event loop parked) to send `Cache-Control: no-store`.
 
 ## Library PRs
 

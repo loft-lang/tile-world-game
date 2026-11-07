@@ -20,6 +20,8 @@ imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
 mesh3d             loft-libs-assets     main
 glb                loft-libs-assets     main
+web                loft-libs-net        main
+server             loft-libs-net        main
 '
 
 tmp=$(mktemp -d)

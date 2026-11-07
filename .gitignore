@@ -12,3 +12,5 @@ target/
 /build/
 # The game saved at a well or fountain (C6)
 /saves/
+# Play logs ./play-log.sh writes
+/logs/

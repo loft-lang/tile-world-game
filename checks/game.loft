@@ -32,6 +32,8 @@ fn main() {
   test_a_slanted_wall_is_drawn_cut();
   test_the_right_hand_acts();
   test_free_roaming();
+  test_the_play_log();
+  test_looking_down_through_an_opening();
   test_a_potion_is_carried_and_drunk_with_the_keys();
   test_a_fountain_saves_like_a_well();
   test_the_cave_in_with_the_game();
@@ -48,7 +50,7 @@ fn main() {
   test_the_epilogue_follows_the_facts();
   test_a_door_made_in_the_editor();
   test_a_block_and_a_parry_are_seen();
-  println("checks/game.loft: 32 passed");
+  println("checks/game.loft: 34 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -362,19 +364,20 @@ fn tap(g: game::Game, code: integer, at: integer, held: integer) {
   _ = game::update(g, 0, at + held);
 }
 
-// The keys (owner, 2026-11-07): Q tapped takes the sword it stands on; E tapped a light swing, held
+// The keys (owner, 2026-11-07): Q tapped takes the sword before the hero; E tapped a light swing, held
 // a heavy one (ready again 800 ms on); Shift alone a parry (the built guard, until the clash); Q
-// tapped again puts the sword down.  In the rat run, the sword by the door, nothing near.
+// tapped again puts the sword down before it.  In the rat run, the sword by the door, nothing near.
 fn test_the_right_hand_acts() {
   for keys in [(101, 132, 113)] {
     m = game::new_game("..");
     if !m { assert(false, "the game loads"); return; }
     g = m;
     assert(game::start_world(g, "the_rat_run"), "the rat run opens");
-    game::move(g, 0, -1, false);
-    assert(g.world.hero_item == 0, "walked onto the sword: not taken");
+    g.world.face_x = 0;
+    g.world.face_y = -1;
     tap(g, keys.2, 500, 100);
-    assert(g.world.hero_item != 0, "{keys.2}: the sword taken");
+    assert(g.world.hero_item != 0, "{keys.2}: the sword before the hero taken");
+    game::move(g, 0, -1, false);
     _ = game::update(g, 1000, 0);
     tap(g, keys.0, 10000, 100);
     assert(g.world.struck == 1 && g.world.blow_until == g.world.now + 400, "{keys.0} tapped: a light swing: {g.world.struck}");
@@ -422,8 +425,57 @@ fn test_free_roaming() {
   assert(!g.free && game::free_offset(g).1 == 0.0, "F3 again: back on the tiles");
 }
 
+// Looking down (owner, 2026-11-07): in the old mine, on the rails at (4, 3) of layer 1 beside the
+// opening where they go down, the layer below shows through it — the rails below the opening and
+// the room they lead into (8, 3) within DOWN_LOOK — but not the room's far end (14, 3).
+fn test_looking_down_through_an_opening() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_old_mine"), "the old mine opens");
+  rules::put_hero(g.world, 4, 3, 1);
+  game::aim_view(g);
+  seen = game::look_down(g, g.world, 1);
+  assert(len(seen) > 0, "an opening seen");
+  assert(seen_at(g, seen, 6, 3) && seen_at(g, seen, 8, 3), "the rails below and the room's near side: seen");
+  assert(!seen_at(g, seen, 14, 3), "the room's far end: not");
+}
+
+// Is cell (x, y) of layer 0 flagged in a look down from layer 1 (its view rows start at cam_y)?
+fn seen_at(g: const game::Game, seen: const vector<boolean>, x: integer, y: integer) -> boolean {
+  vx = x - g.cam_x;
+  vy = y - g.cam_y;
+  if vx < 0 || vx >= game::COLS || vy < 0 { return false; }
+  seen[vy * game::COLS + vx] ?? false
+}
+
+// The play log (TW_LOG): in the bat cave, a bat put 4 steps from the hero, the log on — its swoop
+// is logged step by step at the clock's moments, its nip with the hero's health, and the hero's
+// own change.
+fn test_the_play_log() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  assert(game::start_world(g, "the_bat_cave"), "the bat cave opens");
+  g.world.enemies = [];
+  rules::put_hero(g.world, 3, 10, 0);
+  g.world.hero_item = rules::th(g.world, "burning_torch");
+  _ = rules::add_enemy(g.world, "bat", 3, 6, 0);
+  g.logging = true;
+  t = 0;
+  while t < 3000 {
+    t += 20;
+    _ = game::update(g, 20, t);
+  }
+  all = "";
+  for line in g.log { all += line + "\n"; }
+  assert(all.contains("template swoop, next step") && all.contains("(dive)"), "the swoop's steps logged:\n{all}");
+  assert(all.contains("nips for 1 on (3,10)") && all.contains("hero health 6->5"), "the nip logged:\n{all}");
+  assert(all.contains("hero the_bat_cave"), "the hero's change logged:\n{all}");
+}
+
 // A potion in the game (owner): in the cyclops den, empty-handed, the hero walks onto the potion on
-// (1, 16) and takes it (Q); Q again puts it down; walked off and on again, Q takes it again; E drinks
+// (1, 16) from beside it and takes it (Q); Q again puts it down there; Q takes it again; E drinks
 // it — nothing at once, from 2.  Out through the den's door into the village before the first
 // point: the healing goes along, 3 there 1500 ms on, 4 at 3000, 5 at 4500.
 fn test_a_potion_is_carried_and_drunk_with_the_keys() {
@@ -433,11 +485,10 @@ fn test_a_potion_is_carried_and_drunk_with_the_keys() {
   assert(game::start_world(g, "the_cyclops_den"), "the den opens");
   potion = rules::th(g.world, "health_potion");
   game::move(g, -1, 0, false);
-  game::move(g, -1, 0, false);
   tap(g, 113, 500, 100);
-  assert(g.world.hero_x == 1 && g.world.hero_item == potion && g.world.drunk == 0, "Q: picked up: {at(g)}");
+  assert(g.world.hero_x == 2 && g.world.hero_item == potion && g.world.drunk == 0, "Q: the potion before the hero picked up: {at(g)}");
   tap(g, 113, 1000, 100);
-  assert(g.world.hero_item == 0 && tile_world::top(g.world.w, 1, 16, 0) == potion, "Q: put down");
+  assert(g.world.hero_item == 0 && tile_world::top(g.world.w, 1, 16, 0) == potion, "Q: put down before it");
   game::move(g, 1, 0, false);
   game::move(g, -1, 0, false);
   tap(g, 113, 1500, 100);
@@ -445,7 +496,6 @@ fn test_a_potion_is_carried_and_drunk_with_the_keys() {
   g.world.health = 2;
   tap(g, 101, 2000, 100);
   assert(g.world.hero_item == 0 && g.world.drunk == 1 && g.world.health == 2, "E: drunk, nothing at once: {g.world.health}");
-  game::move(g, 1, 0, false);
   game::move(g, 1, 0, false);
   game::move(g, 0, 1, false);
   assert(g.place == "demo" && g.world.health == 2, "out in the village, still 2: {at(g)} {g.world.health}");
@@ -484,8 +534,10 @@ fn test_the_cave_in_with_the_game() {
   if !m { assert(false, "the world starts"); return; }
   g = m;
   assert(game::start_world(g, "the_cave_in"), "the cave-in opens");
-  game::move(g, 0, -1, false);
+  g.world.face_x = 0;
+  g.world.face_y = -1;
   tap(g, 113, 500, 100);
+  game::move(g, 0, -1, false);
   game::move(g, 1, 0, false);
   game::move(g, 1, 0, false);
   game::move(g, 0, -1, false);
@@ -506,13 +558,17 @@ fn test_the_alchemist_takes_from_the_sack() {
   assert(game::start_world(g, "the_herb_patch"), "the herb patch opens");
   w = g.world;
   rules::put_hero(w, 7, 10, 0);
-  game::move(g, -1, 0, false);
+  w.face_x = -1;
+  w.face_y = 0;
   tap(g, 113, 100, 50);
+  game::move(g, -1, 0, false);
   w.hero_item = rules::th(w, "pick");
   for c in [(3, 3), (5, 2), (4, 7)] {
     rules::put_hero(w, c.0, c.1 + 1, 0);
-    game::move(g, 0, -1, false);
+    w.face_x = 0;
+    w.face_y = -1;
     tap(g, 113, 200, 50);
+    game::move(g, 0, -1, false);
   }
   assert(rules::sack_room(w) == (3, 6), "three foraged: {rules::sack_room(w).0}");
   rules::put_hero(w, 8, 4, 0);

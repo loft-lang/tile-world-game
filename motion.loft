@@ -18,6 +18,10 @@
 /// How long each act takes, in milliseconds.  A step is no longer than the key's repeat, so a
 /// held key walks without a pause.
 pub const WALK_MS = 140;
+/// The way the hero faces, shown by its figure (owner, 2026-11-07): it leans FACE_TILT degrees
+/// towards east or west, and facing west its picture is mirrored.  It stays centred on its cell
+/// (owner: moving it off the centre does not help).
+pub const FACE_TILT = 6.0;
 pub const STAGGER_MS = 280;
 pub const SWING_MS = 240;
 

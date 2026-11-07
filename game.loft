@@ -232,6 +232,10 @@ pub struct Game {
   pub free_y: integer = 0,
   free_stop_x: integer = 0,
   free_stop_y: integer = 0,
+  /// The play log (TW_LOG, main.loft): on, the lines of what happened — the world's (every act of
+  /// every enemy and person) and the hero's — gathered here for main.loft to write out.
+  pub logging: boolean = false,
+  pub log: vector<text> = [],
   /// The talks that went with their people to other places (C3).
   pub moved_talks: vector<MovedTalk> = [],
   /// The world's people and their points (C3).
@@ -1458,6 +1462,11 @@ pub fn back(g: Game) -> boolean {
 
 // Point the view at the hero, the way the level's file says: "rooms" a screen at a time,
 // "follow" a cell at a time near the edge, within the level.
+/// Point the view at the hero as play does (for the checks).
+pub fn aim_view(g: Game) {
+  aim(g);
+}
+
 fn aim(g: Game) {
   w = g.world;
   rows = ROWS - 1;
@@ -1672,6 +1681,49 @@ fn chests_left(n: integer) -> text {
 /// `g.keys`); `now` is the time in milliseconds.  Answers whether the picture changed, and
 /// false for "quit" through `g.won`... see `quit`.
 pub fn update(g: Game, ms: integer, now: integer) -> boolean {
+  if !g.logging {
+    g.world.log_on = false;
+    g.world.log = [];
+    return update_play(g, ms, now);
+  }
+  g.world.log_on = true;
+  w = g.world;
+  was = "{hero_state(g)}";
+  struck = w.struck;
+  parries = w.parries;
+  blocks = w.blocks;
+  misses = w.misses;
+  changed = update_play(g, ms, now);
+  // The place may have changed: its world is another, logging too.
+  g.world.log_on = true;
+  w = g.world;
+  for line in w.log { g.log += [line]; }
+  w.log = [];
+  state = hero_state(g);
+  if state != was { g.log += ["clock {w.now}  hero {state}"]; }
+  if w.struck != struck { g.log += ["clock {w.now}  hero swings (blow {w.struck}), ready at {w.blow_until}"]; }
+  if w.parries != parries { g.log += ["clock {w.now}  hero parries a blow"]; }
+  if w.blocks != blocks { g.log += ["clock {w.now}  hero blocks a blow"]; }
+  if w.misses != misses { g.log += ["clock {w.now}  an enemy's blow misses"]; }
+  changed
+}
+
+// The hero as the play log tells it: its place and cell (and its body's offset roaming free), the
+// way it faces, what it holds and wears, its health, guarding, editing.
+fn hero_state(g: const Game) -> text {
+  w = g.world;
+  held = if w.hero_item == 0 { "nothing" } else { rules::thing_name(w.k, w.hero_item) };
+  s = "{g.place} ({w.hero_x},{w.hero_y},{w.hero_z}) faces ({w.face_x},{w.face_y}) holds {held}";
+  if w.shoulder != 0 { s += " wears {rules::thing_name(w.k, w.shoulder)}"; }
+  s += " health {w.health}";
+  if w.spirit > 0 { s += "+{w.spirit}"; }
+  if w.blocking { s += " guarding"; }
+  if g.free { s += " free ({g.free_x},{g.free_y})/256"; }
+  if g.editing { s += " editing"; }
+  s
+}
+
+fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   // A field has the keyboard: the keys are text, not commands.
   if g.typing { return false; }
   if g.keys.is_action_just_pressed("edit") {
@@ -2302,7 +2354,9 @@ struct Figure {
   pose: motion::Pose,
   fine: motion::FinePose,
   /// What is worn on the shoulders (the hero's rope or sack; 0: none), drawn behind the body.
-  shoulder: integer = 0
+  shoulder: integer = 0,
+  /// The hero: its facing shown — a lean that way, and its picture mirrored facing west.
+  facing_shown: boolean = false
 }
 
 // The figures on layer z: the hero and the enemies.
@@ -2347,9 +2401,11 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
     braced = g.motion.act == motion::Act.Brace || !motion::busy(g.motion, w.now);
     if w.blocking && braced { motion::guard(fine, w.face_x, w.face_y); }
     if hurt(w.health, w.k.health) { motion::wounded(fine, w.now, !motion::busy(g.motion, w.now)); }
-    out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
+    // Facing north the hero shows its back (owner, 2026-11-07; the game's own sheet, world:96).
+    look = if w.face_y < 0 && w.face_x == 0 && g.look.hero_back >= 0 { g.look.hero_back } else { g.look.hero };
+    out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: look, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
-                     pose: hpose, fine: fine, shoulder: w.shoulder }];
+                     pose: hpose, fine: fine, shoulder: w.shoulder, facing_shown: true }];
   }
   out
 }
@@ -2376,6 +2432,10 @@ fn depth_row(g: const Game, f: const Figure) -> integer {
 fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   ts = g.look.tile_size;
   p = f.fine;
+  // The hero's facing shown (owner, 2026-11-07): it leans the way it faces, and facing west its
+  // picture is mirrored.
+  lean = if f.facing_shown { (f.face_x as float) * motion::FACE_TILT } else { 0.0 };
+  mirror = f.facing_shown && f.face_x < 0;
   bx = (((f.x - g.cam_x) * ts) as float) + p.x;
   by = (((f.y - g.cam_y) * ts - g.lift - f.h * 4) as float) + p.y;
   hd = hand(f.face_x, f.face_y);
@@ -2391,7 +2451,7 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   if f.item != 0 && behind {
     theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
-  theme::put_fine(g.surface, f.sprite, bx, by, p.tilt, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade);
+  theme::put_fine(g.surface, f.sprite, bx, by, p.tilt + lean, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade, mirror);
   if f.item != 0 && !behind {
     theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
@@ -2407,12 +2467,143 @@ fn view_rows(g: const Game) -> integer {
   if g.editing { ROWS - 2 } else { ROWS - 1 }
 }
 
+/// Looking down through an opening (owner, 2026-11-07): from an opening in its floor the hero sees
+/// a bit of the layer below, DOWN_LOOK cells past the opening (as far as a sight line from it goes
+/// there); the rock of its own layer over what it sees there is cut away.  Only standing in the
+/// opening does it see the whole area there (`cut_above`).
+const DOWN_LOOK = 1;
+
+// Is the way from (x0, y0) to (x1, y1) on layer z clear of anything opaque (the ends left out)?
+fn line_clear(w: const rules::Level, x0: integer, y0: integer, x1: integer, y1: integer, z: integer) -> boolean {
+  dx = if x1 > x0 { x1 - x0 } else { x0 - x1 };
+  dy = if y1 > y0 { y0 - y1 } else { y1 - y0 };
+  sx = if x0 < x1 { 1 } else { -1 };
+  sy = if y0 < y1 { 1 } else { -1 };
+  err = dx + dy;
+  x = x0;
+  y = y0;
+  guard = 0;
+  while (x != x1 || y != y1) && guard < 64 {
+    guard += 1;
+    e2 = 2 * err;
+    if e2 >= dy {
+      err += dy;
+      x += sx;
+    }
+    if e2 <= dx {
+      err += dx;
+      y += sy;
+    }
+    if (x != x1 || y != y1) && tile_world::opaque(w.w, x, y, z) { return false; }
+  }
+  true
+}
+
+// What the hero on layer z sees of layer z - 1 through the openings in its floor: a flag per view
+// cell of layer z - 1 (row by row, as that layer is drawn) — under an opening it sees, and the
+// ground of the layer below within DOWN_LOOK of one that a line from it reaches.  The same index
+// is the cell of layer z drawn over it (a layer is drawn a row up).  Empty with no opening seen.
+pub fn look_down(g: const Game, w: const rules::Level, z: integer) -> vector<boolean> {
+  rows = view_rows(g);
+  cx = g.cam_x;
+  cy = g.cam_y + z - 1;
+  m = DOWN_LOOK;
+  opens: vector<(integer, integer)> = [];
+  for y in -m..rows + m {
+    for x in -m..COLS + m {
+      wx = cx + x;
+      wy = cy + y;
+      if tile_world::terrain(w.w, wx, wy, z) == tile_world::VOID && tile_world::terrain(w.w, wx, wy, z - 1) != tile_world::VOID
+          && rules::in_view(w, wx, wy) {
+        opens += [(wx, wy)];
+      }
+    }
+  }
+  out: vector<boolean> = [];
+  if len(opens) == 0 { return out; }
+  for y in 0..rows {
+    for x in 0..COLS {
+      wx = cx + x;
+      wy = cy + y;
+      s = false;
+      if tile_world::terrain(w.w, wx, wy, z - 1) != tile_world::VOID {
+        for o in opens {
+          if s { break; }
+          ax = if wx > o.0 { wx - o.0 } else { o.0 - wx };
+          ay = if wy > o.1 { wy - o.1 } else { o.1 - wy };
+          if ax <= m && ay <= m && line_clear(w, o.0, o.1, wx, wy, z - 1) { s = true; }
+        }
+      }
+      out += [s];
+    }
+  }
+  out
+}
+
+// The cells of layer z to leave out over what the hero sees below (`look_down`): its rock (opaque)
+// there, never its floors.
+fn cut_over(g: const Game, w: const rules::Level, z: integer, below: const vector<boolean>) -> vector<boolean> {
+  out: vector<boolean> = [];
+  if len(below) == 0 { return out; }
+  rows = view_rows(g);
+  for y in 0..rows {
+    for x in 0..COLS {
+      out += [(below[y * COLS + x] ?? false) && tile_world::opaque(w.w, g.cam_x + x, g.cam_y + z + y, z)];
+    }
+  }
+  out
+}
+
+// Standing in an opening, under the layer above (z + 1): the whole area the hero stands in shows
+// (owner, 2026-11-07) — every open cell of its layer joined to where it stands, within the view —
+// the rock of the layer above over it left out; that layer's floors stay.
+fn cut_above(g: const Game, w: const rules::Level, z: integer) -> vector<boolean> {
+  rows = view_rows(g);
+  // The hero's layer from row cy, the view's cells and a row more (the rock above covers a row
+  // north of its own).
+  cx = g.cam_x;
+  cy = g.cam_y + z;
+  h = rows + 1;
+  area: vector<boolean> = [];
+  for _ in 0..COLS * h { area += [false]; }
+  todo: vector<(integer, integer)> = [(w.hero_x, w.hero_y)];
+  i = 0;
+  while i < len(todo) && i < 4000 {
+    c = todo[i] ?? (0, 0);
+    i += 1;
+    vx = c.0 - cx;
+    vy = c.1 - cy;
+    if vx < 0 || vx >= COLS || vy < 0 || vy >= h { continue; }
+    if area[vy * COLS + vx] ?? true { continue; }
+    if tile_world::terrain(w.w, c.0, c.1, z) == tile_world::VOID || tile_world::opaque(w.w, c.0, c.1, z) { continue; }
+    area[vy * COLS + vx] = true;
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if tile_world::see_through(w.w, c.0, c.1, z, d.0, d.1) { todo += [(c.0 + d.0, c.1 + d.1)]; }
+    }
+  }
+  out: vector<boolean> = [];
+  for y in 0..rows {
+    for x in 0..COLS {
+      ux = cx + x;
+      uy = g.cam_y + z + 1 + y;
+      // Drawn a row up, it covers the hero's layer's cell a row north of it: view row y + 0 of
+      // the hero's layer is world row uy - 1.
+      out += [tile_world::opaque(w.w, ux, uy, z + 1) && (area[y * COLS + x] ?? false)];
+    }
+  }
+  out
+}
+
 // Every cell of layer z of `w` the view holds, at its light (or in full light when not `lit`),
 // but never lighter than `dim`; `only_set` skips the void, `cut` is a cell left out (a wall in
 // front of the hero), and with `sight` the things and figures the hero does not see — past a
-// wall — are left out (owner).
+// wall — are left out (owner).  With `only` (a flag per view cell, row by row) only the cells
+// flagged are drawn, their things and figures too: the layer below seen through an opening; the
+// cells flagged in `skip` are left out (the rock over what is seen below).
 fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_set: boolean, lit: boolean,
-              dim: integer, cut: (integer, integer) = (-1000000, -1000000), sight: boolean = false) {
+              dim: integer, cut: (integer, integer) = (-1000000, -1000000), sight: boolean = false,
+              only: vector<boolean> = [], skip: vector<boolean> = []) {
+  masked = len(only) > 0;
   rows = view_rows(g);
   cx = g.cam_x;
   // Layer z is drawn z tiles up, so the view shows its cells z rows further south: view row y
@@ -2431,18 +2622,20 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   for y in 0..rows {
     for x in 0..COLS {
       if (!only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID)
-          && (cx + x != cut.0 || cy + y != cut.1) {
+          && (cx + x != cut.0 || cy + y != cut.1) && (!masked || (only[y * COLS + x] ?? false))
+          && !(skip[y * COLS + x] ?? false) {
         draw_ground(g, w, gr, cx + x, cy + y, z, upper, dim);
       }
     }
   }
-  draw_labels(g, w, z, sh, sight);
+  if !masked { draw_labels(g, w, z, sh, sight); }
   figs = figures(g, w, z);
   for y in -1..rows {
     if y >= 0 {
       for x in 0..COLS {
         if (!only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID)
-            && (cx + x != cut.0 || cy + y != cut.1) {
+            && (cx + x != cut.0 || cy + y != cut.1) && (!masked || (only[y * COLS + x] ?? false))
+            && !(skip[y * COLS + x] ?? false) {
           shade = sh[y * COLS + x] ?? 0;
           seen = !sight || rules::in_view(w, cx + x, cy + y);
           draw_standing(g, w, gr, cx + x, cy + y, z, upper, dim, if shade < dim { dim } else { shade }, seen);
@@ -2459,7 +2652,9 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
     }
     for f in figs {
       d = depth_row(g, f) - z;
-      if (d == y || (y == -1 && d < -1) || (y == rows - 1 && d >= rows)) && (!sight || rules::in_view(w, f.x, f.y)) {
+      if (d == y || (y == -1 && d < -1) || (y == rows - 1 && d >= rows)) && (!sight || rules::in_view(w, f.x, f.y))
+          && (!masked || (f.x >= cx && f.x < cx + COLS && f.y >= cy && f.y < cy + rows
+                          && (only[(f.y - cy) * COLS + f.x - cx] ?? false))) {
         fx = f.x - cx;
         fy = f.y - cy;
         shade = sh[fy * COLS + fx] ?? 0;
@@ -2603,11 +2798,16 @@ pub fn draw(g: Game) {
   w = g.world;
   z = w.hero_z;
   // On the hero's layer only what it sees past the walls (owner).
+  // Through an opening in its floor the hero sees down into the layer below, and the rock of its own
+  // layer over what it sees there is cut away (owner, 2026-11-07: `look_down`).
+  below = look_down(g, w, z);
+  over = cut_over(g, w, z, below);
   if z > 0 {
     draw_layer(g, w, z - 1, false, false, true, 0);
-    draw_layer(g, w, z, false, true, true, 0, (-1000000, -1000000), true);
+    draw_layer(g, w, z, false, true, true, 0, (-1000000, -1000000), true, [], over);
   } else {
-    draw_layer(g, w, z, false, false, true, 0, (-1000000, -1000000), true);
+    if len(below) > 0 { draw_layer(g, w, z - 1, false, true, true, 0, (-1000000, -1000000), false, below); }
+    draw_layer(g, w, z, false, false, true, 0, (-1000000, -1000000), true, [], over);
     // The layer above: a wall in front of the hero — the ledge's top on a wall, drawn a row up
     // over it — is left out (owner: only walls; doors, pillars, trees and smaller things may
     // hide the hero in part, and a level keeps the hero in view).
@@ -2615,7 +2815,8 @@ pub fn draw(g: Game) {
       front = if tile_world::terrain(w.w, w.hero_x, w.hero_y + 1, z) == rules::tr(w, "wall") {
         (w.hero_x, w.hero_y + 1)
       } else { (-1000000, -1000000) };
-      draw_layer(g, w, z + 1, true, true, true, 0, front);
+      // Standing in an opening, the rock above over ground it sees is left out (owner, 2026-11-07).
+      draw_layer(g, w, z + 1, true, true, true, 0, front, false, [], cut_above(g, w, z));
     }
   }
   draw_sparks(g, z);

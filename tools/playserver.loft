@@ -1,0 +1,73 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+// The play server: one port for a game played in a browser.  Over HTTP it serves the page
+// `loft --html` built (build/web/index.html) and the guide beside it, read from disk at every
+// request with caching off, so a rebuilt page is what a reload gets.  Over a WebSocket on the same
+// port (any path; the game uses /ws) it takes the game's play log (playlog.loft) and writes each line
+// to a file as it comes, so the log of a game played in the browser is read on this machine.
+// Several pages at once: each is a client of the server's event loop (`run`), its lines in order.
+//   TW_LOG=<file> loft --lib libs tools/playserver.loft     (./play-web.sh builds and starts it)
+// A line arrives as `1:<line>` (the server's `<id>:<payload>` frames); a page connecting is noted.
+use server;
+
+/// The port, on this machine only (127.0.0.1): the game's LOG_URL names it.  TW_PORT sets another
+/// (checks/playlog.sh runs one beside a game's).
+const PORT = 8080;
+/// Paths from tools/, the directory loft runs this script in.
+const WEB = "../build/web";
+
+// A file of the built page, its text ("" when missing).
+fn page(name: text) -> text {
+  f = file("{WEB}/{name}");
+  if f.format == Format.NotExists { return ""; }
+  body = f.content();
+  body
+}
+
+// Answer the HTTP request the event loop parked: `body` as `kind`, never cached (a reload gets a
+// rebuilt page).  The Server's own responders send no headers, so the parked request is answered
+// through a Request, as `respond_with_headers` acts on the connection the loop holds.
+fn answer(status: integer, body: text, kind: text) {
+  req = server::Request { method: "GET", path: "", body: "", headers: [] };
+  req.respond_with_headers(status, body, ["Content-Type: {kind}", "Cache-Control: no-store"]);
+}
+
+fn main() {
+  path = env_variable("TW_LOG") ?? "";
+  if path == "" { path = "../logs/browser.log"; }
+  out = file(path);
+  if !out.write("# tile_world play log from a browser: wall ms since the page started, the world's clock (ms), what happened\n").ok() {
+    println("could not write {path}");
+    return;
+  }
+  port = (env_variable("TW_PORT") ?? "") as integer ?? PORT;
+  srv = server::try_listen_on("127.0.0.1", port);
+  if !srv.bound() {
+    println("port {port} is taken: stop what holds it (another play server, python -m http.server)");
+    return;
+  }
+  println("the game:   http://localhost:{port}/   (the guide: /guide.html)");
+  println("its log:    {path}");
+  srv.run(fn(ev: server::WsEvent) {
+    if ev.http {
+      if ev.path == "/" || ev.path == "/index.html" {
+        body = page("index.html");
+        if body == "" {
+          answer(500, "build/web/index.html is missing: build it with ./play-web.sh", "text/plain; charset=utf-8");
+        } else {
+          answer(200, body, "text/html; charset=utf-8");
+        }
+      } else if ev.path == "/guide.html" {
+        answer(200, page("guide.html"), "text/html; charset=utf-8");
+      } else {
+        srv.respond_404();
+      }
+    } else if ev.connected {
+      _ = out.write("# a game connected (client {ev.cid})\n");
+      println("a game connected (client {ev.cid})");
+    } else if ev.message {
+      _ = out.write("{ev.payload}\n");
+    }
+  });
+}

@@ -9,6 +9,7 @@ use audio;
 use input;
 use ui;
 use render3d;
+use playlog;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
 // N ms of the game pass (a step's glide ends, the world runs on), as a play script's `~N` does.
@@ -49,6 +50,21 @@ fn press(game: game::Game, keys: text) {
       _ = game::update(game, 0, now);
     }
   }
+}
+
+// The play log (playlog.loft): to TW_LOG's file, and over a WebSocket to the play server that
+// served the page (tools/playserver.loft) — on from the start; F9 echoes it to the console too.
+const SLOW_MS = 50;
+// F9: the play log echoed to the console, on and off.
+const K_LOG = 143;
+
+// The lines the game gathered since the last frame, written; then handed to the socket.
+fn log_flush(lg: playlog::PlayLog, game: game::Game) {
+  if lg.on || lg.console {
+    for line in game.log { playlog::write(lg, line); }
+  }
+  game.log = [];
+  playlog::send(lg);
 }
 
 // The world to start: TW_WORLD names its start place (TW_WORLD=demo, the demo village), else
@@ -234,6 +250,9 @@ fn main() {
   game.save_dir = "saves";
   if (env_variable("TW_NEW") ?? "") == "" { _ = game::read_save(game, "saves"); }
   view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
+  plog = playlog::open(env_variable("TW_LOG") ?? "", playlog::LOG_URL);
+  game.logging = plog.on;
+  playlog::write(plog, "clock {game.world.now}  start: {game.place}, hero at ({game.world.hero_x},{game.world.hero_y},{game.world.hero_z})");
   // The editor's widgets, where the screen has a pointer: drawn over the frame at half the game's
   // zoom, so their 8-unit letters are as large on any screen as the game's own.
   widgets = ui::new_ui(game::ui_font(game), ui::plain_style());
@@ -254,12 +273,22 @@ fn main() {
     btn = screen::buttons();
     typed_now = screen::typed();
     if window_keys {
-      game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, screen::keys()), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
+      raw = screen::keys();
+      if playlog::keys(plog, game.world.now, raw, K_LOG) {
+        plog.console = !plog.console;
+        playlog::write(plog, "clock {game.world.now}  console log {if plog.console { "on" } else { "off" }}");
+      }
+      game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, raw), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
     } else {
       game.keys.input_tick_device();
     }
-    if !game.typing && game::quit(game) { break; }
+    if !game.typing && game::quit(game) {
+      playlog::write(plog, "clock {game.world.now}  quit");
+      playlog::send(plog);
+      break;
+    }
     now = ticks() / 1000;
+    if plog.on && now - last > SLOW_MS { playlog::write(plog, "clock {game.world.now}  slow frame: {now - last} ms"); }
     resized = screen::width() != size.0 || screen::height() != size.1;
     if resized {
       size = fit_display(game);
@@ -273,6 +302,7 @@ fn main() {
     was_at = at_ptr;
     was_buttons = btn;
     changed = game::update(game, now - last, now);
+    log_flush(plog, game);
     render3d::after(v3, game);
     if v3.on && !game.editing {
       aim(game, view, size);

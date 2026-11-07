@@ -135,8 +135,7 @@ fn fight(name: text, kind: text, weapon: text, blow: integer) {
   e = w.enemies[0];
   assert(e && e.kind == kind && e.x == 3 && e.y == 2, "{name}: the {kind} at the far end");
   rules::put_hero(w, 3, 16, 0);
-  _ = rules::walk(w, 0, -1);
-  _ = rules::take(w);
+  _ = rules::take_step(w, 0, -1);
   assert(w.hero_item == rules::thing_id(w.k, weapon), "{name}: the hero takes the {weapon}");
   // Every enemy still: only the hero's blow counts.
   for i in 0..len(w.enemies) { w.enemies[i].due = 1000000; }

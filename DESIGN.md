@@ -229,11 +229,13 @@ are built (2026-11-07); the rest is designed.
   target is out of sight or ended, and goes to the nearest other.  With the bow, levers and bombs
   are targets too (§ Bow).  Esc asks twice, as B does.  The arrows walk as WASD do.  In a browser,
   Tab and F1 never reach the page's own use of them.
-- **Built** (2026-11-07; `tests/moves.loft`, `checks/game.loft`): WASD and the arrows walk; Q
-  (`rules::take`) takes the item underfoot first, else the one in the cell faced — the rope or
-  the sack onto the shoulders, forage into the sack — and puts the held one down where the hero
-  stands (as built, not yet in the cell faced), swapping when it takes with full hands; let go
-  with no step taken it acts, held into a step it pulls.  E uses, Tab aims as the bow's aim did,
+- **Built** (2026-11-07; `tests/moves.loft`, `checks/game.loft`): WASD and the arrows walk.
+  **Q acts on the cell before the hero, never the one it stands on** (owner): `rules::take` takes
+  the item there — the rope or the sack onto the shoulders, forage into the sack, anything else
+  into the hand, swapping with a full one — and with nothing to take puts the held one down there
+  (`rules::put_down`: on the floor, on a bare table, falling over a drop; never into a wall or onto
+  an enemy).  Let go with no step taken it acts, held into a step it pulls.  The way the hero
+  faces is the way it last stepped.  E uses, Tab aims as the bow's aim did,
   Esc quits, F2 the editor; Shift is the built guard (pressed a parry, held a block) until step 4.
   Still open: Esc twice, Tab's lock for the sword.
 - **F3 roams free** (owner, 2026-11-07, an experiment; built, `checks/game.loft`): the keys held move
@@ -1149,6 +1151,18 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## What the player sees
 
+- **The way the hero faces is seen** (owner, 2026-11-07; built, `game.loft` `draw_figure`): the
+  way it last stepped, where Q acts.  Facing east or west it leans FACE_TILT degrees (6) that way,
+  its picture mirrored facing west; facing north it shows its back, the game's own picture
+  (`world:96`, ART.md); facing south its front.  It stays centred on its cell (owner: moving it off
+  the centre does not help).  The hero only: enemies keep their pictures (owner).
+- **Looking down through an opening** (owner, 2026-11-07; built, `game::look_down`,
+  `checks/game.loft`).  From an opening in its floor the hero sees the layer below under the
+  opening and **a bit into what lies past it** (owner): DOWN_LOOK cells (1) from it, as far as a
+  sight line from the opening goes, the rock of the hero's own layer over that cut away — from the
+  room at the top of a slope, the slope and a cell of the room below.  **Only standing in the
+  opening does it see everything** (owner): the whole area joined to where it stands, within the
+  view, the rock of the layer above over it left out (that layer's floors stay).
 - **What happens is shown by the world** (built, proposed): combat in § @GM-Combat's *How it is
   seen*; a door shut until something holds (the barn) is drawn closed; a person who starts or
   stops following the hero nods (a hop in place).

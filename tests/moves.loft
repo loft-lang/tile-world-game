@@ -274,8 +274,7 @@ fn test_a_potion_strengthens_for_a_minute() {
   tile_world::place(w.w, 6, 0, 0, rules::th(w, "cart"));
   rules::put_hero(w, 0, 0, 0);
   rules::tick(w, 1000);
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked, "onto the potion");
-  assert(rules::take(w) == rules::Step.Took, "taken (Q)");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_x == 1, "taken (Q), stepped onto its cell");
   assert(tile_world::top(w.w, 1, 0, 0) == 0 && w.hero_item == rules::th(w, "potion") && w.boost_until == 0, "picked up, not drunk");
   assert(rules::swing(w) == rules::Step.Drank && w.hero_item == 0 && w.boost_until == 61000, "drunk: strong until 61000");
   assert(rules::push_strength(w) == 5 && rules::pull_strength(w) == 4, "5 and 4");
@@ -502,7 +501,7 @@ fn test_an_axe_fells_trees_and_fences() {
   tile_world::set_terrain(w.w, 2, 0, 0, rules::tr(w, "tree"));
   tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "fence"));
   rules::put_hero(w, 0, 0, 0);
-  assert(hit(w, 1, 0) == rules::Step.Walked && rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "axe"), "the axe taken");
   for k in 0..3 {
     assert(hit(w, 1, 0) == rules::Step.Chopped && tile_world::terrain(w.w, 2, 0, 0) == rules::tr(w, "tree"),
            "blow {k + 1}: still standing");
@@ -672,7 +671,7 @@ fn test_a_tree_stick_becomes_a_torch() {
   tile_world::place(w.w, 4, 2, 0, rules::th(w, "tar_barrel"));
   _ = rules::walk(w, 1, 0);
   s = if rules::prefers_right(2, 1, 0) { 2 } else { 0 };
-  rules::play(w, if s == 2 { "s d q" } else { "w d q" });
+  rules::play(w, if s == 2 { "s qd" } else { "w qd" });
   assert(w.hero_item == rules::th(w, "stick") && top_name(w, 2, s) == "axe", "the stick taken, the axe left");
   // Two asserts, not one `&&`: --native ran two identical calls in one assert once (loft#2259).
   assert(rules::walk(w, 1, 0) == rules::Step.Walked, "to the barrel");
@@ -688,7 +687,7 @@ fn test_holding_an_item_keeps_the_hands_busy() {
   tile_world::place(w.w, 2, 0, 0, rules::th(w, "sword"));
   tile_world::place(w.w, 3, 0, 0, rules::th(w, "rock"));
   rules::put_hero(w, 1, 0, 0);
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "sword"), "the sword taken");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "sword"), "the sword taken");
   assert(rules::walk(w, 1, 0) == rules::Step.Blocked, "the rock is not pushed");
   assert(tile_world::top(w.w, 3, 0, 0) == rules::th(w, "rock"), "it stays at x 3");
   _ = tile_world::take(w.w, 3, 0, 0);
@@ -703,38 +702,50 @@ fn test_holding_an_item_keeps_the_hands_busy() {
          "hands free, the chair is dragged");
 }
 
-// Q (owner, 2026-11-07): walking over an item no longer takes it; Q takes it, and on another swaps
-// it with the one held: the sword stays where the axe was.
+// Q (owner, 2026-11-07): walking over an item no longer takes it; Q takes the one before the hero,
+// and with full hands swaps it: the sword is left where the axe was.
 fn test_q_takes_and_swaps() {
   w = row(4);
   tile_world::place(w.w, 1, 0, 0, rules::th(w, "sword"));
   tile_world::place(w.w, 2, 0, 0, rules::th(w, "axe"));
   rules::put_hero(w, 0, 0, 0);
   _ = rules::walk(w, 1, 0);
-  assert(w.hero_item == 0, "walking over the sword does not take it (owner, 2026-11-07)");
-  assert(rules::take(w) == rules::Step.Took, "Q takes the sword");
+  assert(w.hero_item == 0 && w.hero_x == 1, "walking over the sword does not take it");
+  rules::put_hero(w, 0, 0, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  assert(rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "sword"), "Q: the sword before the hero taken");
   _ = rules::walk(w, 1, 0);
-  assert(rules::take(w) == rules::Step.Swapped, "Q on the axe swaps");
-  assert(w.hero_item == rules::th(w, "axe"), "holds the axe");
+  assert(rules::take(w) == rules::Step.Swapped && w.hero_item == rules::th(w, "axe"), "Q on the axe before it swaps");
   assert(tile_world::top(w.w, 2, 0, 0) == rules::th(w, "sword") && tile_world::top(w.w, 1, 0, 0) == 0,
          "the sword left at x 2");
 }
 
-// Q takes the item underfoot first, else the one in the cell faced; with nothing to take it puts
-// the held one down, and with nothing held and nothing to take it is Blocked.
+// Q acts on the cell before the hero, never the one it stands on: with nothing to take there it
+// puts the held one down there, onto a bare table too, never into a wall; with nothing held and
+// nothing there it is Blocked.
 fn test_q_takes_from_the_cell_faced_and_puts_down() {
   w = row(4);
+  tile_world::place(w.w, 0, 0, 0, rules::th(w, "axe"));
   tile_world::place(w.w, 1, 0, 0, rules::th(w, "stick"));
   rules::put_hero(w, 0, 0, 0);
   w.face_x = 1;
   w.face_y = 0;
-  assert(rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "stick") && w.hero_x == 0, "the stick in the cell faced, taken from where the hero stands");
-  assert(tile_world::top(w.w, 1, 0, 0) == 0, "gone from there");
-  assert(rules::take(w) == rules::Step.Placed && w.hero_item == 0 && tile_world::top(w.w, 0, 0, 0) == rules::th(w, "stick"), "nothing to take: put down underfoot");
-  assert(rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "stick"), "underfoot: taken again");
+  assert(rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "stick") && w.hero_x == 0, "the stick before it taken");
+  assert(tile_world::top(w.w, 1, 0, 0) == 0 && tile_world::top(w.w, 0, 0, 0) == rules::th(w, "axe"), "the axe underfoot left");
+  assert(rules::take(w) == rules::Step.Placed && w.hero_item == 0 && tile_world::top(w.w, 1, 0, 0) == rules::th(w, "stick"), "nothing to take: put down before it");
+  w.face_x = 0;
+  w.face_y = -1;
+  w.hero_item = rules::th(w, "sword");
+  assert(rules::take(w) == rules::Step.Blocked && w.hero_item != 0, "never into the wall");
   w.hero_item = 0;
-  _ = tile_world::take(w.w, 0, 0, 0);
-  assert(rules::take(w) == rules::Step.Blocked, "nothing held, nothing to take");
+  assert(rules::take(w) == rules::Step.Blocked, "nothing held, nothing there");
+  tile_world::place(w.w, 3, 0, 0, rules::th(w, "table"));
+  rules::put_hero(w, 2, 0, 0);
+  w.face_x = 1;
+  w.face_y = 0;
+  w.hero_item = rules::th(w, "sword");
+  assert(rules::take(w) == rules::Step.Placed && tile_world::top(w.w, 3, 0, 0) == rules::th(w, "sword"), "onto the bare table");
 }
 
 // Walking into a well saves the situation — the game keeps it — and the hero stays put.
@@ -766,7 +777,7 @@ fn test_a_swing_strikes_what_the_hero_faces() {
   tile_world::set_terrain(w.w, 3, 0, 0, rules::tr(w, "tree"));
   rules::put_hero(w, 0, 0, 0);
   assert(swung(w) == rules::Step.Blocked, "empty hands: no swing");
-  assert(hit(w, 1, 0) == rules::Step.Walked && rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "axe"), "the axe taken");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "axe"), "the axe taken");
   assert(swung(w) == rules::Step.Swung && at(w) == "1,0,0 h0", "the air: a swing, no step: {at(w)}");
   assert(hit(w, 1, 0) == rules::Step.Walked, "beside the tree");
   for k in 0..3 {

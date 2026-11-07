@@ -33,8 +33,7 @@ fn until(w: rules::Level, at: integer) {
 
 // A step east onto a potion, taken (Q) and drunk (E) at once.
 fn drink_next(w: rules::Level) {
-  _ = rules::walk(w, 1, 0);
-  _ = rules::take(w);
+  _ = rules::take_step(w, 1, 0);
   _ = rules::swing(w);
 }
 
@@ -45,8 +44,8 @@ fn test_a_health_potion_heals_over_time() {
   w.health = 2;
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "health_potion");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.drunk == 0, "walked onto: not drunk");
-  assert(rules::take(w) == rules::Step.Swapped && rules::swing(w) == rules::Step.Drank, "Q, then E");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Swapped && w.drunk == 0, "Q: taken, not drunk");
+  assert(rules::swing(w) == rules::Step.Drank, "E: drunk");
   assert(w.drunk == 1 && w.health == 2, "drunk, nothing yet: {w.health}");
   assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "stick") && w.hero_item == 0, "the stick put down for it, the hands empty");
   until(w, 1499);
@@ -101,14 +100,12 @@ fn test_a_potion_is_picked_up_put_down_and_drunk_later() {
   w = row(4);
   w.health = 3;
   put(w, 1, "health_potion");
-  _ = rules::walk(w, 1, 0);
-  assert(rules::take(w) == rules::Step.Took, "Q");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took, "Q");
   assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0 && tile_world::top(w.w, 1, 0, 0) == 0, "picked up");
   _ = rules::walk(w, 1, 0);
   assert(rules::drop(w) == rules::Step.Placed && tile_world::top(w.w, 2, 0, 0) == rules::th(w, "health_potion"), "put down on 2");
   _ = rules::walk(w, 1, 0);
-  _ = rules::walk(w, -1, 0);
-  assert(rules::take(w) == rules::Step.Took, "Q");
+  assert(rules::take_step(w, -1, 0) == rules::Step.Took, "Q");
   assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0, "picked up again");
   assert(rules::swing(w) == rules::Step.Drank && w.hero_item == 0 && w.drunk == 1 && w.health == 3, "drunk: nothing yet");
   until(w, 1500);

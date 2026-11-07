@@ -51,7 +51,7 @@ fn test_tar_turns_a_stick_into_a_torch() {
   w = corridor();
   tile_world::place(w.w, 1, 0, 0, rules::th(w, "stick"));
   tile_world::place(w.w, 3, 0, 0, rules::th(w, "tar_barrel"));
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "stick"), "the stick");
+  assert(rules::take_step(w, 1, 0) == rules::Step.Took && w.hero_item == rules::th(w, "stick"), "the stick");
   _ = rules::walk(w, 1, 0);
   assert(rules::walk(w, 1, 0) == rules::Step.Dipped, "dipped");
   assert(w.hero_item == rules::th(w, "torch") && w.hero_x == 2, "a torch, the hero at x 2: {w.hero_x}");
@@ -130,7 +130,7 @@ fn test_a_torch_burns_ten_minutes_wherever_it_is() {
   rules::play(w, "d d d x");
   assert(stack(w, 3) == "burning_torch," && w.hero_item == 0, "on the floor at x 3: {stack(w, 3)}");
   rules::tick(w, 180000);
-  rules::play(w, "d a q");
+  rules::play(w, "d qa");
   assert(w.hero_item == rules::th(w, "burning_torch") && w.hero_until == 600000,
          "picked up, its time kept: {w.hero_until}");
   rules::play(w, "d d d");
@@ -259,12 +259,12 @@ fn test_the_staff_hangs_and_never_burns_out() {
   assert(row(w) == "0,1,2,3,4,5,6,7,7,", "{row(w)}");
 }
 
-// A burning torch on the floor is an item: stood on and Q, it swaps with the torch the hero holds.
+// A burning torch on the floor is an item: before the hero, Q swaps it with the torch it holds.
 fn test_a_burning_torch_on_the_floor_swaps() {
   w = corridor();
   tile_world::place(w.w, 2, 0, 0, rules::th(w, "burning_torch"));
   w.hero_item = rules::th(w, "torch");
-  rules::play(w, "d d q");
+  rules::play(w, "d qd");
   assert(w.hero_item == rules::th(w, "burning_torch") && stack(w, 2) == "torch,", "{stack(w, 2)}");
   assert(w.hero_until == 600000, "its whole ten minutes: {w.hero_until}");
 }

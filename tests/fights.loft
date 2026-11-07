@@ -32,7 +32,8 @@ fn place_from(name: text, raw: text) -> rules::Level {
   _ = editor::refill(ed, lf, intent::words_from(theme));
   w = lf.level;
   rules::put_hero(w, 3, 16, 0);
-  _ = rules::walk(w, 0, -1);
+  // The weapon by the door taken (Q, before the hero), and a step in.
+  _ = rules::take_step(w, 0, -1);
   w
 }
 
@@ -94,8 +95,6 @@ fn play_in(w: rules::Level, who: text, ms: integer, trace: boolean) -> Outcome {
   next_step = 0;
   t = 0;
   while t < ms && len(w.enemies) > 0 && rules::alive(w) {
-    // Standing on an item with empty hands (the weapon by the door), the player takes it (Q).
-    if w.hero_item == 0 && tile_world::top(w.w, w.hero_x, w.hero_y, w.hero_z) != 0 { _ = rules::take(w); }
     i = nearest(w);
     e = w.enemies[i]!;
     ready = w.now >= w.blow_until;
@@ -124,7 +123,7 @@ fn play_in(w: rules::Level, who: text, ms: integer, trace: boolean) -> Outcome {
       // out of has missed.
       next_step = w.now + 150;
       d = toward(w, i);
-      if d.1 != 0 { _ = rules::walk(w, 0, sign(d.1)); } else { _ = rules::walk(w, sign(d.0), 0); }
+      if d.1 != 0 { step_to(w, 0, sign(d.1)); } else { step_to(w, sign(d.0), 0); }
     }
     if trace {
       now = "hero {w.hero_x},{w.hero_y} h{w.health}";
@@ -203,6 +202,16 @@ fn test_the_order_of_the_enemies_does_not_matter() {
   }
 }
 
+// A step (dx, dy): an item before the hero with its hands empty (the weapon by the door) is taken
+// first (Q), as a player would.
+fn step_to(w: rules::Level, dx: integer, dy: integer) {
+  if w.hero_item == 0 && tile_world::top(w.w, w.hero_x + dx, w.hero_y + dy, w.hero_z) != 0 {
+    _ = rules::take_step(w, dx, dy);
+  } else {
+    _ = rules::walk(w, dx, dy);
+  }
+}
+
 // Walk the hero to (x, y) at walking pace, row first then column.
 fn go_to(w: rules::Level, x: integer, y: integer) {
   guard = 0;
@@ -224,9 +233,7 @@ fn test_a_potion_by_the_door_heals_after_the_fight() {
   assert(o.ended && w.health == 4 && tile_world::top(w.w, 1, 16, 0) != 0, "the fight over, struck to 4, the potion left: {w.health}");
   go_to(w, 1, 15);
   assert(w.drunk == 0, "not yet");
-  _ = rules::walk(w, 0, 1);
-  assert(w.drunk == 0, "walked onto: not drunk");
-  assert(rules::take(w) == rules::Step.Swapped && tile_world::top(w.w, 1, 16, 0) == rules::th(w, "axe"), "Q: the potion taken, the axe put down");
+  assert(rules::take_step(w, 0, 1) == rules::Step.Swapped && tile_world::top(w.w, 1, 16, 0) == rules::th(w, "axe"), "Q: the potion taken, the axe put down");
   assert(rules::swing(w) == rules::Step.Drank, "E: drunk");
   at = w.now;
   assert(w.drunk == 1 && w.health == 4 && w.hero_item == 0, "drunk, nothing at once: {w.health}");

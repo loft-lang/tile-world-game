@@ -21,14 +21,26 @@ on its floor.  A world is the places reached from a start place through doors: `
 starts another one (order.json's `start` is the default), and `TW_LEVEL=<n>` plays one level of
 `order.json` on its own, as before.
 
-WASD (or the arrows) walk.  Q takes a small item — walking over one no longer does — or puts the
-held one down, and held while walking pulls.  E uses what the hero holds: a swing (held, a heavy
+WASD (or the arrows) walk.  Q takes the small item before the hero — the way it last stepped;
+walking over one no longer takes it — or puts the held one down there, and held while walking pulls.
+The hero shows the way it faces: it leans east or west (mirrored facing west), and facing north it
+shows its back (`world:96`, ART.md).  E uses what the hero holds: a swing (held, a heavy
 swing), a bow shoots, a bomb is thrown, a potion drunk.  Tab aims.  Shift guards for now (pressed, a
 parry; held, a block), until the clash replaces it (DESIGN.md @GM-Combat).
 In a browser (`./play-web.sh`), F1 switches to the first-person view and back (RENDER_3D.md § The
 first-person view): forward and back walk the way the hero looks, left and right turn.  F3 roams
 free (an experiment): the hero moves smoothly, diagonals too, and stands between tiles.
 Bats swoop (TEMPLATES.md): a chirp, a zigzag, a dive and a nip on the cell they aimed at, then away.
+**The play log**, for finding bugs (`playlog.loft`): every key down and up with the wall time, the
+world's clock and how long it was held; every act of every enemy and person at its moment on the
+clock; the hero's changes and blows; slow frames.  `./play-web.sh` builds the page and serves it
+from one loft server (`tools/playserver.loft`, http://localhost:8080/) that also takes the game's
+log over a WebSocket on the same port and writes it to `logs/web-<date>-<time>.log` as you play —
+on from the start.  F9 echoes it to the browser's developer console as well (lines starting
+`LOG`).  On a desktop `./play-log.sh` writes it to `logs/play-<date>-<time>.log` (`TW_LOG=<file>`;
+a desktop window needs X11 — on macOS, XQuartz).  The way there is checked by `checks/playlog.sh`
+(the server and the game's log in two processes).  Needs loft's `net` component: `make components`
+in the loft checkout.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
 Walking into a well or a fountain saves the situation and writes the game to `saves/`: starting
 the game again carries on from there (`TW_NEW=1` starts afresh).  Losing all health brings the

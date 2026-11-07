@@ -111,6 +111,8 @@ pub struct Theme {
   pub arrow: integer,
   pub aim: integer,
   pub hero: integer,
+  /// The hero seen from behind, drawn when it faces north (-1: none, its front is drawn).
+  pub hero_back: integer = -1,
   /// The sprite of one point of the hero's health, -1 for none.
   pub heart: integer,
   font: integer,
@@ -179,6 +181,7 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
     th.slots += [h];
   }
   th.hero = sprite(th, word(v, "hero"));
+  th.hero_back = if word(v, "hero_back") != "" { sprite(th, word(v, "hero_back")) } else { -1 };
   th.arrow = sprite(th, word(v, "arrow"));
   th.aim = sprite(th, word(v, "aim"));
   en = v.field("enemies");
@@ -485,9 +488,9 @@ pub fn put_held(surface: integer, th: const Theme, thing: integer, hand_x: integ
 /// `pivot` (in its own pixels; (8.5, 15.5) is the middle of a 16 px tile's bottom row): `put_turned`
 /// in fractions, for a figure that glides, hops and rocks smoothly at a display's resolution.
 pub fn put_fine(surface: integer, s: integer, x: float, y: float, degrees: float, pivot: (float, float),
-                shade: integer) {
+                shade: integer, mirror: boolean = false) {
   if s < 0 { return; }
-  tiles::sprite(surface, s / 4096 ?? 0, s % 4096 ?? 0, x, y, degrees, pivot.0, pivot.1, shade: shade);
+  tiles::sprite(surface, s / 4096 ?? 0, s % 4096 ?? 0, x, y, degrees, pivot.0, pivot.1, flip_h: mirror, shade: shade);
 }
 
 /// Draw sprite `s` scaled by `scale`, centred on (cx, cy); nothing for -1.

@@ -1,0 +1,27 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The game's side of checks/playlog.sh: the play log (playlog.loft) to the play server on TW_PORT,
+// three lines written as the game writes them — an enemy's act, a key down, the key up — sent
+// until none wait (at most 5 s).  Exit 1 when they did not all go.
+use playlog;
+use web;
+
+fn main() {
+  port = (env_variable("TW_PORT") ?? "") as integer ?? 18780;
+  lg = playlog::open("", "ws://127.0.0.1:{port}/ws");
+  playlog::write(lg, "clock 300  bat#2 moved (3,6,0)->(2,6,0)  next 420");
+  down: vector<boolean> = [];
+  for _ in 0..256 { down += [false]; }
+  down[101] = true;
+  _ = playlog::keys(lg, 400, down, 143);
+  down[101] = false;
+  _ = playlog::keys(lg, 450, down, 143);
+  start = ticks() / 1000;
+  while playlog::waiting(lg) > 0 && ticks() / 1000 - start < 5000 {
+    playlog::send(lg);
+    web::sleep_ms(20);
+  }
+  println("playlog client: {lg.sent} sent, {playlog::waiting(lg)} waiting");
+  if playlog::waiting(lg) > 0 { exit(1); }
+}

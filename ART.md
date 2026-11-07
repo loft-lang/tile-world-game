@@ -33,7 +33,8 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 5 | bombs, the bow | 60–62: the bomb, lying and lit; 63–65: the blast; 66: the bow; 67: an arrow |
 | 6 | the mine's work | 72: a loaded cart; 73, 74: a lit tar barrel; 75, 76: a burning barricade; 77: a coiled rope; 78: a door held shut by a beam; 79–82: crystals, large and small, spent and charged; 83: a lightning rod |
 | 7 | crafting | 84, 85: the lit forge |
-| 8– | later additions (monsters, …) | |
+| 8 | the hero | 96: its back |
+| 9– | later additions (monsters, …) | |
 
 ### The tiles
 
@@ -58,6 +59,7 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 61, 62 | bomb, lit, frames A and B | the fuse spitting sparks — yellow (A), redder and turned (B) — while it is thrown and rolling, or set off by a blast; 100 ms a frame |
 | 63, 64, 65 | blast: flash, fireball, smoke | the three frames of a blast, spread over its 300 ms flash on the cell it went off in; the flash also lights the room (a light that fades three shades) |
 | 66 | bow | drawn shooting up, as everything carried is drawn pointing up: lying across, its curve up, the string below, the grip in the middle (held by its grip, 7, 6) |
+| 96 | the hero's back | Kenney's knight (dungeon:97) seen from behind (owner, 2026-11-07): the visor and face painted over as the back of the helmet, a ridge down its middle, the neck guard in shadow; drawn when the hero faces north |
 | 67 | arrow | flying up: an iron head, a wooden shaft, red and white fletching; turned the way it flies |
 | 72 | loaded cart | Kenney's cart (town:57) with the rock (farm:89) heaped in it, reduced: a cart full of rubble |
 | 73, 74 | lit tar barrel, frames A and B | the tar barrel (5) with the burning torch's flame (2, 3) on its lid |

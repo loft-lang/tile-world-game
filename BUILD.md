@@ -99,7 +99,11 @@ its tests on both backends.
      held; E uses (swing let go, heavy held); Tab locks (the bow's aim moved onto it); Esc quits;
      F1 and F2.  The built block and parry keep a key of their own until step 4.  Red: the item
      tests take with Q; `checks/game.loft` presses the new keys.  **Built** (2026-11-07), with F3's
-     free roaming beside it (an experiment, the owner's).
+     free roaming beside it (an experiment, the owner's).  Q acts on the cell before the hero, never
+     the one it stands on (owner; `rules::take`, `rules::put_down`, `rules::take_step` for scripts),
+     and the hero's facing is seen (a lean, its back facing north; DESIGN.md § What the player
+     sees).  Still open: Tab's lock for the sword (it is the bow's aim as built: the first target in
+     line).
   2. **Locked on**: W, S, A and D against the target; the weapon's eight ways; the 3D page passes
      the locked keys on as they are.  Red: a move each way, a diagonal target, the lock lost.
   3. **The point and the lunge**: a ready point fills its tile, stepping onto it hurts and flings;
