@@ -14,6 +14,11 @@ This is what the game built on tile_world should be.
 
 - **Puzzles come first.** A dungeon should feel like one big puzzle. Nobody should get through it by
   grinding until the character is strong enough to trivialise it.
+- **Fun, never lost** (owner, 2026-11-07).  The game is to be fun, never one where the player
+  feels lost for forgetting a key.  Every key is a help, never a requirement: what a player does
+  without it still works, only less well.  Switching the focus between enemies is one of the
+  things that most easily leaves a player lost, so the focus mostly takes care of itself
+  (@GM-Combat, *Locked on*).
 - **Not a combat simulator** (owner, 2026-11-07).  An RPG is not a combat simulator: one way of
   acting serves fighting, gathering food, building, talking and trading.  Here that way is reading
   a figure's manner and answering it in time, with the same few keys, by the same templates
@@ -249,6 +254,19 @@ are built (2026-11-07); the rest is designed.
   landing on a hero that has no enemy locked turns the lock onto the attacker, so a fight begun
   from behind or the side is faced at once.  Proposed: an arrow's shooter too, when the hero sees
   it; a lock already held is kept.
+- **The focus takes care of itself; Tab only helps** (owner, 2026-11-07: switching the focus
+  easily leaves a player lost; § The principle, *Fun, never lost*).  Proposed:
+  - Without a lock E still fights: it swings at, or shoots, the nearest enemy in the arc the hero
+    faces, turning to it — a player who never presses Tab fights well enough.
+  - The lock comes by itself: hit with no target (above); an enemy that winds up a blow at the
+    hero in the arc it faces.
+  - It goes by itself and never strands the player: the target ended, out of sight, or left
+    behind (the hero more than 4 cells from it); then WASD walk as always.
+  - The moves against the target (W in, S back, A and D aside) hold only while it is near, within
+    the fight's distances (3 cells): further off, W, A, S and D walk the way they always do, so the
+    keys never mean something unexpected far from a fight.
+  - The lock is shown in the world: the mark on the target (as the bow's aim is marked), the hero
+    turned to it.  Tab picks another in the arc, nearest the line first; past the last it lets go.
 - With no target the hero walks; its sword is held at its right, a shield, when it has one,
   against its body.
 - With a target the hero faces it, its point raised to it, and WASD are moves against it: **W**
