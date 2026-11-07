@@ -52,7 +52,7 @@ fn test_the_cellar_plays_to_its_goal() {
   // the rock pushed twice, and the torch picked up again on the way back past it.
   rules::play(l, "s d d d");
   assert(rules::walk(l, 1, 0) == rules::Step.Blocked, "full hands push nothing");
-  rules::play(l, "x d d a a");
+  rules::play(l, "x d d a a q");
   assert(l.hero_item == rules::th(l, "staff") && l.hero_x == 4, "the torch again, at x {l.hero_x}");
   rules::play(l, "d d w d d d d d d");
   assert(levels::solved(lf, l), "in the yard at {l.hero_x},{l.hero_y}");
@@ -64,7 +64,7 @@ fn test_the_torch_room_plays_to_its_goal() {
   lf = level("the_torch_room");
   l = lf.level;
   rules::tick(l, 0);
-  rules::play(l, "s d d d");
+  rules::play(l, "s d d d q");
   assert(l.hero_item == rules::th(l, "stick"), "the stick");
   _ = rules::walk(l, 1, 0);
   assert(rules::walk(l, 1, 0) == rules::Step.Dipped && l.hero_item == rules::th(l, "torch"), "dipped");
@@ -223,7 +223,7 @@ fn test_the_cyclops_hall_plays_to_its_goal() {
   lf = level("the_cyclops_hall");
   l = lf.level;
   rules::tick(l, 0);
-  rules::play(l, "w w w d s s s s d d d d");
+  rules::play(l, "w w w d q s s s s d d d d");
   assert(l.hero_item == rules::th(l, "bow") && l.hero_x == 7 && l.hero_y == 7, "the bow, at the bottom row's door");
   rules::play(l, "f ~4000");
   assert(l.blasted == 1 && l.spotted == 0, "the bomb set off, the hero unseen");

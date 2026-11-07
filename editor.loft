@@ -261,7 +261,7 @@ fn sets_cell(c: const Change) -> boolean {
 /// undoing the edit undoes the adjustment — but for those `unadjust` released.
 pub fn adjusted(ed: const Editor, lf: const levels::LevelFile) -> vector<integer> {
   out: vector<integer> = [];
-  for k in lf.adjusted { if !ed.released.contains(k) { out += [k]; } }
+  for each_k in lf.adjusted { if !ed.released.contains(each_k) { out += [each_k]; } }
   for i in 0..ed.done {
     e = ed.log[i] ?? continue;
     if !e.hand || e.what != CELL { continue; }
@@ -332,7 +332,7 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     }
   }
   before: vector<Cell> = [];
-  for sk in spots { before += [cell_of(w, intent::x_of(sk), intent::y_of(sk), intent::z_of(sk))]; }
+  for spot in spots { before += [cell_of(w, intent::x_of(spot), intent::y_of(spot), intent::z_of(spot))]; }
   // Kinds and things first, then the materials' pictures, which follow their neighbours.
   for f in todo {
     was = cell_of(w, f.x, f.y, f.z);

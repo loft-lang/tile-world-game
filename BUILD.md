@@ -87,6 +87,42 @@ its tests on both backends.
   light chain and the heavy swing; (4) the lunge; (5) the parry and the riposte; (6) each enemy's
   own wind-ups, poise and moves.  Red: a test per move, every time by hand, both ways (the hero's
   and an enemy's), and the fight rooms played.
+- **B1c. The fight, designed again** (@GM-Combat, owner 2026-11-07) — being built: step 1 and the
+  start of step 6 (2026-11-07).  Each
+  step is playable on its own, so the fight can be tried between steps; the numbers stay proposed
+  until played.  Ruled first: what each step's *Open* in DESIGN.md asks.
+  0. **One fighter**: the hero and every enemy share one fight state and one profile (today the
+     hero's is fields of the level and an enemy's its own), so each rule is one function and each
+     test runs both ways.  A template is a list of this fighter's moves.  No play changes.  Red:
+     the built combat and fights tests, unchanged, on the shared fighter.
+  1. **The keys**: Q takes and puts down (walking over a small item no longer takes it) and pulls
+     held; E uses (swing let go, heavy held); Tab locks (the bow's aim moved onto it); Esc quits;
+     F1 and F2.  The built block and parry keep a key of their own until step 4.  Red: the item
+     tests take with Q; `checks/game.loft` presses the new keys.  **Built** (2026-11-07), with F3's
+     free roaming beside it (an experiment, the owner's).
+  2. **Locked on**: W, S, A and D against the target; the weapon's eight ways; the 3D page passes
+     the locked keys on as they are.  Red: a move each way, a diagonal target, the lock lost.
+  3. **The point and the lunge**: a ready point fills its tile, stepping onto it hurts and flings;
+     the lunge between tiles and its settling; no lunge beside an enemy; a walk into an enemy no
+     blow.  Red: the standoff holds untouched; the distances, by hand.
+  4. **The swing in flight and the clash**: outgoing and incoming, the recovery after a clash, the
+     riposte; the guard on S; giving ground needs room.  The K parry and block go.  Red: each row
+     of the clash table, both ways.
+  5. **Balance and dodging**: out of balance after a dodge, a point's turning speed, armour's
+     weight.  Red: a second dodge refused, a blow following the fighter out of balance.
+  6. **Enemies by templates** (TEMPLATES.md): the templates' file and their choosing, the rat's and a human
+     swordsman's first (the two profiles), then each kind's; patience, the cornered animal.  Red:
+     each template alone against a still hero, timed by hand; every opening its own; every
+     aggressive template's gap fits a lunge; `tests/fights.loft` again with its players as hero
+     templates (a striker, a patient fencer, a dodger), the owner's claims held.  **Begun**
+     (2026-11-07; `tests/templates.loft`): the machinery — templates in kinds.json (`templates`, a
+     kind naming its own), chosen by distance and seeded, run step by step, broken by a blow or a
+     scare, a kind keeping its distance while one rests — and the bat's swoop.  The rat's leap
+     next; this runs before steps 0 and 2–5, so a template's blow still meets the built parry and
+     block.
+  7. **The off hand and the profiles**: the knife and the shield, the spear (an enemy with one in a
+     fight room), a corridor room and an open one.  Red: the base sword wins every room with
+     skill (growth is never necessary).
 - **B2. The pick, rubble and the cart's load — built** (the demo's *cave-in* house;
   `tests/places.loft`).  A rock cleared into a cart beside the hero; the cart full until bumped
   from the side at an unloading place; a full cart heavier.  Answered (proposed, to tune in play):

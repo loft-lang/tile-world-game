@@ -633,7 +633,7 @@ fn connected(g: const Grid, r: const Room, need: const vector<integer>) -> boole
     }
   }
   if reached != len(free) { return false; }
-  for k in need { if !seen[k] { return false; } }
+  for wanted in need { if !seen[wanted] { return false; } }
   true
 }
 
@@ -817,12 +817,12 @@ pub fn dome_heights(d: const Dome, seed: integer, area: const vector<Dome> = [])
     v += 1;
   }
   far_d = 0;
-  for k in 0..gw * gh { if (mine[k] ?? false) && (dist[k] ?? 0) > far_d && (dist[k] ?? 0) < far { far_d = dist[k] ?? 0; } }
+  for kk in 0..gw * gh { if (mine[kk] ?? false) && (dist[kk] ?? 0) > far_d && (dist[kk] ?? 0) < far { far_d = dist[kk] ?? 0; } }
   own = if d.shape == "crag" { far_d } else { 1 + dome_drop(far_d - 1) };
   out = Heights { x: gx, y: gy, w: gw, h: gh, v: [] };
-  for k in 0..gw * gh {
-    if !(mine[k] ?? false) { out.v += [0]; continue; }
-    dd = dist[k] ?? 1;
+  for ck in 0..gw * gh {
+    if !(mine[ck] ?? false) { out.v += [0]; continue; }
+    dd = dist[ck] ?? 1;
     n = if d.shape == "crag" { dd } else { own - dome_drop(far_d - dd) };
     // A chosen height: taller, the walls straight first; lower, the steps flattened.
     if d.height > 0 && d.shape == "crag" && n > d.height { n = d.height; }
@@ -881,7 +881,7 @@ fn add_caves(g: Grid, domes: const vector<Dome>, seed: integer) {
     for y in y0..y1 {
       for x in x0..x1 {
         n = 0;
-        for f in fields { hh = height_at(f, x, y); if hh > n { n = hh; } }
+        for fl in fields { hh = height_at(fl, x, y); if hh > n { n = hh; } }
         all.v += [n];
         if n > top { top = n; }
       }
@@ -1022,14 +1022,14 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
   for t in it.trails { add_trail(g, t); }
   // Corridors: floor along the way, a wall beside it where there is nothing yet, and a doorway
   // where it crosses a wall.
-  for c in it.corridors {
-    for p in path(c) {
-      if terrain_at(g, p.0, p.1, c.z) == "wall" { g.doors += [key_of(p.0, p.1, c.z)]; }
-      set(g, p.0, p.1, c.z, "floor");
+  for each_c in it.corridors {
+    for p in path(each_c) {
+      if terrain_at(g, p.0, p.1, each_c.z) == "wall" { g.doors += [key_of(p.0, p.1, each_c.z)]; }
+      set(g, p.0, p.1, each_c.z, "floor");
     }
-    for p in path(c) {
+    for p in path(each_c) {
       for d in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)] {
-        if terrain_at(g, p.0 + d.0, p.1 + d.1, c.z) == "" { set(g, p.0 + d.0, p.1 + d.1, c.z, "wall"); }
+        if terrain_at(g, p.0 + d.0, p.1 + d.1, each_c.z) == "" { set(g, p.0 + d.0, p.1 + d.1, each_c.z, "wall"); }
       }
     }
   }
@@ -1053,7 +1053,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
   }
   add_slants(g);
   out: vector<Fill> = [];
-  for c in g.cells { out += [c]; }
+  for gc in g.cells { out += [gc]; }
   out.sort_by(|f| { f.key });
   out
 }

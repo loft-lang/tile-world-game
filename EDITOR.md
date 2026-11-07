@@ -148,7 +148,7 @@ layer and material.
 | `C`, `V` | copy the rectangle, paste it at the cursor (a house, a tower: STAMPS) |
 | Ctrl+Z / Ctrl+Y | undo / redo |
 | Ctrl+S, Ctrl+O | save / open a level by name |
-| `P` | play-test from the hero's start; `E` returns to the editor with the level as it was |
+| `P` | play-test from the hero's start; `F2` returns to the editor with the level as it was |
 
 **The palette** sits along the bottom of the screen, drawn with the theme's own sprites.  Its
 categories are Outdoor, Water, Castle, House, Dungeon and Things, and `theme.json` assigns each

@@ -185,8 +185,8 @@
     { "at": [2, 5, 1], "to": "demo", "door": "the_old_mine" }
   ],
   "labels": [
-    { "at": [11, 1, 0], "text": "I AIM" },
-    { "at": [11, 2, 0], "text": "J SHOOT" }
+    { "at": [11, 1, 0], "text": "TAB AIM" },
+    { "at": [11, 2, 0], "text": "E SHOOT" }
   ],
   "start": [
     2,

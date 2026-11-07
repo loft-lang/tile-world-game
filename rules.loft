@@ -162,6 +162,26 @@ struct TerrainProps {
 /// An enemy kind (kinds.json `enemies`): its health, what a bite costs the hero, how often it
 /// steps wandering and chasing or fleeing, how often it bites, how far it sees, how far from its
 /// nest it roams, how often it heals a point there.
+/// One step of a template (TEMPLATES.md): what it does (`act`), how long it takes (`ms`) and its
+/// number (`n`: cells for a dive or a flight away, damage for a blow).
+pub struct TStep {
+  pub act: text,
+  pub ms: integer,
+  pub n: integer
+}
+
+/// A template (DESIGN.md @GM-Combat, *Enemies by templates*; owner, 2026-11-07): a set of specific
+/// actions a figure takes, chosen when its conditions hold — here how far the hero is (`apart_min`
+/// .. `apart_max` steps, in sight, on its layer) — and not chosen again for `rest_ms` after.
+pub struct Template {
+  pub name: text,
+  pub aggressive: boolean,
+  pub apart_min: integer,
+  pub apart_max: integer,
+  pub rest_ms: integer,
+  pub steps: vector<TStep>
+}
+
 struct EnemyProps {
   const name: text,
   hp: integer,
@@ -221,7 +241,9 @@ struct EnemyProps {
   /// forage meat for the villagers).
   meat: text = "",
   sweep: boolean = false,
-  poise: boolean = false
+  poise: boolean = false,
+  /// Its templates (TEMPLATES.md), by name, separated by spaces: "" for none — then it acts as built.
+  templates: text = ""
 }
 
 struct EdgeProps {
@@ -339,6 +361,8 @@ pub struct Kinds {
   things: hash<ThingProps[id]>,
   edges: hash<EdgeProps[id]>,
   enemies: hash<EnemyProps[name]>,
+  /// The templates the kinds name (kinds.json `templates`).
+  pub templates: vector<Template> = [],
   pub push_strength: integer,
   pub pull_strength: integer,
   pub boost: integer,
@@ -481,8 +505,23 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
       out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
       sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"),
-      meat: word(e, "meat", "")
+      meat: word(e, "meat", ""), templates: word(e, "templates", "")
     }];
+  }
+  tp = v.field("templates");
+  if tp.kind() == "JObject" {
+    for name in tp.keys() {
+      e = tp.field(name);
+      steps: vector<TStep> = [];
+      st = e.field("steps");
+      for si in 0..st.len() {
+        s = st.item(si);
+        steps += [TStep { act: word(s, "do", ""), ms: num(s, "ms", 0), n: num(s, "n", 0) }];
+      }
+      k.templates += [Template { name: name, aggressive: word(e, "type", "aggressive") == "aggressive",
+                                 apart_min: num(e, "apart_min", 1), apart_max: num(e, "apart_max", 1),
+                                 rest_ms: num(e, "rest_ms", 3000), steps: steps }];
+    }
   }
   th = v.field("things");
   for name in th.keys() {
@@ -842,6 +881,8 @@ pub struct Level {
   /// How many blows enemies have wound up, struck, missed, had parried and had blocked, and how
   /// many ripostes the hero struck (the game plays and draws them).
   pub winds: integer = 0,
+  /// How many cries enemies have given opening a template (a bat's chirp as it swoops: heard).
+  pub cries: integer = 0,
   pub misses: integer = 0,
   pub parries: integer = 0,
   pub blocks: integer = 0,
@@ -986,7 +1027,18 @@ pub struct Enemy {
   pub wind_until: integer = 0,
   pub aim_x: integer = 0,
   pub aim_y: integer = 0,
-  pub open_until: integer = 0
+  pub open_until: integer = 0,
+  /// Its template (TEMPLATES.md): the one it runs (an index into the kinds' templates, -1 none), the
+  /// step it is at and how far into it (cells moved), the side it sidesteps to (1 or -1), how many
+  /// it has chosen (the choice is seeded by its id and this), and the last one and until when that
+  /// one rests.
+  pub tpl: integer = -1,
+  pub tpl_step: integer = 0,
+  pub tpl_n: integer = 0,
+  pub tpl_side: integer = 1,
+  pub tpl_count: integer = 0,
+  pub tpl_last: integer = -1,
+  pub tpl_rest: integer = 0
 }
 
 // No enemy: what a missing index reads as.
@@ -1037,8 +1089,11 @@ pub enum Step {
   Pushed,
   Pulled,
   Climbed,
-  /// The hero took a mounted thing off a wall, or fixed the one it held to a wall.
+  /// The hero took a mounted thing off a wall, or fixed the one it held to a wall; or took a small
+  /// item (`take`, Q).
   Took,
+  /// The hero took a small item and put what it held down in its place (`take`, Q).
+  Swapped,
   Placed,
   /// The hero opened a door or a chest.
   Opened,
@@ -2072,48 +2127,75 @@ fn clear_way(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: inte
   shift(l, x, y, z, dx, dy);
 }
 
-// Move the hero to (x, y, z), standing on the stack there.  A walk_on thing on that floor acts:
-// "boost" is used up, "take" is picked up (and what the hero held is put down in its place).
+// Move the hero to (x, y, z), standing on the stack there.  A walk_on "boost" there is used up
+// (`boost`, before this); a small item is only stood on: walking over it no longer takes it (owner,
+// 2026-11-07, DESIGN.md @GM-Combat *The keys*) — `take` (Q) does.
 fn arrive(l: Level, x: integer, y: integer, z: integer) {
   l.hero_x = x;
   l.hero_y = y;
   l.hero_z = z;
   l.hero_h = height(l, x, y, z);
-  // An item on the floor, or resting on the big thing the hero stands on, is met.
-  t = tile_world::top(l.w, x, y, z);
+}
+
+// Can the hero take `t`, a thing lying on (x, y, z): an item met by walking over it (walk_on
+// "take" or "shoulder", or a potion)?
+fn takeable(l: const Level, t: integer) -> boolean {
+  if t == 0 { return false; }
   effect = walk_on(l, t);
-  if is_potion(l, t) {
-    // A potion (owner): with empty hands it is picked up, to be put down where it is wanted or
-    // drunk later (`swing`); with the hands full it is drunk.
-    _ = tile_world::take(l.w, x, y, z);
-    if l.hero_item == 0 {
-      l.hero_item = t;
-      l.hero_until = 0;
+  is_potion(l, t) || effect == "take" || effect == "shoulder"
+}
+
+/// Q (owner, 2026-11-07): take a small item, or put the held one down.  The item underfoot is
+/// taken, else the one in the cell faced (on the hero's layer, across an edge it crosses).
+/// - Forage goes into the sack worn while it has room, whatever the hand holds.
+/// - The rope or the sack goes onto the shoulders when they are free; with the other worn, it
+///   stays where it lies.
+/// - Anything else into the hand: an empty one takes it (Took); a full one puts what it holds down
+///   in its place (Swapped).
+/// - Nothing to take: what the hand holds is put down (`drop`: Placed), or with empty hands what
+///   is on the shoulders.
+pub fn take(l: Level) -> Step {
+  l.queued = false;
+  if !alive(l) { return Step.Blocked; }
+  x = l.hero_x;
+  y = l.hero_y;
+  z = l.hero_z;
+  t = tile_world::top(l.w, x, y, z);
+  if !takeable(l, t) || (walk_on(l, t) == "shoulder" && l.shoulder != 0 && !forages(l, t)) {
+    fx = x + l.face_x;
+    fy = y + l.face_y;
+    ft = tile_world::top(l.w, fx, fy, z);
+    if takeable(l, ft) && hero_crosses(l, x, y, z, l.face_x, l.face_y)
+        && !(walk_on(l, ft) == "shoulder" && l.shoulder != 0) {
+      x = fx;
+      y = fy;
+      t = ft;
     } else {
-      drink(l, t);
-    }
-  } else if effect == "shoulder" {
-    // The rope or the sack (owner): onto the shoulders when they are free; with the other worn,
-    // it stays where it lies — the two are never worn together.
-    if l.shoulder == 0 {
-      _ = tile_world::take(l.w, x, y, z);
-      l.shoulder = t;
-    }
-  } else if effect == "take" && forages(l, t) {
-    // Foraged into the sack worn, while it has room, whatever the hand holds.
-    _ = tile_world::take(l.w, x, y, z);
-    l.sack += [t];
-  } else if effect == "take" {
-    held = l.hero_item;
-    held_until = l.hero_until;
-    _ = tile_world::take(l.w, x, y, z);
-    l.hero_item = t;
-    took(l, t, x, y, z);
-    if held != 0 {
-      tile_world::place(l.w, x, y, z, held);
-      set_down(l, held, x, y, z, held_until);
+      return drop(l);
     }
   }
+  if forages(l, t) {
+    _ = tile_world::take(l.w, x, y, z);
+    l.sack += [t];
+    return Step.Took;
+  }
+  if walk_on(l, t) == "shoulder" {
+    if l.shoulder != 0 { return drop(l); }
+    _ = tile_world::take(l.w, x, y, z);
+    l.shoulder = t;
+    return Step.Took;
+  }
+  held = l.hero_item;
+  held_until = l.hero_until;
+  _ = tile_world::take(l.w, x, y, z);
+  l.hero_item = t;
+  took(l, t, x, y, z);
+  if held != 0 {
+    tile_world::place(l.w, x, y, z, held);
+    set_down(l, held, x, y, z, held_until);
+    return Step.Swapped;
+  }
+  Step.Took
 }
 
 // Does thing `t` go into the sack worn: a thing foraged, the sack on the shoulders, room in it?
@@ -2316,8 +2398,8 @@ fn tribes_due(l: Level) {
     }
     if state == 2 && tile_world::top(l.w, t.raid_x, t.raid_y, t.raid_z) == th(l, "barricade") {
       there = false;
-      for e in l.enemies {
-        if e.kind == t.kind && e.z == t.raid_z && steps_apart(e.x, e.y, t.raid_x, t.raid_y) <= 1 { there = true; }
+      for te in l.enemies {
+        if te.kind == t.kind && te.z == t.raid_z && steps_apart(te.x, te.y, t.raid_x, t.raid_y) <= 1 { there = true; }
       }
       if there {
         state = 3;
@@ -2330,10 +2412,10 @@ fn tribes_due(l: Level) {
     if state == 3 {
       home = true;
       // Each one home once it has reached its home (its goal cleared there; it may roam after).
-      for e in l.enemies { if e.kind == t.kind && e.goal_set { home = false; } }
+      for te in l.enemies { if te.kind == t.kind && te.goal_set { home = false; } }
       if home {
         kept: vector<Enemy> = [];
-        for e in l.enemies { if e.kind != t.kind { kept += [e]; } }
+        for ke in l.enemies { if ke.kind != t.kind { kept += [ke]; } }
         l.enemies = kept;
         state = 4;
       }
@@ -2605,9 +2687,9 @@ fn mine_work(l: Level, thing: integer, tx: integer, ty: integer, z: integer, dx:
     _ = tile_world::take(l.w, tx, ty, z);
     tile_world::place(l.w, tx, ty, z, beam);
     placed = false;
-    for o in [(dy, -dx), (-dy, dx)] {
-      if !placed && free_floor(l, tx + o.0, ty + o.1, z) {
-        tile_world::place(l.w, tx + o.0, ty + o.1, z, beam);
+    for side in [(dy, -dx), (-dy, dx)] {
+      if !placed && free_floor(l, tx + side.0, ty + side.1, z) {
+        tile_world::place(l.w, tx + side.0, ty + side.1, z, beam);
         placed = true;
       }
     }
@@ -2967,9 +3049,9 @@ fn drifts_due(l: Level) {
     for c in dr.cells { beams += [tile_world::take(l.w, c.0, c.1, dr.z)]; }
     moved: vector<(integer, integer)> = [];
     for k in 0..len(dr.cells) {
-      c = dr.cells[k] ?? (0, 0);
-      tile_world::place(l.w, c.0 + dr.dx, c.1 + dr.dy, dr.z, beams[k] ?? 0);
-      moved += [(c.0 + dr.dx, c.1 + dr.dy)];
+      cell = dr.cells[k] ?? (0, 0);
+      tile_world::place(l.w, cell.0 + dr.dx, cell.1 + dr.dy, dr.z, beams[k] ?? 0);
+      moved += [(cell.0 + dr.dx, cell.1 + dr.dy)];
     }
     if rider {
       l.hero_x += dr.dx;
@@ -3113,7 +3195,7 @@ fn next_due(l: const Level) -> integer {
   for r in l.rolls { if r.due > l.now && (t < 0 || r.due < t) { t = r.due; } }
   for b in l.bombs { if b.due > l.now && (t < 0 || b.due < t) { t = b.due; } }
   for f in l.fuses { if f.at > l.now && (t < 0 || f.at < t) { t = f.at; } }
-  for s in l.shots { if !s.done && s.due > l.now && (t < 0 || s.due < t) { t = s.due; } }
+  for each_s in l.shots { if !each_s.done && each_s.due > l.now && (t < 0 || each_s.due < t) { t = each_s.due; } }
   for e in l.enemies { if e.due > l.now && (t < 0 || e.due < t) { t = e.due; } }
   for f in l.flames { if f.until > l.now && (t < 0 || f.until < t) { t = f.until; } }
   if l.hero_until > l.now && (t < 0 || l.hero_until < t) { t = l.hero_until; }
@@ -3872,7 +3954,8 @@ fn pull_step(l: Level, dx: integer, dy: integer) -> Step {
 // --- Playing ---
 
 /// Play a line of moves: `w` `a` `s` `d` walk north, west, south and east; `pw` `pa` `ps` `pd`
-/// pull; `x` puts down what the hero holds; `f` uses it (shoots a bow, throws a bomb, swings a
+/// pull; `q` takes a small item or puts the held one down (`take`); `x` puts down what the hero
+/// holds; `f` uses it (shoots a bow, throws a bomb, swings a
 /// weapon); `~N` lets N ms of the world clock pass.  Moves are separated by spaces; anything else
 /// is skipped.  Answers how many moves were not Blocked.
 pub fn play(l: Level, moves: text) -> integer {
@@ -3881,6 +3964,10 @@ pub fn play(l: Level, moves: text) -> integer {
     t = m.trim();
     if t == "x" {
       if drop(l) != Step.Blocked { done += 1; }
+      continue;
+    }
+    if t == "q" {
+      if take(l) != Step.Blocked { done += 1; }
       continue;
     }
     // `~N`: N ms of the world clock pass (rolling, burning, enemies acting).
@@ -4038,7 +4125,7 @@ fn shove_aside(l: const Level, x: integer, y: integer, z: integer, dx: integer, 
 fn roll_step(l: Level, ri: integer) {
   // The train's facts as plain values first: link and stop change l.rolls.
   cells: vector<(integer, integer, integer)> = [];
-  for c in l.rolls[ri].cells ?? [] { cc = c; cells += [cc]; }
+  for each_c in l.rolls[ri].cells ?? [] { cc = each_c; cells += [cc]; }
   dx = l.rolls[ri].dx ?? 0;
   dy = l.rolls[ri].dy ?? 0;
   speed = l.rolls[ri].speed ?? 0;
@@ -4708,6 +4795,7 @@ fn explode(l: Level, x: integer, y: integer, z: integer, water: boolean, at: int
       l.enemies[i].scared_until = at + l.k.scare_ms;
       l.enemies[i].scare_x = x;
       l.enemies[i].scare_y = y;
+      if (l.enemies[i].tpl ?? -1) >= 0 { end_template(l, i); }
     }
   }
   // A full dyke round the bomb directs it (owner): out of its open side only, further and harder;
@@ -5016,8 +5104,8 @@ pub fn order_enemies(l: Level) {
   n = len(l.enemies);
   ids: vector<integer> = [];
   taken: vector<boolean> = [];
-  for e in l.enemies {
-    ids += [e.id];
+  for each_e in l.enemies {
+    ids += [each_e.id];
     taken += [false];
   }
   // The ids, smallest first: the k-th enemy in order takes the k-th.
@@ -5704,7 +5792,291 @@ fn guard_act(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 }
 
 // Enemy i acts: once, at its due time.
+// --- Templates (TEMPLATES.md; DESIGN.md @GM-Combat, *Enemies by templates*) ---
+//
+// A template is a fixed sequence of steps, each taking its own time, chosen when its conditions
+// hold (here: the hero in sight on its layer, `apart_min` .. `apart_max` steps away) and not again
+// for its `rest_ms` after.  Begun, it runs to its end unless a blow (no poise) or a blast's scare
+// breaks it.  The steps:
+// - `cry`: heard (`cries`), no time;
+// - `side` / `back`: a step across the line to the hero, one way, then back the other, `ms` each;
+// - `aim`: the hero's cell now is what the blow will land on, no time;
+// - `dive`: steps towards the aimed cell, `ms` each, until beside it or `n` taken;
+// - `crouch`: drawn back (a wind-up, seen and heard), aimed at the hero's cell, for `ms`;
+// - `leap`: into the cell beside the aimed one, `ms`;
+// - `nip` / `bite`: the blow, `n` damage, landing only if the hero is still on the aimed cell
+//   (dodged otherwise) — parried or blocked as a wound-up blow is; then `ms` to recover;
+// - `away`: steps away from the hero, `ms` each, `n` of them;
+// - `wait`: `ms`.
+
+/// How many templates the kinds have (TEMPLATES.md).
+pub fn template_count(l: const Level) -> integer {
+  len(l.k.templates)
+}
+
+fn template_of(l: const Level, name: text) -> integer {
+  for t in 0..len(l.k.templates) {
+    if (l.k.templates[t].name ?? "") == name { return t; }
+  }
+  -1
+}
+
+// Enemy i chooses a template whose conditions hold, seeded by its id and how many it has chosen,
+// and begins it.  Answers whether it did.
+fn choose_template(l: Level, i: integer, e: const Enemy, p: const EnemyProps) -> boolean {
+  if e.z != l.hero_z || !alive(l) { return false; }
+  apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  allowed: vector<integer> = [];
+  for name in p.templates.split(' ') {
+    t = template_of(l, name.trim());
+    if t < 0 { continue; }
+    tp = l.k.templates[t] ?? continue;
+    if apart < tp.apart_min || apart > tp.apart_max { continue; }
+    if t == e.tpl_last && e.due < e.tpl_rest { continue; }
+    allowed += [t];
+  }
+  if len(allowed) == 0 { return false; }
+  pick = allowed[mix(e.id * 7919 + e.tpl_count * 104729) % len(allowed) ?? 0] ?? -1;
+  l.enemies[i].tpl = pick;
+  l.enemies[i].tpl_step = 0;
+  l.enemies[i].tpl_n = 0;
+  l.enemies[i].tpl_count = e.tpl_count + 1;
+  l.enemies[i].tpl_side = if mix(e.id * 31 + e.tpl_count * 7) % 2 == 0 { 1 } else { -1 };
+  before = e.due;
+  run_template(l, i);
+  // A template that ended at once, taking no time: the enemy waits a step of its own.
+  if (l.enemies[i].tpl ?? -1) < 0 && (l.enemies[i].due ?? 0) == before { l.enemies[i].due = before + p.chase_ms; }
+  true
+}
+
+// Enemy i, with no template to choose, keeps its distance for one: nearer than any of its
+// templates wants, it steps away; further than all, it comes on; else it waits a step.  Answers
+// whether it acted.
+fn hold_off(l: Level, i: integer, e: const Enemy, p: const EnemyProps) -> boolean {
+  if e.z != l.hero_z { return false; }
+  near = 99;
+  far = 0;
+  for name in p.templates.split(' ') {
+    t = template_of(l, name.trim());
+    if t < 0 { continue; }
+    tp = l.k.templates[t] ?? continue;
+    if tp.apart_min < near { near = tp.apart_min; }
+    if tp.apart_max > far { far = tp.apart_max; }
+  }
+  if far == 0 { return false; }
+  apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  if apart < near {
+    d = step_away(l, e, p);
+    if d.0 != 0 || d.1 != 0 {
+      enemy_step(l, i, d.0, d.1, p.chase_ms);
+      return true;
+    }
+    return false;
+  }
+  if apart > far { return false; }
+  l.enemies[i].face_x = sign_of(l.hero_x - e.x);
+  l.enemies[i].face_y = if l.hero_x != e.x { 0 } else { sign_of(l.hero_y - e.y) };
+  l.enemies[i].due = e.due + p.chase_ms;
+  true
+}
+
+fn sign_of(n: integer) -> integer {
+  if n > 0 { 1 } else if n < 0 { -1 } else { 0 }
+}
+
+// A step that takes enemy e further from the hero (straight away first), or (0, 0).
+fn step_away(l: const Level, e: const Enemy, p: const EnemyProps) -> (integer, integer) {
+  here = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  ax = sign_of(e.x - l.hero_x);
+  ay = sign_of(e.y - l.hero_y);
+  for d in [(ax, 0), (0, ay), (0, if ay == 0 { 1 } else { 0 }), (0, if ay == 0 { -1 } else { 0 }),
+            (if ax == 0 { 1 } else { 0 }, 0), (if ax == 0 { -1 } else { 0 }, 0)] {
+    if d.0 == 0 && d.1 == 0 { continue; }
+    if enemy_can(l, p, e.x, e.y, e.z, d.0, d.1) && steps_apart(e.x + d.0, e.y + d.1, l.hero_x, l.hero_y) > here { return d; }
+  }
+  (0, 0)
+}
+
+// Enemy i's template is over: it rests before it is chosen again.
+fn end_template(l: Level, i: integer) {
+  e = l.enemies[i] ?? return;
+  if e.tpl < 0 { return; }
+  rest = (l.k.templates[e.tpl].rest_ms ?? 0);
+  l.enemies[i].tpl_last = e.tpl;
+  l.enemies[i].tpl_rest = e.due + rest;
+  l.enemies[i].tpl = -1;
+  l.enemies[i].tpl_step = 0;
+  l.enemies[i].tpl_n = 0;
+  l.enemies[i].wind_until = 0;
+}
+
+// The next step of enemy i's template.
+fn next_step(l: Level, i: integer) {
+  l.enemies[i].tpl_step = (l.enemies[i].tpl_step ?? 0) + 1;
+  l.enemies[i].tpl_n = 0;
+}
+
+// Run enemy i's template from the step it is at: steps that take no time follow at once, a step
+// that takes time sets when it acts next.  It ends past its last step, or when the hero is gone
+// from its layer.
+fn run_template(l: Level, i: integer) {
+  guard = 0;
+  while guard < 32 {
+    guard += 1;
+    e = l.enemies[i] ?? return;
+    if e.tpl < 0 { return; }
+    tp = l.k.templates[e.tpl] ?? Template { name: "", aggressive: false, apart_min: 0, apart_max: 0, rest_ms: 0, steps: [] };
+    if e.tpl_step >= len(tp.steps) || e.z != l.hero_z {
+      end_template(l, i);
+      return;
+    }
+    s = tp.steps[e.tpl_step] ?? TStep { act: "", ms: 0, n: 0 };
+    p = enemy_props(l, e.kind);
+    if template_step(l, i, e, p, s) { return; }
+  }
+}
+
+// One step of a template: answers whether it took time (the enemy acts again when it is over).
+fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: const TStep) -> boolean {
+  // The line to the hero: its main way, and across it.
+  lx = l.hero_x - e.x;
+  ly = l.hero_y - e.y;
+  mx = if (if lx < 0 { -lx } else { lx }) >= (if ly < 0 { -ly } else { ly }) { sign_of(lx) } else { 0 };
+  my = if mx == 0 { sign_of(ly) } else { 0 };
+  if s.act == "cry" {
+    l.cries += 1;
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "aim" {
+    l.enemies[i].aim_x = l.hero_x;
+    l.enemies[i].aim_y = l.hero_y;
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "side" || s.act == "back" {
+    side = if s.act == "side" { e.tpl_side } else { -e.tpl_side };
+    dx = -my * side;
+    dy = mx * side;
+    next_step(l, i);
+    if enemy_can(l, p, e.x, e.y, e.z, dx, dy) {
+      enemy_step(l, i, dx, dy, s.ms);
+      return true;
+    }
+    // Blocked that side: the other, and the way back is then the other way too.
+    if s.act == "side" && enemy_can(l, p, e.x, e.y, e.z, -dx, -dy) {
+      l.enemies[i].tpl_side = -side;
+      enemy_step(l, i, -dx, -dy, s.ms);
+      return true;
+    }
+    return false;
+  }
+  if s.act == "dive" {
+    if steps_apart(e.x, e.y, e.aim_x, e.aim_y) <= 1 || e.tpl_n >= s.n {
+      next_step(l, i);
+      return false;
+    }
+    w = enemy_way(l, p, e.x, e.y, e.z, e.aim_x, e.aim_y, false, no_shades());
+    if w.2 > 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) {
+      l.enemies[i].tpl_n = e.tpl_n + 1;
+      enemy_step(l, i, w.0, w.1, s.ms);
+      return true;
+    }
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "crouch" {
+    l.enemies[i].aim_x = l.hero_x;
+    l.enemies[i].aim_y = l.hero_y;
+    l.enemies[i].face_x = mx;
+    l.enemies[i].face_y = my;
+    l.enemies[i].wind_until = e.due + s.ms;
+    l.enemies[i].due = e.due + s.ms;
+    l.winds += 1;
+    next_step(l, i);
+    return true;
+  }
+  if s.act == "leap" {
+    l.enemies[i].wind_until = 0;
+    next_step(l, i);
+    if steps_apart(e.x, e.y, e.aim_x, e.aim_y) <= 1 { return false; }
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      if steps_apart(e.x + d.0, e.y + d.1, e.aim_x, e.aim_y) == 1 && enemy_can(l, p, e.x, e.y, e.z, d.0, d.1) {
+        enemy_step(l, i, d.0, d.1, s.ms);
+        return true;
+      }
+    }
+    // Nowhere to land: the template is given up.
+    end_template(l, i);
+    return false;
+  }
+  if s.act == "nip" || s.act == "bite" {
+    l.enemies[i].wind_until = 0;
+    l.enemies[i].face_x = sign_of(e.aim_x - e.x);
+    l.enemies[i].face_y = if e.aim_x != e.x { 0 } else { sign_of(e.aim_y - e.y) };
+    next_step(l, i);
+    on_aim = l.hero_x == e.aim_x && l.hero_y == e.aim_y && l.hero_z == e.z;
+    if on_aim && beside_hero(l, l.enemies[i] ?? e) {
+      template_blow(l, i, p, s.n, e.due);
+    } else {
+      l.misses += 1;
+    }
+    l.enemies[i].due = e.due + s.ms;
+    return true;
+  }
+  if s.act == "away" {
+    if e.tpl_n >= s.n {
+      next_step(l, i);
+      return false;
+    }
+    d = step_away(l, e, p);
+    if d.0 == 0 && d.1 == 0 {
+      next_step(l, i);
+      return false;
+    }
+    l.enemies[i].tpl_n = e.tpl_n + 1;
+    enemy_step(l, i, d.0, d.1, s.ms);
+    return true;
+  }
+  if s.act == "wait" {
+    next_step(l, i);
+    l.enemies[i].due = e.due + s.ms;
+    return true;
+  }
+  // An unknown step is skipped.
+  next_step(l, i);
+  false
+}
+
+// A template's blow of `damage` on the hero, landing at `at` (@GM-Combat): facing the enemy, the
+// hero who pressed parry within the last PARRY_MS turns it aside (the enemy open); blocking, it
+// takes half (a point of a 1 every other time); else all of it.
+fn template_blow(l: Level, i: integer, p: const EnemyProps, damage: integer, at: integer) {
+  e = l.enemies[i] ?? return;
+  l.enemies[i].face_x = sign_of(l.hero_x - e.x);
+  l.enemies[i].face_y = sign_of(l.hero_y - e.y);
+  if !p.sweep && faces(l, e) && l.parry_at >= at - PARRY_MS && l.parry_at <= at {
+    l.parries += 1;
+    l.enemies[i].open_until = at + p.bite_ms;
+    return;
+  }
+  if l.blocking && faces(l, e) {
+    l.blocks += 1;
+    total = damage + l.block_carry;
+    l.block_carry = total % 2 ?? 0;
+    harm(l, total / 2 ?? 0);
+    return;
+  }
+  harm(l, damage);
+}
+
 fn enemy_act(l: Level, i: integer) {
+  // A template begun runs on (TEMPLATES.md); ended without taking time, the enemy acts as below.
+  if (l.enemies[i].tpl ?? -1) >= 0 {
+    before = l.enemies[i].due ?? 0;
+    run_template(l, i);
+    if (l.enemies[i].tpl ?? -1) >= 0 || (l.enemies[i].due ?? 0) != before { return; }
+  }
   e = l.enemies[i] ?? no_enemy();
   p = enemy_props(l, e.kind);
   // A wound-up blow lands at its moment, whatever else it would do (a hurt rat still strikes).
@@ -5899,6 +6271,12 @@ fn enemy_act(l: Level, i: integer) {
       }
     }
   }
+  // An enemy with templates (TEMPLATES.md) chooses one whose conditions hold; with none to choose
+  // it keeps its distance for one (`hold_off`) — beside the hero, it bites as built.
+  if seen && p.templates != "" && !beside_hero(l, e) {
+    if choose_template(l, i, e, p) { return; }
+    if hold_off(l, i, e, p) { return; }
+  }
   if seen {
     if beside_hero(l, e) {
       // With no weapon in hand (nothing, or bombs) a cyclops grabs the hero, to pull it home.
@@ -6064,6 +6442,8 @@ pub fn strike_enemy(l: Level, i: integer, damage: integer) {
   }
   l.enemies[i].hp = hp;
   l.enemies[i].heal_due = 0;
+  // A blow breaks a template begun (TEMPLATES.md), unless the enemy has poise.
+  if (l.enemies[i].tpl ?? -1) >= 0 && !enemy_props(l, l.enemies[i].kind ?? "").poise { end_template(l, i); }
 }
 
 // What a blow by the hero costs an enemy: its weapon's damage, else 1.

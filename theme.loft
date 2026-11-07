@@ -252,10 +252,10 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
 // does not load again.
 fn add_slants(th: Theme, v: const JsonValue, k: const rules::Kinds) -> boolean {
   want: vector<integer> = [];
-  for look in th.terrain {
-    if !look.upright { continue; }
-    for s in [look.tile, look.upper] { if s >= 0 && !want.contains(s) { want += [s]; } }
-    for s in look.variants { if s >= 0 && !want.contains(s) { want += [s]; } }
+  for each_look in th.terrain {
+    if !each_look.upright { continue; }
+    for each_s in [each_look.tile, each_look.upper] { if each_s >= 0 && !want.contains(each_s) { want += [each_s]; } }
+    for loop_s in each_look.variants { if loop_s >= 0 && !want.contains(loop_s) { want += [loop_s]; } }
   }
   mats = v.field("materials");
   sets = v.field("autotiles");
@@ -276,7 +276,7 @@ fn add_slants(th: Theme, v: const JsonValue, k: const rules::Kinds) -> boolean {
   ts = th.tile_size;
   for sh in th.sheets {
     mine: vector<integer> = [];
-    for s in want { if s / 4096 == sh.handle { mine += [s]; } }
+    for ws in want { if ws / 4096 == sh.handle { mine += [ws]; } }
     if len(mine) == 0 { continue; }
     img = file(sh.path).png() ?? return false;
     cols = img.width / ts ?? 0;
@@ -438,7 +438,7 @@ pub fn blast_sprite(th: const Theme, elapsed: integer, length: integer) -> integ
 pub fn holding_sprite(th: const Theme, holder: integer, held: integer, now: integer, low: boolean) -> integer {
   look = th.things[holder];
   if !look || held == 0 { return -1; }
-  for h in look.holding {
+  for h in look.holding? {
     if h.thing == held { return pick(h.look, now, low); }
   }
   -1

@@ -297,7 +297,9 @@ keeping to himself, with few social skills.  He can tell the hero where bombs li
 and teach him blasting (owner, 2026-11-05): that a small dyke of stones pushed up to a bomb
 directs its explosion one way, instead of the general push to all sides.  Not a skill the hero gains: a rule of the
 world anyone can find, but not obvious to gamers; Wick is where it can be learnt by being told
-(owner, 2026-11-05; DESIGN.md § Bombs, @ST-Hints).
+(owner, 2026-11-05; DESIGN.md § Bombs, @ST-Hints).  **His plan should back-fire spectacularly,
+and that is a good thing** (owner, 2026-11-07): not by a special rule or a script, but just by how
+the rules already interact (owner).
 
 <a id="st-innkeeper"></a>**The innkeeper: Agnes** (owner, 2026-11-04): has seen too many leave, and is for abandoning the
 town (@ST-Debate).  The inn itself is abandoned; she lives in a house nearby that was easier to
@@ -544,6 +546,16 @@ the cost of a choice is known when it is made; none proposes story content.
   across places, saves (WORLD.md steps 2 and 5).
 - **Outcomes are state.**  Endings that differ by what the player did need that state saved and
   read (facts, as above); endings by place reached need nothing new.
+- **Wick's plan backfires by the rules, with no script** (DESIGN.md @GM-Combat, *Enemies by
+  templates*; TEMPLATES.md § The area's unease, proposed): a blast raises its area two steps and its
+  neighbours one, at once, and draws the Kharn to it.  So blowing up the mine with the Kharn in it
+  alarms every hall it is heard in, and brings the tribe out on guard instead of burying it.  How
+  spectacular, and what it sets going (the raid on the village coming early, @ST-Climax?), is the
+  story's to say, within the owner's rule: nothing is added for it — what follows is what the
+  general rules do with a big blast.  The engine side needs only what is general: the unease
+  spreading across places, and a tribe that acts on its area's step (BUILD.md C4, still open: a
+  tribe across places).  A test can hold it: Wick's blast, played, ends with the Kharn alarmed and
+  out, from the rules alone.
 - **The climax is a world event.**  The cyclopes invading, and retreating from a well-defended
   village, asks for: an event that comes at a moment or on a condition; a measure of "well
   defended" read at that moment — known now (§ 4): capable people gathered behind a built

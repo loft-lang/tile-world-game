@@ -1,0 +1,105 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Templates (TEMPLATES.md; DESIGN.md @GM-Combat, *Enemies by templates*; owner, 2026-11-07): an
+// enemy fights by a set of specific actions, each with its own timing, chosen when its conditions
+// hold.  Every time here is by hand.
+use tile_world;
+use rules;
+
+// A lit room, w x h, walled round: the hero sees and is seen.
+fn room(w: integer, h: integer) -> rules::Level {
+  l = rules::level(rules::kinds());
+  tile_world::fill(l.w, -1, -1, w, h, 0, rules::tr(l, "wall"));
+  tile_world::fill(l.w, 0, 0, w - 1, h - 1, 0, rules::tr(l, "floor"));
+  l
+}
+
+fn until(w: rules::Level, at: integer) {
+  rules::tick(w, at - w.now);
+}
+
+fn at(w: const rules::Level) -> text {
+  e = w.enemies[0];
+  if !e { return "none"; }
+  "{e.x},{e.y}"
+}
+
+fn main() {
+  w = room(12, 5);
+  assert(rules::template_count(w) > 0, "the kinds have templates");
+}
+
+// The bat's swoop: the hero still on (2, 2) with a torch, the bat's nest on (5, 3), 4 steps off — in
+// sight.  At 300 it chooses the swoop: a chirp, a zig across the line (5, 4) and a zag back (5, 3)
+// at 120 ms each; at 540 it aims at the hero's cell and dives at 100 ms a cell — (5, 2) at 540,
+// (4, 2), (3, 2) beside it at 740 — nips for 1 at 840, then flies 3 cells away, 120 ms each from
+// 940; the swoop is over at 1300.
+fn test_a_bat_swoops() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  _ = rules::add_enemy(w, "bat", 5, 3, 0);
+  until(w, 299);
+  assert(w.cries == 0 && at(w) == "5,3", "299: not yet");
+  until(w, 300);
+  assert(w.cries == 1 && at(w) == "5,4", "300: a chirp, the zig: {at(w)}");
+  until(w, 420);
+  assert(at(w) == "5,3", "420: the zag: {at(w)}");
+  until(w, 540);
+  assert(at(w) == "5,2" && w.enemies[0]!.aim_x == 2 && w.enemies[0]!.aim_y == 2, "540: aimed at (2, 2), diving: {at(w)}");
+  until(w, 740);
+  assert(at(w) == "3,2" && w.health == 6, "740: beside, not yet bitten: {at(w)}");
+  until(w, 840);
+  assert(w.health == 5, "840: nipped for 1: {w.health}");
+  until(w, 1180);
+  assert(at(w) == "6,2", "940, 1060, 1180: three cells away: {at(w)}");
+  until(w, 1300);
+  assert(w.enemies[0]!.tpl < 0, "1300: the swoop over");
+}
+
+// A swoop lands on the cell it aimed at: the hero stepping off it during the dive is missed.
+fn test_a_swoop_is_dodged() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  _ = rules::add_enemy(w, "bat", 5, 3, 0);
+  until(w, 640);
+  assert(rules::walk(w, 0, 1) == rules::Step.Walked, "640: a step aside, off (2, 2)");
+  until(w, 900);
+  assert(w.health == 6 && w.misses == 1, "the nip meets nothing: {w.health}, {w.misses} missed");
+}
+
+// The swoop rests 2000 ms from its end: the bat keeps its distance meanwhile — never closer than the
+// swoop's 3 — and swoops again after.
+fn test_a_swoop_rests() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  _ = rules::add_enemy(w, "bat", 5, 3, 0);
+  until(w, 1200);
+  near = 99;
+  while w.now < 3200 {
+    rules::tick(w, 10);
+    e = w.enemies[0]!;
+    d = (if e.x > 2 { e.x - 2 } else { 2 - e.x }) + (if e.y > 2 { e.y - 2 } else { 2 - e.y });
+    if d < near { near = d; }
+  }
+  assert(near >= 3 && w.cries == 1, "resting, it keeps 3 or more away: {near}, {w.cries} chirps");
+  until(w, 4500);
+  assert(w.cries == 2, "after its rest it swoops again: {w.cries}");
+}
+
+// A blow breaks a template (no poise): the bat, struck down by a torch as it comes in.
+fn test_a_blow_ends_the_swoop() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "burning_torch");
+  _ = rules::add_enemy(w, "bat", 5, 3, 0);
+  until(w, 740);
+  w.face_x = 1;
+  w.face_y = 0;
+  assert(rules::swing(w) == rules::Step.Attacked && len(w.enemies) == 0, "struck as it comes in: gone");
+  until(w, 1000);
+  assert(w.health == 6, "no nip: {w.health}");
+}

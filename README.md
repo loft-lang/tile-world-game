@@ -21,21 +21,23 @@ on its floor.  A world is the places reached from a start place through doors: `
 starts another one (order.json's `start` is the default), and `TW_LEVEL=<n>` plays one level of
 `order.json` on its own, as before.
 
-WASD move, and the right hand acts: J swings (held, a heavy swing; a bow shoots, a bomb is thrown),
-K alone guards (pressed, a parry; held, a block) and held while moving pulls, L puts down what the
-hero holds, I aims.  Moving with the arrows instead, the left hand has the same on Space, Shift, X
-and T.
+WASD (or the arrows) walk.  Q takes a small item — walking over one no longer does — or puts the
+held one down, and held while walking pulls.  E uses what the hero holds: a swing (held, a heavy
+swing), a bow shoots, a bomb is thrown, a potion drunk.  Tab aims.  Shift guards for now (pressed, a
+parry; held, a block), until the clash replaces it (DESIGN.md @GM-Combat).
 In a browser (`./play-web.sh`), F1 switches to the first-person view and back (RENDER_3D.md § The
-first-person view): forward and back walk the way the hero looks, left and right turn.
+first-person view): forward and back walk the way the hero looks, left and right turn.  F3 roams
+free (an experiment): the hero moves smoothly, diagonals too, and stands between tiles.
+Bats swoop (TEMPLATES.md): a chirp, a zigzag, a dive and a nip on the cell they aimed at, then away.
 The hearts at the bottom right are the hero's health: a fall of a layer or more costs some.
 Walking into a well or a fountain saves the situation and writes the game to `saves/`: starting
 the game again carries on from there (`TW_NEW=1` starts afresh).  Losing all health brings the
 hero back there, and B (twice, to confirm) goes back by choice.  R restarts the place as it
 was when the hero came in (a level on its own: from its start; N or Enter then goes to the next
-one when it is solved), Esc or Q quits.  Walking out through the gap in the village's east edge
+one when it is solved), Esc quits.  Walking out through the gap in the village's east edge
 ends the game: stills of what follows, chosen by what the hero did (`levels/epilogue.json`).
 
-**E opens the editor** (EDITOR.md § 4) on the level being played:
+**F2 opens the editor** (EDITOR.md § 4) on the level being played, and closes it again:
 
 | Key | Does |
 |---|---|
@@ -55,7 +57,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | Ctrl+Z / Ctrl+Y | undo / redo |
 | Ctrl+S | save the level to its file in `levels/` |
 | Ctrl+O | open the next level of `levels/order.json` (by name once `input` reads typed text) |
-| P or E | play-test: the level as edited, from the start, on a copy; E comes back to the editor |
+| P or F2 | play-test: the level as edited, from the start, on a copy; F2 comes back to the editor |
 
 | File | What it is |
 |---|---|
@@ -77,6 +79,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `STORY.md` | the story game, designed before it is built: the owner's story, people, monsters and endings, what the engine offers them, and engine notes kept apart |
 | `BUILD.md` | building the story game in small safe steps: tools, mechanics (each in a room of the test world first), the world's systems, then the places |
 | `LOCATIONS.md` | each place of the story game: what makes it unique, what is found and learned there, what to look out for; the owner's placements and the proposals (◇) kept apart |
+| `TEMPLATES.md` | how each enemy, creature and person acts: its templates (fight, walk, talk, work), their conditions and timings — designed, the owner rules each set |
 | `TALKS.md` | what the game's people talk about: what each knows, wants and gets wrong, what the village argues over, what play changes — a writer's sheet from STORY.md |
 | `tools/fill.loft`, `tools/map.loft`, `tools/stable.loft` | the drawing kit's tools: `loft --lib libs tools/fill.loft PLACE` fills a place in from its intent (ground, trails, blobs, domes, rooms, corridors, houses, slopes, items: intent.loft) and saves it; `tools/map.loft PLACE OUT.png [SCALE]` pictures the whole place, every layer in full light; `tools/stable.loft PLACE` lists the cells that would not hold (under a ceiling, no wall beside them) |
 | `tools/tags.loft` | the story's parts (`@ST-Decree`, STORY.md) and the gameplay mechanics wanted (`@GM-CartLift`, DESIGN.md) as tags, like loft's formal rules: `list`, `check` (the index, the paragraphs and every citation in step; exit 1 when not), `sites <tag>`; a place file names what it serves in its `serves` list |

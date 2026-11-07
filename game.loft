@@ -219,6 +219,19 @@ pub struct Game {
   /// When the swing key went down (-1: it is up): let go after HEAVY_HOLD_MS it is a heavy swing,
   /// sooner a light one (@GM-Combat).
   swing_down_at: integer = -1,
+  /// Q held (DESIGN.md @GM-Combat, *The keys*): let go with no step taken it takes or puts down;
+  /// a step taken while it is held is a pull.
+  take_down: boolean = false,
+  take_stepped: boolean = false,
+  /// Free roaming (F3, owner 2026-11-07, an experiment): the hero moves continuously with the keys
+  /// held, diagonals too, and stands between tiles; its body's offset from its cell, in 1/256 of a
+  /// cell.  The rules still see it on its cell: crossing half a cell takes the step there.  The
+  /// way (1 or -1) a step was refused, not tried again while that key stays held.
+  pub free: boolean = false,
+  pub free_x: integer = 0,
+  pub free_y: integer = 0,
+  free_stop_x: integer = 0,
+  free_stop_y: integer = 0,
   /// The talks that went with their people to other places (C3).
   pub moved_talks: vector<MovedTalk> = [],
   /// The world's people and their points (C3).
@@ -260,9 +273,11 @@ fn sound_events() -> vector<text> {
    "pickup:1", "drop:1", "door_open:1", "chop:1", "chest_open:1", "signpost:1", "fall:2", "game_over:1", "save:1", "restore:1", "point:1", "hit_hero:2", "sword:2", "block:1", "parry:1", "riposte:1", "explosion:3", "bomb_roll:2", "coins:2", "spotted:1", "grab:1"]
 }
 
-// The play keys by hand (owner): WASD is the left hand, so its actions are the right hand's home
-// row — J swing, K guard and pull, L put down, I aim; with the arrows under the right hand the
-// left keeps Space, Shift, X and T.  The editor's keys are read only while editing.
+// The play keys (owner, 2026-11-07; DESIGN.md @GM-Combat, *The keys*): WASD walk (the arrows too);
+// Q takes a small item or puts the held one down, and held while stepping pulls; E uses (swings,
+// shoots, throws, drinks); Tab aims; Esc quits; F1 the first-person view (render3d.loft), F2 the
+// editor, F3 free roaming.  Shift is the built guard (held: block, pressed: parry) until the clash
+// replaces it (BUILD.md B1c step 4).  The editor's keys are read only while editing.
 fn bindings() -> input::Bindings {
   b = input::Bindings {
     bnd_actions: [
@@ -270,16 +285,17 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "down", ab_keys: [115, 129] },
       input::ActionBinding { ab_name: "left", ab_keys: [97, 130] },
       input::ActionBinding { ab_name: "right", ab_keys: [100, 131] },
-      input::ActionBinding { ab_name: "pull", ab_keys: [132, 112, 107] },
-      input::ActionBinding { ab_name: "drop", ab_keys: [120, 108] },
-      input::ActionBinding { ab_name: "swing", ab_keys: [32, 106] },
-      input::ActionBinding { ab_name: "aim", ab_keys: [116, 105] },
+      input::ActionBinding { ab_name: "take", ab_keys: [113] },
+      input::ActionBinding { ab_name: "guard", ab_keys: [132] },
+      input::ActionBinding { ab_name: "swing", ab_keys: [101] },
+      input::ActionBinding { ab_name: "aim", ab_keys: [9] },
       input::ActionBinding { ab_name: "back", ab_keys: [98] },
       input::ActionBinding { ab_name: "restart", ab_keys: [114] },
       input::ActionBinding { ab_name: "next", ab_keys: [110, 13] },
-      input::ActionBinding { ab_name: "quit", ab_keys: [27, 113] },
+      input::ActionBinding { ab_name: "quit", ab_keys: [27] },
       input::ActionBinding { ab_name: "zoom", ab_keys: [109] },
-      input::ActionBinding { ab_name: "edit", ab_keys: [101] },
+      input::ActionBinding { ab_name: "edit", ab_keys: [136] },
+      input::ActionBinding { ab_name: "free", ab_keys: [137] },
       input::ActionBinding { ab_name: "layer_up", ab_keys: [151] },
       input::ActionBinding { ab_name: "layer_down", ab_keys: [152] },
       input::ActionBinding { ab_name: "palette", ab_keys: [9] },
@@ -768,7 +784,7 @@ fn door_to(g: const Game, place: text) -> integer {
 fn move_people(g: Game, entering: boolean) {
   if entering {
     kept: vector<rules::Enemy> = [];
-    for e in g.world.enemies { if e.person == "" || e.led { kept += [e]; } }
+    for each_e in g.world.enemies { if each_e.person == "" || each_e.led { kept += [each_e]; } }
     g.world.enemies = kept;
   }
   for p in g.people {
@@ -1683,6 +1699,7 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   hx = g.world.hero_x;
   hy = g.world.hero_y;
   winds = g.world.winds;
+  cries = g.world.cries;
   parries = g.world.parries;
   misses = g.world.misses;
   blocks = g.world.blocks;
@@ -1694,6 +1711,8 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
   // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
   // is a swish.  While any enemy winds up, the picture moves.
   if g.world.winds != winds { sound(g, "grab", 0.35); }
+  // A template's cry (TEMPLATES.md): a bat's chirp as it begins its swoop.
+  if g.world.cries != cries { sound(g, "point", 0.5); }
   if g.world.misses != misses { sound(g, "bump", 0.4); }
   // A parry (@GM-Combat): a bright ring and a big spark where the weapons meet; the enemy's blow
   // turned aside flings it back twice as hard as a hit, and it is left open (drawn so).
@@ -1821,33 +1840,140 @@ pub fn update(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.swing_down_at >= 0 { changed = true; }
-  // Block and parry (@GM-Combat): the guard key (K or Shift, the pull key) with no way pressed —
-  // held, a block; the moment it goes down, a parry.
+  // Block and parry (@GM-Combat, as built): the guard key (Shift) with no way pressed — held, a
+  // block; the moment it goes down, a parry.  The clash replaces both (BUILD.md B1c step 4).
   still = !g.keys.is_action_pressed("left") && !g.keys.is_action_pressed("right")
           && !g.keys.is_action_pressed("up") && !g.keys.is_action_pressed("down");
   guarding = g.world.blocking;
-  g.world.blocking = still && g.keys.is_action_pressed("pull");
+  g.world.blocking = still && g.keys.is_action_pressed("guard");
   if g.world.blocking != guarding { changed = true; }
-  if !g.won && still && g.keys.is_action_just_pressed("pull") {
+  if !g.won && still && g.keys.is_action_just_pressed("guard") {
     rules::parry(g.world);
     motion::flick(g.motion, g.world.now);
     changed = true;
   }
-  if !g.won && g.keys.is_action_just_pressed("drop") {
-    if rules::drop(g.world) == rules::Step.Placed {
-      g.moves += 1;
-      sound(g, "drop");
-    }
+  // Q (owner, 2026-11-07): down, it waits; let go with no step taken while it was held, it takes a
+  // small item or puts the held one down; a step taken while it is held is a pull.
+  if g.keys.is_action_just_pressed("take") {
+    g.take_down = true;
+    g.take_stepped = false;
+  }
+  if g.take_down && !g.keys.is_action_pressed("take") {
+    g.take_down = false;
+    if !g.won && !g.take_stepped { take(g); }
     return true;
   }
   if g.won && g.keys.is_action_just_pressed("next") {
     start_level(g, (g.level + 1) % len(g.order) ?? 0);
     return true;
   }
+  if g.keys.is_action_just_pressed("free") {
+    g.free = !g.free;
+    g.free_x = 0;
+    g.free_y = 0;
+    g.note = if g.free { "FREE ROAMING" } else { "ON THE TILES" };
+    return true;
+  }
+  if g.free { return roam(g, ms) || changed; }
   d = direction(g, now);
   if d.0 == 0 && d.1 == 0 { return changed; }
-  move(g, d.0, d.1, g.keys.is_action_pressed("pull"));
+  pulling = g.take_down && g.keys.is_action_pressed("take");
+  if pulling { g.take_stepped = true; }
+  move(g, d.0, d.1, pulling);
   true
+}
+
+/// A cell per FREE_CELL_MS while roaming free (F3): the walking pace.
+const FREE_CELL_MS = 140;
+
+// Free roaming (F3): the keys held move the hero's body `ms` worth — diagonals at the same pace —
+// and crossing half a cell takes the step there through the rules (a walk, a push, a pull with Q
+// held, a climb, a door), its glide left out: the body is already there.  A refused step stops
+// the body short of the cell's edge and is not tried again while that key is held.  Answers
+// whether the picture moved.
+fn roam(g: Game, ms: integer) -> boolean {
+  dx = 0;
+  dy = 0;
+  if g.keys.is_action_pressed("left") { dx -= 1; }
+  if g.keys.is_action_pressed("right") { dx += 1; }
+  if g.keys.is_action_pressed("up") { dy -= 1; }
+  if g.keys.is_action_pressed("down") { dy += 1; }
+  if dx != g.free_stop_x { g.free_stop_x = 0; }
+  if dy != g.free_stop_y { g.free_stop_y = 0; }
+  if dx == 0 && dy == 0 { return false; }
+  // Facing the way it goes: across first, as the keys read.
+  g.world.face_x = if dx != 0 { dx } else { 0 };
+  g.world.face_y = if dx != 0 { 0 } else { dy };
+  pace = 256 * ms / FREE_CELL_MS ?? 0;
+  if dx != 0 && dy != 0 { pace = pace * 181 / 256 ?? 0; }
+  if g.free_stop_x == 0 { g.free_x += dx * pace; }
+  if g.free_stop_y == 0 { g.free_y += dy * pace; }
+  pulling = g.take_down && g.keys.is_action_pressed("take");
+  if pulling { g.take_stepped = true; }
+  cross_x(g, pulling);
+  cross_y(g, pulling);
+  true
+}
+
+// The body past half a cell east or west: the step there; refused, the body stays short of it.
+fn cross_x(g: Game, pulling: boolean) {
+  while g.free_x >= 128 || g.free_x < -128 {
+    s = if g.free_x > 0 { 1 } else { -1 };
+    place = g.place;
+    ox = g.world.hero_x;
+    move(g, s, 0, pulling);
+    g.world.face_x = s;
+    g.world.face_y = 0;
+    if g.place != place {
+      g.free_x = 0;
+      g.free_y = 0;
+      return;
+    }
+    if g.world.hero_x == ox {
+      g.free_x = s * 120;
+      g.free_stop_x = s;
+      return;
+    }
+    g.free_x -= s * 256;
+    g.motion = motion::still();
+  }
+}
+
+// The same north and south.
+fn cross_y(g: Game, pulling: boolean) {
+  while g.free_y >= 128 || g.free_y < -128 {
+    s = if g.free_y > 0 { 1 } else { -1 };
+    place = g.place;
+    oy = g.world.hero_y;
+    move(g, 0, s, pulling);
+    if g.place != place {
+      g.free_x = 0;
+      g.free_y = 0;
+      return;
+    }
+    if g.world.hero_y == oy {
+      g.free_y = s * 120;
+      g.free_stop_y = s;
+      return;
+    }
+    g.free_y -= s * 256;
+    g.motion = motion::still();
+  }
+}
+
+// Q let go with no step: the small item taken (heard picked up), or the held one put down.
+fn take(g: Game) {
+  w = g.world;
+  drunk = w.drunk;
+  step = rules::take(w);
+  if step == rules::Step.Took || step == rules::Step.Swapped {
+    g.moves += 1;
+    sound(g, "pickup");
+  } else if step == rules::Step.Placed {
+    g.moves += 1;
+    sound(g, "drop");
+  }
+  if w.drunk > drunk { sound(g, "potion"); }
 }
 
 // The hero spoke to (walked into) the one with id `id`: its talk goes on (talk.loft).
@@ -1889,9 +2015,17 @@ pub fn hero_point(g: const Game) -> (float, float) {
   w = g.world;
   ts = g.look.tile_size;
   p = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+  off = free_offset(g);
   half = (ts as float) / 2.0;
-  (((w.hero_x - g.cam_x) * ts) as float + p.x + half,
-   ((w.hero_y - g.cam_y) * ts - w.hero_z * ts - w.hero_h * 4) as float + p.y + half)
+  (((w.hero_x - g.cam_x) * ts) as float + p.x + off.0 + half,
+   ((w.hero_y - g.cam_y) * ts - w.hero_z * ts - w.hero_h * 4) as float + p.y + off.1 + half)
+}
+
+/// The hero's body off its cell while roaming free (F3), in pixels; (0, 0) on the tiles.
+pub fn free_offset(g: const Game) -> (float, float) {
+  if !g.free { return (0.0, 0.0); }
+  ts = (g.look.tile_size as float);
+  ((g.free_x as float) * ts / 256.0, (g.free_y as float) * ts / 256.0)
 }
 
 // --- The picture ---
@@ -2202,14 +2336,20 @@ fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
   }
   if w.hero_z == z {
     fine = motion::fine_pose(g.motion, w.face_x, w.face_y, w.now);
+    // Roaming free (F3), the body stands off its cell by its offset.
+    off = free_offset(g);
+    fine.x += off.0;
+    fine.y += off.1;
+    hpose = motion::pose(g.motion, w.face_x, w.face_y, w.now);
+    hpose.x += off.0 as integer;
+    hpose.y += off.1 as integer;
     // Guarding (@GM-Combat): the weapon across the body, held through a blow's push (a brace).
     braced = g.motion.act == motion::Act.Brace || !motion::busy(g.motion, w.now);
     if w.blocking && braced { motion::guard(fine, w.face_x, w.face_y); }
     if hurt(w.health, w.k.health) { motion::wounded(fine, w.now, !motion::busy(g.motion, w.now)); }
     out += [Figure { x: w.hero_x, y: w.hero_y, h: w.hero_h, sprite: g.look.hero, item: w.hero_item,
                      low: rules::hero_low(w), face_x: w.face_x, face_y: w.face_y,
-                     pose: motion::pose(g.motion, w.face_x, w.face_y, w.now),
-                     fine: fine, shoulder: w.shoulder }];
+                     pose: hpose, fine: fine, shoulder: w.shoulder }];
   }
   out
 }

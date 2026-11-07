@@ -52,7 +52,7 @@
     { "at": [8, 12, 0], "to": "demo", "door": "the_herb_patch" }
   ],
   "labels": [
-    { "at": [8, 8, 0], "text": "L PUT DOWN" }
+    { "at": [8, 8, 0], "text": "Q PUT DOWN" }
   ],
   "talks": [
     { "at": [8, 3, 0], "name": "alchemist", "barks": [ "HERBS?" ], "gifts": { "herb": "brew", "mushroom": "brew" }, "recipes": [ { "needs": { "herb": 2, "mushroom": 1 }, "go": "brew" } ], "lines": [

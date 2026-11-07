@@ -40,7 +40,7 @@ that official.
 
 Built first, ahead of the steps below (owner): `render3d.loft`, in a browser page only, beside the
 2D game.  **F1** switches between the two where the frame is drawn by a page's GPU; the desktop and
-the Tanmatsu stay 2D, and the editor is always 2D (E switches the view off).
+the Tanmatsu stay 2D, and the editor is always 2D (F2 switches the view off).
 
 - **What is seen:** the place round the hero (12 cells each way, two layers up and down) from the
   hero's eyes, its facing eased as it turns.  Floors at their rise, bent at the corners as the 2D

@@ -158,15 +158,15 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   v = json_parse(raw);
   if v.kind() != "JObject" { return null; }
   l = rules::level(k);
-  for t in mats.track { rules::add_piece(l, t.tile, t.joins, t.toe, t.straight, t.turn, t.set_turn, t.twin); }
+  for each_t in mats.track { rules::add_piece(l, each_t.tile, each_t.joins, each_t.toe, each_t.straight, each_t.turn, each_t.set_turn, each_t.twin); }
   legend: hash<LegendChar[ch]> = [];
   lg = v.field("legend");
-  for c in lg.keys() {
-    name = lg.field(c).as_text();
+  for each_c in lg.keys() {
+    name = lg.field(each_c).as_text();
     mi = materials::named(mats, name);
     mk = if mi >= 0 { (mats.list[mi] ?? materials::none_material()).kind } else { 0 };
     legend += [LegendChar {
-      ch: c, kind: if mi >= 0 { mk } else if name == "void" { PIT } else { rules::terrain_id(k, name) },
+      ch: each_c, kind: if mi >= 0 { mk } else if name == "void" { PIT } else { rules::terrain_id(k, name) },
       material: mi
     }];
   }
@@ -539,9 +539,9 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
   if len(lf.serves) > 0 {
     out += "\n  \"serves\": [";
     sf = true;
-    for t in lf.serves {
+    for tag in lf.serves {
       out += if sf { " " } else { ", " };
-      out += quoted(t);
+      out += quoted(tag);
       sf = false;
     }
     out += " ],";

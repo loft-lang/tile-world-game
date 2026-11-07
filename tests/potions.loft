@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Jurjen Stellingwerff
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
-// Potions and money (DESIGN.md § The principle, § Goals): a potion walked over with empty hands is
-// picked up, with the hands full drunk; held, the swing key drinks it (owner).  It heals over time,
+// Potions and money (DESIGN.md § The principle, § Goals): a potion is taken with Q (walking over it
+// no longer takes it, owner 2026-11-07; what the hand held put down in its place); held, the swing
+// key (E) drinks it (owner).  It heals over time,
 // never at once (owner): a point every 1500 ms — a health potion 3, up to the start's 6; a spirit
 // potion 2 temporary health above it, lost first when the hero is hurt — by a bite, a blast or a
 // fall — and never fading.  A chest opened gives its money (10) with its point.
@@ -30,15 +31,24 @@ fn until(w: rules::Level, at: integer) {
   rules::tick(w, at - w.now);
 }
 
-// Hands full — a stick held — a health potion walked over at 0 is drunk, and heals over time
+// A step east onto a potion, taken (Q) and drunk (E) at once.
+fn drink_next(w: rules::Level) {
+  _ = rules::walk(w, 1, 0);
+  _ = rules::take(w);
+  _ = rules::swing(w);
+}
+
+// Hands full — a stick held — a health potion taken and drunk at 0 (the stick put down for it) heals over time
 // (owner): nothing at once, a point at 1500, 3000 and 4500 — from 2 to 5 — then no more.
 fn test_a_health_potion_heals_over_time() {
   w = row(4);
   w.health = 2;
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "health_potion");
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.drunk == 1 && w.health == 2, "drunk, nothing yet: {w.health}");
-  assert(tile_world::top(w.w, 1, 0, 0) == 0 && w.hero_item == rules::th(w, "stick"), "gone, the stick still held");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.drunk == 0, "walked onto: not drunk");
+  assert(rules::take(w) == rules::Step.Swapped && rules::swing(w) == rules::Step.Drank, "Q, then E");
+  assert(w.drunk == 1 && w.health == 2, "drunk, nothing yet: {w.health}");
+  assert(tile_world::top(w.w, 1, 0, 0) == rules::th(w, "stick") && w.hero_item == 0, "the stick put down for it, the hands empty");
   until(w, 1499);
   assert(w.health == 2, "1499: still 2");
   until(w, 1500);
@@ -57,7 +67,7 @@ fn test_a_health_potion_stops_at_the_start() {
   w.health = 5;
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "health_potion");
-  _ = rules::walk(w, 1, 0);
+  drink_next(w);
   until(w, 1500);
   assert(w.health == 6, "1500: 6");
   until(w, 4500);
@@ -72,9 +82,9 @@ fn test_two_potions_take_their_time() {
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "health_potion");
   put(w, 2, "health_potion");
-  _ = rules::walk(w, 1, 0);
+  drink_next(w);
   until(w, 1000);
-  _ = rules::walk(w, 1, 0);
+  drink_next(w);
   until(w, 1500);
   assert(w.health == 2, "1500: 2: {w.health}");
   until(w, 6000);
@@ -85,18 +95,20 @@ fn test_two_potions_take_their_time() {
   assert(w.health == 6 && w.heal_due == 0, "9000: the last lost, done");
 }
 
-// Empty-handed, a potion walked over is picked up, not drunk (owner): carried, put down elsewhere,
-// picked up again; the swing key drinks it — the hands empty, the healing to come.
+// Empty-handed, a potion taken (Q) is held, not drunk (owner): carried, put down elsewhere, taken
+// again; the swing key drinks it — the hands empty, the healing to come.
 fn test_a_potion_is_picked_up_put_down_and_drunk_later() {
   w = row(4);
   w.health = 3;
   put(w, 1, "health_potion");
   _ = rules::walk(w, 1, 0);
+  assert(rules::take(w) == rules::Step.Took, "Q");
   assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0 && tile_world::top(w.w, 1, 0, 0) == 0, "picked up");
   _ = rules::walk(w, 1, 0);
   assert(rules::drop(w) == rules::Step.Placed && tile_world::top(w.w, 2, 0, 0) == rules::th(w, "health_potion"), "put down on 2");
   _ = rules::walk(w, 1, 0);
   _ = rules::walk(w, -1, 0);
+  assert(rules::take(w) == rules::Step.Took, "Q");
   assert(w.hero_item == rules::th(w, "health_potion") && w.drunk == 0, "picked up again");
   assert(rules::swing(w) == rules::Step.Drank && w.hero_item == 0 && w.drunk == 1 && w.health == 3, "drunk: nothing yet");
   until(w, 1500);
@@ -110,7 +122,7 @@ fn test_healing_to_come_goes_through_a_door() {
   w.health = 2;
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "health_potion");
-  _ = rules::walk(w, 1, 0);
+  drink_next(w);
   until(w, 1500);
   c = rules::carried(w);
   v = row(3);
@@ -127,7 +139,7 @@ fn test_temporary_health_is_lost_first_and_never_fades() {
   w = row(3);
   w.hero_item = rules::th(w, "stick");
   put(w, 1, "spirit_potion");
-  _ = rules::walk(w, 1, 0);
+  drink_next(w);
   assert(w.spirit == 0 && w.health == 6, "nothing at once");
   until(w, 1500);
   assert(w.spirit == 1, "1500: 1");

@@ -11,6 +11,14 @@ machine (`~/workspace`).
 | Game libraries | `./fetch-libs.sh` → `libs/` (git-ignored) | every library from `main` |
 | loft branch | `~/workspace/loft2`, branch `tuxedo-pln204-int32` @ `72602f4b6` | = `main` (ec098768e) + one commit, the loft#2222 fix; force-pushed, no PR yet.  Use its RELEASE build (`target/release/loft`) for the game: an older loft stalls in `parse` on `input` → `graphics` → `mesh3d` |
 
+**2026-11-07: the toolchain moved.**  `~/workspace/loft2` is gone; the game builds with
+`~/workspace/loft/target/release/loft` (2026.11.20261107, `main`), and every test, `checks/game.loft`
+and `checks/view3d.loft` pass with it.  The `loft` on the PATH (`~/.local/bin`, 2026-10-31) does
+not build the checks (its native code generator emits one function twice).  That loft scopes a
+local to its whole function: a loop variable may not reuse a local's name, and a local reusing an
+earlier loop's name read back wrong once (the raft's drift: its beams placed nowhere).  Every such
+pair was renamed (`each_*`, `loop_*` and the like) — keep new loop names unique in a function.
+
 ## Library PRs
 
 | PR | What |

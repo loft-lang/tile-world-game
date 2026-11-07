@@ -94,6 +94,8 @@ fn play_in(w: rules::Level, who: text, ms: integer, trace: boolean) -> Outcome {
   next_step = 0;
   t = 0;
   while t < ms && len(w.enemies) > 0 && rules::alive(w) {
+    // Standing on an item with empty hands (the weapon by the door), the player takes it (Q).
+    if w.hero_item == 0 && tile_world::top(w.w, w.hero_x, w.hero_y, w.hero_z) != 0 { _ = rules::take(w); }
     i = nearest(w);
     e = w.enemies[i]!;
     ready = w.now >= w.blow_until;
@@ -168,12 +170,15 @@ fn test_the_cyclops_den() {
   assert(d.ended && d.health == 6, "the dodger is unhurt: health {d.health}");
 }
 
-// A bat and a spider fall to one blow; the parrier, waiting for a wind-up, lands it later.
+// A bat and a spider fall to one blow; the parrier, waiting for a wind-up, lands it later.  The
+// bat swoops (TEMPLATES.md): no wind-up to parry, its nip lands as it arrives — met with a blow as
+// it comes in it is ended unhurt; waited for, it nips once.
 fn test_a_defensive_player_strikes_later() {
   for room in ["the_bat_cave", "the_spider_hall"] {
     a = play(room, "attacker", 20000, false);
     p = play(room, "parrier", 20000, false);
-    assert(a.ended && p.ended && a.health == 6 && p.health == 6, "{room}: both end it unhurt");
+    assert(a.ended && p.ended && a.health == 6, "{room}: both end it, the attacker unhurt");
+    assert(p.health == (if room == "the_bat_cave" { 5 } else { 6 }), "{room}: the parrier nipped only by the swoop: {p.health}");
     assert(p.first_blow > a.first_blow, "{room}: the parrier strikes later: {p.first_blow} after {a.first_blow}");
   }
 }
@@ -209,8 +214,9 @@ fn go_to(w: rules::Level, x: integer, y: integer) {
 }
 
 // A potion by the door (the cyclops den has a health potion on (1, 16)) heals over time, never at
-// once (owner): the attacker ends the cyclops, struck to 4; walks back to the potion, the axe still
-// in hand, so it is drunk — nothing at once, 5 a 1500 ms on, 6 at 3000, the third point lost.
+// once (owner): the attacker ends the cyclops, struck to 4; walks back to the potion, takes it (Q:
+// the axe put down in its place) and drinks it (E) — nothing at once, 5 a 1500 ms on, 6 at 3000,
+// the third point lost.
 fn test_a_potion_by_the_door_heals_after_the_fight() {
   w = place("the_cyclops_den");
   assert(tile_world::top(w.w, 1, 16, 0) == rules::th(w, "health_potion"), "the potion by the door");
@@ -219,8 +225,11 @@ fn test_a_potion_by_the_door_heals_after_the_fight() {
   go_to(w, 1, 15);
   assert(w.drunk == 0, "not yet");
   _ = rules::walk(w, 0, 1);
+  assert(w.drunk == 0, "walked onto: not drunk");
+  assert(rules::take(w) == rules::Step.Swapped && tile_world::top(w.w, 1, 16, 0) == rules::th(w, "axe"), "Q: the potion taken, the axe put down");
+  assert(rules::swing(w) == rules::Step.Drank, "E: drunk");
   at = w.now;
-  assert(w.drunk == 1 && w.health == 4 && w.hero_item == rules::th(w, "axe"), "drunk with the axe in hand, nothing at once: {w.health}");
+  assert(w.drunk == 1 && w.health == 4 && w.hero_item == 0, "drunk, nothing at once: {w.health}");
   rules::tick(w, 1499);
   assert(w.health == 4, "1499 on: still 4");
   rules::tick(w, 1);

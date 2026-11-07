@@ -486,15 +486,15 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
   open = if toward == 0 { -1 } else { open_corner(toward) };
   // The corners of its solid part, in order round it.
   part: vector<integer> = [];
-  for i in 0..4 { if i != open { part += [i]; } }
+  for each_i in 0..4 { if each_i != open { part += [each_i]; } }
   // Its sides on the cell's edges: an edge (i, i + 1) is a side when both its corners are solid.
-  for i in 0..4 {
-    j = (i + 1) % 4 ?? 0;
-    if i == open || j == open { continue; }
-    nx = x + (if i == 1 { 1 } else if i == 3 { -1 } else { 0 });
-    ny = y + (if i == 0 { -1 } else if i == 2 { 1 } else { 0 });
+  for loop_i in 0..4 {
+    j = (loop_i + 1) % 4 ?? 0;
+    if loop_i == open || j == open { continue; }
+    nx = x + (if loop_i == 1 { 1 } else if loop_i == 3 { -1 } else { 0 });
+    ny = y + (if loop_i == 0 { -1 } else if loop_i == 2 { 1 } else { 0 });
     if whole(g, w, nx, ny, z) { continue; }
-    a = corner_xz(x, y, i);
+    a = corner_xz(x, y, loop_i);
     b = corner_xz(x, y, j);
     face(out, side, [(a.0, fz + 1.0, a.1, 0.0, 0.0), (b.0, fz + 1.0, b.1, 1.0, 0.0), (b.0, fz, b.1, 1.0, 1.0),
                      (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, cx, cy, nx, ny));
@@ -513,13 +513,13 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
     beside = open_ground(g, w, x, y, z, toward);
     if beside >= 0 {
       corners: vector<(float, float, float, float, float)> = [];
-      for c in tri { corners += [(c.0, fz, c.1, c.0 - (x as float), c.1 - (y as float))]; }
+      for each_c in tri { corners += [(each_c.0, fz, each_c.1, each_c.0 - (x as float), each_c.1 - (y as float))]; }
       face(out, beside, corners, shade_at(sh, cx, cy, x, y));
     }
     if whole(g, w, x, y, z + 1) {
       corners: vector<(float, float, float, float, float)> = [];
-      for c in [tri[2] ?? (0.0, 0.0), tri[1] ?? (0.0, 0.0), tri[0] ?? (0.0, 0.0)] {
-        corners += [(c.0, fz + 1.0, c.1, c.0 - (x as float), c.1 - (y as float))];
+      for loop_c in [tri[2] ?? (0.0, 0.0), tri[1] ?? (0.0, 0.0), tri[0] ?? (0.0, 0.0)] {
+        corners += [(loop_c.0, fz + 1.0, loop_c.1, loop_c.0 - (x as float), loop_c.1 - (y as float))];
       }
       face(out, game::kind_sprite(g, w, x, y, z + 1, true), corners, shade_at(sh, cx, cy, x, y) * 0.8);
     }
@@ -527,8 +527,8 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
   // The top, where the layer above is open; the underside, over open space below.
   if tile_world::terrain(w.w, x, y, z + 1) == tile_world::VOID {
     corners: vector<(float, float, float, float, float)> = [];
-    for i in part {
-      c = corner_xz(x, y, i);
+    for loop_i in part {
+      c = corner_xz(x, y, loop_i);
       corners += [(c.0, fz + 1.0, c.1, c.0 - (x as float), c.1 - (y as float))];
     }
     face(out, top, corners, shade_at(above, cx, cy, x, y));

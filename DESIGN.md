@@ -14,8 +14,16 @@ This is what the game built on tile_world should be.
 
 - **Puzzles come first.** A dungeon should feel like one big puzzle. Nobody should get through it by
   grinding until the character is strong enough to trivialise it.
+- **Not a combat simulator** (owner, 2026-11-07).  An RPG is not a combat simulator: one way of
+  acting serves fighting, gathering food, building, talking and trading.  Here that way is reading
+  a figure's manner and answering it in time, with the same few keys, by the same templates
+  (@GM-Combat, *Enemies by templates*; TEMPLATES.md): a villager's manner tells when to press as
+  an enemy's tell tells when to lunge.  The same goals as Moros's system, which is not used here.
 - **Growth comes later.** Character growth comes only after a base dungeon and world feel alive and
-  are satisfying to beat. Growth means carried weapons, worn armour and stat increases.
+  are satisfying to beat. Growth means carried weapons, worn armour and stat increases.  Read again
+  (owner, 2026-11-07): growth is breadth, not height: a new thing to carry, wear or do, each with
+  its trade (the knife, the shield, armour), never a bigger number; the hero's health and its
+  temporary health stay as they are.
 - **Growth is never necessary.** Correct puzzle solving and fighting strategy must always let the
   base character beat every dungeon. It may get increasingly harder without upgrades.
 - **Nothing is tutorialized** (owner, 2026-10-30).  A dungeon is presented in its natural state;
@@ -39,7 +47,8 @@ This is what the game built on tile_world should be.
   takes it first (`rules::harm`), and it never fades.  The status line shows `6+2`.
   **A potion is carried, and heals over time** (owner, 2026-11-04): walked over empty-handed it
   is picked up, to be put down (L) where a fight may come or drunk later (J); walked over with the
-  hands full it is drunk.  Never an instant effect on a fight: a drunk potion's points come one
+  hands full it is drunk (walking over no longer takes an item, owner 2026-11-07: Q does; potions in
+  a fight are decided later).  Never an instant effect on a fight: a drunk potion's points come one
   every 1500 ms (proposed, `rules::POTION_MS`) — a health potion's 3 over 4.5 s, never above 6, a
   spirit potion's 2 the same way; a second potion adds its points, not its speed, and healing
   still to come goes along through a door.  The green strength potion is carried the same way but
@@ -74,7 +83,7 @@ already designed and built (owner, 2026-11-04).
 | [`@GM-Flooded`](#gm-flooded) | part of a mine flooded; machines needed to enter |
 | [`@GM-CartLift`](#gm-cartlift) | a lift that can carry mine carts |
 | [`@GM-Flotilla`](#gm-flotilla) | wood pulled together to cross an underground lake |
-| [`@GM-Combat`](#gm-combat) | moves and swings of both sides, combined: light and heavy, dodge, parry |
+| [`@GM-Combat`](#gm-combat) | moves and swings of both sides, combined: the standoff and the point, lunges, clashes, dodges and balance, weapons as profiles |
 
 <a id="gm-flooded"></a>**The flooded part** (owner, 2026-11-04): part of a mine is flooded and needs
 machines to be entered.
@@ -199,66 +208,356 @@ is tried in a fight room of the test world, a weapon by the door and the enemy a
 that is never the best way — standing still is how two opponents trade blows, where parrying,
 blocking and dodging are what comes naturally in a fight.
 
-*Built (BUILD.md B1b); the numbers proposed, to be tuned in play (owner: numbers are found by
-playing).  `tests/combat.loft` times each move by hand; `tests/fights.loft` plays the fight rooms
-with three scripted players — an attacker (strikes when ready), a parrier, a dodger — and holds
-the owner's two claims: the attacker is hurt in the rat run (three rats) and the cyclops den (a
-cyclops now 8 health, so a sword needs three or four blows), and the defensive players land their
-first blow later.*
+**The fight, designed again** (owner, 2026-11-07): more dynamic and lifelike, made of distance,
+timing and position, both sides moving by the same rules.  It replaces the moves built in B1b (*What
+is built*, below).  What the owner ruled is marked (owner); the rest is proposed, every number to be
+found by playing in the fight rooms.  Being built (BUILD.md B1c): the keys and the bat's swoop
+are built (2026-11-07); the rest is designed.
 
-- **Every attack has a tell, both ways.**  An enemy's blow is a wind-up, seen and heard (it draws
-  back), then the strike, which lands on the cells it aimed at when the wind-up began: the hero
-  who is no longer there is missed.  Proposed wind-ups: a rat 300 ms, a bat 250, a spider 350, a
-  cyclops 700 (a sweep over three cells, as the hero's reach), the hunter 300.  The hero's light
-  blow lands at once; its heavy swing is the key held (500 ms) — the hero's tell.
-- **Standing still trades blows.**  A swing from where the hero stands lands, but the enemy's
-  next blow lands too: an exchange, hit for hit.  Every better outcome comes from moving or
-  defending — a dodge, a block, a parry, a strike from the side.
-- **Keys by hand** (owner) — WASD is the left hand, so the actions are the right hand's: J swing,
-  K guard (and pull), L put down, I aim; with the arrows, Space, Shift, X and T.
-- **Light swing** — J (Space), standing: the held weapon's damage, its reach (three cells), its
-  recovery.  Blows that strike one after another (within a recovery and 200 ms) are a chain, and
-  the third ends it with a long recovery (800 ms): the hero is open.  No faster second blow — that
-  made pure aggression win unscratched.
-- **Heavy swing** — J (Space) held, released after a wind-up (proposed 500 ms, drawn back): +1 damage,
-  it staggers what it hits (its wind-up broken, pushed back a cell where there is room), and a long
-  recovery after (proposed 800 ms).
-- **Lunge** — a step towards the enemy and a swing within 150 ms of it: a thrust at the cell faced
-  only, +1 damage, the hero's step carrying it; it leaves the hero beside the enemy.
-- **Stance and side-step** — while the hero recovers from a blow, or an enemy beside it winds up, a
-  step does not turn the hero: it keeps facing the fight.  A side-step (across the facing) or a
-  step back taken during an enemy's wind-up leaves the cell its blow aimed at: a **dodge**, no
-  damage.  A blow on an enemy's side while it winds up (it faces neither the hero nor away: the
-  hero dodged and struck back) is +1 and breaks its wind-up.
-- **Block** — K (Shift) held without a direction, facing the blow: its damage halved (proposed: a
-  blow of 1 blocked costs nothing every other time), the hero not moving while blocking.  Steady,
-  never the best: it costs the time a dodge or a parry would turn into an opening.
-- **Parry** — K (Shift) pressed without a direction in the last 150 ms of an enemy's wind-up: its blow
-  is turned aside, no damage, and it is open (staggered, its next act a blow's time later); a blow
-  on an open enemy is a **riposte**: double damage.  Pressed too early or late, the hero takes the
-  blow.  Not every blow can be parried: a cyclops's sweep cannot, only dodged.
-- **Poise** — a light blow breaks no enemy's wind-up (so standing still trades blows); a heavy
-  swing or a riposte breaks any, a lunge or a blow on its side any without poise (a cyclops has it).
-- **Swung too early** (owner) — a swing with nothing in reach makes an enemy coming on two cells
-  ahead back away from the blade a cell, and hesitate (its next act a chase step later).
-- **Groups** — a parry turns the hero to the blow landing first and turns only that one aside: two
-  rats winding up together get a bite through.  The defensive player, slower to land a blow, meets
-  more enemies at once (owner).
-- **Order** (owner) — what happens never depends on the order a level lists its enemies in.  Of
-  two acting at one moment, or two blows landing together, the one nearer the hero goes first, then
-  the one further in front of it, then the one on its right before its left (`rules::acts_before`);
-  a place's list is put in one order on loading (by nest), which numbers the ids a wander is seeded by.
-- **Fair and readable** (DESIGN.md § The principle): every wind-up is drawn and heard, every timing
-  is fixed (deterministic, the same each time), and hurt stays rarely killing: the windows are
-  generous at first and the fight rooms are where they are tuned.
+*The keys* (owner)
+- **WASD** walk.  **Q** takes a small item and puts it down; held while stepping, it pulls (a cart,
+  anything pulled).  **E** uses: a weapon swings, a bow shoots, a bomb is thrown, an anvil is worked.
+  **Tab** chooses the target, for the sword and the bow alike.  **Esc** quits.  **F1** switches
+  between the 2D game and the first-person view, **F2** opens and closes the editor.  B, R, N or
+  Enter and M stay as they are.
+- **Walking over a small item does not take it** (owner): only Q does, so no sword is lost mid-fight
+  by stepping on a stick.  Potions in a fight are decided later (owner).
+- Proposed: Q takes the item in the cell faced, else the one underfoot (in the first-person view
+  what lies underfoot is out of sight), and puts the held one down in the cell faced.  Q acts when
+  let go with no step taken, so a press held into a step is a pull, never a take.  Tab locks the
+  nearest target in sight, then the next; past the last it lets go.  A lock is lost when its
+  target is out of sight or ended, and goes to the nearest other.  With the bow, levers and bombs
+  are targets too (§ Bow).  Esc asks twice, as B does.  The arrows walk as WASD do.  In a browser,
+  Tab and F1 never reach the page's own use of them.
+- **Built** (2026-11-07; `tests/moves.loft`, `checks/game.loft`): WASD and the arrows walk; Q
+  (`rules::take`) takes the item underfoot first, else the one in the cell faced — the rope or
+  the sack onto the shoulders, forage into the sack — and puts the held one down where the hero
+  stands (as built, not yet in the cell faced), swapping when it takes with full hands; let go
+  with no step taken it acts, held into a step it pulls.  E uses, Tab aims as the bow's aim did,
+  Esc quits, F2 the editor; Shift is the built guard (pressed a parry, held a block) until step 4.
+  Still open: Esc twice, Tab's lock for the sword.
+- **F3 roams free** (owner, 2026-11-07, an experiment; built, `checks/game.loft`): the keys held move
+  the hero's body smoothly at walking pace, diagonals too, and it stands between tiles, drawn in
+  the figures' own pass (by its feet, so what is in front still hides it); the rules see it on
+  its cell, and crossing half a cell takes the step there (a walk, a push, a pull, a door).  F3
+  again, back on the tiles.
+
+*Locked on* (owner)
+- With no target the hero walks; its sword is held at its right, a shield, when it has one,
+  against its body.
+- With a target the hero faces it, its point raised to it, and WASD are moves against it: **W**
+  steps in (a lunge where there is room, *The lunge*); **S** steps back with the guard up, the
+  sword's and the shield's; **A** and **D** dodge to the left and the right of the line to it.
+- So a fight is the same fight in 2D and in the first-person view: locked, the keys mean the same
+  in both, and the 3D page passes them on as they are (RENDER_3D.md turns only free walking).
+- Proposed: S steps back once when pressed and keeps the guard up while held; with no room behind,
+  the guard is kept where the hero stands (*Position*).
+
+*The weapon's direction* (owner): a weapon and its attacks go eight ways, the diagonals too;
+walking and pushing keep four.  A swing sweeps the cell it goes to and the two beside it (facing
+north-east: north, north-east and east).  Proposed: a diagonal swing or lunge does not pass
+between two walls that meet at a corner.
+
+*The swing* (owner): E pressed starts the swing, drawn back; held longer it becomes a heavy swing
+(500 ms, as built); let go, it strikes.  **Swinging opens the swinger to lunges** (owner): while it
+is drawn back, its point is out of line.
+- Proposed: a swing travels from the release to where it lands (light 100 ms, heavy 200 ms).  Early
+  in its flight it is *outgoing*, late *incoming* (*The clash*).
+
+*The point and the standoff* (owner)
+- A weapon's point fills the tile in front of its holder (a spear's, two: *Weapons*).  Two ready
+  sword fighters stand with **two tiles between them, each filled with a point**: the standoff.
+  Nobody is hurt there, and it is the normal default, a stalemate (owner).
+- **Stepping in meets the point** (owner): who steps into a ready point is hurt first, flung back
+  out, and lunged at.  Without coordination a fighter gets into trouble.
+- **Eagerness breaks the stalemate** (owner): the one who starts swinging draws its point out of
+  line, and the patient one lunges into it.  A quick tap of E is a feint: it invites the lunge, and
+  let go into it the meeting is a clash, which the lighter swing wins (*The clash*).
+- The distances, sword against sword:
+
+  | Apart | Between | What it is |
+  |---|---|---|
+  | 4 or more | 3 tiles or more | approaching: W is a step |
+  | 3 | 2 tiles, a point in each | the standoff: safe |
+  | 2 | 1 tile, both points in it | blades crossed: who walked in uninvited is flung back to 3, open |
+  | 1 | none | inside: the sword is stuck, a knife works (*The off hand*) |
+
+- Proposed: a point run onto costs 1 and flings back a tile, open for 400 ms.  Three ways in:
+  stepping in swinging (the meeting is then a clash, not a point: the built lunge's step and swing
+  within 150 ms come back as the way to enter), the other's wind-up, and two against one.
+- Proposed: each enemy kind has a patience (`patience_ms`, kinds.json; a person's varied by its id,
+  so play stays the same each time): how long it holds the standoff before it gets eager.  Its
+  eagerness shows, a shift of weight and a sound, before it winds up.
+
+*The lunge* (owner): W with a target at the standoff goes towards it, stepping between the tiles;
+at rest after the attack the fighter goes back to the closest tile.  **No lunge beside an enemy: the
+sword is stuck there** (owner), so W cannot repeat into blows.
+- Proposed: a lunge carries the body about a cell and a half and the point reaches.  It works where
+  the other's point is out of line (drawn back, crossed, open); into a ready point it is a step in
+  (above).  It strikes for the weapon's damage +1 and breaks a wind-up (poise excepted), as built.
+- Proposed, the rules' side: places stay whole cells; a lunge is an offset of the hero's, in 1/16
+  of a cell (a pixel of the tile), for the lunge alone, so play stays the same each time.  Between
+  two tiles, a blow aimed at either reaches it.  Equally near two, it settles back to the one it
+  came from.  It stops where a step could not go on (a closed edge, a fence, a ledge, deep water),
+  and never settles onto a door, a well or a ledge's lower side.
+- Proposed: walking into an enemy is no longer a blow; blows come from E and the lunge.  Walking
+  into a person still talks to it.
+
+*The clash* (owner): when two weapons get close, both attacks stop; a longer swing takes longer to
+ready after it, giving the other an open riposte window.  **An incoming heavy swing is hard to
+parry, an outgoing swing easy** (owner).
+- Proposed: two swings clash when their flights overlap.  After a clash each side recovers for as
+  long as its swing was drawn back, plus 200 ms; the one ready first has the riposte (double
+  damage, as built).  A swing met:
+
+  | Swing | Met outgoing (its first third) | Met incoming |
+  |---|---|---|
+  | light | turned aside, the swinger open | turned aside, the swinger open |
+  | heavy | turned aside, the swinger open long | it goes through: the guard's damage, the parrier staggered |
+
+- So the cyclops's sweep that cannot be parried becomes this rule: the heaviest swing, met only as
+  it leaves, or dodged.
+- What beats what (proposed reading):
+
+  | Move | Beats | Loses to |
+  |---|---|---|
+  | patience, the point ready | a careless step in or lunge | a feint, a heavy swing |
+  | the lunge | a swing being wound up | a ready point |
+  | the parry | a light swing; a heavy one met outgoing | a heavy swing incoming |
+  | the heavy swing | a late parry | a lunge into its long wind-up |
+  | the feint | the lunge it draws | a patient opponent |
+
+- Open: whether the parry is the hero's swing meeting the other's (E), its guard turning it aside
+  (S), or both, with outcomes of their own.  Two heavy swings clashing leave both open, neither
+  first.
+
+*The guard* (owner): S steps back with the guard up, sword and shield.  Proposed: a blow on the
+guard is halved, as built; with a shield a light blow costs nothing and a heavy one half.  **With a
+wall at the back a fighter cannot readily block** (owner): *Position*.
+
+*The off hand* (owner): instead of a shield, a knife in the other hand: stepping in with it against
+swords was deadly in its time.  **That is possible only after a good parry; otherwise the stepper
+is hurt first** (owner).  A clash won, the other's blade bound, and the knife comes in.
+- Proposed: W beside the target, with a knife in the off hand, stabs.  The off hand holds only a
+  knife or a shield (one item more, as the shoulders carry the sack, § What the hero holds) and
+  counts as full hands, so a torch never goes in it and the puzzles that need empty hands stay.  A
+  knife: 1, a 250 ms recovery, no heavy swing, it cannot clash a sword; held alone in the hand, a
+  quick weak weapon.  Open: which hand Q fills first, and which it empties first.
+
+*Weapons are profiles* (owner): the axe has no point but a heavier swing than a sword, a chance
+against swords since a heavy swing is hard to parry; yet it will likely lose to a defensive sword
+fighter, or to a trained shield and spear fighter.  **A spear fighter is in real trouble once
+someone steps close.  Animals lunge without reach, like a pure knife fighter.  Knife fighters and
+animals need their dodges a lot** (owner).
+- A weapon is a few properties the rules read from kinds.json, never its name (proposed):
+
+  | | point | weight | lunge | off hand | turns 45° in |
+  |---|---|---|---|---|---|
+  | sword | 1 | middle | from the standoff, with reach | knife or shield | 100 ms |
+  | axe | 0 | heavy | none | none, two hands | — |
+  | spear | 2 | light, a thrust | from its standoff | shield | 250 ms |
+  | knife, small animals | 0 | light | a leap to beside, no reach | — | — |
+  | big animals (bigfoot, cyclops) | 0 | heavy, poise | none | — | — |
+
+- **The spear** (proposed): its point fills the two tiles in front, so a sword stands off at four
+  apart.  A thrust strikes where it ends, not on its way.  The tile beside the spearman is shaft,
+  where it cannot strike, and getting out of it takes two steps back, each one followed.  Its way
+  out is a shield's bash; a bare spear inside is lost.
+- **Animals** (proposed): a crouch (the wind-up, the tell), then a leap from two tiles that lands
+  beside the hero and bites, aimed at the cell the hero stood in when the crouch began.  A leap
+  into a ready point is hurt, so animals come from the sides, where the point is not, and a pack
+  flanks.  A leap is light: a swing meets it easily as it leaves.  The built back-off from a blade
+  swung too early is an animal respecting the point.
+- **The axe** reads now as a match-up, not as worse (§ What the hero holds): worse against
+  patience, better against eagerness, weak against animals and knives.  It is the tree's tool, so a
+  hero who carries it for the trees fights without a point.  Open: whether a heavy swing on a
+  shield breaks the guard or only pushes its holder back.
+- Open: the profiles of the torch, the pick and bare hands; which of the story's enemies fights
+  with which (STORY.md).
+
+*Dodging* (owner: knife fighters and animals need it).  **A dodge brings the dodger out of balance:
+that is its cost.  Out of balance, no dodge is possible: the fighter still moves, but enemies
+follow freely** (owner).  **Armour protects, and makes dodges less effective: it makes the time
+out of balance longer, so a dodge in armour works, but only once** (owner).
+- Proposed: **a point takes time to turn**, at the weapon's speed above; the hero's locked point
+  follows its target at that speed, not at once.  So a dodge that puts the dodger at the point's
+  diagonal opens a moment to leap in.
+- Proposed: a dodge glides in 100 ms (a step in 140) and leaves the dodger out of balance for 500
+  ms.  A leap or a swing right after a dodge is allowed: dodge-then-leap is the combination,
+  dodge-dodge-dodge is not.  Out of balance, A and D are plain steps: a wind-up's blow follows the
+  fighter to its new cell instead of landing on the cell it aimed at, and a point turning after it
+  is never outpaced.
+- Proposed: armour has a weight of its own and takes some of every blow (a point of a blow of 2 or
+  more).  The dodge itself is as quick as without it; the time out of balance after it grows with
+  the weight (heavy armour twice the 500 ms), so the armoured fighter has one dodge and then
+  stands its ground.  Armour is growth (§ The principle): never needed, and the dodges it costs
+  are the trade.
+- A dodge needs room at the side, so in a corridor a pack cannot get round a point, and on open
+  ground it circles.  Animals dodge the hero too, a quick sideways hop: the small and quick often,
+  the big barely.
+- **A backstab needs no rule of its own** (owner): the point faces one way, the guard faces the
+  attacker and a point takes time to turn, so a blow from behind meets no point, no guard and no
+  clash.
+- Open: a dodge against a diagonal target, a diagonal step between tiles settling as a lunge does,
+  or the four-way step that keeps the distance.
+
+*Position* (owner: with a wall at the back a fighter cannot readily block).  Proposed: **giving
+ground needs room**, the cell straight behind, away from the attacker, or one of the two diagonal
+beside it:
+
+  | | Room behind | A wall behind |
+  |---|---|---|
+  | the guard (S) | a step back: the blow halved | kept in place: a light blow halved, a heavy one in full, staggered |
+  | flung off a point | back a tile, open | pinned: open twice as long |
+  | a heavy swing's knock-back (built) | back a cell | not moved: +1 |
+  | getting out from inside | a step (a spear, two) | none |
+
+  A fence, a table, deep water or another fighter behind pins as a wall does.  A cornered animal has
+  no patience left: it leaps at once.  A ledge behind is not a wall: who gives ground there goes
+  over, and the fall's cost is added, as to a blast's; a fight beside a deep drop is the level's
+  choice.
+
+*Enemies by templates* (owner): an enemy fights by templates, a set of specific actions as a Dark
+Souls boss has, each with the conditions under which the enemy may choose it; some are aggressive,
+some defensive.  **The variety of templates gives enemies, animals above all, qualities of their
+own, so that how each behaves can be learned** (owner).  **Templates, with their timings in them,
+are a better way to make enemies differ than statistics** (owner): a harder enemy is a pattern
+harder to read, not a bigger number to wear down (§ The principle: a puzzle, not a grind).
+- **Small enemies hit hard but wind up long** (owner, as Souls-like games already engineered it):
+  one alone is easy, unless the hero misses it in its sight, or several swarm it.  The danger of
+  a fight is in what is not seen and in numbers, never in a blow that gives no warning.
+- So (proposed) an enemy kind keeps few numbers: its health, its profile (*Weapons*) and its
+  senses (sight, light).  The timings it has today (`windup_ms`, `bite_ms`, `chase_ms`) move
+  into its templates, each step with its own, and a blow's damage is the step's too, paired
+  with its tell: the harder it hits, the longer its wind-up.  A kind made harder gets a
+  template more or a timing tighter, never more health to wear down.
+- **The body and the weapon are apart** (owner): a variety of cyclopes, each with another weapon or
+  none, all still acting as a cyclops, and some that only grab.  Proposed: the kind is the body
+  (its health, senses, poise, size, and what it does outside a fight: searching, calling for
+  help), and its templates are chosen by the kind and by what it holds, a template's conditions
+  naming the weapon's profile (a point, heavy, none).  What an enemy holds is set where the level
+  places it (it holds an item already, and drops it where it falls), so a cyclops with an axe
+  sweeps, one with a spear keeps its distance and is in trouble inside, and one with nothing
+  grabs and pulls (its grab, built).  The player learns the body once and each weapon once, and
+  reads the pair from what it sees.  Open: whether a clash or a heavy blow can knock a weapon
+  from a hand: a cyclops disarmed would turn to its grab in the middle of a fight, a boss's
+  second phase that needs no rule of its own.
+- **Out of a fight too** (owner): the same templates let people and creatures walk, talk and work
+  in a way of their own that is recognised.  Proposed: templates for walking (a gait, a stop to
+  look round, a patrol's turn), talking (turning to the hero, a gesture on a line, turning away
+  when it walks off), working (an axe on a barricade's beam, carrying, sweeping) and resting (to
+  sit, to doze), chosen under conditions as a fight's are: the time of day, the place, the facts
+  known (talk.loft), what a talk is at.  Templates give the *manner*; what is said stays the
+  talk's (talk.loft), where a person goes stays its points by the clock (WORLD.md), what a work
+  does stays the rules' (a barricade's units).  So the elder is known by its slow walk and its
+  stops, a maid by her hurry, before either says a word, as § What the player sees wants: the
+  figures show it.  One set serves a figure in peace and in a fight, so a villager defending the
+  barricade fights by the same machinery and in its own manner.  Asks of `motion.loft` poses
+  beyond the fight's (a nod, a point, a wave, sitting, a work's swing); each built where a
+  template first needs it.  After the fight (BUILD.md B1c), on the same machinery.
+- What it asks of the rest (proposed): **sight is a weapon** — in the dark a wind-up is not seen,
+  so light (a torch held, a flame set down, daylight) is what makes a fight readable, and rats
+  that shun light and attack from the dark are dangerous for that alone; every wind-up is heard
+  as well as seen, so one behind the hero or in the dark still warns, more faintly; and a swarm
+  is the hard fight, met by the ground (a corridor, a wall at the back of *them*), not by
+  outlasting it.  "Hurt, rarely killed" (§ The principle) is kept by the level: swarms are
+  placed where the ground gives the hero an answer.
+- A template (proposed): its *steps*, a fixed sequence of the moves the hero has (step in, step
+  back, dodge, a swing held so long and let go, guard, wait) and of the kind's own where its
+  profile gives it one (a leap, a drop from the wall, a bomb thrown, a grab); its *conditions*
+  (the distance, the hero's state: drawn back, out of balance, guarding, turned away; its own
+  health, a wall behind it or behind the hero, others of its kind near and what they do); its
+  kind, aggressive or defensive; what breaks it off or branches it (hit, out of balance, a clash
+  won or lost); and a rest before it can be chosen again.  Templates are data the rules read,
+  named in a file of their own so kinds can share one (a pack's flank), never a kind's name in
+  the code.
+- Patience is the time an enemy keeps to defensive templates; when it runs out, or the enemy is
+  cornered, the aggressive ones may be chosen.  Two against one is a template with a role in its
+  conditions: another of its kind holds the hero at the standoff.
+- Fair (proposed): every template opens with its own tell, seen and heard, so the player reads
+  which is coming; a template begun runs to its end unless something breaks it, a commitment as
+  the hero's held swing is; every aggressive template ends in a gap the hero's lunge fits into;
+  the choice among those allowed is seeded by the enemy's id and its count of choices, so a fight
+  is the same each time; the rest keeps the same template from coming twice in a row.
+- **Enemies live there** (owner): they also scrounge for food, loiter around, or search for the
+  hero when they have a reason to.  Proposed: by the clock, never by a hunger meter; food is bait
+  (meat put down draws them); a sleeping enemy wakes only for a reason; each kind has its own
+  reasons (a blast, a noise, light, a trace, a scent, a call) and its own way of searching, so
+  what gives the hero away to whom is learned (TEMPLATES.md § Living there).
+- **Scared and wounded have templates of their own, with a different pace or line** (owner), so an
+  enemy's state is read from how it moves.  Healing at home is slow, about a point a minute
+  (owner): a wounded enemy is off the road for a while and can be found wounded.  Proposed: its
+  state chooses its set (calm, searching, scared, wounded, cornered), and a wounded one leaves a
+  trail home to follow (TEMPLATES.md § Living there).
+- **The area's unease** (owner): all of this is combined with a general anxiety level of the
+  dungeon, per area, where what the player does can make everyone more restless and on guard.
+  Throwing bombs around is not without consequence (owner): proposed, a blast raises its area
+  two steps and its neighbours one, at once.  Proposed: four steps (calm, uneasy, on guard,
+  alarmed), raised by blasts, fights, the ended and
+  the wounded found, thefts, a light where none should be, lowered by quiet over the clock,
+  spreading through doors; it changes which templates are chosen and how patient, how sleepy and
+  how searching figures are, never health or damage; nothing on screen shows it but the figures
+  (TEMPLATES.md § The area's unease).
+- Every kind's set, the people's manners and the hero's test players are written out in
+  TEMPLATES.md (proposed, kind by kind, for the owner to rule).
+- The scripted players of `tests/fights.loft` are templates run for the hero: one way to drive
+  enemies, the fights' tests and, later, followers fighting at the hero's side.
+
+*Found open in the evaluation* (2026-11-07; proposed until ruled):
+- **One state, out of balance**: the riposte's *open* and the dodge's *out of balance* are one
+  state, entered by a dodge, a clash lost, a point run onto, a hit, or a heavy blow guarded with
+  a wall behind; armour makes it longer; a blow on a fighter in it doubles.
+- **The guard covers the three cells in front**, the ones a swing sweeps; a blow from the side or
+  behind gets through (so the backstab).  Whether the built +1 for a blow on a side stays beside
+  it is to rule.
+- **Height**: no point and no lunge reaches across a layer's edge, to begin with.
+- **Arrows**: an arrow can be dodged (it travels); a shield stops it; out of balance, it is not
+  outpaced.
+- **Bare hands** are a knife fighter without a knife: no point, so dodging is all it has.
+- **A tap is never lost**: the feint and the light swing are taps, so a key pressed and let go
+  between two frames must still be seen (RENDER_3D.md: a press held until the next poll, in
+  `screen`), in both views.
+- **The fight is built and tuned in 2D first**, where both fighters, their points and the flanks
+  are seen; the first-person view follows once the figures there hold their weapons and show
+  their facing (RENDER_3D.md, *Not yet*), with a sound for what is behind the hero.
+
+*Kept from what is built*: every attack has a tell, both ways, and lands on the cells it aimed at
+when its wind-up began; standing still trades blows; the light chain; the heavy swing's +1 and
+stagger; a blow on a side +1; poise; the back-off from a blade swung too early; groups; the order
+of acts (`rules::acts_before`); fair and readable.  **Growth is never necessary** (§ The
+principle): every match-up the story puts before the hero is won by the base sword with skill
+(patience, a thrust parried as it leaves, a step inside), and a fight room holds each such claim in
+a test.
+
+*What is built (BUILD.md B1b), and what replaces it.*  `tests/combat.loft` times each built move by
+hand; `tests/fights.loft` plays the fight rooms with three scripted players (an attacker, a
+parrier, a dodger) and holds the owner's two claims: the attacker is hurt in the rat run and the
+cyclops den, and the defensive players land their first blow later.
+
+| Built | Replaced by |
+|---|---|
+| keys by hand (owner, 2026-11-04): J swing, K guard and pull, L put down, I aim, or the arrows with Space, Shift, X and T; E the editor; Q quits | *The keys* |
+| walking over an item swaps it with the one held | Q |
+| the block: K held standing still, facing the blow, halved | the guard, S |
+| the parry: K pressed in the last 150 ms of a wind-up, the enemy left open; a riposte doubles | the clash; the riposte stays |
+| the lunge: a swing within 150 ms of a step the same way, +1, a thrust | W from the standoff; a step and a swing together return as a way in |
+| the stance: in a fight a step does not turn the hero | locked on |
+| a walk into an enemy is a blow | proposed: no blow |
+| a sweep cannot be parried | the heavy swing, incoming |
+| a swing lands the moment it is let go | a swing travels |
+
+The claims stay: a fighter who only swings is hurt, a defensive one lands its first blow later.
+The three scripted players become a striker, a patient fencer (holds, feints, lunges into
+eagerness) and a dodger, and the fights are played again.
+
 - **How it is seen** (built: `motion.loft`, `game.loft`; every pose and number proposed, to change
   once played).  Nothing on screen says what happened; the figures show it (§ What the player sees):
-  - *Guard* (K held): the weapon turned across the body, drawn in, the hero crouched and leaning
+  - *Guard* (built on K held; S in the new keys): the weapon turned across the body, drawn in, the hero crouched and leaning
     back.  A blow on it: a dull knock, a small spark where the weapons meet, the attacker's strike
     seen, and the hero pushed back two pixels with the guard held — a brace, never the stagger of a
     hit, even when half the blow came through (heard, softer).  Empty-handed, the crouch and lean
     alone.
-  - *Parry* (K tapped): the weapon flicks out from across the body past the facing.  Turned aside:
+  - *Parry* (built on K tapped; a clash in the new design): the weapon flicks out from across the body past the facing.  Turned aside:
     a bright ring, a big spark, the attacker flung back twice as hard as a hit; it is then drawn
     *open* — off balance, its weapon hanging out past its stroke — for as long as a riposte is
     possible.  Too early or late, the flick meets nothing and the blow lands: the timing is taught
@@ -269,6 +568,12 @@ first blow later.*
     parried, swings it far back level instead, leaning further — the two read apart.
   - *Wounded*: any figure at a third of its health or less sags a pixel and, standing, sways.
   - Not built, to try in play: a hit-stop (the figures held still for a moment at a parry).
+  - Proposed for the new design: a ready point held out into its tile, for the hero and the
+    enemies alike, so the standoff is seen; the locked target marked, in the first-person view on
+    its card; an enemy's eagerness, a shift of weight and a sound, before its wind-up; a heavy
+    wind-up drawn far back, a light one short; out of balance, a fighter's lean and stumble.  In the
+    first-person view an enemy's card faces the eye and its point aims at it, so stepping onto a
+    point also glints and is heard.
 
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
@@ -425,6 +730,8 @@ on water, and things pushed or blown into it are lost.
 - **The axe is a worse weapon than the sword** (owner, 2026-11-04): it does the same damage, but
   its weight makes it take longer to ready again after a blow.  Proposed: the axe's recovery is
   half again the sword's (600 ms against 400), a recovery per weapon where the game has one for all.
+  Read again (owner, 2026-11-07; @GM-Combat, *Weapons are profiles*): no point and a heavier
+  swing, so a match-up rather than simply worse.
 - **A torch is a reasonable weapon against bats** (owner, 2026-11-04): it hurts them for 2, and
   any other enemy for 1, as the pick does.  A weapon is a good idea in combat (owner).
 - **Reach** (owner, 2026-11-04): any item held in the hand reaches 3 tiles when swung, where bare
@@ -436,8 +743,10 @@ on water, and things pushed or blown into it are lost.
   pressed — unless the hero does anything else first (a step, a pull, putting down, throwing,
   shooting).  So a fight is paced by the hero's blows, not by how fast keys are pressed.
 - **One item, no inventory.** The hero holds at most one item, and it is always on screen.
-  - Walking over an item swaps it with the one held.
-  - `drop` (L, or X) puts the held item down.
+  - Walking over an item swaps it with the one held.  Designed again (owner, 2026-11-07;
+    @GM-Combat, *The keys*): walking over a small item no longer takes it; Q takes it and puts
+    the held one down.
+  - `drop` (L, or X) puts the held item down; Q in the new keys.
   - **Full hands.** While holding any item, the hero cannot push, pull or lift anything. So
     the cellar's torch is put down beside the rock before the rock is pushed.
   - Built (slice 2): the swap, drop and full hands.
@@ -723,7 +1032,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   - Health 3; a step every 600 ms wandering, every 350 ms chasing or fleeing (the hero steps every
     140 ms, so it can always get away); a bite costs the hero 1, at most every 900 ms; it sees 5
     cells (line of sight, its own layer); it roams within 3 of its nest; it heals a point every
-    4 s there.
+    4 s there (ruled again, owner 2026-11-07: about a point a minute, not a quick reset — a wounded
+    enemy is off the road for a while and can be found wounded; TEMPLATES.md § Living there).
   - A healthy rat that sees the hero comes at it by the shortest way and bites when beside it;
     one that does not wanders, its steps chosen by its id and how far it has walked (the same
     every time).

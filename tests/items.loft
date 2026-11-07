@@ -236,7 +236,7 @@ fn test_where_a_falling_item_comes_to_rest() {
   assert(low(w, 5, 1) == "table,stick,", "rests on the table: {low(w, 5, 1)}");
   tile_world::place(w.w, 4, 1, -1, rules::th(w, "chair"));
   rules::put_hero(w, 4, 1, -1);
-  assert(rules::walk(w, 1, 0) == rules::Step.Walked && w.hero_item == rules::th(w, "stick"), "taken from the table");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && rules::take(w) == rules::Step.Took && w.hero_item == rules::th(w, "stick"), "taken from the table");
   side = if rules::prefers_right(5, 1, -1) { 2 } else { 0 };
   for under in ["chair", "potion"] {
     v = ledge_room();
