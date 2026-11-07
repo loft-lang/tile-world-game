@@ -285,13 +285,18 @@ only one extra key, E.
 - **Collision.**  When an enemy's sword is at the same spot, the weapons collide, and that makes
   both of them unusable for an attack; the widest swing needs the most time before it is usable
   again.
+- **Q and E** (owner, 2026-11-07).  Q grabs anything in front of the hero, for a pull and for a
+  pickup; when the hero already has something in hand, Q drops it.  E uses the item in hand: the
+  sword's swing above is E with a sword.
 
 *Against what is built (engine side, not leading).*  @GM-Combat as built takes its actions from
 keys: J swings (held for the heavy swing), K held blocks and K tapped parries, and a lunge is a
 step and a swing within 150 ms.  Here the step itself is the action: forward lunges, back blocks,
 sideways dodges, and E is the only swing.  The built side-step dodge and the heavy swing carry
 over; the key guard, the timed parry with its riposte, and the lunge's swing are what this design
-replaces or leaves open.
+replaces or leaves open.  Built today, the other actions are keys of their own too: walking over an
+item picks it up (swapping it with the one held), K pulls, L (or X) puts down, J uses the held item
+(a swing, a potion drunk); Q and E take these over.
 
 *Engine notes (not leading).*  All three are new to the engine.  Water today is a terrain that
 blocks walking (bats fly over it) and never changes: a part that floods and drains asks for water
