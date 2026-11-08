@@ -404,9 +404,17 @@ pub fn faces(g: const game::Game) -> vector<Face> {
     above = shades_of(w, cx, cy, z + 1);
     for y in cy - REACH..=cy + REACH {
       for x in cx - REACH..=cx + REACH {
+        // The thin walls on its north and west sides (a house's inner walls, its doors, windows).
+        edges(g, w, out, x, y, z, shade_at(sh, cx, cy, x, y));
         k = tile_world::terrain(w.w, x, y, z);
         if k == tile_world::VOID { continue; }
         here = shade_at(sh, cx, cy, x, y);
+        // Stairs up: four steps to the layer above.  Stairs down over them: the stairwell, open.
+        if k == rules::tr(w, "stairs_up") {
+          steps(g, w, out, x, y, z, here);
+          continue;
+        }
+        if k == rules::tr(w, "stairs_down") && tile_world::terrain(w.w, x, y, z - 1) == rules::tr(w, "stairs_up") { continue; }
         if solid(g, w, x, y, z) {
           walls(g, w, out, x, y, z, sh, below, above, cx, cy);
           continue;
@@ -425,9 +433,9 @@ pub fn faces(g: const game::Game) -> vector<Face> {
                         (fx, h3, fy + 1.0, 0.0, 1.0)], here);
           // A bank down to lower ground beside, on each of the four sides.
           banks(g, w, out, s, x, y, z, here, [h0, h1, h2, h3]);
-          // Seen from below (a bridge, a ledge over open space, above the hero): its underside, a
-          // hair under the floor so the two never fight for a pixel.
-          if z > w.hero_z && tile_world::terrain(w.w, x, y, z - 1) == tile_world::VOID {
+          // Seen from below (a bridge, a ledge over open space, the floor above a room, above the
+          // hero): its underside, a hair under the floor so the two never fight for a pixel.
+          if z > w.hero_z && !solid(g, w, x, y, z - 1) {
             u = fz - 0.01;
             face(out, s, [(fx, u, fy + 1.0, 0.0, 1.0), (fx + 1.0, u, fy + 1.0, 1.0, 1.0), (fx + 1.0, u, fy, 1.0, 0.0),
                           (fx, u, fy, 0.0, 0.0)], here * 0.7);
@@ -450,6 +458,117 @@ pub fn faces(g: const game::Game) -> vector<Face> {
     }
   }
   out
+}
+
+// Where (s, t) of cell (x, y) lies for stairs rising (dx, dy): s across them, t along them from the
+// foot (0) to the top (1); as (x, z) of the view.
+fn on_stairs(x: integer, y: integer, dx: integer, dy: integer, s: float, t: float) -> (float, float) {
+  fx = x as float;
+  fy = y as float;
+  if dy < 0 { (fx + s, fy + 1.0 - t) } else if dy > 0 { (fx + 1.0 - s, fy + t) }
+  else if dx > 0 { (fx + t, fy + s) } else { (fx + 1.0 - t, fy + 1.0 - s) }
+}
+
+/// The way stairs up on (x, y, z) rise: toward the wall they stand against, from the side they are
+/// walked onto — a house's stairs in a corner, a stair road's step cut into a terrace's front
+/// (owner, 2026-11-08: the stairs in 3D).  North, east, south, west, the first with a solid cell
+/// ahead and a way on behind; north when none is.
+pub fn stairs_way(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> (integer, integer) {
+  for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+    if (solid(g, w, x + d.0, y + d.1, z) || !tile_world::crossable(w.w, x, y, z, d.0, d.1))
+        && ground(g, w, x - d.0, y - d.1, z) && tile_world::crossable(w.w, x, y, z, -d.0, -d.1) {
+      return d;
+    }
+  }
+  (0, -1)
+}
+
+// Stairs up on (x, y, z): four steps, each a quarter of the cell along the way they rise and a
+// quarter of a layer higher than the last — the tread, the riser in front of it, its two sides.
+fn steps(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integer, y: integer, z: integer,
+         light: float) {
+  s = game::kind_sprite(g, w, x, y, z, false);
+  d = stairs_way(g, w, x, y, z);
+  fz = z as float;
+  for i in 0..4 {
+    t0 = (i as float) / 4.0;
+    t1 = ((i + 1) as float) / 4.0;
+    h0 = fz + t0;
+    h1 = fz + t1;
+    a = on_stairs(x, y, d.0, d.1, 0.0, t0);
+    b = on_stairs(x, y, d.0, d.1, 1.0, t0);
+    c = on_stairs(x, y, d.0, d.1, 1.0, t1);
+    e = on_stairs(x, y, d.0, d.1, 0.0, t1);
+    face(out, s, [(a.0, h1, a.1, 0.0, 1.0 - t0), (b.0, h1, b.1, 1.0, 1.0 - t0), (c.0, h1, c.1, 1.0, 1.0 - t1),
+                  (e.0, h1, e.1, 0.0, 1.0 - t1)], light);
+    face(out, s, [(a.0, h1, a.1, 0.0, 0.75), (b.0, h1, b.1, 1.0, 0.75), (b.0, h0, b.1, 1.0, 1.0),
+                  (a.0, h0, a.1, 0.0, 1.0)], light * 0.75);
+    face(out, s, [(a.0, h1, a.1, t0, 0.0), (e.0, h1, e.1, t1, 0.0), (e.0, fz, e.1, t1, 1.0),
+                  (a.0, fz, a.1, t0, 1.0)], light * 0.6);
+    face(out, s, [(b.0, h1, b.1, t0, 0.0), (c.0, h1, c.1, t1, 0.0), (c.0, fz, c.1, t1, 1.0),
+                  (b.0, fz, b.1, t0, 1.0)], light * 0.6);
+  }
+}
+
+// The picture a thin wall along the north (`across`) or west side of (x, y, z) is faced with: the
+// house's own walls — the first solid cell along its line, on either side of it — else plain wall.
+fn edge_sprite(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer, across: boolean) -> integer {
+  for i in 0..REACH {
+    cs = if across { [(x + i, y), (x - i, y), (x + i, y - 1), (x - i, y - 1)] }
+         else { [(x, y + i), (x, y - i), (x - 1, y + i), (x - 1, y - i)] };
+    for c in cs {
+      if solid(g, w, c.0, c.1, z) { return game::kind_sprite(g, w, c.0, c.1, z, false); }
+    }
+  }
+  theme::terrain_sprite(g.look, rules::tr(w, "wall"), x, y, false)
+}
+
+// A part of a thin wall from a to b (as (x, z)): across from u0 to u1 of its length, from h0 to h1
+// of a layer over z.
+fn panel(out: vector<Face>, s: integer, a: (float, float), b: (float, float), z: integer, u0: float, u1: float,
+         h0: float, h1: float, light: float) {
+  fz = z as float;
+  p = (a.0 + (b.0 - a.0) * u0, a.1 + (b.1 - a.1) * u0);
+  q = (a.0 + (b.0 - a.0) * u1, a.1 + (b.1 - a.1) * u1);
+  face(out, s, [(p.0, fz + h1, p.1, u0, 1.0 - h1), (q.0, fz + h1, q.1, u1, 1.0 - h1), (q.0, fz + h0, q.1, u1, 1.0 - h0),
+                (p.0, fz + h0, p.1, u0, 1.0 - h0)], light);
+}
+
+// The thin walls on the north and west sides of (x, y, z) (tile_world's edges, PUZZLES.md § Houses):
+// a wall from floor to ceiling, a door its two posts and the lintel over the way through, a window
+// the wall with an opening, a fence (and a grate's frame, beside open space) a low rail.
+fn edges(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integer, y: integer, z: integer, light: float) {
+  wall = rules::edge_id(w.k, "wall");
+  door = rules::edge_id(w.k, "door");
+  window = rules::edge_id(w.k, "window");
+  fence = rules::edge_id(w.k, "fence");
+  fx = x as float;
+  fy = y as float;
+  for side in [tile_world::NORTH, tile_world::WEST] {
+    e = tile_world::edge(w.w, x, y, z, side);
+    if e == 0 { continue; }
+    across = side == tile_world::NORTH;
+    a = if across { (fx, fy) } else { (fx, fy + 1.0) };
+    b = if across { (fx + 1.0, fy) } else { (fx, fy) };
+    ox = if across { x } else { x - 1 };
+    oy = if across { y - 1 } else { y };
+    open = tile_world::terrain(w.w, x, y, z) == tile_world::VOID || tile_world::terrain(w.w, ox, oy, z) == tile_world::VOID;
+    s = edge_sprite(g, w, x, y, z, across);
+    if e == fence || (e == window && open) {
+      panel(out, s, a, b, z, 0.0, 1.0, 0.25, 0.35, light);
+    } else if e == wall {
+      panel(out, s, a, b, z, 0.0, 1.0, 0.0, 1.0, light);
+    } else if e == door {
+      panel(out, s, a, b, z, 0.0, 0.15, 0.0, 1.0, light);
+      panel(out, s, a, b, z, 0.85, 1.0, 0.0, 1.0, light);
+      panel(out, s, a, b, z, 0.15, 0.85, 0.8, 1.0, light);
+    } else if e == window {
+      panel(out, s, a, b, z, 0.0, 1.0, 0.0, 0.35, light);
+      panel(out, s, a, b, z, 0.0, 1.0, 0.75, 1.0, light);
+      panel(out, s, a, b, z, 0.0, 0.1, 0.35, 0.75, light);
+      panel(out, s, a, b, z, 0.9, 1.0, 0.35, 0.75, light);
+    }
+  }
 }
 
 // The banks of ground cell (x, y, z) with corner heights h (NW, NE, SE, SW): where the ground

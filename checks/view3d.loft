@@ -47,7 +47,10 @@ fn main() {
   test_a_slanted_wall_is_a_prism();
   test_a_ceiling_hangs_at_its_drop();
   test_a_slope_bends_the_floor();
-  println("checks/view3d.loft: 4 passed");
+  test_thin_walls_stand_on_their_edges();
+  test_stairs_rise_toward_their_wall();
+  test_a_floor_above_has_an_underside();
+  println("checks/view3d.loft: 7 passed");
 }
 
 // A whole wall on (4, 4) among floor: four sides and a top, each four corners; no floor under it.
@@ -129,4 +132,85 @@ fn test_a_slope_bends_the_floor() {
     if all { ok = true; }
   }
   assert(ok, "the floor's corners at 1/16: {len(fs)} faces");
+}
+
+// The faces standing on the line z = `line` (the view's z, a row's north side) from x0 to x0 + 1.
+fn on_line(fs: const vector<render3d::Face>, x0: integer, line: integer) -> integer {
+  n = 0;
+  for f in fs {
+    on = true;
+    for c in 0..corners(f) {
+      fx = f.at[c * 5] ?? -9.0;
+      fz = f.at[c * 5 + 2] ?? -9.0;
+      if fz < (line as float) - 0.001 || fz > (line as float) + 0.001 || fx < (x0 as float) - 0.001 || fx > ((x0 + 1) as float) + 0.001 { on = false; }
+    }
+    if on { n += 1; }
+  }
+  n
+}
+
+// A house's thin walls (owner, 2026-11-08: walls not seen in 3D): on the north side of (3, 3) a
+// wall is one panel standing there, a door its two posts and the lintel, a window four parts.
+fn test_thin_walls_stand_on_their_edges() {
+  g = place();
+  tile_world::set_edge(g.world.w, 3, 3, 0, tile_world::NORTH, rules::edge_id(g.world.k, "wall"));
+  tile_world::set_edge(g.world.w, 5, 3, 0, tile_world::NORTH, rules::edge_id(g.world.k, "door"));
+  tile_world::set_edge(g.world.w, 6, 3, 0, tile_world::NORTH, rules::edge_id(g.world.k, "window"));
+  fs = render3d::faces(g);
+  assert(on_line(fs, 3, 3) == 1, "a wall: {on_line(fs, 3, 3)}");
+  assert(on_line(fs, 5, 3) == 3, "a door: {on_line(fs, 5, 3)}");
+  assert(on_line(fs, 6, 3) == 4, "a window: {on_line(fs, 6, 3)}");
+}
+
+// Stairs up on (5, 5) against a wall to the north: four treads, the lowest at the south a quarter
+// of a layer up, the highest at the wall a whole layer up; over them on layer 1 the stairwell is
+// open — no floor across the cell there.
+fn test_stairs_rise_toward_their_wall() {
+  g = place();
+  w = g.world;
+  tile_world::set_terrain(w.w, 5, 4, 0, rules::tr(w, "wall"), 0);
+  tile_world::set_terrain(w.w, 5, 5, 0, rules::tr(w, "stairs_up"), 0);
+  tile_world::set_terrain(w.w, 5, 5, 1, rules::tr(w, "stairs_down"), 0);
+  d = render3d::stairs_way(g, w, 5, 5, 0);
+  assert(d.0 == 0 && d.1 == -1, "up toward the wall: ({d.0}, {d.1})");
+  low = false;
+  high = false;
+  floor_over = false;
+  for f in render3d::faces(g) {
+    if corners(f) != 4 { continue; }
+    zmin = 99.0;
+    zmax = -99.0;
+    xmin = 99.0;
+    xmax = -99.0;
+    flat = true;
+    y0 = f.at[1] ?? -9.0;
+    for c in 0..4 {
+      fy = f.at[c * 5 + 1] ?? -9.0;
+      fx = f.at[c * 5] ?? -9.0;
+      fz = f.at[c * 5 + 2] ?? -9.0;
+      if fy < y0 - 0.001 || fy > y0 + 0.001 { flat = false; }
+      if fz < zmin { zmin = fz; }
+      if fz > zmax { zmax = fz; }
+      if fx < xmin { xmin = fx; }
+      if fx > xmax { xmax = fx; }
+    }
+    if !flat || xmin < 4.999 || xmax > 6.001 { continue; }
+    if y0 > 0.249 && y0 < 0.251 && zmin > 5.749 && zmax < 6.001 { low = true; }
+    if y0 > 0.999 && y0 < 1.001 && zmin > 4.999 && zmax < 5.251 { high = true; }
+    if y0 > 0.999 && y0 < 1.001 && zmin < 5.001 && zmax > 5.999 { floor_over = true; }
+  }
+  assert(low && high, "the lowest tread at the foot, the highest at the wall: {low} {high}");
+  assert(!floor_over, "the stairwell over them is open");
+}
+
+// A floor on layer 1 over the hero's room on layer 0 is seen from below: its underside, a hair
+// under layer 1 — a house's ceiling, a bridge seen from its bed.
+fn test_a_floor_above_has_an_underside() {
+  g = place();
+  tile_world::set_terrain(g.world.w, 2, 2, 1, rules::tr(g.world, "floor"), 0);
+  under = false;
+  for f in of_cell(render3d::faces(g), 2, 2, 0) {
+    if corners(f) == 4 && (f.at[1] ?? 0.0) > 0.98 && (f.at[1] ?? 0.0) < 0.995 { under = true; }
+  }
+  assert(under, "the floor above has an underside");
 }

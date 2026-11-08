@@ -46,7 +46,14 @@ the Tanmatsu stay 2D, and the editor is always 2D (F2 switches the view off).
   hero's eyes, its facing eased as it turns.  Floors at their rise, bent at the corners as the 2D
   bends its ground, with banks to lower ground; walls as boxes; slanted walls as prisms with their
   cut face and the floor and ceiling of their open half; ceilings at their drop, bent the same way;
-  the undersides of floors and rock above the hero.  Trees, fences, open doors and things are cards
+  the undersides of floors and rock above the hero — over a room too (a house's ceiling) and over
+  a stream's bed (a bridge seen from below).  The thin walls between cells (a house's inner walls,
+  owner, 2026-11-08: walls the hero bumped into unseen) stand on their edges, faced with the
+  house's own wall picture: a wall a panel floor to ceiling, a door its two posts and the lintel,
+  a window the wall round an opening, a fence or a grate's frame a low rail.  Stairs up are four
+  steps to the layer above, rising toward the wall they stand against (`stairs_way`: a house's in
+  its corner, a stair road's into the terrace), and the stairwell over them is open (owner,
+  2026-11-08: the stairs in 3D).  Trees, fences, open doors and things are cards
   turned to the eye (an item on the floor half a cell, furniture a little under one, a figure 0.85);
   the enemies and people glide to their cells.  The light is the rules' (`tile_world::shades`), and
   the distance fades into the sky by day or night under the open sky, into the dark under rock.
@@ -59,9 +66,11 @@ the Tanmatsu stay 2D, and the editor is always 2D (F2 switches the view off).
 - **The pictures:** each, the first time it is needed, is drawn by the theme onto a small
   offscreen surface, read back and put in a 1024 x 1024 atlas — the 2D's colours exactly, and the
   theme untouched.
-- **Checked:** `checks/view3d.loft` (a box, a prism, a ceiling at its drop, a bent floor, by hand,
-  both backends); pictures taken in headless Chromium in the village and the caves.
-- **Not yet:** talk bubbles, ramps for stairs, a door's panel (a door is a box), a figure's held
+- **Checked:** `checks/view3d.loft` (a box, a prism, a ceiling at its drop, a bent floor, the thin
+  walls, the stairs and their open stairwell, a floor's underside over a room, by hand, both
+  backends); pictures taken in headless Chromium in the village and the caves, and in Orbury on
+  the stair road and in Hollis's house.
+- **Not yet:** talk bubbles, a door's panel (a door is a box), a figure's held
   card, culling (every face is drawn; a place round the hero is a few thousand faces).
 
 A key pressed and released between two frames is not seen: `screen` keeps which keys are down, not
