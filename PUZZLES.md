@@ -185,6 +185,19 @@ is inside); the kit's `houses` (intent.loft), today a house's outside only, grow
 An abandoned or closed house is any of these, shut: dust, its furniture moved, a way in that is
 not the door.
 
+**Most houses are not spectacular** (owner, 2026-11-08): the village has a variety of houses,
+some elaborate, most plain.  Proposed, for Orbury's dozen or so:
+- **most are miners' cottages**, a floor and a room or two;
+- **a few are two floors**: a craftsman's, a better house;
+- **two or three are elaborate**, and those the story names: the inn, and the like.
+
+The plain ones vary in small things rather than in plan: their size (4 × 4 to 6 × 5), the side
+their door is on, a lean-to, a porch, a shed, a yard or a garden, the furniture.  Plain is not
+dull: a cottage's puzzle comes from how it was closed and what has come down, not from its plan,
+so most closed cottages are a short way in and out, and the elaborate houses are where the town's
+bigger puzzles sit (the inn's basement chest).  The seed deals the plain ones freely; the
+elaborate ones are few, placed by the story, and dealt only in their rooms and their decay.
+
 **The story fixes what, the templates deal how.**  The story fixes a house's household, where it
 stands and what it must hold: the chest and the grey rat in the inn's basement, rope in an
 abandoned house, axes in the closed ones, the smithy's anvil.  The seed deals its rooms, their

@@ -40,7 +40,8 @@ is not.
   is built from templates by its household, one floor for a poor miner's family, several with a
   basement and a roof for the inn (PUZZLES.md § Houses).  Their puzzles come from two things
   (owner, 2026-11-08): families who left meant to come back, so they closed their houses with
-  care; and too little maintenance let time in, so for example part of a roof came down.
+  care; and too little maintenance let time in, so for example part of a roof came down.  A
+  variety of houses, some elaborate, most not spectacular (owner, 2026-11-08).
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons (@ST-Alchemist); Agnes's house beside the empty
   inn (@ST-Innkeeper); the abandoned smithy, made to work, where the artefact is crafted
