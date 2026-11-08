@@ -174,6 +174,8 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
 - **Chest ◇ (in sight, hard to reach):** the one in the inn's basement (owner), behind a grey rat
   and a stack to climb over.  As every chest is the artefact's (owner, 2026-11-08), it holds the
   village's piece ◇: found in the mine and carried down there by someone who could not open it.
+  It is the town's taste of what lies ahead (owner, 2026-11-08): complex, off the main track, from
+  the start; the lord's closed-up house ◇ another (PUZZLES.md § The depth sets the band).
 
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 

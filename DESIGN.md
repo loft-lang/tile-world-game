@@ -19,6 +19,11 @@ This is what the game built on tile_world should be.
   without it still works, only less well.  Switching the focus between enemies is one of the
   things that most easily leaves a player lost, so the focus mostly takes care of itself
   (@GM-Combat, *Locked on*).
+- **Start slow, with a taste of what lies ahead** (owner, 2026-11-08).  The game starts
+  relatively slow, because the players do not know how the puzzle pieces interact yet; but it
+  gives them a taste of what lies ahead, so there are complex things off the main track right
+  from the start (the chest in the inn's basement).  The main track is gentle; what is off it
+  may already be hard (PUZZLES.md § The depth sets the band).
 - **Puzzles are the focus; the fight is a base** (owner, 2026-11-08).  This game is about its
   puzzles.  The fight was rewritten to feel physical instead of numbers, and it is to be perfected,
   but as a good base for other games to continue with, not as this game's centre.  The order

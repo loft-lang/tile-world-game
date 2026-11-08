@@ -517,6 +517,23 @@ Proposed bands, by LOCATIONS.md's order:
 The town and the first places have a ceiling only; the deep ones a floor and a ceiling, the ceiling kept
 below 10 so a deep scene leaves the player some room to be wrong.
 
+**The band is the main track's; off it, a taste of what lies ahead** (owner, 2026-11-08: start
+slow, because the players do not know the pieces' interactions yet, but give them a taste of what
+lies ahead, with complex things off the main track right from the start, like the chest in the
+inn's basement).  Proposed:
+- **the main track** (the gates: what every way to the place's goal passes) keeps to its band:
+  in the town, gentle;
+- **off it**, from the start, a few things well above the band: a chest (§ Chests: above its
+  area and its gates anyway), and an optional puzzle or two — in the town, the inn's basement, the
+  lord's closed-up house — reaching up to the middle band, never past the limits outside the
+  number;
+- **seen from the main track**, so the player knows it is there and comes back for it: a sight
+  line designed in the fixed layout, as a chest's is.  Being able to leave it for later is part
+  of the taste — the game has no fixed order (STORY.md @ST-Order);
+- **it may use a piece the player has not met yet**, as long as it can be done without it (fun,
+  never lost): what is learnt later makes it easier when the player comes back, and that return is
+  the taste paying off.
+
 ## Chests: seen, and earned
 
 Chests keep a rule of their own, apart from the rest of a dungeon or a house (owner,
