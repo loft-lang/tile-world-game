@@ -17,6 +17,44 @@ const PORT = 8080;
 /// Paths from tools/, the directory loft runs this script in.
 const WEB = "../build/web";
 
+/// The worlds the server opens, each at /<its start place> (levels/order.json's `worlds`): the
+/// page is the same, told which world to start by `?LOFT_WORLD=` (the page passes a LOFT_ query on
+/// to the game as an environment variable).
+const ORDER = "../levels/order.json";
+
+struct World {
+  name: text,
+  start: text
+}
+
+fn worlds() -> vector<World> {
+  out: vector<World> = [];
+  v = json_parse(file(ORDER).content() ?? "").field("worlds");
+  for i in 0..v.len() {
+    e = v.item(i);
+    out += [World { name: e.field("name").as_text() ?? "", start: e.field("start").as_text() ?? "" }];
+  }
+  out
+}
+
+// The neutral front page: a link to each world, and the guide.
+fn front(ws: const vector<World>) -> text {
+  links = "";
+  for w in ws { links += "<li><a href=\"/{w.start}\">{w.name}</a></li>"; }
+  "<!doctype html><html><head><meta charset=\"utf-8\"><title>tile_world</title>" +
+  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+  "<style>body{{background:#111;color:#eee;font:18px/1.5 monospace;padding:2em}}a{{color:#fc6}}</style></head>" +
+  "<body><h1>tile_world</h1><ul>{links}</ul><p><a href=\"/guide.html\">how to play and edit</a></p></body></html>"
+}
+
+// The game's page for world `start`: told its world before the game reads its query.
+fn world_page(body: text, start: text) -> text {
+  set = "<script>if(!/[?&]LOFT_WORLD=/.test(location.search))history.replaceState(null,\"\",location.pathname+\"?LOFT_WORLD={start}\");</script>";
+  at = body.find("<head>") ?? -1;
+  if at < 0 { return set + body; }
+  body[0..at + 6] + set + body[at + 6..len(body)]
+}
+
 // A file of the built page, its text ("" when missing).
 fn page(name: text) -> text {
   f = file("{WEB}/{name}");
@@ -47,11 +85,29 @@ fn main() {
     println("port {port} is taken: stop what holds it (another play server, python -m http.server)");
     return;
   }
-  println("the game:   http://localhost:{port}/   (the guide: /guide.html)");
+  ws = worlds();
+  println("the worlds: http://localhost:{port}/   (the guide: /guide.html)");
+  for w in ws { println("  {w.name}: http://localhost:{port}/{w.start}"); }
   println("its log:    {path}");
   srv.run(fn(ev: server::WsEvent) {
     if ev.http {
-      if ev.path == "/" || ev.path == "/index.html" {
+      // The path without its query, and without a closing slash.
+      p = ev.path;
+      q = p.find("?") ?? -1;
+      if q >= 0 { p = p[0..q]; }
+      if len(p) > 1 && p.ends_with("/") { p = p[0..len(p) - 1]; }
+      opened = "";
+      for w in ws { if p == "/{w.start}" { opened = w.start; } }
+      if p == "/" {
+        answer(200, front(ws), "text/html; charset=utf-8");
+      } else if opened != "" {
+        body = page("index.html");
+        if body == "" {
+          answer(500, "build/web/index.html is missing: build it with ./play-web.sh", "text/plain; charset=utf-8");
+        } else {
+          answer(200, world_page(body, opened), "text/html; charset=utf-8");
+        }
+      } else if p == "/index.html" {
         body = page("index.html");
         if body == "" {
           answer(500, "build/web/index.html is missing: build it with ./play-web.sh", "text/plain; charset=utf-8");

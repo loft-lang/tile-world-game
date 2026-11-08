@@ -245,9 +245,11 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  // Which world (WORLD.md): TW_WORLD names one; else the player chooses among order.json's
-  // `worlds` — the story's, Orbury, and the demo village beside it.
+  // Which world (WORLD.md): TW_WORLD names one — in a browser LOFT_WORLD, which a page's query
+  // passes on (the play server's /orbury and /demo set it); else the player chooses among
+  // order.json's `worlds` — the story's, Orbury, and the demo village beside it.
   start = env_variable("TW_WORLD") ?? "";
+  if start == "" { start = env_variable("LOFT_WORLD") ?? ""; }
   if start == "" {
     list = game::worlds(game.dir);
     pick = 0;
