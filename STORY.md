@@ -95,7 +95,8 @@ Theobald (names, owner 2026-11-04).  The last remaining villagers struggle to ma
 around it are more given to farming, though desert has been creeping in lately (owner,
 2026-11-04; the drought, @ST-Outside).
 
-In the village, ore stands for wealth, and its flow has dried up (owner, 2026-11-04).
+In the village, ore stands for wealth, and its flow has dried up (owner, 2026-11-04).  There is no
+money in the game itself for the hero: there is nothing to buy with it (owner, 2026-11-08).
 
 <a id="st-farm"></a>**The farm: Thornfield** (owner, 2026-11-04): there is a small farm at the village, kept by the
 Dunns; it cannot provide enough food for the villagers, small as their number now is.
@@ -300,7 +301,8 @@ craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 
 <a id="st-alchemist"></a>**The alchemist: Hollis** (owner, 2026-11-04): still living in the village.  Their job was to provide the
 miners with potions for small injuries, and other stimulants.  Hollis stayed when others left,
-with a lab that is not easily replaced (owner, 2026-11-08).
+with a lab that is not easily replaced (owner, 2026-11-08).  The alchemist is paid with
+resources: slightly more than the potions need (owner, 2026-11-08).
 
 <a id="st-foreman"></a>**The old foreman: Garth Mabley** (owner, 2026-11-04): the retired foreman; the active one left.  He
 knows the gist of the mine, but not its latest state (@ST-Mine, @ST-Hints).

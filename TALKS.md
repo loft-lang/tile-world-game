@@ -19,7 +19,7 @@ yet.  The lines themselves are the owner's to write.
 | Agnes, the innkeeper (@ST-Innkeeper) | who left, when and why; the state of the town and the court trouble behind it — the hero learns these from her, with the player (owner) | leaving | the abandoned inn, the Fenns, the people who went; the lord's fall and the decree |
 | The Dunns of Thornfield (@ST-Farm) | the farm, the land drying | food; the horse's work | the drought, the creeping desert, too many mouths |
 | Lark (@ST-YoungVillager) | the hidden paths, the brook, the crabs | *(open)* | the hills, places others do not know |
-| Hollis, the alchemist (@ST-Alchemist) | potions; the crystal is beyond his trade | *(open)*; needs convincing to go up Stormcap | the miners he used to patch up, the lightning; the strange fountains he cannot fathom (@ST-Fountains, owner); the ingredients he needs for potions (owner) |
+| Hollis, the alchemist (@ST-Alchemist) | potions; the crystal is beyond his trade | to be paid in resources, slightly more than the potions need (owner); needs convincing to go up Stormcap | the miners he used to patch up, the lightning; the strange fountains he cannot fathom (@ST-Fountains, owner); the ingredients he needs for potions (owner) |
 | Sergeant Voss (@ST-Warden) | his orders; part of the court trouble (owner) | keeping the people out | little — the Wardens do not mingle; sergeant to sergeant he can talk, part of the court trouble included |
 | Sable, the rival (@ST-Rival) | the mine, from his own way in | the same artifacts as the hero | rivalry; the traps he will not admit to |
 | Tamsin, Lady Brigid's aide (@ST-Aide) | the witch's view; the materials | the materials, for Brigid | Lady Brigid and Greywood, the materials; arrives after the hero |

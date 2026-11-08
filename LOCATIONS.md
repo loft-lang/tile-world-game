@@ -360,8 +360,10 @@ is the clock (@ST-Climax): feeding the village and buying time pull against each
   the hero taking it out of there, while the other villagers are less protective of travellers'
   goods (owner, 2026-11-04; @ST-Innkeeper).  Rennick, befriended, may part with one too ◇.
 - **Money:** in this village ore stands for wealth, and its flow has dried up (owner, 2026-11-04).
-  So the game's money is ore here ◇: found in the mine and the chests, of value to the villagers
-  as the flow they lost, and to the contenders (Lord Garrick's interest is money).
+  There is no money in the game for the hero, and nothing to buy with it (owner, 2026-11-08): the
+  alchemist is paid with resources, slightly more than the potions need.  Ore stays the
+  villagers' lost wealth and the contenders' interest (Lord Garrick's is money), never the hero's
+  currency.
 - **Rennick's home:** not in the open, but in a small clump of woodland on the hillside, drawn
   with the tiles (owner, 2026-11-04); outside the village that cast him out.
 - **The Fenns' empty house:** one of the closed houses in the village, the one with rope ◇.
@@ -375,6 +377,6 @@ is the clock (@ST-Climax): feeding the village and buying time pull against each
   not the village or the hills.
 - **Save points:** the strange fountains, in the mines and the hills (@ST-Fountains); the village's
   well is a pump with small crystals, not one of them.
-- **Still without a place:** the bow; money (what it buys); where Rennick lives; the Fenns' empty
+- **Still without a place:** the bow; where Rennick lives; the Fenns' empty
   house.  (The axe is in the closed houses, the well in the village.)
 - **Thin places:** the Wardens' camp and the hillside are crossings more than places to explore.

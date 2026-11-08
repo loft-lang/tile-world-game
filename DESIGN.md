@@ -1036,6 +1036,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 ## Goals: chests and points
 
+- **No money for the hero** (owner, 2026-11-08): there is nothing to buy with it; the alchemist
+  is paid with resources, slightly more than the potions need.  The money built below is the demo
+  world's test bench, to go from the story game: what a chest holds instead is open.
 - **A point per chest.**  Opening a chest gives its money and one point (built: a chest's
   `money`, 10 proposed; the status line shows GOLD once there is any, and the coins are heard).  A level's goal `chests` is solved when no chest is left closed.  A region or a
   dungeon has a fixed number of chests, so the points it can give are limited.
