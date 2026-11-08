@@ -45,11 +45,14 @@ is not.
   care; and too little maintenance let time in, so for example part of a roof came down.  A
   variety of houses, some elaborate, most not spectacular: most people were lowly miners, but
   there was money too (owner, 2026-11-08).
+- **The town's layout is fixed** (owner, 2026-11-08), with the farms and the cemetery on its side
+  of the stream; what varies is the state of the houses and their interior, dealt from the
+  templates (PUZZLES.md § Houses).
 - **The town's shape** (owner, 2026-11-08): modelled a bit on a medieval Italian town, climbing
   a hill.  The market place is already higher up the hill, and the biggest mansion stands towards
   the top, partly built into the hilltop.  Proposed ◇, from the bottom up:
-  - **at the foot**: the dried stream and the miners' rows along it; Thornfield's fields on the
-    flat beyond, the cemetery just outside;
+  - **at the foot**: the dried stream and the miners' rows along it; the farms, Thornfield among
+    them, and the cemetery, on the town's side of the stream (owner);
   - **across the stream, the loading dock** (owner): the town's hill is not joined to the mine's,
     so the ore never came through the town itself.  The rails come down from the mine through the
     Wardens' camp and end at the dock, with their switch ◇; there the ore was loaded for the road

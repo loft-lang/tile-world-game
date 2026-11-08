@@ -179,7 +179,8 @@ house.
 - **A house** is a frame of rooms on its levels, by its household; to the town it is one part,
   its ports the doors, windows, hatches and roof edges.  Two roofs that meet are two ports joined.
 
-**Households** (proposed, from LOCATIONS.md § 1; the sizes are the outside, walls included):
+**Households** (proposed, from LOCATIONS.md § 1; the sizes are the outside, walls included, a
+guide for drawing the shells in the town's fixed layout):
 
 | Household | Levels | Rooms | Size | In Orbury |
 |---|---|---|---|---|
@@ -260,10 +261,22 @@ so most closed cottages are a short way in and out, and the elaborate houses are
 bigger puzzles sit (the inn's basement chest).  The seed deals the plain ones freely; the
 elaborate ones are few, placed by the story, and dealt only in their rooms and their decay.
 
-**The story fixes what, the templates deal how.**  The story fixes a house's household, where it
-stands and what it must hold: the chest and the grey rat in the inn's basement, rope in an
-abandoned house, axes in the closed ones, the smithy's anvil.  The seed deals its rooms, their
-order and its ways in; the check makes sure what the story needs is there and can be reached.
+**The town's layout is fixed; the houses' state and insides are dealt** (owner, 2026-11-08).
+The town itself is drawn by hand, once: its hill, streets, main road and stair roads, the market,
+the stream and its bridges, the farms and the cemetery on the town's side, and every house's
+place and shell.  What the templates vary is **the state of the houses and their interior**.
+Proposed, where the line falls:
+
+| Fixed (drawn by hand) | Dealt (by the seed, from the templates) |
+|---|---|
+| where a house stands, its footprint, its levels, which street each level opens on | its rooms: the inner walls, which room is which, where the stairs or the ladder go inside |
+| its doors and windows, where they are in the shell | which are locked, barred, shuttered or boarded, and which was the family's way out |
+| its household, and what the story needs in it: the chest and the grey rat in the inn's basement, rope in the Fenns' house, axes in the closed ones, the smithy's anvil, Hollis's lab | its furniture and where it was pushed; where what is worth something was put away |
+| who lives there, and their routine's points | its decay: what came down, what rotted, what flooded, and how long the family has been gone |
+
+So each house is a slot whose box is its shell, and a household's room templates are fitted into
+it.  The check makes sure what the story needs is there and can be reached, and the town is the
+same town every game: only what is inside its houses, and how they were left, is fresh.
 
 **Where the town's puzzles come from** (owner, 2026-11-08): two things done to a house, one on
 purpose and one by time.
