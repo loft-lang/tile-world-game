@@ -331,6 +331,10 @@ lived in is kept up and has none.
   from the house beside the inn, so getting into the lord's house or a well-off one unseen is a
   navigation part by her routine (at her window, out in the market, asleep), as is taking the
   bow from the inn (LOCATIONS.md: she had better not see it);
+- the two ways up (LOCATIONS.md § 1, owner): the main road, long, open and seen from the market at
+  its top, the only way a thing can be moved up the hill (a step, a crate, a cart); the stair
+  roads, short and hidden among the poorer quarters, for the hero alone.  Which is taken, and what
+  has to be brought up by the long way, is a choice a scene can turn on;
 - the dried stream's bed (LOCATIONS.md § 1, owner): a sunken way through town, a navigation part
   under the bridges, out of the street's sight; its bridges neglected as the houses are;
 - at night a lived-in house is a navigation part: the sleepers in their rooms see what is lit,

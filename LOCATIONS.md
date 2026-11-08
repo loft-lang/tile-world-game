@@ -49,8 +49,15 @@ is not.
   - **at the foot**: the dried stream, the rails coming in from the mine along it, the place the
     ore was washed, the miners' rows; Thornfield's fields on the flat beyond, the cemetery just
     outside;
-  - **up the slope**: narrow streets climbing in turns and steps (stairs, slopes), houses stacked
-    against the hill, so a house's ground floor opens on one street and its upper floor on the
+  - **the main road** (owner): a bigger road from the market down to the foot, wide enough for a
+    cart or a horse, winding to keep its climb gentle: built of slopes (DESIGN.md § The world), so
+    a thing can be pushed up it and a cart rolls down it.  At its foot ◇ the stone bridge, the
+    rails and the ways out of town: the main path up to the Wardens' camp, the road the hero rode
+    in on;
+  - **the stair roads** (owner): small stepped alleys through the poorer quarters, the short way
+    up and down: built of stairs and steep steps, so the hero and the villagers take them, but
+    nothing is pushed or rolled up them, and the horse stays on the main road ◇;
+  - **up the slope**, between them: the poorer quarters, houses stacked against the hill, so a house's ground floor opens on one street and its upper floor on the
     street above; passages under houses, from one street through to the next;
   - **the market**, a terrace two or three layers above the stream: the inn, Agnes's house, the
     well-off houses, the well and its pump (a hill town's water is drawn deep, the stream below
