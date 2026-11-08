@@ -22,6 +22,10 @@ What TEMPLATES.md is for figures, this is for puzzles.  The owner's idea (2026-1
 - **The challenge is how exactly the hero has to move** to solve it.
 - **And how easily the puzzle is read**: when parts of it are hidden from the start, that bumps
   up the challenge too.
+- **The map is fixed; the parts live under it** (owner, 2026-11-08).  Not only the town: across
+  the whole map things have their place, so they can be made believable and readable, and that
+  is verified through gameplay.  The puzzles and the templates live under that level: they deal
+  the state of what is there and what is inside it, never where it is.
 - **One number** (owner, ruled 2026-11-08): the measures are dimensions of one challenge, folded
   into a single number, so that when one of them gets deep it weighs heavily on the whole.
 
@@ -33,6 +37,10 @@ TEMPLATES.md); nothing is built.
 
 ## Why parts fit this game
 
+- **The map stays the map.**  Every place is drawn by hand, once, and is the same every game
+  (owner, above), so what a player learns of the world stays true: the way to the mine, where the
+  lake lies, which street climbs to the market.  What is fresh is what that knowledge meets
+  there: how a house was left, what came down in a tunnel, where a lair is this time.
 - **A dungeon is a puzzle** (DESIGN.md § The principle), and **every rule holds everywhere, the
   same way every time**: that consistency is what lets two parts written apart combine.  A part
   never relies on a special rule; it relies on the world's rules, so what it does to its
@@ -357,7 +365,8 @@ The town is the first depth: its challenge is judged in play (below).
 
 ## A scene: a frame with slots
 
-A **scene** is a place drawn by hand (LOCATIONS.md) with slots in it:
+A **scene** is a place drawn by hand (LOCATIONS.md), always: the whole of its layout is fixed
+(owner, 2026-11-08), and its slots are what lives under it:
 - **a slot** has a box, its ports, and what it may hold: a kind, the roles it must give or take
   ("a gate on the way from the lift to the seam, wanting a light or a blast"), the mechanics and
   the figures allowed (`@GM-Flooded` only, in the flooded tunnels; no cyclops before the Old
@@ -517,8 +526,8 @@ below 10 so a deep scene leaves the player some room to be wrong.
   band, parts and variants not met lately.
 - **Variants carry much of it**: the same part mirrored, its lair moved, its round on another
   phase, plays fresh without a new part written.
-- **The story keeps what it needs**: a place whose layout the story fixes (LOCATIONS.md) is
-  drawn by hand; slots go where it does not.
+- **The map keeps its place** (owner): every place's layout is drawn by hand and fixed; the
+  slots are inside it, in its houses, rooms, tunnels and caves, never in where they are.
 - **A place stays dealt** once entered: it keeps its parts for the rest of the game, as every
   place stays as the hero left it.
 
@@ -548,6 +557,13 @@ and its barred wall is round a corner.
 ## Rules the parts keep, so they can be combined
 
 - **A part acts within its box**, but for its stated side effects and their reach.
+- **A dealt state may close a way the layout has, or open one the layout prepared, never make
+  one** (proposed, from the owner's fixed map): a door barred, a stair rotted, a tunnel fallen
+  in, a roof come down where the layout has a roof; a hatch, a weak wall, a boarded window the
+  layout drew as such.  So the map a player knows never lies; only what stands in its ways
+  changes.
+- **A lair's spots are drawn in the layout**, where its kind would believably live (a nest in a
+  dark corner, a cyclops post at a junction); the seed picks which are used, and how.
 - **Things pass between parts only through ports**, along the ways the frame keeps open.
 - **A part's figures keep to its box** (their roam, TEMPLATES.md § Shared templates), or are the
   scene's, declared in the frame.
@@ -563,8 +579,9 @@ and its barred wall is round a corner.
 
 1. **Settled by the owner's aim**: the seed is drawn at each new game.  Open: from a pool dealt on
    the developer's machine (proposed, to start), or dealt on the machine itself?
-2. **What do parts fill?**  Started (owner): the town's houses, in Orbury's map.  Open: later,
-   slots in the other places of LOCATIONS.md, or whole dungeons made of parts?
+2. **Settled** (owner, 2026-11-08): parts never make a map.  Every place's layout is fixed and
+   drawn by hand; parts fill its slots (houses, rooms, tunnels, caves, lairs), starting with the
+   town's houses.
 3. **Judged in play** (owner, 2026-11-08): the bands, and which detail gets which level, are
    decided by playing the result, not here.  Every number above (the scales, the weights, the
    fold's power, the bands) is a starting point.  For the judging, proposed: `TW_SEED=<n>`

@@ -27,7 +27,10 @@ This is what the game built on tile_world should be.
 - **Puzzles from parts** (owner, 2026-11-08).  A scene's puzzle is made of parts, each a small
   challenge in itself and interchangeable with another like it; the complexity lies in how the
   parts chosen interact.  A seed picks the parts, and a check over many seeds finds the ones
-  whose parts together are solvable.  Designed in PUZZLES.md (proposed, not built).
+  whose parts together are solvable.  **The map is fixed; the parts live under it** (owner): every
+  place has its layout drawn by hand, so things can be made believable and readable, verified
+  through gameplay; the templates deal the state and the insides of what is there.  Designed in
+  PUZZLES.md (proposed, not built).
 - **Growth comes later.** Character growth comes only after a base dungeon and world feel alive and
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.  Read again
   (owner, 2026-11-07): growth is breadth, not height: a new thing to carry, wear or do, each with
