@@ -50,9 +50,9 @@ is not.
   |---|---|---|---|
   | Thornfield: the farmhouse and the barn | a farm, at the village's edge | the Dunns, Lark among them (@ST-Farm, @ST-YoungVillager); the hero sleeps in the barn, his horse lent to the farm | lived in |
   | Hollis's house | the alchemist's, with the lab | Hollis (@ST-Alchemist) | lived in: stayed for the lab |
-  | Agnes's house, beside the inn | a well-off house ◇, easier to keep than the inn | Agnes (@ST-Innkeeper) | lived in |
+  | Agnes's house, beside the inn, on the market | a well-off house ◇, easier to keep than the inn | Agnes (@ST-Innkeeper), with an eye on the market | lived in |
   | the inn | elaborate | nobody | abandoned; the bow in a room, the chest and a grey rat in the basement |
-  | the lord's house | the most elaborate | Lord Edric's representative, gone ◇; the lord when he comes (@ST-Court) | closed up ◇ |
+  | the lord's house, on the market ◇ | the most elaborate | Lord Edric's representative, gone ◇; the lord when he comes (@ST-Court) | closed up ◇ |
   | the smithy | the smithy | the smith, gone ◇ | abandoned, to be made to work (@ST-Artefact) |
   | Garth's house | a foreman's: the better kind of cottage, two floors ◇ | Garth Mabley, retired (@ST-Foreman) | lived in ◇ |
   | the active foreman's house | the same ◇ | the foreman who left (@ST-Foreman) | closed up ◇ |
@@ -64,6 +64,12 @@ is not.
   pump; the rails from the mine through the Wardens' camp, with their switch; the trees.  Out of
   it: the Wardens' camp up the main path (§ 2), the hidden path and the brook (§ 3), the open
   hillside and Rennick's woodland (§ 4).
+- **The market place** (owner, 2026-11-08): a small market place beside the inn, where the more
+  notable houses are too, so the innkeeper has an eye on what the hero does there.  Proposed ◇:
+  its stalls stand empty since the ore stopped; the lord's house and the well-off houses face it;
+  Agnes watches it from her house by day, so snooping into the notable houses, or taking the bow
+  from the inn, is done out of her sight or not at all; by night she sleeps, and the market is
+  dark.
 - **The stream** (owner, 2026-11-08): a mostly dried-off stream runs along the town, with some
   bridges that are not really needed anymore.  Proposed ◇:
   - **It is the brook's lower course.**  Up the hidden path it still runs, where Lark and the crabs

@@ -197,8 +197,9 @@ some.  Proposed, for Orbury's dozen or so:
 - **a few are two floors**: a craftsman's;
 - **two or three are elaborate**: the lord's house (below), the inn, which served the ore's
   traders, and the houses of
-  those the ore made well-off ◇, of better stuff (stone, where the cottages are wood), set apart
-  on the better ground, behind a wall or a fence of their own.
+  those the ore made well-off ◇, of better stuff (stone, where the cottages are wood).  The
+  notable houses stand round **a small market place beside the inn** (owner, 2026-11-08), so
+  Agnes, beside the inn, has an eye on what the hero does there.
 
 **The lord's house** (owner, 2026-11-08): the house of the lord's representative, which doubles
 as a place for the lord to stay if need be.  The lord is Lord Edric of Sunmarch, the local lord
@@ -313,6 +314,10 @@ lived in is kept up and has none.
 - stones pushed off a cellar hatch, from the street;
 - the chest on a roof ledge, seen from the street, reached from the house beside: across two
   houses' roofs, ports joined;
+- the market under Agnes's eye (owner): the notable houses round it are entered within her sight
+  from the house beside the inn, so getting into the lord's house or a well-off one unseen is a
+  navigation part by her routine (at her window, out in the market, asleep), as is taking the
+  bow from the inn (LOCATIONS.md: she had better not see it);
 - the dried stream's bed (LOCATIONS.md § 1, owner): a sunken way through town, a navigation part
   under the bridges, out of the street's sight; its bridges neglected as the houses are;
 - at night a lived-in house is a navigation part: the sleepers in their rooms see what is lit,
