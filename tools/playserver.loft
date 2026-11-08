@@ -52,7 +52,7 @@ fn world_page(body: text, start: text) -> text {
   set = "<script>if(!/[?&]LOFT_WORLD=/.test(location.search))history.replaceState(null,\"\",location.pathname+\"?LOFT_WORLD={start}\");</script>";
   at = body.find("<head>") ?? -1;
   if at < 0 { return set + body; }
-  body[0..at + 6] + set + body[at + 6..len(body)]
+  body[0..at + 6] + set + body[at + 6..]
 }
 
 // A file of the built page, its text ("" when missing).
