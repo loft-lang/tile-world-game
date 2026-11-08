@@ -19,6 +19,9 @@ This is what the game built on tile_world should be.
   without it still works, only less well.  Switching the focus between enemies is one of the
   things that most easily leaves a player lost, so the focus mostly takes care of itself
   (@GM-Combat, *Locked on*).
+- **Puzzles are the focus; the fight is a base** (owner, 2026-11-08).  This game is about its
+  puzzles.  The fight was rewritten to feel physical instead of numbers, and it is to be perfected,
+  but as a good base for other games to continue with, not as this game's centre.
 - **Not a combat simulator** (owner, 2026-11-07).  An RPG is not a combat simulator: one way of
   acting serves fighting, gathering food, building, talking and trading.  Here that way is reading
   a figure's manner and answering it in time, with the same few keys, by the same templates

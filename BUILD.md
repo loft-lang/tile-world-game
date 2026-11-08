@@ -335,7 +335,30 @@ Each place is built with mechanics and systems that already play in the test wor
 serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is each place's brief.
 
 - **D1. Orbury** — the village as the unannounced tutorial: needs B4 (the well's small crystal),
-  C1 (night), C2 (being seen, aid).
+  C1 (night), C2 (being seen, aid).  **Built first, before the fight is finished** (owner,
+  2026-11-08: the puzzles are the focus, the fight a base to perfect alongside), and **as a place
+  without its story beats**: the town's real locations, to verify the templates there; the game's
+  actual start (riding up to the town, meeting the farmer's boy), the dream and the talks come
+  later.  In steps, each with its tests and a picture to judge (PUZZLES.md § Houses, LOCATIONS.md
+  § 1):
+  - **D1a. A house from the inside out.**  The kit's `houses` grow from an outside to a shell
+    with levels: its walls on the street's layer, its floors, a basement below and a roof on the
+    layer over the top floor that can be walked on (a roof material of kind floor; theme.json's
+    `roof` stays the demo's).  Its rooms parted by thin walls, as edges (EDITOR.md § 3: edges for
+    thin inner walls), with door and window edges; the fill writes edges as well as cells.
+    Checks: every room reached, the roof over the whole footprint, every window and door landing
+    in a room, the roof seen from the street and gone from inside.
+  - **D1b. Households as templates.**  The room templates of PUZZLES.md § Households (a miner's
+    cottage, a craftsman's, a well-off house, the inn, the alchemist's, the smithy, the lord's
+    house) fitted into a fixed shell by a seed, with what the story fixes kept where it is.
+  - **D1c. The town's fixed layout** (`levels/orbury.json`): the hill in terraces, the main road
+    of slopes, the stair roads, the market, the houses' shells, the dried stream a layer down with
+    its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with
+    `tools/map.loft`, walked with `TW_WORLD=orbury`.
+  - **D1d. How a house was left**: closed up (locked, barred, shuttered, boarded, the ladder
+    taken up) and neglect (a roof come down, a stair rotted, a basement flooded), dealt as events.
+  - **D1e. Dealt anew**: `TW_SEED`, the deal written to the play log, the town played with several
+    seeds to judge.
 - **D2. The hidden path, the brook, the hillside, the cave-in** — needs B8 (crabs), C1 (night).
 - **D3. The Old Seam, first level** — the Kharn's home: built mechanics, C3 (their points).
 - **D4. The Old Seam, second level** — needs B2, B3.
