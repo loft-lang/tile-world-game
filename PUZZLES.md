@@ -553,7 +553,7 @@ them.
 - **What counts as a progression item**: what a gate needs that nothing else stands in for, and
   what the story names: the pump's crystals (the depleted one, the spare, the small ones), the
   rope, the beams the flotilla and the barricade need, the pick, the axes, the blunt sword, the
-  pump's drive, the lightning installation's parts, the bow in the inn.  What a part needs as a
+  bow in the inn, and each artefact piece's chest.  What a part needs as a
   *role* that many things fill (a step: a chair or a crate; a light: a torch made of tar and
   sticks) is not one: those stay the parts' material, dealt.  Where a role has a fixed source
   and a dealt one (beams in the mine, beams from a fallen roof), the fixed source is enough on its
