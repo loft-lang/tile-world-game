@@ -313,6 +313,8 @@ lived in is kept up and has none.
 - stones pushed off a cellar hatch, from the street;
 - the chest on a roof ledge, seen from the street, reached from the house beside: across two
   houses' roofs, ports joined;
+- the dried stream's bed (LOCATIONS.md § 1, owner): a sunken way through town, a navigation part
+  under the bridges, out of the street's sight; its bridges neglected as the houses are;
 - at night a lived-in house is a navigation part: the sleepers in their rooms see what is lit,
   and a torch gives the hero away (LOCATIONS.md § 1), so crossing it is measured as any other.
 

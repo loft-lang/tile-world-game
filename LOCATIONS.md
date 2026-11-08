@@ -43,6 +43,43 @@ is not.
   care; and too little maintenance let time in, so for example part of a roof came down.  A
   variety of houses, some elaborate, most not spectacular: most people were lowly miners, but
   there was money too (owner, 2026-11-08).
+- **Who lives where** (gathered 2026-11-08 from STORY.md and this file; the households are
+  PUZZLES.md § Houses):
+
+  | House | Household | Who | Now |
+  |---|---|---|---|
+  | Thornfield: the farmhouse and the barn | a farm, at the village's edge | the Dunns, Lark among them (@ST-Farm, @ST-YoungVillager); the hero sleeps in the barn, his horse lent to the farm | lived in |
+  | Hollis's house | the alchemist's, with the lab | Hollis (@ST-Alchemist) | lived in: stayed for the lab |
+  | Agnes's house, beside the inn | a well-off house ◇, easier to keep than the inn | Agnes (@ST-Innkeeper) | lived in |
+  | the inn | elaborate | nobody | abandoned; the bow in a room, the chest and a grey rat in the basement |
+  | the lord's house | the most elaborate | Lord Edric's representative, gone ◇; the lord when he comes (@ST-Court) | closed up ◇ |
+  | the smithy | the smithy | the smith, gone ◇ | abandoned, to be made to work (@ST-Artefact) |
+  | Garth's house | a foreman's: the better kind of cottage, two floors ◇ | Garth Mabley, retired (@ST-Foreman) | lived in ◇ |
+  | the active foreman's house | the same ◇ | the foreman who left (@ST-Foreman) | closed up ◇ |
+  | Wick's house | a cottage set apart at the edge ◇, a powder shed beside it, empty: bombs belong to the mine | Wick (@ST-Blaster), keeping to himself | lived in ◇ |
+  | the Fenns' house | a miner's cottage in a row ◇ | the Fenns, fled (@ST-Debate) | closed with care, the rope inside ◇ |
+  | the miners' rows | cottages | the miners who stayed, and those who left to find work | a few lived in, most closed ◇ |
+
+  Around it: the cemetery and the founder's ghost at night (@ST-Founder); the village well and its
+  pump; the rails from the mine through the Wardens' camp, with their switch; the trees.  Out of
+  it: the Wardens' camp up the main path (§ 2), the hidden path and the brook (§ 3), the open
+  hillside and Rennick's woodland (§ 4).
+- **The stream** (owner, 2026-11-08): a mostly dried-off stream runs along the town, with some
+  bridges that are not really needed anymore.  Proposed ◇:
+  - **It is the brook's lower course.**  Up the hidden path it still runs, where Lark and the crabs
+    are (§ 3: the land still has water somewhere); down here the drought (@ST-Outside) has taken
+    it, to a few pools.  Its dry bed, followed upstream, leads out to the hidden path.
+  - **Its bed lies a layer below the street**, with steep banks a wall high, and slopes down where
+    the old ford was.  The bridges cross it at street level: footbridges of wood and one of stone,
+    and the rails' bridge, still needed.
+  - **The bed is a way of its own**: sunken, out of the street's sight, dark under the bridges (a
+    ceiling: only the hero's layer is drawn there).  A way through town by night, where a torch
+    gives the hero away (@ST-Stealth); the backs of the miners' rows face it, their back doors and
+    yards onto the bank.
+  - **A bridge not needed is not kept up**: a wooden one has lost planks, one has come down into
+    the bed, its beams lying there (PUZZLES.md § Houses: neglect).
+  - **What the water left**: a pool or two, a crab come down to one; what fell from a bridge lies
+    in the bed, a layer down; the place by the stream where the ore was washed, its sluices dry.
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons, and the lab that is not easily replaced, which
 kept Hollis in the village (owner, 2026-11-08; @ST-Alchemist); Agnes's house beside the empty
