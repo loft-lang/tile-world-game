@@ -39,6 +39,8 @@ parry; held, a block), until the clash replaces it (DESIGN.md @GM-Combat).
 In a browser (`./play-web.sh`), F1 switches to the first-person view and back (RENDER_3D.md § The
 first-person view): forward and back walk the way the hero looks, left and right turn.  F3 roams
 free (an experiment): the hero moves smoothly, diagonals too, and stands between tiles.
+F4 marks a moment that feels off: a numbered `MARK n` line in the play log, with the place, the
+clock and the hero's cell, and `MARK n` on the status line — so "the second thing" is MARK 2.
 Bats swoop (TEMPLATES.md): a chirp, a zigzag, a dive and a nip on the cell they aimed at, then away.
 **The play log**, for finding bugs (`playlog.loft`): every key down and up with the wall time, the
 world's clock and how long it was held; every act of every enemy and person at its moment on the
