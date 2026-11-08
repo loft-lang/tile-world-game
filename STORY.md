@@ -50,6 +50,7 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-Farm`](#st-farm) | Thornfield, the Dunns' farm, which cannot feed the village | § 1 |
 | [`@ST-Mine`](#st-mine) | mined out at the surface, deeper sites left | § 1 |
 | [`@ST-Artefact`](#st-artefact) | the artefact in pieces, crafted again with the lake's materials | § 1 |
+| [`@ST-Heart`](#st-heart) | the heart of the amulet, left in the hero's dream on his first night: the key no one else had | § 1 |
 | [`@ST-Force`](#st-force) | the force in the land: an underling mage of an opposing country, spreading rumours | § 1 |
 | [`@ST-Decree`](#st-decree) | the decree: the lord fallen, a weak ownership dispute | § 1 |
 | [`@ST-Guards`](#st-guards) | the King's Wardens: federal guards, no sides, no protection | § 1 |
@@ -124,7 +125,18 @@ the one thing the old leaders after the war could not prepare for (owner, 2026-1
 found throughout the mine: wherever there was work to do and extensions to build, some are left
 (owner).  Modern alchemy made them easy to fabricate (owner, 2026-11-04; @ST-Alchemist).  The
 demon lord is dead by now, but is still a source of power for mages (owner, 2026-11-04;
-@ST-Magic, @ST-Lady, @ST-Wizard).
+@ST-Magic, @ST-Lady, @ST-Wizard).  Read again (owner, 2026-11-08): the heart is the first piece
+(@ST-Heart), and getting the found pieces together correctly may be a mini puzzle of its own.
+
+<a id="st-heart"></a>**The heart of the amulet** (owner, 2026-11-08): the chests have been there a long time, and they are
+seen; they are hard to reach, but a miner with time on their hands would have ground through
+that anyway.  So there has to be a narrative reason why the hero is unique.  On his first night in
+town the witch-lord (@ST-Lady) invades his dream and leaves him a special item: the heart of the
+amulet, which also counts as a key.  The dream itself is kept light on details: spoken words,
+perhaps an image or two, to be used again in an ending or in some backstory.  She definitely had
+to prepare: Tamsin (@ST-Aide) had already brought the heart to its place before.  The heart is the
+first piece of the artefact (@ST-Artefact), and it is not one held in the hands.  Getting the
+found pieces together correctly may be a mini puzzle.
 
 <a id="st-force"></a>**The force in the land** (owner, 2026-11-04): an underling mage from an opposing country, seeking to
 destabilise Aldmere, and thinking the demon lord is still alive (@ST-Artefact: he is dead).  The
@@ -193,7 +205,8 @@ things.  The world presents the different places in a logical order.
 <a id="st-outside"></a>**The bigger world and the climate** (owner, 2026-11-04): there will certainly be interactions and
 quests related to the bigger world (the political circumstances outside) and the climate (the
 drought).  The outside contenders for the mine (@ST-Court, @ST-Lady, @ST-Neighbour) are not
-presented in the game unless an ending scene is built for it (owner, 2026-11-04).
+presented in the game unless an ending scene is built for it (owner, 2026-11-04); the witch's
+dream (@ST-Heart) is kept light: spoken words, an image or two (owner, 2026-11-08).
 
 **The places so far** (gathered from the owner's outline, 2026-11-04; a place marked *reading* is
 the outline's implication, not the owner's words):
@@ -344,7 +357,8 @@ the main mine, and cannot get back home until dusk (owner, 2026-11-04).
 <a id="st-aide"></a>**Lady Brigid's aide: Tamsin** (owner, 2026-11-04): one of the other adventurers, working for the
 witch (@ST-Lady) and looking for the magical materials in the mine (@ST-Mine); gives her viewpoint,
 so the wizard does not carry both lords (owner).  Unlike Sable, who is there before the hero,
-Tamsin arrives later (owner, 2026-11-04).  Tamsin is gender-neutral, for the fun of it (owner): the
+Tamsin arrives later (owner, 2026-11-04), though Tamsin had been here before, unseen, to bring the
+heart to its place for the hero's first night (owner, 2026-11-08; @ST-Heart).  Tamsin is gender-neutral, for the fun of it (owner): the
 lines about Tamsin never say he or she.  Tiny Dungeon's tile 88 proposed.
 
 <a id="st-court"></a>**Court drama** (owner, 2026-11-04): the young lord, Lord Edric of Sunmarch, proposed to a princess,
@@ -557,6 +571,16 @@ the cost of a choice is known when it is made; none proposes story content.
   spreading across places, and a tribe that acts on its area's step (BUILD.md C4, still open: a
   tribe across places).  A test can hold it: Wick's blast, played, ends with the Kharn alarmed and
   out, from the rules alone.
+- **The heart asks little that is new** (@ST-Heart).  A chest that opens only for the one who
+  carries the heart is a chest with a condition, as a door held shut is; a thing carried that
+  is not held is kept apart from the one held item, as the artefact's pieces already are (a
+  count).  The
+  first night is an event at a moment, as the climax is (below), and needs the hero to sleep
+  (DESIGN.md: sleep is planned, not built).  The dream's words and images can be stills in the
+  epilogue's form (`levels/epilogue.json`: a place, a cell, what is said, the facts it needs),
+  so an ending can show one of them again.  The mini puzzle of the pieces needs the pieces as
+  things, where today they are a number (@ST-Artefact): things the hero's own moves can put in
+  place (Q puts down), as every other puzzle is worked.
 - **The climax is a world event.**  The cyclopes invading, and retreating from a well-defended
   village, asks for: an event that comes at a moment or on a condition; a measure of "well
   defended" read at that moment — known now (§ 4): capable people gathered behind a built
