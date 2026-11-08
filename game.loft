@@ -236,6 +236,8 @@ pub struct Game {
   /// every enemy and person) and the hero's — gathered here for main.loft to write out.
   pub logging: boolean = false,
   pub log: vector<text> = [],
+  /// The marks set (F4): each a numbered line in the play log, where the player felt something off.
+  pub marks: integer = 0,
   /// The talks that went with their people to other places (C3).
   pub moved_talks: vector<MovedTalk> = [],
   /// The world's people and their points (C3).
@@ -280,7 +282,7 @@ fn sound_events() -> vector<text> {
 // The play keys (owner, 2026-11-07; DESIGN.md @GM-Combat, *The keys*): WASD walk (the arrows too);
 // Q takes a small item or puts the held one down, and held while stepping pulls; E uses (swings,
 // shoots, throws, drinks); Tab aims; Esc quits; F1 the first-person view (render3d.loft), F2 the
-// editor, F3 free roaming.  Shift is the built guard (held: block, pressed: parry) until the clash
+// editor, F3 free roaming, F4 a mark in the play log.  Shift is the built guard (held: block, pressed: parry) until the clash
 // replaces it (BUILD.md B1c step 4).  The editor's keys are read only while editing.
 fn bindings() -> input::Bindings {
   b = input::Bindings {
@@ -300,6 +302,7 @@ fn bindings() -> input::Bindings {
       input::ActionBinding { ab_name: "zoom", ab_keys: [109] },
       input::ActionBinding { ab_name: "edit", ab_keys: [136] },
       input::ActionBinding { ab_name: "free", ab_keys: [137] },
+      input::ActionBinding { ab_name: "mark", ab_keys: [138] },
       input::ActionBinding { ab_name: "layer_up", ab_keys: [151] },
       input::ActionBinding { ab_name: "layer_down", ab_keys: [152] },
       input::ActionBinding { ab_name: "palette", ab_keys: [9] },
@@ -1791,6 +1794,14 @@ fn hero_state(g: const Game) -> text {
 fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   // A field has the keyboard: the keys are text, not commands.
   if g.typing { return false; }
+  // F4: a mark in the play log where something felt off, numbered, so the player can say "the
+  // second" and the log shows where and when; the status line answers with its number.
+  if g.keys.is_action_just_pressed("mark") {
+    g.marks += 1;
+    g.log += ["clock {g.world.now}  MARK {g.marks}  {hero_state(g)} height {g.world.hero_h}"];
+    g.note = "MARK {g.marks}";
+    return true;
+  }
   if g.keys.is_action_just_pressed("edit") {
     toggle_editor(g);
     return true;
