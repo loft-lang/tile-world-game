@@ -170,9 +170,9 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
   to work again (its anvil pushed back into place, its fire lit from a torch).
 - **Traps ◇:** none set; the village's danger is being seen, and a cart rolling back from the
   camp's slope.
-- **Chests ◇ (in sight, hard to reach):** the one in the inn's basement (owner), behind a grey rat
-  and a stack to climb over; one on a roof ledge, seen from the street, reached from the house
-  beside it.
+- **Chest ◇ (in sight, hard to reach):** the one in the inn's basement (owner), behind a grey rat
+  and a stack to climb over.  As every chest is the artefact's (owner, 2026-11-08), it holds the
+  village's piece ◇: found in the mine and carried down there by someone who could not open it.
 
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 
@@ -205,7 +205,8 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
   water fills the cell, INTERACTIONS.md 18, to be ruled); the crabs' ground to cross without being
   pinched; a fallen tree to fell or climb.
 - **Traps ◇:** none set; Sable does not know this path.
-- **Chest ◇:** on a ledge across the brook, seen from the path, reached by the stepping stones.
+- **Chest:** none: there are only the artefact's chests (owner, 2026-11-08).  The ledge across
+  the brook, reached by the stepping stones, is the path's puzzle without one ◇.
 
 ## 4. The open hillside
 
@@ -272,14 +273,14 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
   on the ground for the builder miners, but too few if the barricade is burned: then the standing
   ones are needed (owner).  The risk is in the planning: a caved-in tunnel no longer gives ready
   access (owner).
-- **Chests ◇:** behind rubble only a cart can clear; one at the far end of a track, reached by
-  riding a cart there.  The fallen adventurer's body lies below a broken walkway (owner).
+- **Chest ◇:** behind rubble only a cart can clear; the far end of a track, reached by riding a
+  cart there, is a puzzle of its own without one (only the artefact's chests, owner).  The fallen adventurer's body lies below a broken walkway (owner).
 
 ## 7. The Old Seam, the flooded lower tunnels (@GM-Flooded)
 
 - **Unique:** the drowned depth.  The pump, the draining a charge at a time, the slow refill.
 - **Found:** the pump and its depleted crystal; what the water hid, opening a charge at a time; the
-  lift's lowest stop; bombs where the deepest work stopped; a chest in the deepest tunnel ◇.
+  lift's lowest stop; bombs where the deepest work stopped; the chest under the water's edge ◇ (below).
 - **Learned:** that the water seeps back by the day, so the work is done in time.
 - **Look out for:** the spare crystal, in the mine's old stores, which Garth remembers in the wrong
   place ◇.
@@ -372,7 +373,10 @@ is the clock (@ST-Climax): feeding the village and buying time pull against each
 
 - **The artefact gives the player something to look out for everywhere:** one chest per major
   place ◇ (the Old Seam's three levels, the lake, the High Diggings, Stormcap): six pieces, each
-  behind that place's own mechanic, counted as a number the game shows (owner).
+  behind that place's own mechanic, counted as a number the game shows (owner).  **There are no
+  other chests** (owner, 2026-11-08): every chest is the artefact's, so each has to feel special.
+  With the inn's basement chest (owner) as the village's ◇, that is seven pieces and the heart
+  (@ST-Heart).
 - **Bombs belong to the working mine:** the Old Seam's levels and the High Diggings' extensions,
   not the village or the hills.
 - **Save points:** the strange fountains, in the mines and the hills (@ST-Fountains); the village's

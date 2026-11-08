@@ -31,6 +31,8 @@ This is what the game built on tile_world should be.
   place has its layout drawn by hand, so things can be made believable and readable, verified
   through gameplay; the templates deal the state and the insides of what is there.  Designed in
   PUZZLES.md (proposed, not built).
+- **Not a hugely long game** (owner, 2026-11-08): a few places, each worth its time, rather than
+  many; a replay is fresh through what the templates deal (PUZZLES.md), not through length.
 - **Growth comes later.** Character growth comes only after a base dungeon and world feel alive and
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.  Read again
   (owner, 2026-11-07): growth is breadth, not height: a new thing to carry, wear or do, each with
@@ -1038,7 +1040,10 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
 
 - **No money for the hero** (owner, 2026-11-08): there is nothing to buy with it; the alchemist
   is paid with resources, slightly more than the potions need.  The money built below is the demo
-  world's test bench, to go from the story game: what a chest holds instead is open.
+  world's test bench, to go from the story game.
+- **Only the artefact's chests** (owner, 2026-11-08): the story game has no other chests; each
+  holds a piece of the artefact (STORY.md @ST-Artefact, @ST-Heart) and has to feel special.  A
+  chest's point is that piece, and the count is the artefact's.
 - **A point per chest.**  Opening a chest gives its money and one point (built: a chest's
   `money`, 10 proposed; the status line shows GOLD once there is any, and the coins are heard).  A level's goal `chests` is solved when no chest is left closed.  A region or a
   dungeon has a fixed number of chests, so the points it can give are limited.

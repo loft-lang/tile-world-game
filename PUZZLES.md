@@ -346,8 +346,8 @@ lived in is kept up and has none.
   its fallen roof is reached from the house beside;
 - one whose way in needs a crate pulled out of a corner first;
 - stones pushed off a cellar hatch, from the street;
-- the chest on a roof ledge, seen from the street, reached from the house beside: across two
-  houses' roofs, ports joined;
+- a roof ledge seen from the street, reached from the house beside: across two houses' roofs,
+  ports joined;
 - the market under Agnes's eye (owner): the notable houses round it are entered within her sight
   from the house beside the inn, so getting into the lord's house or a well-off one unseen is a
   navigation part by her routine (at her window, out in the market, asleep), as is taking the
@@ -541,8 +541,11 @@ Proposed, in the measures above:
 - **When a dealt chest falls short of the rule**, the routine sharpens its own way (its way's
   variant, a role from a farther part); when no variant reaches the margin, the deal is rejected.
   A gate is never softened to make room.
-- **The artefact's pieces** (LOCATIONS.md: one chest per major place) keep the same rule: each is
-  the hardest thing in its place.
+- **Every chest is the artefact's** (owner, 2026-11-08): there are no other chests, so each has to
+  feel special, and each is the hardest thing in its place (LOCATIONS.md: one per major place).
+  Proposed for the feel: the relic chest's own picture (`relic_chest`, kinds.json), never the
+  ordinary one; opened only with the heart (STORY.md @ST-Heart), so the moment it opens is the
+  heart's doing and nobody else's; the piece seen as it comes out.
 
 ## Chests and progression items have their place
 
