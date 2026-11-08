@@ -67,7 +67,7 @@ the Tanmatsu stay 2D, and the editor is always 2D (F2 switches the view off).
   offscreen surface, read back and put in a 1024 x 1024 atlas — the 2D's colours exactly, and the
   theme untouched.
 - **Checked:** `checks/view3d.loft` (a box, a prism, a ceiling at its drop, a bent floor, the thin
-  walls, the stairs and their open stairwell, a floor's underside over a room, by hand, both
+  walls, the stairs and their open stairwell, a floor's underside over a room, a pitched roof, by hand, both
   backends); pictures taken in headless Chromium in the village and the caves, and in Orbury on
   the stair road and in Hollis's house.
 - **Not yet:** talk bubbles, a door's panel (a door is a box), a figure's held
@@ -133,21 +133,26 @@ standing on their cell's ground.
 
 A roof follows what the 2D's pictures say it is (owner).  Its autotile's north row (town:52–54,
 48–50) carries the ridge cap along its top edge; every row south of it, the south row included,
-is the same run of shingles (64–66, 60–62).  That is one slope facing the viewer: the ridge
-along the roof's north edge, falling south to the eaves.  So in 3D:
+is the same run of shingles (64–66, 60–62): the front slope, seen from the south, rising to the
+ridge.  The back slope is out of view in 2D (owner, 2026-11-08: the village tiles show the house
+sloping up to its middle and down out of view again).  **Built (2026-11-08)** for the roofs that
+are floors walked on (`house_roof`, `house_slate`: `"pitched": true` in theme.json; the walled
+roofs of the demo village stay boxes):
 
-- the roof's cells (on the layer over the house) make one plane, from the eaves at the south
-  edge, on the top of the front wall, up to the ridge at the north edge;
-- each row of the plane takes that row's autotile piece, as the 2D lays them, so the ridge cap
-  is at the top and the shingles run down to the eaves;
-- the ridge stands one layer above the eaves (a default; the slope then steepens for a shallow
-  house and flattens for a deep one);
-- the triangles at its east and west ends, and the north face from the wall top up to the ridge,
-  are closed in the house's own wall picture (the wood or stone wall's middle piece).  The camera
-  stays south, so the north face is rarely seen.
+- a roof slopes up from its eaves at the front and back walls, on the layer's floor, to a ridge
+  **one layer higher in the middle of the house** (owner: sloping down to the walls, rising a level
+  between them) — steeper on a shallow house, flatter on a deep one;
+- the front slope takes the shingles, the row meeting the ridge the piece with the cap; the back
+  slope the same pictures mirrored, its cap at the ridge too; the end columns their end pieces;
+- the triangles at its east and west ends, the gables, are closed in the house's own wall picture
+  (the wall ring below them);
+- a hole where the roof came down (the inn's) stays open, the roof spanning it on either side,
+  no gable standing in it;
+- standing on a roof the hero walks it as a floor, so the roofs of that layer are drawn flat then;
+- under it, the top floor's ceiling is flat.
 
 Kenney's sheet also has gable fronts (town:63, 67) that the 2D does not use; a roof turned the
-other way would want them, and none is drawn so yet.
+other way (its ridge north–south) would want them, and none is drawn so yet.
 
 ### Ceilings
 

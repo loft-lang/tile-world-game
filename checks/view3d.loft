@@ -8,6 +8,7 @@ use tile_world;
 use rules;
 use game;
 use render3d;
+use materials;
 
 fn place() -> game::Game {
   g = game::new_game("..")!;
@@ -50,7 +51,8 @@ fn main() {
   test_thin_walls_stand_on_their_edges();
   test_stairs_rise_toward_their_wall();
   test_a_floor_above_has_an_underside();
-  println("checks/view3d.loft: 7 passed");
+  test_a_roof_is_pitched();
+  println("checks/view3d.loft: 8 passed");
 }
 
 // A whole wall on (4, 4) among floor: four sides and a top, each four corners; no floor under it.
@@ -213,4 +215,43 @@ fn test_a_floor_above_has_an_underside() {
     if corners(f) == 4 && (f.at[1] ?? 0.0) > 0.98 && (f.at[1] ?? 0.0) < 0.995 { under = true; }
   }
   assert(under, "the floor above has an underside");
+}
+
+// A house's roof, 3 wide and 4 deep on layer 1 over (2..4, 2..5) (owner, 2026-11-08): its eaves on
+// the layer's floor at the north and south edges, its ridge a layer higher at the middle (z = 4);
+// at its west and east ends a gable; the hero below on layer 0 sees no flat floor across it.
+fn test_a_roof_is_pitched() {
+  g = place();
+  r = materials::named(g.mats, "house_roof");
+  for y in 2..6 {
+    for x in 2..5 { materials::paint(g.mats, g.world.w, r, x, y, 1); }
+  }
+  ridge = false;
+  eaves_n = false;
+  eaves_s = false;
+  flat = false;
+  gables = 0;
+  for f in render3d::faces(g) {
+    for c in 0..corners(f) {
+      fx = f.at[c * 5] ?? -9.0;
+      fy = f.at[c * 5 + 1] ?? -9.0;
+      fz = f.at[c * 5 + 2] ?? -9.0;
+      if fx > 1.999 && fx < 5.001 && fz > 3.999 && fz < 4.001 && fy > 1.999 && fy < 2.001 { ridge = true; }
+      if fx > 1.999 && fx < 5.001 && fz > 1.999 && fz < 2.001 && fy > 0.999 && fy < 1.001 { eaves_n = true; }
+      if fx > 1.999 && fx < 5.001 && fz > 5.999 && fz < 6.001 && fy > 0.999 && fy < 1.001 { eaves_s = true; }
+    }
+    if corners(f) == 4 {
+      same_y = true;
+      same_x = true;
+      for c in 1..4 {
+        if (f.at[c * 5 + 1] ?? 0.0) != (f.at[1] ?? 0.0) { same_y = false; }
+        if (f.at[c * 5] ?? 0.0) != (f.at[0] ?? 0.0) { same_x = false; }
+      }
+      if same_y && (f.at[1] ?? 0.0) > 0.999 && (f.at[1] ?? 0.0) < 1.001 && (f.at[0] ?? 0.0) > 1.999 && (f.at[0] ?? 0.0) < 5.001 { flat = true; }
+      if same_x && ((f.at[0] ?? 0.0) == 2.0 || (f.at[0] ?? 0.0) == 5.0) && (f.at[2] ?? 0.0) >= 2.0 && (f.at[2] ?? 0.0) <= 6.0 { gables += 1; }
+    }
+  }
+  assert(ridge && eaves_n && eaves_s, "the ridge a layer up in the middle, the eaves at both edges: {ridge} {eaves_n} {eaves_s}");
+  assert(!flat, "no flat roof");
+  assert(gables == 8, "a gable at each end, a quad a row: {gables}");
 }

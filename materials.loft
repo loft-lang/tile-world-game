@@ -43,7 +43,10 @@ pub struct Material {
   pub under: text = "",
   /// Materials of one group join in an autotile, with no edge drawn between them: deep water
   /// and the shallows ("water").  "" for none.
-  pub group: text = ""
+  pub group: text = "",
+  /// A house's roof, walked on as a floor in play and seen pitched in 3D: sloping up from the
+  /// eaves at its front and back to a ridge a layer higher between them (render3d.loft).
+  pub pitched: boolean = false
 }
 
 struct Owner {
@@ -144,7 +147,8 @@ pub fn load(raw: text, k: const rules::Kinds) -> Materials {
     owned += vs;
     owned += pieces;
     m.list += [Material { name: name, kind: kind, tile: tile, variants: vs, pieces: pieces, glyph: word(e, "glyph"),
-                          under: word(e, "under"), group: word(e, "group") }];
+                          under: word(e, "under"), group: word(e, "group"),
+                          pitched: e.field("pitched").as_bool() ?? false }];
     for t in owned {
       if t != 0 && !m.owners[t] { m.owners += [Owner { tile: t, material: index }]; }
     }
@@ -204,10 +208,18 @@ pub fn named(m: const Materials, name: text) -> integer {
 /// of the cell's kind.
 pub fn at(m: const Materials, w: const tile_world::World, x: integer, y: integer, z: integer) -> integer {
   if !tile_world::is_set(w, x, y, z) { return -1; }
-  i = of(m, tile_world::tile(w, x, y, z));
+  t = tile_world::tile(w, x, y, z);
+  i = of(m, t);
   if i < 0 { return -1; }
-  if (m.list[i].kind ?? 0) != tile_world::terrain(w, x, y, z) { return -1; }
-  i
+  k = tile_world::terrain(w, x, y, z);
+  if (m.list[i].kind ?? 0) == k { return i; }
+  // A tile two materials share — a house's roof walked on (a floor) and the roof that is a wall,
+  // one set of pictures — is the one of the cell's own kind.
+  for j in 0..len(m.list) {
+    mat = m.list[j];
+    if mat.kind == k && (mat.tile == t || mat.pieces.contains(t) || mat.variants.contains(t)) { return j; }
+  }
+  -1
 }
 
 // Whether material j joins material i in i's autotile: the same material, or one of its `group`

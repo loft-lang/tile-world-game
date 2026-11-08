@@ -234,8 +234,8 @@
     "stone_wall": { "kind": "wall", "autotile": "stone_wall", "glyph": "T" },
     "house_door": { "kind": "open_door", "tile": "town:74", "glyph": "E" },
     "stone_door": { "kind": "open_door", "tile": "town:78", "glyph": "F" },
-    "house_roof": { "kind": "floor", "autotile": "roof", "glyph": "(" },
-    "house_slate": { "kind": "floor", "autotile": "slate_roof", "glyph": ")" },
+    "house_roof": { "kind": "floor", "autotile": "roof", "pitched": true, "glyph": "(" },
+    "house_slate": { "kind": "floor", "autotile": "slate_roof", "pitched": true, "glyph": ")" },
     "castle_wall": {
       "kind": "wall",
       "autotile": "castle",

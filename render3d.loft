@@ -415,6 +415,12 @@ pub fn faces(g: const game::Game) -> vector<Face> {
           continue;
         }
         if k == rules::tr(w, "stairs_down") && tile_world::terrain(w.w, x, y, z - 1) == rules::tr(w, "stairs_up") { continue; }
+        // A house's roof, pitched — unless the hero stands on a roof of this layer, where it is the
+        // floor walked on.
+        if pitched(g, w, x, y, z) && !(z == w.hero_z && pitched(g, w, w.hero_x, w.hero_y, z)) {
+          roof(g, w, out, x, y, z, here);
+          continue;
+        }
         if solid(g, w, x, y, z) {
           walls(g, w, out, x, y, z, sh, below, above, cx, cy);
           continue;
@@ -458,6 +464,113 @@ pub fn faces(g: const game::Game) -> vector<Face> {
     }
   }
   out
+}
+
+/// How high the ridge of a pitched roof stands over its eaves, in layers.
+const RIDGE = 1.0;
+
+// Is (x, y, z) a pitched roof's cell: a material marked `pitched` (theme.json: a house's roof).
+fn pitched(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> boolean {
+  mi = materials::at(g.mats, w.w, x, y, z);
+  mi >= 0 && (g.mats.list[mi] ?? materials::none_material()).pitched
+}
+
+// The rows a pitched roof spans in column x through (x, y, z): north and south, across a hole of
+// a cell or two where it came down (the inn's).
+fn roof_rows(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer) -> (integer, integer) {
+  y0 = y;
+  y1 = y;
+  going = true;
+  while going {
+    going = false;
+    for gap in 1..=3 {
+      if pitched(g, w, x, y0 - gap, z) {
+        y0 -= gap;
+        going = true;
+        break;
+      }
+      if tile_world::terrain(w.w, x, y0 - gap, z) != tile_world::VOID { break; }
+    }
+  }
+  going = true;
+  while going {
+    going = false;
+    for gap in 1..=3 {
+      if pitched(g, w, x, y1 + gap, z) {
+        y1 += gap;
+        going = true;
+        break;
+      }
+      if tile_world::terrain(w.w, x, y1 + gap, z) != tile_world::VOID { break; }
+    }
+  }
+  (y0, y1)
+}
+
+// Whether the pitched roof on (x, y, z) ends on its side dx (-1 west, 1 east): no more of it
+// there, nor past a hole of a cell or two.
+fn roof_ends(g: const game::Game, w: const rules::Level, x: integer, y: integer, z: integer, dx: integer) -> boolean {
+  for gap in 1..=3 {
+    if pitched(g, w, x + gap * dx, y, z) { return false; }
+    if tile_world::terrain(w.w, x + gap * dx, y, z) != tile_world::VOID { return true; }
+  }
+  true
+}
+
+// The height of a pitched roof spanning rows y0 .. y1 on layer z at the view's z `at`: the eaves at
+// its north and south edges on the layer's floor, the ridge between them RIDGE higher.
+fn roof_h(y0: integer, y1: integer, z: integer, at: float) -> float {
+  half = ((y1 + 1 - y0) as float) / 2.0;
+  mid = (y0 as float) + half;
+  d = if at > mid { at - mid } else { mid - at };
+  (z as float) + RIDGE * (1.0 - (d / half)!)
+}
+
+// A pitched roof's cell (owner, 2026-11-08: roofs that slope down to the walls and rise a level
+// between them; the 2D's pictures show the front slope up to the middle, the back one out of
+// view): its part south of the ridge rising north, its part north of it falling away, each in the
+// roof's shingles — the row with the ridge cap where it meets the ridge, the back slope's mirrored;
+// at the roof's east and west ends a gable in the house's own wall picture, from the eaves up to
+// the slope.  Over the hero, its underside is the flat ceiling of the room below.
+fn roof(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integer, y: integer, z: integer,
+        light: float) {
+  mat = g.mats.list[materials::at(g.mats, w.w, x, y, z)] ?? materials::none_material();
+  col = if roof_ends(g, w, x, y, z, -1) { 0 } else if roof_ends(g, w, x, y, z, 1) { 2 } else { 1 };
+  cap = theme::tile_sprite(g.look, mat.pieces[col] ?? mat.tile);
+  shingles = theme::tile_sprite(g.look, mat.pieces[3 + col] ?? mat.tile);
+  rows = roof_rows(g, w, x, y, z);
+  mid = (rows.0 as float) + ((rows.1 + 1 - rows.0) as float) / 2.0;
+  fx = x as float;
+  fy = y as float;
+  fz = z as float;
+  wall = edge_sprite(g, w, x, y, z - 1, false);
+  // Its parts: (north edge, south edge), the one south of the ridge and the one north of it.
+  parts: vector<(float, float)> = [];
+  if fy + 1.0 > mid { parts += [(if fy > mid { fy } else { mid }, fy + 1.0)]; }
+  if fy < mid { parts += [(fy, if fy + 1.0 < mid { fy + 1.0 } else { mid })]; }
+  for p in parts {
+    ha = roof_h(rows.0, rows.1, z, p.0);
+    hb = roof_h(rows.0, rows.1, z, p.1);
+    south = p.0 >= mid - 0.001;
+    // The ridge's own row: the piece with the cap; the back slope's pictures upside down, their
+    // top (the cap) at the ridge.
+    at_ridge = if south { p.0 <= mid + 0.001 } else { p.1 >= mid - 0.001 };
+    s = if at_ridge { cap } else { shingles };
+    va = if south { 0.0 } else { 1.0 };
+    vb = if south { 1.0 } else { 0.0 };
+    face(out, s, [(fx, ha, p.0, 0.0, va), (fx + 1.0, ha, p.0, 1.0, va), (fx + 1.0, hb, p.1, 1.0, vb),
+                  (fx, hb, p.1, 0.0, vb)], light);
+    for e in [(-1, fx), (1, fx + 1.0)] {
+      if !roof_ends(g, w, x, y, z, e.0) { continue; }
+      face(out, wall, [(e.1, fz, p.0, p.0 - fy, 1.0), (e.1, ha, p.0, p.0 - fy, 1.0 - (ha - fz)),
+                       (e.1, hb, p.1, p.1 - fy, 1.0 - (hb - fz)), (e.1, fz, p.1, p.1 - fy, 1.0)], light * 0.8);
+    }
+  }
+  if z > w.hero_z && !solid(g, w, x, y, z - 1) {
+    u = fz - 0.01;
+    face(out, theme::tile_sprite(g.look, mat.tile), [(fx, u, fy + 1.0, 0.0, 1.0), (fx + 1.0, u, fy + 1.0, 1.0, 1.0),
+                                                     (fx + 1.0, u, fy, 1.0, 0.0), (fx, u, fy, 0.0, 0.0)], light * 0.7);
+  }
 }
 
 // Where (s, t) of cell (x, y) lies for stairs rising (dx, dy): s across them, t along them from the
