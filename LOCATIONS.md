@@ -43,6 +43,24 @@ is not.
   care; and too little maintenance let time in, so for example part of a roof came down.  A
   variety of houses, some elaborate, most not spectacular: most people were lowly miners, but
   there was money too (owner, 2026-11-08).
+- **The town's shape** (owner, 2026-11-08): modelled a bit on a medieval Italian town, climbing
+  a hill.  The market place is already higher up the hill, and the biggest mansion stands towards
+  the top, partly built into the hilltop.  Proposed ◇, from the bottom up:
+  - **at the foot**: the dried stream, the rails coming in from the mine along it, the place the
+    ore was washed, the miners' rows; Thornfield's fields on the flat beyond, the cemetery just
+    outside;
+  - **up the slope**: narrow streets climbing in turns and steps (stairs, slopes), houses stacked
+    against the hill, so a house's ground floor opens on one street and its upper floor on the
+    street above; passages under houses, from one street through to the next;
+  - **the market**, a terrace two or three layers above the stream: the inn, Agnes's house, the
+    well-off houses, the well and its pump (a hill town's water is drawn deep, the stream below
+    run dry);
+  - **at the top**: the lord's house, its back rooms dug into the hilltop.
+
+  The terraces divide sight: a figure sees along its own layer (DESIGN.md § Enemies), so a street
+  one layer below the market is out of Agnes's sight, while from the market the lower town is
+  seen below, darker layer by layer (DESIGN.md § What the player sees).  The town is a puzzle of
+  levels before any house is: the way up is the streets, or the back of a house.
 - **Who lives where** (gathered 2026-11-08 from STORY.md and this file; the households are
   PUZZLES.md § Houses):
 
@@ -52,7 +70,7 @@ is not.
   | Hollis's house | the alchemist's, with the lab | Hollis (@ST-Alchemist) | lived in: stayed for the lab |
   | Agnes's house, beside the inn, on the market | a well-off house ◇, easier to keep than the inn | Agnes (@ST-Innkeeper), with an eye on the market | lived in |
   | the inn | elaborate | nobody | abandoned; the bow in a room, the chest and a grey rat in the basement |
-  | the lord's house, on the market ◇ | the most elaborate | Lord Edric's representative, gone ◇; the lord when he comes (@ST-Court) | closed up ◇ |
+  | the lord's house, at the top, partly into the hilltop (owner) | the most elaborate | Lord Edric's representative, gone ◇; the lord when he comes (@ST-Court) | closed up ◇ |
   | the smithy | the smithy | the smith, gone ◇ | abandoned, to be made to work (@ST-Artefact) |
   | Garth's house | a foreman's: the better kind of cottage, two floors ◇ | Garth Mabley, retired (@ST-Foreman) | lived in ◇ |
   | the active foreman's house | the same ◇ | the foreman who left (@ST-Foreman) | closed up ◇ |
@@ -64,13 +82,15 @@ is not.
   pump; the rails from the mine through the Wardens' camp, with their switch; the trees.  Out of
   it: the Wardens' camp up the main path (§ 2), the hidden path and the brook (§ 3), the open
   hillside and Rennick's woodland (§ 4).
-- **The market place** (owner, 2026-11-08): a small market place beside the inn, where the more
-  notable houses are too, so the innkeeper has an eye on what the hero does there.  Proposed ◇:
-  its stalls stand empty since the ore stopped; the lord's house and the well-off houses face it;
+- **The market place** (owner, 2026-11-08): a small market place beside the inn, already higher
+  up the hill, where the more notable houses are too, so the innkeeper has an eye on what the
+  hero does there.  Proposed ◇: its stalls stand empty since the ore stopped; the well-off houses
+  face it, the lord's house above it, up the last climb;
   Agnes watches it from her house by day, so snooping into the notable houses, or taking the bow
   from the inn, is done out of her sight or not at all; by night she sleeps, and the market is
   dark.
-- **The stream** (owner, 2026-11-08): a mostly dried-off stream runs along the town, with some
+- **The stream** (owner, 2026-11-08): a mostly dried-off stream runs along the town, at the foot
+  of its hill ◇, with some
   bridges that are not really needed anymore.  Proposed ◇:
   - **It is the brook's lower course.**  Up the hidden path it still runs, where Lark and the crabs
     are (§ 3: the land still has water somewhere); down here the drought (@ST-Outside) has taken

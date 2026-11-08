@@ -156,6 +156,13 @@ steps in; outside, with no ceiling, the layer above is drawn, so the roof is the
 house EDITOR.md § 3 drew (walls, door edges, the roof on the layer above, cut away while the hero
 is inside); the kit's `houses` (intent.loft), today a house's outside only, grows into it.
 
+**On a hill** (owner, 2026-11-08: the town is a bit like a medieval Italian one, LOCATIONS.md
+§ 1).  A house against the slope has its floors on more than one street: its ground floor on the
+lower street, its upper floor's door on the street above, and to the lower street it is a floor
+taller than to the upper one.  So a house template states which of its levels meet the ground on
+which side, and its ports are on more than one layer: a house is a way up the hill as well as a
+house.
+
 **Its levels**, a layer each (a layer is a wall high, 4 steps):
 
 | Level | Layer | Reached by |
@@ -198,12 +205,18 @@ some.  Proposed, for Orbury's dozen or so:
 - **two or three are elaborate**: the lord's house (below), the inn, which served the ore's
   traders, and the houses of
   those the ore made well-off ◇, of better stuff (stone, where the cottages are wood).  The
-  notable houses stand round **a small market place beside the inn** (owner, 2026-11-08), so
-  Agnes, beside the inn, has an eye on what the hero does there.
+  notable houses stand round **a small market place beside the inn**, already higher up the hill
+  (owner, 2026-11-08), so Agnes, beside the inn, has an eye on what the hero does there; the
+  biggest mansion, the lord's, stands towards the top, partly built into the hilltop (owner).
 
 **The lord's house** (owner, 2026-11-08): the house of the lord's representative, which doubles
 as a place for the lord to stay if need be.  The lord is Lord Edric of Sunmarch, the local lord
 who got much of his income from the mine (STORY.md @ST-Decree, @ST-Court).  Proposed:
+- **Partly built into the hilltop** (owner): its back rooms are dug into the rock, the strong room
+  deepest; its front faces down over the town, the market below it.  Its upper floor, or its roof,
+  meets the hilltop behind at ground level ◇, so a way in from above lands at a known spot, and
+  its tower, if it has one ◇, is the landmark seen from the dark hillside (§ 4's landmark to steer
+  by).
 - **It shows both uses**: the representative's rooms lived in, an office of ledgers and tallies;
   the lord's chamber kept ready though rarely used, the best bed under a cover, his arms over the
   door.  The stable in the yard is for the lord's horses and his escort's.
