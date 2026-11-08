@@ -35,6 +35,10 @@ is not.
   2026-11-04; carts roll on slopes, built).  There are axes in the closed houses; the player can take
   one along, and nothing more is needed than that (owner, 2026-11-04).  There are trees around the
   place too (owner): with an axe, they give sticks (built).
+- **Houses** (owner, 2026-11-08): their insides are part of the village's map, not places of
+  their own, so a roof climbed to is over the room below it; the houses are bigger for it.  Each
+  is built from templates by its household, one floor for a poor miner's family, several with a
+  basement and a roof for the inn (PUZZLES.md § Houses).
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons (@ST-Alchemist); Agnes's house beside the empty
   inn (@ST-Innkeeper); the abandoned smithy, made to work, where the artefact is crafted

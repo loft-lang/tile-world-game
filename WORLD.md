@@ -61,6 +61,13 @@ door is a link from one place to another, both ways:
 - what passes through with the hero passes through: what the hero carries, a pulled cart, an
   enemy close behind (the same rule on both sides, readable from the screen).
 
+**A house in a town is not a place of its own** (owner, 2026-11-08).  Its inside is part of
+the town's map, on the town's layers (its basement below the street, its floors and its roof
+above), so climbing up outside lands the hero at an exact spot on the house.  The houses get
+bigger for it; the owner likes the sense of scale.  A place of its own is for what lies apart: a
+dungeon, a mine, a stretch of land outside.  The demo village's houses stay doors to rooms of
+their own: they are test rooms, not houses.  How a house is built: PUZZLES.md § Houses.
+
 **A place you leave keeps its state.**  The rock you pushed, the chest you opened, the rat you
 lit away from the door: all are where they were when you come back, unless a creature's day
 (below) moved it.

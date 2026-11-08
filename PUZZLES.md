@@ -25,6 +25,8 @@ What TEMPLATES.md is for figures, this is for puzzles.  The owner's idea (2026-1
 - **One number** (owner, ruled 2026-11-08): the measures are dimensions of one challenge, folded
   into a single number, so that when one of them gets deep it weighs heavily on the whole.
 
+The owner on houses (2026-11-08): § Houses: where the parts start.
+
 **Everything below is proposed**: the format, the vocabulary, the measure, the numbers and every
 example, for the owner to rule.  It is built from rules that exist (DESIGN.md, INTERACTIONS.md,
 TEMPLATES.md); nothing is built.
@@ -130,6 +132,74 @@ checker knows these turns as rules of their own, written once, never per part.
    (INTERACTIONS 8), one body of water a pump drains in both.
 5. **Spoiling across an edge.**  Solving one part first spoils another: water drained takes away
    the crossing a part was built around; a cart sent down one track wedges another's bridge.
+
+## Houses: where the parts start
+
+The owner (2026-11-08):
+- **Start with the town.**
+- **The inside of a house is not a place of its own.**  It is part of the town's map, so climbing
+  up outside gets the hero to an exact spot on the house: the roof over the room below it, the
+  upper window of the room behind it.
+- **The houses get bigger** on the starting map for it, and the owner likes the sense of scale
+  they bring.
+- **Parts of a house are templates**, and a house can have several levels: floors, a basement, a
+  roof.  Some have only one (a poor miner's family); some have more elaborate floors with more
+  distinct rooms.
+
+**One model, inside and out** (proposed).  A house is its rooms on layers, and its outside is that
+same house seen from the street: its walls are the rooms' outer walls, its roof is the layer over
+its top floor, its windows are where its rooms have them.  Nothing is drawn twice, so nothing can
+disagree: a roof walked on lies over the room it covers, a window climbed through lands in the
+room behind it.  The rules already show it this way (DESIGN.md § What the player sees): under the
+floor above, only the hero's layer is drawn, so the roof and the upper floor vanish as the hero
+steps in; outside, with no ceiling, the layer above is drawn, so the roof is there.  It is the
+house EDITOR.md § 3 drew (walls, door edges, the roof on the layer above, cut away while the hero
+is inside); the kit's `houses` (intent.loft), today a house's outside only, grows into it.
+
+**Its levels**, a layer each (a layer is a wall high, 4 steps):
+
+| Level | Layer | Reached by |
+|---|---|---|
+| basement | below the street | stairs down or a hatch inside; a cellar hatch from the street |
+| ground floor | the street's | the front door, a back door |
+| upper floor(s) | one up, and more | stairs or a ladder inside; from outside a window or a balcony, climbed to (a chair on a table, a cart, a stack) |
+| roof | over the top floor, walked on | from a neighbour's roof, a tree, the hillside's ledge; down by a hatch or a chimney |
+
+**Templates at two sizes.**
+- **A room** is a part as in § How a part is written: a footprint on one layer, its ports
+  (doorways, stairs, a hatch, a window), its furniture as a variant, what it may hold (a chest, an
+  axe, rope), and its figures: who sleeps, works or eats there, and when (WORLD.md's points).
+- **A house** is a frame of rooms on its levels, by its household; to the town it is one part,
+  its ports the doors, windows, hatches and roof edges.  Two roofs that meet are two ports joined.
+
+**Households** (proposed, from LOCATIONS.md § 1; the sizes are the outside, walls included):
+
+| Household | Levels | Rooms | Size | In Orbury |
+|---|---|---|---|---|
+| a poor miner's family | ground floor | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
+| a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | Hollis's (his workroom, the potions, @ST-Alchemist) |
+| a better house | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper) |
+| the inn | basement, ground floor, upper floor, roof | the taproom, the kitchen, a store, guest rooms above, the basement | about 12 × 9 | abandoned; the chest and a grey rat in its basement |
+| the smithy | ground floor and a loft | the forge, open to the street, a store | about 8 × 6 | abandoned, to be made to work (@ST-Artefact) |
+
+An abandoned or closed house is any of these, shut: dust, its furniture moved, a way in that is
+not the door.
+
+**The story fixes what, the templates deal how.**  The story fixes a house's household, where it
+stands and what it must hold: the chest and the grey rat in the inn's basement, rope in an
+abandoned house, axes in the closed ones, the smithy's anvil.  The seed deals its rooms, their
+order and its ways in; the check makes sure what the story needs is there and can be reached.
+
+**The town's puzzles as parts** (LOCATIONS.md § 1, ◇):
+- a closed house entered by its upper floor: the window wants *a step* (a chair on a table);
+- one whose way in needs a crate pulled out of a corner first;
+- stones pushed off a cellar hatch, from the street;
+- the chest on a roof ledge, seen from the street, reached from the house beside: across two
+  houses' roofs, ports joined;
+- at night a lived-in house is a navigation part: the sleepers in their rooms see what is lit,
+  and a torch gives the hero away (LOCATIONS.md § 1), so crossing it is measured as any other.
+
+The town is the first depth: its challenge is judged in play (below).
 
 ## A scene: a frame with slots
 
@@ -338,10 +408,14 @@ and its barred wall is round a corner.
 
 1. **Settled by the owner's aim**: the seed is drawn at each new game.  Open: from a pool dealt on
    the developer's machine (proposed, to start), or dealt on the machine itself?
-2. **What do parts fill?**  Slots in the hand-drawn places of LOCATIONS.md, or whole dungeons
-   made of parts?  Proposed: slots first; the Old Seam's levels are where they pay most.
-3. **The scales and the bands**: the five dimensions, their 0 and 10, the weights of the ways a
-   thing is hidden, the power of the fold (3), and the bands' numbers.
+2. **What do parts fill?**  Started (owner): the town's houses, in Orbury's map.  Open: later,
+   slots in the other places of LOCATIONS.md, or whole dungeons made of parts?
+3. **Judged in play** (owner, 2026-11-08): the bands, and which detail gets which level, are
+   decided by playing the result, not here.  Every number above (the scales, the weights, the
+   fold's power, the bands) is a starting point.  For the judging, proposed: `TW_SEED=<n>`
+   deals a place with that seed (as `TW_WORLD` picks a world); the play log writes each place's
+   seed, its parts and its measures as the hero enters it; the editor deals the place it shows
+   again with the next seed, to compare two deals of the same place.
 4. **Settled** (owner): one number, the dimensions folded so a deep one weighs heavily.  Open:
    does the routine sharpen the leading dimension (a scene about one thing) or the one with most
    room (many mild demands)?  Proposed: mostly the first.
@@ -354,9 +428,13 @@ and its barred wall is round a corner.
 
 ## Building it (proposed, in BUILD.md's small steps)
 
-- **P1 — the format.**  Parts as files in `levels/parts/`, a slot list in a place's intent; two
-  existing rooms cut into parts (`first_climb`'s bridge and its climb; the torch room's craft)
-  and one lair (the rat run), with their checks alone.
+- **P1 — houses.**  Rooms and households as templates in `levels/parts/`; the kit's `houses`
+  grown from a house's outside to its rooms on their levels (basement, floors, roof); a test
+  street of three houses (a miner's, a craftsman's, the inn) dealt by a seed.  Its checks: every
+  room reached, every roof cell over a room or a wall, every window landing in a room, a roof
+  climbed to from outside landing at the spot over the room below.
+- **P1b — the format for every part.**  The house's puzzles (the upper window, the crate, the
+  hatch, the roof ledge) as parts with roles; one lair (the inn's grey rat).
 - **P2 — the abstract search**, with its tests: solvable, decoration, interactions, traps.
 - **P3 — the playback**: a plan stitched from the parts' solutions and played by the rules.
 - **P4 — the measures**: the search over (cell, moment), the easiest way, its windows, margins and
