@@ -1043,6 +1043,9 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   a fair way to it — but never behind or beside a wall where it cannot be seen.
 - **A chest is earned, never cheap** (owner, 2026-11-08): its challenge is higher than the rest
   of its area's and than the things that gate progression there (PUZZLES.md § Chests).
+- **Chests and progression items have their place** (owner, 2026-11-08): each has a set
+  location, part of the game's structure; only the way to it is dealt (PUZZLES.md § Chests and
+  progression items have their place).
 - **The signpost counts.**  Walking into a farm signpost lists how many of the region's chests
   are still unopened (built: the status line, until the next move).
 

@@ -538,18 +538,59 @@ Proposed, in the measures above:
   band on purpose, up to the top of the next band, never past the limits outside the number.
 - **Its reading counts the way, never the chest**: the chest is in sight, so what may be hidden is
   how to get there — the ledge it stands on seen, the way up to it round the corner.
-- **Its spots are drawn in the layout** where a chest is believable (a family's valuables put away
-  in the basement, a strong room, a roof ledge where something was hauled up), and the seed picks
-  which are used; when a dealt chest falls short of the rule, the routine sharpens its own way
-  first (another spot, its way's variant, a role from a farther part), and never softens a gate
-  to make room.
+- **When a dealt chest falls short of the rule**, the routine sharpens its own way (its way's
+  variant, a role from a farther part); when no variant reaches the margin, the deal is rejected.
+  A gate is never softened to make room.
 - **The artefact's pieces** (LOCATIONS.md: one chest per major place) keep the same rule: each is
   the hardest thing in its place.
 
+## Chests and progression items have their place
+
+**The rule** (owner, 2026-11-08): every chest and every progression item has a set location in
+the game, as part of its overall structure.  The seed never moves them; it deals only the way to
+them.
+
+- **What counts as a progression item**: what a gate needs that nothing else stands in for, and
+  what the story names: the pump's crystals (the depleted one, the spare, the small ones), the
+  rope, the beams the flotilla and the barricade need, the pick, the axes, the blunt sword, the
+  pump's drive, the lightning installation's parts, the bow in the inn.  What a part needs as a
+  *role* that many things fill (a step: a chair or a crate; a light: a torch made of tar and
+  sticks) is not one: those stay the parts' material, dealt.  Where a role has a fixed source
+  and a dealt one (beams in the mine, beams from a fallen roof), the fixed source is enough on its
+  own, and the dealt one is extra.
+- **Why** (from the evaluation, 2026-11-08):
+  - **a place tells its story**: valuables carried down to the inn's basement, a strong room dug
+    into the hill, rope in the house of the family who fled; moved by a seed, it would say
+    nothing;
+  - **its sight line is designed**: a chest is seen from a spot chosen in the layout (the street,
+    across the brook, the market), so it can be judged in play and tuned;
+  - **what is said stays true**: a villager's hint (@ST-Hints), Wick naming where the bombs lie,
+    Lark's path, all point at places, and must be right every game;
+  - **fun, never lost** (DESIGN.md § The principle): a player who has learnt where the rope is
+    never has to search for it again; what changes is how it is reached;
+  - **fresh where it counts**: a player knows *where* and not *how*: the door barred this time,
+    the roof come down, the step in another room;
+  - **the counts hold**: a region's number of chests is fixed (DESIGN.md § Goals), and the
+    signpost counts them.
+- **What is fixed and what is dealt**:
+
+  | Fixed in the layout | Dealt |
+  |---|---|
+  | every chest and progression item, and its place | the way to it: its slot's part and variant |
+  | the spot a chest is seen from | what blocks or opens that way: the state of houses and tunnels, decay |
+  | in a house, its place within the house's shell (the inn's basement, its back wall), fixed with the house as its doors and windows are | the rooms around it, dealt as the house's insides |
+
+- **Its own slot**: each chest's way and each progression item's way is a slot of its own, apart
+  from the gates, so the routine can sharpen a chest's way without touching the rest; a
+  progression item's way is dealt within its area's band, a chest's above it (§ Chests).
+- **What is not fixed**: small things found (a potion, a bit of ore, a herb), dealt freely as the
+  insides of houses and rooms are.
+
+## Fresh, not unique
 ## Fresh, not unique
 
-- **The seed is drawn at each new game**, so the author plays places whose layout they do not
-  know.  It is written to the play log (`playlog.loft`), so any game, and any bug in it, can be
+- **The seed is drawn at each new game**, so the author plays places whose state and insides
+  they do not know: the map, its chests and its progression items stay where they are.  It is written to the play log (`playlog.loft`), so any game, and any bug in it, can be
   dealt again.
 - **The save remembers the parts met**, and the routine prefers, among the deals that land in the
   band, parts and variants not met lately.

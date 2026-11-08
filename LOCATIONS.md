@@ -11,7 +11,9 @@ paths to take, with levels partly out of sight (owner, 2026-11-04).  So the hero
 almost everything, but it gets harder near any group (owner).  Gathered from STORY.md and DESIGN.md
 (2026-11-04).  A placement marked ◇ was picked as the logical one; the owner has let the open items
 be filled in that way (2026-11-04), so ◇ marks what is ours to change freely, everything else the
-owner's outline fixes.  Every chest is in sight from somewhere the hero can stand, never hidden
+owner's outline fixes.  Every chest and every progression item has a set place (owner,
+2026-11-08; PUZZLES.md): the placements here are those places, and only the ways to them vary
+from game to game.  Every chest is in sight from somewhere the hero can stand, never hidden
 (the editor's checks, K, mark a chest nothing walkable sees); hard to reach is fine, invisible
 is not.
 
