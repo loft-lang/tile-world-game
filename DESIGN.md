@@ -31,8 +31,9 @@ This is what the game built on tile_world should be.
   place has its layout drawn by hand, so things can be made believable and readable, verified
   through gameplay; the templates deal the state and the insides of what is there.  Designed in
   PUZZLES.md (proposed, not built).
-- **Not a hugely long game** (owner, 2026-11-08): a few places, each worth its time, rather than
-  many; a replay is fresh through what the templates deal (PUZZLES.md), not through length.
+- **Not a hugely long game** (owner, 2026-11-08).  Proposed, from it: a few places, each worth
+  its time, rather than many; a replay is fresh through what the templates deal (PUZZLES.md),
+  not through length.
 - **Growth comes later.** Character growth comes only after a base dungeon and world feel alive and
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.  Read again
   (owner, 2026-11-07): growth is breadth, not height: a new thing to carry, wear or do, each with
