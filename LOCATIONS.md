@@ -13,7 +13,8 @@ almost everything, but it gets harder near any group (owner).  Gathered from STO
 be filled in that way (2026-11-04), so ◇ marks what is ours to change freely, everything else the
 owner's outline fixes.  Every chest and every progression item has a set place (owner,
 2026-11-08; PUZZLES.md): the placements here are those places, and only the ways to them vary
-from game to game.  Every chest is in sight from somewhere the hero can stand, never hidden
+from game to game.  Items other than the chests are found where they would be useful for miners,
+left there on the mine's closure, which was more or less forced (owner, 2026-11-08).  Every chest is in sight from somewhere the hero can stand, never hidden
 (the editor's checks, K, mark a chest nothing walkable sees); hard to reach is fine, invisible
 is not.
 

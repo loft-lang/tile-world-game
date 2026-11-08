@@ -586,6 +586,19 @@ them.
 - **Its own slot**: each chest's way and each progression item's way is a slot of its own, apart
   from the gates, so the routine can sharpen a chest's way without touching the rest; a
   progression item's way is dealt within its area's band, a chest's above it (§ Chests).
+- **Where an item's place is** (owner, 2026-11-08): the items other than the chests are found
+  where they would be useful for miners, left there on closure, and the closure was more or less
+  forced.  Proposed, from it ◇:
+  - **a player can reason where to look**: rope at the head of a shaft or a winch, beams in the
+    timber store and holding up the tunnels, a pick at the face where the work stopped, a cart at
+    the loading place, the spare crystal in the old stores, bombs where there was work to do and
+    extensions to build (STORY.md @ST-Artefact, owner);
+  - **the closing reads as sudden**: work stopped mid-way, a cart half loaded, a pick left in the
+    rock, an extension half built, lamps burnt out in their sockets, the foreman's tally board on
+    its last day.  The mine was left in a hurry where the houses were closed with care, and the
+    two read differently: the houses tidy and square, the mine as the work stood;
+  - **a dealt state never moves an item from its place**; it changes the way there (a tunnel
+    fallen in, water risen), so the reasoning stays right every game.
 - **What is not fixed**: small things found (a potion, a bit of ore, a herb), dealt freely as the
   insides of houses and rooms are.
 

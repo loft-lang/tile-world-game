@@ -151,6 +151,8 @@ decree from outside: digging is made unlawful or worthless.  The local lord, who
 income from this mine, has fallen from grace, and that resulted in federal action.  The mine is
 not yet claimed by others: there is an ownership dispute, but the parties in it do not have a
 strong enough claim to really pull their weight.  The drought is a factor, but not everything.
+The closure was more or less forced (owner, 2026-11-08): what the miners used was left where it
+was useful to them.
 Two lords want the ownership, the witch (@ST-Lady) and the elder lord next door (@ST-Neighbour),
 who has the wizard as an adviser (@ST-Wizard); and the favour of the local lord, the young lord
 (@ST-Court), might be restored (owner, 2026-11-04).
