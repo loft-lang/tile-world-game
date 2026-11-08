@@ -286,7 +286,8 @@ NPCs.
 craft a lot to make it happen.  It can certainly exist as part of a puzzle.
 
 <a id="st-alchemist"></a>**The alchemist: Hollis** (owner, 2026-11-04): still living in the village.  Their job was to provide the
-miners with potions for small injuries, and other stimulants.
+miners with potions for small injuries, and other stimulants.  Hollis stayed when others left,
+with a lab that is not easily replaced (owner, 2026-11-08).
 
 <a id="st-foreman"></a>**The old foreman: Garth Mabley** (owner, 2026-11-04): the retired foreman; the active one left.  He
 knows the gist of the mine, but not its latest state (@ST-Mine, @ST-Hints).

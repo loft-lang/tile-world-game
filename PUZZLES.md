@@ -177,7 +177,8 @@ is inside); the kit's `houses` (intent.loft), today a house's outside only, grow
 | Household | Levels | Rooms | Size | In Orbury |
 |---|---|---|---|---|
 | a poor miner's family | ground floor | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
-| a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | Hollis's (his workroom, the potions, @ST-Alchemist) |
+| a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | the craftsmen who served the mine, most gone |
+| the alchemist's house | ground and upper floor, a vaulted basement | the shop where potions were sold to the miners, the lab (furnace, still, glass, the bench where small crystals are filled), the store of ingredients, living rooms above | about 8 × 7 | Hollis's (@ST-Alchemist): lived in, kept up |
 | a well-off house (money from the ore) | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above, a strong room or a cellar for what is worth keeping | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper); the ore's other well-off ◇ |
 | the lord's house: his representative's, and the lord's when he comes | basement, ground floor, upper floor, roof, a walled yard | a hall to receive in, the representative's office (the ore's tallies, the lord's share), a kitchen and the servants' rooms; above, the lord's chamber kept ready and the representative's rooms; below, a strong room; a stable in the yard | about 12 × 10, the yard besides | Lord Edric's (@ST-Court), the finest in the town |
 | the inn | basement, ground floor, upper floor, roof | the taproom, the kitchen, a store, guest rooms above, the basement | about 12 × 9 | abandoned; the chest and a grey rat in its basement |
@@ -217,12 +218,26 @@ who got much of his income from the mine (STORY.md @ST-Decree, @ST-Court).  Prop
   lord's favour is restored.  When it is, the house opens again: the lord's arms cleaned, the
   chamber in use ◇.
 
+**The alchemist stayed** (owner, 2026-11-08), with a lab that is not easily replaced.  Proposed:
+- **The lab is the house's heart**, and what makes it elaborate: a furnace, a still, glass, the
+  ingredients, the bench where Hollis fills the small crystals (LOCATIONS.md § 1).  It is fixed
+  and heavy, which is why it could not be taken along; set in a vaulted basement or a stone room
+  of its own, as a fire and its fumes want.
+- **A house lived in is a different puzzle**: no decay, nothing closed up, but someone home.  Its
+  part is navigation by the clock (WORLD.md's points: Hollis at the lab bench, in the shop, asleep
+  above), and the lab is a place the hero is shown, not one to break into (the crafting lessons).
+  Coming in uninvited is snooping, as anywhere.
+- **It changes with the story** ◇: the potions and stimulants it makes, the crystals it fills,
+  what the hero brings it (ingredients, @ST-Alchemist); a lab that matters to the village's
+  survival is one more reason the house stays kept.
+
 **Money shapes how a house was left** (proposed).  The well-off could afford to leave first, so
 their houses have stood empty longest, and they had the most to come back for, so they were closed
 with the most care: barred, shuttered, the valuables (ore, STORY.md: ore stands for wealth) put
 away in the cellar or a strong room.  The most care and the most neglect meet in the same houses,
 and that is where the elaborate puzzles are.  The miners who left to find work closed their
-cottages simply, with less to guard; the miners who stayed live in theirs, kept up.
+cottages simply, with less to guard; the miners who stayed live in theirs, kept up, as do Hollis,
+who stayed for the lab, and Agnes.
 
 The plain ones vary in small things rather than in plan: their size (4 × 4 to 6 × 5), the side
 their door is on, a lean-to, a porch, a shed, a yard or a garden, the furniture.  Plain is not

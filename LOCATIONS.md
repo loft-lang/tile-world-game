@@ -44,7 +44,8 @@ is not.
   variety of houses, some elaborate, most not spectacular: most people were lowly miners, but
   there was money too (owner, 2026-11-08).
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
-  Hollis's home, potions and the crafting lessons (@ST-Alchemist); Agnes's house beside the empty
+  Hollis's home, potions and the crafting lessons, and the lab that is not easily replaced, which
+kept Hollis in the village (owner, 2026-11-08; @ST-Alchemist); Agnes's house beside the empty
   inn (@ST-Innkeeper); the abandoned smithy, made to work, where the artefact is crafted
   (@ST-Artefact); the house of Lord Edric's representative, which doubles as a place for the lord
 to stay if need be (owner, 2026-11-08; @ST-Court; PUZZLES.md § Houses); abandoned houses, one with
