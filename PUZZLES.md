@@ -487,11 +487,12 @@ Proposed bands, by LOCATIONS.md's order:
 
 | Depth | Places | Challenge | Traps |
 |---|---|---|---|
-| first | the village, the camp, the hidden path, the hillside | 3.5 at most | none |
+| town | Orbury, this side of the stream (LOCATIONS.md § 1: the stream is the line) | 2 at most | none |
+| first | across the stream: the dock, the camp, the hidden path, the hillside | 3.5 at most | none |
 | middle | the Old Seam's first and second levels, the flooded tunnels, the lake | 3.5 to 6.5 | seen, undone by R |
 | deep | the High Diggings, Stormcap | 6.5 to 9 | seen |
 
-The first places have a ceiling only; the deep ones a floor and a ceiling, the ceiling kept
+The town and the first places have a ceiling only; the deep ones a floor and a ceiling, the ceiling kept
 below 10 so a deep scene leaves the player some room to be wrong.
 
 ## Fresh, not unique

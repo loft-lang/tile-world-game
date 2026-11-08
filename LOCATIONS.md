@@ -104,6 +104,23 @@ is not.
   Agnes watches it from her house by day, so snooping into the notable houses, or taking the bow
   from the inn, is done out of her sight or not at all; by night she sleeps, and the market is
   dark.
+- **The stream is the line** (owner, 2026-11-08): the stream, with the loading dock across it, is
+  how the game shows where the real game with hazards begins, apart from the town, which is
+  relatively safe.  Proposed ◇:
+  - **seen, never told**: crossing a bridge is leaving the town; nothing on the screen says so,
+    the world does (DESIGN.md § The principle: readable, never taught);
+  - **this side**: no lair but the grey rats', no trap set, no fall worse than a step; the danger
+    is being seen (§ 1, Traps).  The town is the gentlest band of the puzzles (PUZZLES.md § The
+    depth sets the band);
+  - **the first hazards are at the line itself, and mild**: a footbridge's missing plank drops the
+    hero a layer into the dry bed (a shallow fall first, DESIGN.md: hurt, rarely killed); a cart
+    at the dock rolls; beyond, the hazards of §§ 2–4;
+  - **creatures keep to their side**: their roams end at the stream, until the Kharn scout outside
+    the mine (STORY.md @ST-Climax: the clock read from the world) — one seen on the dock is the
+    town's warning;
+  - **the village entrance is at the stone bridge**, where the barricade goes (@ST-Climax), and
+    **the drought opened the line**: a stream that ran was the town's moat; dry, its bed can be
+    crossed anywhere, so the barricade at the bridge is not the whole defence.
 - **The stream** (owner, 2026-11-08): a mostly dried-off stream runs along the town, at the foot
   of its hill ◇, with some
   bridges that are not really needed anymore.  Proposed ◇:
