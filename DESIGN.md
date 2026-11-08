@@ -1041,6 +1041,8 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
   dungeon has a fixed number of chests, so the points it can give are limited.
 - **A chest is never hidden.**  It may stand out of the direct route — a door behind a tree is
   a fair way to it — but never behind or beside a wall where it cannot be seen.
+- **A chest is earned, never cheap** (owner, 2026-11-08): its challenge is higher than the rest
+  of its area's and than the things that gate progression there (PUZZLES.md § Chests).
 - **The signpost counts.**  Walking into a farm signpost lists how many of the region's chests
   are still unopened (built: the status line, until the next move).
 

@@ -517,6 +517,35 @@ Proposed bands, by LOCATIONS.md's order:
 The town and the first places have a ceiling only; the deep ones a floor and a ceiling, the ceiling kept
 below 10 so a deep scene leaves the player some room to be wrong.
 
+## Chests: seen, and earned
+
+Chests keep a rule of their own, apart from the rest of a dungeon or a house (owner,
+2026-11-08):
+- **A chest is visible itself** (as DESIGN.md § Goals already holds: never hidden; hard to reach
+  is fine, invisible is not).
+- **It never feels cheap**: the player has to earn it, so **a chest's challenge number is higher
+  than the rest of its area's, and higher than the things that gate progression there**.
+
+Proposed, in the measures above:
+- **A gate** is a part every plan to the scene's goal goes through (the abstract search: a part
+  that is not decoration).  **A chest** is a goal of its own, never on the way: no plan to the
+  scene's goal opens it by passing.
+- **A chest is measured on its own way**: from the nearest point of the way the scene's goal
+  takes, to the chest opened — only the extra, so a chest behind a hard gate is not credited
+  with the gate.  The same easiest way, the same five dimensions, the same fold.
+- **The rule**: the chest's number is above the highest of its area's gates, and above the area's
+  own number, by a margin (proposed 1.5).  A chest is the one place where a scene goes past its
+  band on purpose, up to the top of the next band, never past the limits outside the number.
+- **Its reading counts the way, never the chest**: the chest is in sight, so what may be hidden is
+  how to get there — the ledge it stands on seen, the way up to it round the corner.
+- **Its spots are drawn in the layout** where a chest is believable (a family's valuables put away
+  in the basement, a strong room, a roof ledge where something was hauled up), and the seed picks
+  which are used; when a dealt chest falls short of the rule, the routine sharpens its own way
+  first (another spot, its way's variant, a role from a farther part), and never softens a gate
+  to make room.
+- **The artefact's pieces** (LOCATIONS.md: one chest per major place) keep the same rule: each is
+  the hardest thing in its place.
+
 ## Fresh, not unique
 
 - **The seed is drawn at each new game**, so the author plays places whose layout they do not
