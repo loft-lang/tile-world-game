@@ -178,7 +178,7 @@ is inside); the kit's `houses` (intent.loft), today a house's outside only, grow
 |---|---|---|---|---|
 | a poor miner's family | ground floor | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
 | a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | Hollis's (his workroom, the potions, @ST-Alchemist) |
-| a better house | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper) |
+| a well-off house (money from the ore) | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above, a strong room or a cellar for what is worth keeping | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper); the ore's other well-off ◇ |
 | the inn | basement, ground floor, upper floor, roof | the taproom, the kitchen, a store, guest rooms above, the basement | about 12 × 9 | abandoned; the chest and a grey rat in its basement |
 | the smithy | ground floor and a loft | the forge, open to the street, a store | about 8 × 6 | abandoned, to be made to work (@ST-Artefact) |
 
@@ -186,10 +186,23 @@ An abandoned or closed house is any of these, shut: dust, its furniture moved, a
 not the door.
 
 **Most houses are not spectacular** (owner, 2026-11-08): the village has a variety of houses,
-some elaborate, most plain.  Proposed, for Orbury's dozen or so:
-- **most are miners' cottages**, a floor and a room or two;
-- **a few are two floors**: a craftsman's, a better house;
-- **two or three are elaborate**, and those the story names: the inn, and the like.
+some elaborate, most plain.  **It is a town where most people were lowly miners, but there was
+money too** (owner): the ore was its wealth (STORY.md § 1), and some hands it passed through kept
+some.  Proposed, for Orbury's dozen or so:
+- **most are miners' cottages**, a floor and a room or two, close together: in rows along the
+  rails and the way to the mine, sharing walls, their roofs joined, so a row of roofs is a way
+  of its own (two roofs that meet are ports joined, above);
+- **a few are two floors**: a craftsman's;
+- **two or three are elaborate**: the inn, which served the ore's traders, and the houses of
+  those the ore made well-off ◇, of better stuff (stone, where the cottages are wood), set apart
+  on the better ground, behind a wall or a fence of their own.
+
+**Money shapes how a house was left** (proposed).  The well-off could afford to leave first, so
+their houses have stood empty longest, and they had the most to come back for, so they were closed
+with the most care: barred, shuttered, the valuables (ore, STORY.md: ore stands for wealth) put
+away in the cellar or a strong room.  The most care and the most neglect meet in the same houses,
+and that is where the elaborate puzzles are.  The miners who left to find work closed their
+cottages simply, with less to guard; the miners who stayed live in theirs, kept up.
 
 The plain ones vary in small things rather than in plan: their size (4 × 4 to 6 × 5), the side
 their door is on, a lean-to, a porch, a shed, a yard or a garden, the furniture.  Plain is not
