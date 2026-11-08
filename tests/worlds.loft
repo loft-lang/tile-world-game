@@ -71,24 +71,26 @@ fn test_a_stair_road_climbs_a_terrace() {
 fn test_a_ramp_leads_out_of_the_bed_to_the_town() {
   lf = orbury();
   w = lf.level;
-  rules::put_hero(w, 23, 57, -1);
-  rules::play(w, "a a a a");
-  assert(w.hero_x == 19 && w.hero_y == 57 && w.hero_z == -1, "along the bed: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::put_hero(w, 21, 56, -1);
+  rules::play(w, "a a a a a");
+  assert(w.hero_x == 16 && w.hero_y == 56 && w.hero_z == -1, "along the bed: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
   rules::play(w, "w d d");
-  assert(w.hero_x == 21 && w.hero_y == 56 && w.hero_h == 3, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  assert(w.hero_x == 18 && w.hero_y == 55 && w.hero_h == 3, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
   rules::play(w, "w");
-  assert(w.hero_x == 21 && w.hero_y == 55 && w.hero_z == 0, "out onto the foot: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  assert(w.hero_x == 18 && w.hero_y == 54 && w.hero_z == 0, "out onto the bank: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::play(w, "w");
+  assert(w.hero_y == 53 && w.hero_z == 0, "on the lane by the miners' rows: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
 
 // And up the ramp under the far bank, onto the dock's side.
 fn test_a_ramp_leads_out_of_the_bed_to_the_dock() {
   lf = orbury();
   w = lf.level;
-  rules::put_hero(w, 42, 58, -1);
+  rules::put_hero(w, 50, 61, -1);
   rules::play(w, "a a a");
-  assert(w.hero_x == 39 && w.hero_y == 58 && w.hero_h == 2, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  assert(w.hero_x == 47 && w.hero_y == 61 && w.hero_h == 2, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
   rules::play(w, "a s");
-  assert(w.hero_x == 38 && w.hero_y == 59 && w.hero_z == 0, "out by the dock: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  assert(w.hero_x == 46 && w.hero_y == 62 && w.hero_z == 0, "out by the dock: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
 }
 
 // Under the bridge the bed is walked through: the stone bridge's three columns stand over it.
@@ -113,7 +115,7 @@ fn test_no_pocket_in_the_bed() {
   w = lf.level;
   top = w.k.layer_height - 1;
   stuck = "";
-  for y in 56..59 {
+  for y in 50..68 {
     for x in 0..64 {
       if !rules::walkable(w, tile_world::terrain(w.w, x, y, -1)) { continue; }
       seen: vector<integer> = [y * 64 + x];
@@ -147,10 +149,42 @@ fn test_no_pocket_in_the_bed() {
 fn test_the_shallows_are_waded_and_deep_water_is_not() {
   lf = orbury();
   w = lf.level;
-  rules::put_hero(w, 49, 57, -1);
+  rules::put_hero(w, 49, 59, -1);
   rules::play(w, "d d d d");
-  assert(w.hero_x == 53 && w.hero_y == 57 && w.hero_z == -1, "through the pool: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
-  tile_world::set_terrain(w.w, 54, 57, -1, rules::terrain_id(w.k, "water"));
+  assert(w.hero_x == 53 && w.hero_y == 59 && w.hero_z == -1, "through the pool: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  tile_world::set_terrain(w.w, 54, 59, -1, rules::terrain_id(w.k, "water"));
   rules::play(w, "d");
   assert(w.hero_x == 53, "deep water stops the hero: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}
+
+// The stream winds (owner, 2026-11-08: no natural stream is straight), and the rails follow its far
+// bank: from the dock's end one unbroken track, round every bend, out at the east edge — never on
+// the bank's edge or in the bed.
+fn test_the_rails_follow_the_winding_bank() {
+  lf = orbury();
+  w = lf.level;
+  x = 26;
+  y = 61;
+  from = (-1, 0);
+  rows: vector<integer> = [];
+  steps = 0;
+  while x < 63 && steps < 200 {
+    m = rules::joins(w, x, y, 0);
+    assert(m != 0, "the track goes on at ({x}, {y})");
+    if m == 0 { return; }
+    assert(rules::walkable(w, tile_world::terrain(w.w, x, y - 1, 0)) && rules::walkable(w, tile_world::terrain(w.w, x, y - 2, 0)),
+           "two rows of the far side between the rails and the bed at ({x}, {y})");
+    if !rows.contains(y) { rows += [y]; }
+    next = (0, 0);
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      bit = if d == (0, -1) { 1 } else if d == (1, 0) { 2 } else if d == (0, 1) { 4 } else { 8 };
+      if (m & bit) != 0 && d != from { next = d; }
+    }
+    from = (-next.0, -next.1);
+    x += next.0;
+    y += next.1;
+    steps += 1;
+  }
+  assert(x == 63, "out at the east edge: ({x}, {y})");
+  assert(len(rows) >= 3, "round the bends: rows {rows}");
 }

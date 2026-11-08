@@ -133,13 +133,20 @@ is not.
   - **It is the brook's lower course.**  Up the hidden path it still runs, where Lark and the crabs
     are (§ 3: the land still has water somewhere); down here the drought (@ST-Outside) has taken
     it, to a few pools.  Its dry bed, followed upstream, leads out to the hidden path.
+  - **It winds** (owner, 2026-11-08: natural streams are never straight): its bed bends north and
+    south along the town's foot in short straight reaches, a row at a time, a few rows either way;
+    it runs straight only under the stone bridge.  **What stands by it follows it**: the rails come
+    along the far bank, round each of its bends, two rows off its edge, to the dock; on the town's
+    side a lane follows the near bank, and the miners' rows face the lane, each house where the
+    bank lets it stand — set back where the stream swings south, pressed against the street where
+    it swings north — so no two of them line up.
   - **Its bed lies a layer below the street**, with steep banks a wall high, and slopes down where
     the old ford was.  The bridges cross it at street level: footbridges of wood, which the miners
     crossed every day to the dock and the way to work, not needed since the mine stopped ◇; and
     the stone bridge at the main road's foot, still the way out of town.
   - **Ramps out of it** (owner, 2026-11-08: there should be a ramp along it; built): one along
     each bank, a slope against the bank's wall that leaves the bed free beside it — under the
-    town's bank west of the stone bridge, up to the foot by the miners' rows; under the far bank
+    town's bank west of the stone bridge, up to the lane by the miners' rows; under the far bank
     east of it, up beside the dock.  The bed is no trap for a hero who fell in.
   - **The bed is a way of its own**: sunken, out of the street's sight, dark under the bridges (a
     ceiling: only the hero's layer is drawn there).  **In the bed the hero sees no further than
@@ -147,8 +154,8 @@ is not.
     above, which the hero cannot see from down there, must not hide him): between banks of earth
     the view keeps to the bed's own layer, as under a ceiling; from a ramp's top step it looks out
     again (game.loft `in_trench`).  A way through town by night, where a torch
-    gives the hero away (@ST-Stealth); the backs of the miners' rows face it, their back doors and
-    yards onto the bank.
+    gives the hero away (@ST-Stealth); the miners' rows face it across their lane, their doors onto
+    the bank.
   - **A bridge not needed is not kept up**: a wooden one has lost planks, one has come down into
     the bed, its beams lying there (PUZZLES.md § Houses: neglect).
   - **What the water left**: a pool or two, shallow, waded through (owner, 2026-11-08: water is
