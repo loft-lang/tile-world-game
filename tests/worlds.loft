@@ -1,0 +1,67 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The worlds to start (BUILD.md D1, WORLD.md): the story's, Orbury, and the demo village beside it,
+// each saved apart; and Orbury's fixed layout (LOCATIONS.md § 1) played by the rules — up the main
+// road from the loading dock, over the stone bridge, to the market.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use editor;
+use game;
+
+fn test_orbury_first_then_the_demo_village() {
+  ws = game::worlds("..");
+  assert(len(ws) == 2, "two worlds: {len(ws)}");
+  assert((ws[0] ?? game::WorldChoice { name: "", start: "" }).start == "orbury", "Orbury first");
+  assert((ws[1] ?? game::WorldChoice { name: "", start: "" }).start == "demo", "then the demo village");
+}
+
+fn test_each_world_saves_apart() {
+  assert(game::save_dir_of("demo") == "saves", "the demo village where it always saved");
+  assert(game::save_dir_of("orbury") == "saves/orbury", "Orbury apart: {game::save_dir_of("orbury")}");
+}
+
+fn orbury() -> levels::LevelFile {
+  theme = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme, k);
+  m = levels::load_with(file("../levels/orbury.json").content() ?? "", k, mats);
+  if !m { assert(false, "orbury loads"); }
+  m ?? levels::LevelFile { name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+                           goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } }
+}
+
+// The place file is as its intent says: filling it in again changes nothing.
+fn test_orbury_is_as_its_intent_says() {
+  lf = orbury();
+  theme = file("../theme.json").content() ?? "";
+  ed = editor::new_editor_with(lf, materials::load(theme, lf.level.k));
+  assert(!editor::refill(ed, lf, intent::words_from(theme)), "orbury.json is filled in");
+}
+
+// From the dock over the stone bridge, up the main road's slopes to the middle terrace and on to
+// the market terrace.
+fn test_the_main_road_climbs_from_the_dock_to_the_market() {
+  lf = orbury();
+  w = lf.level;
+  rules::play(w, "w w w w w w w w w w w w w");
+  assert(w.hero_x == 30 && w.hero_y == 47 && w.hero_z == 0, "at the foot of the road: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "w d d d");
+  assert(w.hero_x == 33 && w.hero_y == 46 && w.hero_z == 1, "up the first slope: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "w w w w w w w w w w w w d d d d d");
+  assert(w.hero_x == 38 && w.hero_y == 34 && w.hero_z == 2, "up the second: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "w w w w a a a");
+  assert(w.hero_z == 2 && w.hero_y == 30 && w.hero_x == 35, "in the market: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}
+
+// A stair road: from the foot's street, up the steps in the middle terrace's front.
+fn test_a_stair_road_climbs_a_terrace() {
+  lf = orbury();
+  w = lf.level;
+  rules::put_hero(w, 17, 46, 0);
+  rules::play(w, "w");
+  assert(w.hero_x == 17 && w.hero_y == 45 && w.hero_z == 1, "up the stairs: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}

@@ -369,6 +369,20 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     of slopes, the stair roads, the market, the houses' shells, the dried stream a layer down with
     its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with
     `tools/map.loft`, walked with `TW_WORLD=orbury`.
+    **A first draft built (2026-11-08)**, a world of its own (owner: the actual first game world,
+    started apart; the demo village stays, to grow when needed): `order.json`'s `worlds`, chosen
+    after the credits, each saved apart (`game::worlds`, `save_dir_of`; `tests/worlds.loft`).  The
+    hill in five layers, the hilltop (4) down to the foot (0), earth under each terrace so its
+    front shows as a retaining wall; the main road from the stone bridge up by three slopes to the
+    lord's house; two stair roads; the market with the well; eleven houses with rooms (the lord's,
+    the inn, Agnes's, a well-off house, Hollis's, the smithy, cottages, Thornfield's farmhouse and
+    barn); the cemetery's fence and trees; the dry bed a layer down with two pools, the stone
+    bridge, a footbridge and one with a plank gone; the dock with the rails and two carts.  Tested:
+    the road climbs from the dock to the market by the rules, a stair road climbs its terrace.
+    Every place and size is a first guess to judge in play.  Open: the houses' doors are all on
+    their ground floor's front (a house against the slope needs doors on more than one level and
+    side); the lord's house is not yet dug into the hilltop; the farm's fields, the gravestones,
+    the market's stalls; the bridge material shows Kenney's wood wall.
   - **D1d. How a house was left**: closed up (locked, barred, shuttered, boarded, the ladder
     taken up) and neglect (a roof come down, a stair rotted, a basement flooded), dealt as events.
   - **D1e. Dealt anew**: `TW_SEED`, the deal written to the play log, the town played with several

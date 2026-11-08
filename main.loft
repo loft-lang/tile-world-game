@@ -245,10 +245,42 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  if !game::start_world(game, start_of(game)) { game::start_level(game, 0); }
-  // The game saved at a well or fountain (C6) is where play goes on; TW_NEW=1 starts afresh.
-  game.save_dir = "saves";
-  if (env_variable("TW_NEW") ?? "") == "" { _ = game::read_save(game, "saves"); }
+  // Which world (WORLD.md): TW_WORLD names one; else the player chooses among order.json's
+  // `worlds` — the story's, Orbury, and the demo village beside it.
+  start = env_variable("TW_WORLD") ?? "";
+  if start == "" {
+    list = game::worlds(game.dir);
+    pick = 0;
+    chosen = if len(list) == 1 { 0 } else { -1 };
+    if chosen < 0 {
+      game::draw_worlds(game, list, pick);
+      mask(game);
+      present(game, size, timing);
+    }
+    while chosen < 0 && screen::poll(15) {
+      if window_keys {
+        game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
+      } else {
+        game.keys.input_tick_device();
+      }
+      if game::quit(game) { return; }
+      c = game::choice(game, len(list), pick);
+      chosen = c.1;
+      if c.0 != pick {
+        pick = c.0;
+        game::draw_worlds(game, list, pick);
+        mask(game);
+        present(game, size, timing);
+      }
+    }
+    if chosen < 0 { return; }
+    start = (list[chosen] ?? game::WorldChoice { name: "", start: game::start_place(game.dir) }).start;
+  }
+  if !game::start_world(game, start) { game::start_level(game, 0); }
+  // The game saved at a well or fountain (C6) is where play goes on, each world's apart; TW_NEW=1
+  // starts afresh.
+  game.save_dir = game::save_dir_of(start);
+  if (env_variable("TW_NEW") ?? "") == "" { _ = game::read_save(game, game.save_dir); }
   view = View { zoom: 1.0, target: 1.0, fit: fit_of(size) };
   plog = playlog::open(env_variable("TW_LOG") ?? "", playlog::LOG_URL);
   game.logging = plog.on;

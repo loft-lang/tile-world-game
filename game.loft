@@ -432,6 +432,73 @@ fn open_place(g: Game, name: text) -> boolean {
   true
 }
 
+// order.json again with `order` as given, its `start` and its `worlds` kept.
+fn order_json(dir: text, order: const vector<text>) -> text {
+  names = "";
+  for n in order { names += if names == "" { "\"{n}\"" } else { ", \"{n}\"" }; }
+  ws = "";
+  for c in worlds(dir) {
+    ws += if ws == "" { "" } else { ",\n    " };
+    ws += "{{ \"name\": \"{c.name}\", \"start\": \"{c.start}\" }}";
+  }
+  "{{ \"start\": \"{start_place(dir)}\",\n  \"worlds\": [\n    {ws} ],\n  \"order\": [{names}] }}\n"
+}
+
+/// A world to start (WORLD.md: the places reached through doors from its start place): its name,
+/// as the choice after the credits shows it, and its start place.
+pub struct WorldChoice {
+  pub name: text,
+  pub start: text
+}
+
+/// The worlds order.json lists (`"worlds": [{ "name": .., "start": .. }]`), first the one played
+/// most: the story's world, then the demo village.  Without a list, the one world of `start`.
+pub fn worlds(dir: text) -> vector<WorldChoice> {
+  out: vector<WorldChoice> = [];
+  v = json_parse(file("{dir}/levels/order.json").content() ?? "").field("worlds");
+  for i in 0..v.len() {
+    e = v.item(i);
+    out += [WorldChoice { name: levels::str(e.field("name"), ""), start: levels::str(e.field("start"), "") }];
+  }
+  if len(out) == 0 { out += [WorldChoice { name: "THE DEMO VILLAGE", start: start_place(dir) }]; }
+  out
+}
+
+/// Where a world's game is saved: the demo village in `saves`, as always; another world in
+/// `saves/<its start place>`, so the two never write over each other.
+pub fn save_dir_of(start: text) -> text {
+  if start == "demo" { "saves" } else { "saves/{start}" }
+}
+
+/// The choice of world, after the credits: each on its line with its number, the one picked
+/// marked.  Up and down move the mark, a number or Enter starts one (`choice`).
+pub fn draw_worlds(g: Game, list: const vector<WorldChoice>, pick: integer) {
+  tiles::clear(g.surface, 0);
+  ts = g.look.tile_size;
+  y = (H - (len(list) + 2) * ts) / 2 ?? 0;
+  write(g, "WHICH WORLD?", (W - 12 * ts) / 2 ?? 0, y);
+  y += 2 * ts;
+  for i in 0..len(list) {
+    c = list[i] ?? continue;
+    line = "{if i == pick { ">" } else { " " }}{i + 1} {c.name}";
+    write(g, line, ts, y);
+    y += ts;
+  }
+}
+
+/// What the keys did to the choice of world this tick: the pick moved (up, down), or a world
+/// chosen (its number, or Enter on the pick) — (pick, chosen), chosen -1 while none is.
+pub fn choice(g: const Game, count: integer, pick: integer) -> (integer, integer) {
+  p = pick;
+  if g.keys.is_action_just_pressed("up") && p > 0 { p -= 1; }
+  if g.keys.is_action_just_pressed("down") && p < count - 1 { p += 1; }
+  for n in 1..=count {
+    if n <= 9 && g.keys.is_action_just_pressed("category{n}") { return (n - 1, n - 1); }
+  }
+  if g.keys.is_action_just_pressed("next") { return (p, p); }
+  (p, -1)
+}
+
 /// The place the game starts in: order.json's `start`, "demo" when it names none.  A world is
 /// the places reached from its start place through doors, so another start is another world:
 /// the demo village, with a house for each mechanic's room, stays one beside the game's own.
@@ -898,9 +965,7 @@ pub fn save_as(g: Game, typed: text) -> boolean {
   if at < 0 {
     g.order += [name];
     at = len(g.order) - 1;
-    names = "";
-    for n in g.order { names += if names == "" { "\"{n}\"" } else { ", \"{n}\"" }; }
-    if !file("{g.dir}/levels/order.json").write("{{ \"order\": [{names}] }}\n").ok() { return false; }
+    if !file("{g.dir}/levels/order.json").write(order_json(g.dir, g.order)).ok() { return false; }
   }
   g.level = at;
   g.name_field = name;

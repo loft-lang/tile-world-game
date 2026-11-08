@@ -1,1 +1,5 @@
-{ "start": "demo", "order": ["first_climb", "the_cellar", "the_torch_room", "the_old_mine", "the_cyclops_hall", "demo", "the_armoury", "the_workings", "the_lift", "the_flooded_hall", "the_lake", "the_smithy", "the_garden", "the_rat_run", "the_bat_cave", "the_spider_hall", "the_cyclops_den", "the_hunters_hall"] }
+{ "start": "demo",
+  "worlds": [
+    { "name": "ORBURY", "start": "orbury" },
+    { "name": "THE DEMO VILLAGE", "start": "demo" } ],
+  "order": ["first_climb", "the_cellar", "the_torch_room", "the_old_mine", "the_cyclops_hall", "demo", "the_armoury", "the_workings", "the_lift", "the_flooded_hall", "the_lake", "the_smithy", "the_garden", "the_rat_run", "the_bat_cave", "the_spider_hall", "the_cyclops_den", "the_hunters_hall", "orbury"] }

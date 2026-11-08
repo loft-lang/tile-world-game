@@ -13,7 +13,14 @@ A traversal-puzzle game on the `tile_world` library.  Run it:
 loft --native --lib libs main.loft
 ```
 
-The game starts in **the demo village** (`levels/demo.json`): a house for each room that shows
+**Two worlds**, chosen after the credits (up and down, then Enter, or the world's number):
+**Orbury** (`levels/orbury.json`), the story's first place being built — the hill town with its
+terraces, the main road and the stair roads, the market, the houses with rooms inside them, the dry
+stream and the loading dock, so far without its people or its story — and **the demo village**,
+the test bench of every mechanic.  Each world is saved apart (`saves/orbury/`, `saves/`).
+`TW_WORLD=orbury` or `TW_WORLD=demo` skips the choice.
+
+The demo village (`levels/demo.json`) has a house for each room that shows
 a mechanic, its name written on the ground in front of it.  Walk onto a house's door to go in,
 onto the room's door to come back out; every place stays as you left it, and what the hero
 holds, its health and its money go with it.  A room that needs a key of its own has it written
