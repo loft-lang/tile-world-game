@@ -22,6 +22,8 @@ What TEMPLATES.md is for figures, this is for puzzles.  The owner's idea (2026-1
 - **The challenge is how exactly the hero has to move** to solve it.
 - **And how easily the puzzle is read**: when parts of it are hidden from the start, that bumps
   up the challenge too.
+- **One number** (owner, ruled 2026-11-08): the measures are dimensions of one challenge, folded
+  into a single number, so that when one of them gets deep it weighs heavily on the whole.
 
 **Everything below is proposed**: the format, the vocabulary, the measure, the numbers and every
 example, for the owner to rule.  It is built from rules that exist (DESIGN.md, INTERACTIONS.md,
@@ -186,7 +188,7 @@ The owner's measure.  Proposed way to take it, on the scene as filled in, by the
     winning too;
   - **whether it is a safe wait**: a cell where the hero may stand as long as it likes and stay
     winning — a breath.
-- **The challenge**, from those (the numbers for play to tune):
+- **The exactness measures**, from those (each a dimension of the one number, below):
   - **the tightest window** (ms);
   - **the tight moments**: windows under 300 ms, about two steps;
   - **the longest run without a safe wait** (s): tight moments in a row are harder than tight
@@ -223,32 +225,63 @@ warning than its tell (TEMPLATES.md: 400 ms for a blow of 2 or more) fails the s
 band.  And a hidden thing is always findable: the search makes sure the hero can reach a place
 from which it is seen before it is needed.
 
+### One number
+
+The owner's ruling: the measures are dimensions, folded into one challenge, where a dimension
+that gets deep weighs heavily.  Proposed:
+
+1. **Each dimension on a scale of 0 to 10**, 10 being as far as the hero's moves can go:
+
+   | Dimension | 0 | 10 | Between |
+   |---|---|---|---|
+   | timing: the tightest window | 1000 ms or more | 150 ms | by the ratio, not the difference: 10 × ln(1000 / w) / ln(1000 / 150) — 600 ms is 2.7, 300 ms is 6.3 |
+   | density: the tight moments | none | 8 | 1.25 a moment |
+   | breath: the longest run without a safe wait | none | 10 s | 1 a second |
+   | precision: the forced moves | none | 10 | 1 a move |
+   | reading: the hidden things, weighted | none in sight-lines | 10 | in the dark 1, round a corner or on another layer 1, only heard 2, cause and effect apart 3, in another part 3 |
+
+2. **Folded as a cube norm**: *challenge* = ∛(d₁³ + d₂³ + … + d₅³).  The cube makes the deepest
+   dimension lead: one dimension at 8 and the others at 0 is 8, deep on its own; all five at 3
+   is 5.1, a middle scene.  Many mild demands add up, but never to as much as one sharp one.
+   The power (3) is the knob: higher, and the deepest dimension counts almost alone; 2, and
+   breadth counts more.
+3. **The leading dimension is named** with the number (the one with the largest cube), so the
+   dealing routine knows what to swap (below).
+
+Two things stay outside the number, as limits in every band: a window under 150 ms (more than the
+hero's moves can give: a dodge takes 100), and a danger met with less warning than its tell.
+They are never dealt, however the rest adds up.
+
 A slip is measured as failing, though in play it only costs (DESIGN.md: hurt, rarely killed): a
 slip in the early places costs a hit and a step back; deeper, more.
 
 ## The depth sets the band
 
-Each scene's depth gives a band.  The routine **deals** a scene:
+Each scene's depth gives a band of the one number.  The routine **deals** a scene:
 1. draw a seed, fill the slots, check it solvable (above);
-2. measure its challenge;
-3. in the band: keep it.  Too little or too much: change the combination where it misses — swap
-   the part holding the tightest moment for a gentler one when too hard; when too easy, swap the
-   gentlest part for a harder one of the same slot, move a lair's spot towards the way, or shift
-   a round's phase.  For reading: put the role in a farther slot, turn a socket's torch out,
-   choose the variant whose lever stands round the corner from its junction, or the opposite.
-   Then measure again;
+2. measure its challenge, and its leading dimension;
+3. in the band: keep it.  Too much: soften the leading dimension — swap the part that holds it for
+   a gentler one, or its variant (a wider round, the lever in sight of its junction, the role in
+   a nearer slot).  Too little: sharpen the leading dimension, or the one with most room to
+   grow — a harder part in the same slot, a lair's spot nearer the way, a round's phase shifted,
+   a socket's torch out, the role in a farther slot.  Then measure again;
 4. after a set number of tries, keep the nearest to the band.
+
+Sharpening the dimension already leading gives a scene with one clear character (a timing
+scene, a reading scene); sharpening the one with most room gives a scene of many mild demands.
+Proposed: the first, mostly, as a scene that is about one thing reads better; the second now and
+then, drawn by the seed, for freshness.
 
 Proposed bands, by LOCATIONS.md's order:
 
-| Depth | Places | Tightest window | Tight moments | Longest run without a breath | Hidden | Traps |
-|---|---|---|---|---|---|---|
-| first | the village, the camp, the hidden path, the hillside | 600 ms or more | 1 at most | 3 s at most | 1 at most, only in the dark or round a corner | none |
-| middle | the Old Seam's first and second levels, the flooded tunnels, the lake | 300 ms or more | 4 at most | 6 s at most | 3 at most | seen, undone by R |
-| deep | the High Diggings, Stormcap | 150–300 ms | 3 or more | 4 s or more | 2 or more, one with cause and effect apart | seen |
+| Depth | Places | Challenge | Traps |
+|---|---|---|---|
+| first | the village, the camp, the hidden path, the hillside | 3.5 at most | none |
+| middle | the Old Seam's first and second levels, the flooded tunnels, the lake | 3.5 to 6.5 | seen, undone by R |
+| deep | the High Diggings, Stormcap | 6.5 to 9 | seen |
 
-Deep scenes have a floor and a ceiling: too little challenge is dealt again, and so is a window
-under 150 ms, which asks more than the hero's moves can give (a dodge takes 100).
+The first places have a ceiling only; the deep ones a floor and a ceiling, the ceiling kept
+below 10 so a deep scene leaves the player some room to be wrong.
 
 ## Fresh, not unique
 
@@ -275,15 +308,17 @@ the machine at a new game.
 `loft --lib libs tools/puzzles.loft PLACE [N]` deals the seeds 1 to N and prints a line each:
 
 ```
-seed  parts (slot: part, variant)                  solv  plan  inter  tightest  tight  run    hidden  traps  band
-   7  gate: dark room, cache: tar+sticks, lair: rats   yes      5      2    900 ms      0  1.2 s       1      0  first
-  12  gate: blast wall, cache: bomb, lair: cyclops    yes      7      3    350 ms      3  4.8 s       2      1  middle
-  13  gate: dark room, cache: bomb, way: cart loop    yes      4      1    220 ms      4  5.5 s       3      0  deep
-  19  gate: blast wall, cache: tar+sticks, ...        NO       -      -         -      -      -       -      -  -
+seed  parts (slot: part, variant)                  solv  plan  inter  timing  density  breath  precision  reading  challenge  leads    traps  band
+   7  gate: dark room, cache: tar+sticks, lair: rats   yes      5      2     0.6      0.0     1.2        1.0      1.0        1.6  breath       0  first
+  12  gate: blast wall, cache: bomb, lair: cyclops    yes      7      3     3.8      2.5     3.0        1.0      4.0        5.5  reading      1  middle
+  13  gate: dark room, cache: bomb, way: cart loop    yes      4      1     7.3      3.8     4.2        2.0      3.0        8.2  timing       0  deep
+  19  gate: blast wall, cache: tar+sticks, ...        NO       -      -       -        -       -          -        -          -  -            -  -
 ```
 
 Seed 13 is a role turn at work: the cache gives a bomb, the gate wants a light, and the bomb
-thrown into the dark room lights its sockets; the cart loop beside it makes it deep.
+thrown into the dark room lights its sockets; the cart loop beside it, with its 250 ms window,
+leads the number and makes it deep.  Seed 12 is middle on reading: its bomb lies in another part,
+and its barred wall is round a corner.
 
 ## Rules the parts keep, so they can be combined
 
@@ -305,11 +340,11 @@ thrown into the dark room lights its sockets; the cart loop beside it makes it d
    the developer's machine (proposed, to start), or dealt on the machine itself?
 2. **What do parts fill?**  Slots in the hand-drawn places of LOCATIONS.md, or whole dungeons
    made of parts?  Proposed: slots first; the Old Seam's levels are where they pay most.
-3. **The bands**: the measures (tightest window, tight moments, run without a breath, forced
-   moves; hidden things and how they are hidden) and the numbers in the table.
-4. **Two axes or one?**  Exactness and reading kept as separate columns of the band (proposed:
-   a deep scene may be tight and open, or loose and hidden, both in band), or folded into one
-   number?
+3. **The scales and the bands**: the five dimensions, their 0 and 10, the weights of the ways a
+   thing is hidden, the power of the fold (3), and the bands' numbers.
+4. **Settled** (owner): one number, the dimensions folded so a deep one weighs heavily.  Open:
+   does the routine sharpen the leading dimension (a scene about one thing) or the one with most
+   room (many mild demands)?  Proposed: mostly the first.
 5. **Being seen**: does it fail the measure, as being hurt does?  Proposed: yes for the measure
    (it asks how exact a clean pass is), though in play a sighting starts a fight, not an ending.
 6. **Interactions asked for**: may a deep scene require a number of interactions between parts,
@@ -327,6 +362,6 @@ thrown into the dark room lights its sockets; the cart loop beside it makes it d
 - **P4 — the measures**: the search over (cell, moment), the easiest way, its windows, margins and
   breaths; what the plan uses and what of it is hidden from where it is first needed; the warning
   every danger gives.  Tested on hand-made rooms whose numbers are worked out by hand.
-- **P5 — dealing**: the bands, the swaps, the pool, the save's memory of parts met.
+- **P5 — dealing**: the scales and the fold, the bands, the swaps, the pool, the save's memory of parts met.
 - **P6 — the sweep**: `tools/puzzles.loft`, and `tests/puzzles.loft` replaying the pool.
 - **P7 — a first scene** in the demo village: a house of three slots, dealt anew each game.
