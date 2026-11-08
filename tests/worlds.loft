@@ -65,3 +65,41 @@ fn test_a_stair_road_climbs_a_terrace() {
   rules::play(w, "w");
   assert(w.hero_x == 17 && w.hero_y == 45 && w.hero_z == 1, "up the stairs: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
+
+// The stream's bed is no trap (owner, 2026-11-08): fallen in from the town's side, along the bed
+// and up the ramp under the town's bank onto the foot.
+fn test_a_ramp_leads_out_of_the_bed_to_the_town() {
+  lf = orbury();
+  w = lf.level;
+  rules::put_hero(w, 23, 57, -1);
+  rules::play(w, "a a a a");
+  assert(w.hero_x == 19 && w.hero_y == 57 && w.hero_z == -1, "along the bed: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::play(w, "w d d");
+  assert(w.hero_x == 21 && w.hero_y == 56 && w.hero_h == 3, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::play(w, "w");
+  assert(w.hero_x == 21 && w.hero_y == 55 && w.hero_z == 0, "out onto the foot: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+}
+
+// And up the ramp under the far bank, onto the dock's side.
+fn test_a_ramp_leads_out_of_the_bed_to_the_dock() {
+  lf = orbury();
+  w = lf.level;
+  rules::put_hero(w, 42, 58, -1);
+  rules::play(w, "a a a");
+  assert(w.hero_x == 39 && w.hero_y == 58 && w.hero_h == 2, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::play(w, "a s");
+  assert(w.hero_x == 38 && w.hero_y == 59 && w.hero_z == 0, "out by the dock: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+}
+
+// Under the bridge the bed is walked through: the stone bridge's three columns stand over it.
+fn test_the_bed_runs_under_the_stone_bridge() {
+  lf = orbury();
+  w = lf.level;
+  mats = materials::load(file("../theme.json").content() ?? "", w.k);
+  for x in 29..32 {
+    assert(materials::at(mats, w.w, x, 57, 0) == materials::named(mats, "bridge"), "the bridge at ({x}, 57)");
+  }
+  rules::put_hero(w, 27, 57, -1);
+  rules::play(w, "d d d d d d");
+  assert(w.hero_x == 33 && w.hero_z == -1, "under the bridge and on: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}

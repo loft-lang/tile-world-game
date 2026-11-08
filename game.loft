@@ -2925,6 +2925,32 @@ pub fn follow_enemies(g: Game) {
 /// How many layers over the hero the view draws under the open sky.
 const SKY_LAYERS = 4;
 
+/// How far a bank may stand from the hero for its view to stay in the trench.
+const BANK_REACH = 4;
+
+// Whether, looking (dx, dy) from the hero along its layer, a bank of earth stands within
+// BANK_REACH: a wall with ground on the layer above it.
+fn banked(w: const rules::Level, dx: integer, dy: integer) -> boolean {
+  wall = rules::tr(w, "wall");
+  for i in 1..=BANK_REACH {
+    x = w.hero_x + i * dx;
+    y = w.hero_y + i * dy;
+    if tile_world::terrain(w.w, x, y, w.hero_z) == wall {
+      return tile_world::terrain(w.w, x, y, w.hero_z + 1) != tile_world::VOID;
+    }
+  }
+  false
+}
+
+/// Whether the hero stands down in a trench — the stream's bed, between banks on both sides — and
+/// sees no further than its sides, as under a bridge (owner, 2026-11-08: in the river you cannot
+/// see far outside it; the ground above, which the hero cannot see, would hide it).  Standing high
+/// — a ramp's top step, a chair — it looks out again.
+fn in_trench(w: const rules::Level) -> boolean {
+  w.hero_h < w.k.layer_height - 1
+    && ((banked(w, 0, -1) && banked(w, 0, 1)) || (banked(w, -1, 0) && banked(w, 1, 0)))
+}
+
 /// Draw the frame on `g.surface`, each cell at its light.  What the hero sees depends on where
 /// it stands: on a layer above another, the one below and its own over it; under the open sky,
 /// its own and the layer above (a ledge, drawn lighter); under a ceiling, only its own.
@@ -2946,6 +2972,7 @@ pub fn draw(g: Game) {
   // layer over what it sees there is cut away (owner, 2026-11-07: `look_down`).
   below = look_down(g, w, z);
   over = cut_over(g, w, z, below);
+  sky = tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) && !in_trench(w);
   if z > 0 {
     draw_layer(g, w, z - 1, false, false, true, 0);
     draw_layer(g, w, z, false, true, true, 0, (-1000000, -1000000), true, [], over);
@@ -2955,7 +2982,7 @@ pub fn draw(g: Game) {
     // The layer above: a wall in front of the hero — the ledge's top on a wall, drawn a row up
     // over it — is left out (owner: only walls; doors, pillars, trees and smaller things may
     // hide the hero in part, and a level keeps the hero in view).
-    if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) {
+    if sky {
       front = if tile_world::terrain(w.w, w.hero_x, w.hero_y + 1, z) == rules::tr(w, "wall") {
         (w.hero_x, w.hero_y + 1)
       } else { (-1000000, -1000000) };
@@ -2965,7 +2992,7 @@ pub fn draw(g: Game) {
   }
   // Higher still under the open sky: every layer up to SKY_LAYERS over the hero, each over the last —
   // a house's roof over its upper floor, the terraces of a hill (PUZZLES.md § Houses).
-  if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) {
+  if sky {
     for up in (if z > 0 { 1 } else { 2 })..=SKY_LAYERS { draw_layer(g, w, z + up, true, true, true, 0); }
   }
   draw_sparks(g, z);

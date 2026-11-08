@@ -137,8 +137,16 @@ is not.
     the old ford was.  The bridges cross it at street level: footbridges of wood, which the miners
     crossed every day to the dock and the way to work, not needed since the mine stopped ◇; and
     the stone bridge at the main road's foot, still the way out of town.
+  - **Ramps out of it** (owner, 2026-11-08: there should be a ramp along it; built): one along
+    each bank, a slope against the bank's wall that leaves the bed free beside it — under the
+    town's bank west of the stone bridge, up to the foot by the miners' rows; under the far bank
+    east of it, up beside the dock.  The bed is no trap for a hero who fell in.
   - **The bed is a way of its own**: sunken, out of the street's sight, dark under the bridges (a
-    ceiling: only the hero's layer is drawn there).  A way through town by night, where a torch
+    ceiling: only the hero's layer is drawn there).  **In the bed the hero sees no further than
+    its banks** (owner, 2026-11-08: walking in the river is like under the bridge; the ground
+    above, which the hero cannot see from down there, must not hide him): between banks of earth
+    the view keeps to the bed's own layer, as under a ceiling; from a ramp's top step it looks out
+    again (game.loft `in_trench`).  A way through town by night, where a torch
     gives the hero away (@ST-Stealth); the backs of the miners' rows face it, their back doors and
     yards onto the bank.
   - **A bridge not needed is not kept up**: a wooden one has lost planks, one has come down into
