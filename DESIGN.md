@@ -24,6 +24,10 @@ This is what the game built on tile_world should be.
   a figure's manner and answering it in time, with the same few keys, by the same templates
   (@GM-Combat, *Enemies by templates*; TEMPLATES.md): a villager's manner tells when to press as
   an enemy's tell tells when to lunge.  The same goals as Moros's system, which is not used here.
+- **Puzzles from parts** (owner, 2026-11-08).  A scene's puzzle is made of parts, each a small
+  challenge in itself and interchangeable with another like it; the complexity lies in how the
+  parts chosen interact.  A seed picks the parts, and a check over many seeds finds the ones
+  whose parts together are solvable.  Designed in PUZZLES.md (proposed, not built).
 - **Growth comes later.** Character growth comes only after a base dungeon and world feel alive and
   are satisfying to beat. Growth means carried weapons, worn armour and stat increases.  Read again
   (owner, 2026-11-07): growth is breadth, not height: a new thing to carry, wear or do, each with
