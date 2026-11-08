@@ -179,6 +179,7 @@ is inside); the kit's `houses` (intent.loft), today a house's outside only, grow
 | a poor miner's family | ground floor | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
 | a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | Hollis's (his workroom, the potions, @ST-Alchemist) |
 | a well-off house (money from the ore) | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above, a strong room or a cellar for what is worth keeping | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper); the ore's other well-off ◇ |
+| the lord's house: his representative's, and the lord's when he comes | basement, ground floor, upper floor, roof, a walled yard | a hall to receive in, the representative's office (the ore's tallies, the lord's share), a kitchen and the servants' rooms; above, the lord's chamber kept ready and the representative's rooms; below, a strong room; a stable in the yard | about 12 × 10, the yard besides | Lord Edric's (@ST-Court), the finest in the town |
 | the inn | basement, ground floor, upper floor, roof | the taproom, the kitchen, a store, guest rooms above, the basement | about 12 × 9 | abandoned; the chest and a grey rat in its basement |
 | the smithy | ground floor and a loft | the forge, open to the street, a store | about 8 × 6 | abandoned, to be made to work (@ST-Artefact) |
 
@@ -193,9 +194,28 @@ some.  Proposed, for Orbury's dozen or so:
   rails and the way to the mine, sharing walls, their roofs joined, so a row of roofs is a way
   of its own (two roofs that meet are ports joined, above);
 - **a few are two floors**: a craftsman's;
-- **two or three are elaborate**: the inn, which served the ore's traders, and the houses of
+- **two or three are elaborate**: the lord's house (below), the inn, which served the ore's
+  traders, and the houses of
   those the ore made well-off ◇, of better stuff (stone, where the cottages are wood), set apart
   on the better ground, behind a wall or a fence of their own.
+
+**The lord's house** (owner, 2026-11-08): the house of the lord's representative, which doubles
+as a place for the lord to stay if need be.  The lord is Lord Edric of Sunmarch, the local lord
+who got much of his income from the mine (STORY.md @ST-Decree, @ST-Court).  Proposed:
+- **It shows both uses**: the representative's rooms lived in, an office of ledgers and tallies;
+  the lord's chamber kept ready though rarely used, the best bed under a cover, his arms over the
+  door.  The stable in the yard is for the lord's horses and his escort's.
+- **It is the town's most closed-up house** ◇: the lord fell from grace, the decree cut off his
+  share of the ore, and his representative left with nothing left to collect.  The lord means to
+  come back more than anyone, so it is closed with the most care: barred, shuttered, the strong
+  room locked; and it has been empty since the decree, so its roof has had the longest to come
+  down.  Whether the Wardens keep it sealed under the decree, so that entering it is more than
+  snooping, is for the owner ◇.
+- **It ties to the hero** ◇: the hero served in Lord Edric's army (STORY.md @ST-Hero), so he may
+  know the house's ways (where the servants came in, where a key was kept), and what the hero
+  finds there (a ledger, a letter, a treasure for the lord) bears on the ending where the young
+  lord's favour is restored.  When it is, the house opens again: the lord's arms cleaned, the
+  chamber in use ◇.
 
 **Money shapes how a house was left** (proposed).  The well-off could afford to leave first, so
 their houses have stood empty longest, and they had the most to come back for, so they were closed

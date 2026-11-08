@@ -46,7 +46,9 @@ is not.
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons (@ST-Alchemist); Agnes's house beside the empty
   inn (@ST-Innkeeper); the abandoned smithy, made to work, where the artefact is crafted
-  (@ST-Artefact); abandoned houses, one with rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 and 65).
+  (@ST-Artefact); the house of Lord Edric's representative, which doubles as a place for the lord
+to stay if need be (owner, 2026-11-08; @ST-Court; PUZZLES.md § Houses); abandoned houses, one with
+rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 and 65).
 - **Learned:** the town's state and the court trouble (Agnes); the debate (Wick against Agnes,
   @ST-Debate); the mine in outline, out of date (Garth, @ST-Foreman); the drought and the hunger
   (the Dunns); at night, the founder's story and the lake that drowned him.
