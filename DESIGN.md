@@ -21,7 +21,11 @@ This is what the game built on tile_world should be.
   (@GM-Combat, *Locked on*).
 - **Puzzles are the focus; the fight is a base** (owner, 2026-11-08).  This game is about its
   puzzles.  The fight was rewritten to feel physical instead of numbers, and it is to be perfected,
-  but as a good base for other games to continue with, not as this game's centre.
+  but as a good base for other games to continue with, not as this game's centre.  The order
+  (owner, 2026-11-08): the town first, with very limited fighting; then the other locations, with
+  more threats, and the fight got right there: a good mix of pressure and player skill, never a
+  show stopper for a player who is bad at it, because there will always be ways to sneak or puzzle
+  through to the best start of a fight, which might even trivialise it.
 - **Not a combat simulator** (owner, 2026-11-07).  An RPG is not a combat simulator: one way of
   acting serves fighting, gathering food, building, talking and trading.  Here that way is reading
   a figure's manner and answering it in time, with the same few keys, by the same templates
