@@ -1,0 +1,116 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Orbury's inn and the chest in its cellar (LOCATIONS.md § 1; PUZZLES.md: the town's taste of what
+// lies ahead, off the main track and seen from it): seen through a grate in the market's floor; the
+// inn closed with care, its door barred from inside; in by the roof that came down, from two tables
+// and a chair behind it; down the stairs; over the fallen stones with the cellar's chair.  Played by
+// the rules.
+use tile_world;
+use rules;
+use materials;
+use levels;
+
+fn orbury() -> levels::LevelFile {
+  theme = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme, k);
+  m = levels::load_with(file("../levels/orbury.json").content() ?? "", k, mats);
+  if !m { assert(false, "orbury loads"); }
+  m ?? levels::LevelFile { name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+                           goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } }
+}
+
+fn at(w: const rules::Level) -> text { "({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}" }
+
+fn top_at(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  rules::thing_name(w.k, tile_world::top(w.w, x, y, z))
+}
+
+// Walk the shortest way to (x, y) on the hero's layer, a step at a time.
+fn walk(w: rules::Level, x: integer, y: integer) {
+  for p in tile_world::shortest_path(w.w, w.hero_x, w.hero_y, x, y, w.hero_z, 64) {
+    m = if p.0 > w.hero_x { "d" } else if p.0 < w.hero_x { "a" } else if p.1 > w.hero_y { "s" } else { "w" };
+    rules::play(w, m);
+  }
+}
+
+// The cell on layer z inside the inn whose terrain is `kind`.
+fn find(w: const rules::Level, kind: text, z: integer) -> (integer, integer) {
+  id = rules::terrain_id(w.k, kind);
+  for y in 23..29 {
+    for x in 9..20 {
+      if tile_world::terrain(w.w, x, y, z) == id { return (x, y); }
+    }
+  }
+  (-1, -1)
+}
+
+// The grate in the market's floor: two cells open over the vault, framed so nobody walks into it;
+// the chest under its north cell, in daylight, where the view shows through its south one (a layer
+// is drawn a row up, so an opening shows the cell north of the one under it).
+fn test_the_chest_is_seen_through_the_grate() {
+  w = orbury().level;
+  assert(tile_world::terrain(w.w, 11, 30, 2) == tile_world::VOID && tile_world::terrain(w.w, 11, 31, 2) == tile_world::VOID,
+         "the grate is open");
+  assert(top_at(w, 11, 30, 1) == "relic_chest", "the chest under it: {top_at(w, 11, 30, 1)}");
+  assert(tile_world::open_sky(w.w, 11, 30, 1), "daylight on the chest");
+  rules::put_hero(w, 11, 32, 2);
+  rules::play(w, "w");
+  assert(w.hero_y == 32 && w.hero_z == 2, "the grate's frame keeps the hero out: {at(w)}");
+}
+
+fn test_the_door_is_barred_from_inside() {
+  w = orbury().level;
+  rules::put_hero(w, 14, 30, 2);
+  rules::play(w, "w");
+  assert(w.hero_y == 30 && rules::terrain_name(w.k, tile_world::terrain(w.w, 14, 29, 2)) == "barred",
+         "the bar does not give from the market: {at(w)}");
+}
+
+// The fallen stones round the chest give to no push from the vault's doorway.
+fn test_the_stones_hold() {
+  w = orbury().level;
+  rules::put_hero(w, 10, 29, 1);
+  rules::play(w, "s");
+  for p in [(10, 30), (12, 30), (10, 31), (11, 31), (12, 31)] {
+    assert(top_at(w, p.0, p.1, 1) == "rock", "a stone stays at ({p.0}, {p.1})");
+  }
+  assert(w.hero_y == 29, "the hero stays in the doorway: {at(w)}");
+}
+
+// From the market terrace west of the inn: the chair pushed to the tables under the broken window,
+// climbed, pulled up onto the table by the wall, and through the window into the upper floor; down
+// the stairs twice; the cellar's chair pushed into the vault's doorway, and over the stones to the
+// chest.
+fn test_the_way_to_the_chest() {
+  w = orbury().level;
+  rules::put_hero(w, 3, 27, 2);
+  rules::play(w, "d d d s d w");
+  assert(top_at(w, 7, 26, 2) == "chair", "the chair below the tables: {top_at(w, 7, 26, 2)}, hero {at(w)}");
+  rules::play(w, "w w pw s");
+  assert(w.hero_x == 7 && w.hero_y == 25 && w.hero_h == 3, "on the chair on the table: {at(w)}");
+  rules::play(w, "d");
+  assert(w.hero_x == 8 && w.hero_y == 25 && w.hero_z == 3, "in at the window: {at(w)}");
+  down = find(w, "stairs_down", 3);
+  walk(w, down.0, down.1);
+  assert(w.hero_z == 2, "down to the ground floor: {at(w)}");
+  down2 = find(w, "stairs_down", 2);
+  walk(w, down2.0, down2.1);
+  assert(w.hero_z == 1, "down to the cellar: {at(w)}");
+  walk(w, 13, 25);
+  rules::play(w, "s");
+  assert(top_at(w, 12, 26, 1) == "chair" && w.hero_x == 13 && w.hero_y == 26, "beside the cellar's chair: {at(w)}");
+  rules::play(w, "a a w a s s s");
+  assert(top_at(w, 10, 29, 1) == "chair", "the chair in the vault's doorway: {top_at(w, 10, 29, 1)}, hero {at(w)}");
+  rules::play(w, "s s d");
+  assert(w.relic_pieces == 1, "the chest opened: pieces {w.relic_pieces}, hero {at(w)}, top {top_at(w, 11, 30, 1)}");
+}
+
+// Inside, the bar gives: lifted (a step), the door opened (a step), and out onto the market.
+fn test_the_bar_lifts_from_inside() {
+  w = orbury().level;
+  rules::put_hero(w, 14, 28, 2);
+  rules::play(w, "s s s s");
+  assert(w.hero_x == 14 && w.hero_y == 30, "out onto the market: {at(w)}");
+}

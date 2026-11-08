@@ -2750,11 +2750,19 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
   rail = tiles::rgb(140, 100, 60);
   rise = ts / 2;
   py = y * ts;
+  iron = tiles::rgb(60, 60, 70);
   for x in 0..COLS {
     if skip[y * COLS + x] ?? false { continue; }
     px = x * ts;
     n = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::NORTH);
-    if n == wall {
+    // A window beside open space is a grate's frame: an iron rail, not a wall.
+    open_n = tile_world::terrain(w.w, cx + x, cy + y, z) == tile_world::VOID
+             || tile_world::terrain(w.w, cx + x, cy + y - 1, z) == tile_world::VOID;
+    open_w = tile_world::terrain(w.w, cx + x, cy + y, z) == tile_world::VOID
+             || tile_world::terrain(w.w, cx + x - 1, cy + y, z) == tile_world::VOID;
+    if n == window && open_n {
+      tiles::rect(g.surface, px, py - 3, ts, 2, iron);
+    } else if n == wall {
       tiles::rect(g.surface, px, py - rise, ts, rise, body);
       tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
     } else if n == door {
@@ -2770,7 +2778,9 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px, py - 5, ts, 2, rail);
     }
     v = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::WEST);
-    if v == wall || v == window {
+    if v == window && open_w {
+      tiles::rect(g.surface, px - 1, py - 3, 2, ts, iron);
+    } else if v == wall || v == window {
       tiles::rect(g.surface, px - 1, py - rise, 3, ts + rise, body);
       tiles::rect(g.surface, px - 1, py - rise - 2, 3, 2, top);
       if v == window { tiles::rect(g.surface, px, py, 1, ts - 2, pane); }

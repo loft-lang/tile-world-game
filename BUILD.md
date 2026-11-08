@@ -383,6 +383,14 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     their ground floor's front (a house against the slope needs doors on more than one level and
     side); the lord's house is not yet dug into the hilltop; the farm's fields, the gravestones,
     the market's stalls; the bridge material shows Kenney's wood wall.
+    **The inn and its cellar's chest (2026-11-08)**, `tests/inn.loft` (LOCATIONS.md § 1): with it,
+    a house's `front: false`, its `openings` (an outer wall's cell made a door, a niche or a window,
+    with an edge on its outer side) and its roof's `holes`; a cellar is one room; a place's intent
+    takes `edges` of its own (the grate's frame); and in the picture a window edge beside open
+    space is a grate's iron rail.  What the 3/4 view taught, a rule for every place: a door shows
+    only in a south wall (the roof covers the others), and what stands against a house's north
+    wall is hidden under its roof; a thing seen through an opening is the cell north of the one
+    under it (a layer is drawn a row up).
   - **D1d. How a house was left**: closed up (locked, barred, shuttered, boarded, the ladder
     taken up) and neglect (a roof come down, a stair rotted, a basement flooded), dealt as events.
   - **D1e. Dealt anew**: `TW_SEED`, the deal written to the play log, the town played with several

@@ -398,6 +398,14 @@ fn refill_edges(lf: levels::LevelFile) -> boolean {
       }
     }
   }
+  for e in intent::opening_edges(lf.intent) {
+    side = if e.side == "N" { tile_world::NORTH } else { tile_world::WEST };
+    kind = rules::edge_id(k, e.what);
+    if tile_world::edge(w, e.x, e.y, e.z, side) != kind {
+      tile_world::set_edge(w, e.x, e.y, e.z, side, kind);
+      changed = true;
+    }
+  }
   changed
 }
 

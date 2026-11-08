@@ -176,6 +176,15 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
   village's piece ◇: found in the mine and carried down there by someone who could not open it.
   It is the town's taste of what lies ahead (owner, 2026-11-08): complex, off the main track, from
   the start; the lord's closed-up house ◇ another (PUZZLES.md § The depth sets the band).
+  **Built (2026-11-08)**, `tests/inn.loft`, played by the rules: the cellar runs on under the
+  market into a vault, and a grate in the market's floor looks down on the chest there, walled in
+  by stones fallen from the vault's wall that give to no push.  The inn is closed with care, its
+  door onto the market barred from inside; neglect broke a window of its upper floor on the west
+  side and brought part of its roof down.  The way: the chair left out on the market terrace pushed
+  to the two tables under the broken window, climbed, pulled up onto the table by the wall, and in
+  at the window; down the stairs to the cellar; its chair pushed into the vault's doorway, and over
+  the stones to the chest.  Inside, the bar lifts: the door is the way back out.  The bow lies
+  upstairs; the grey rat lives in the cellar.
 
 ## 2. The Wardens' camp, on the main path (@ST-Warden)
 
