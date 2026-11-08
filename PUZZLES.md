@@ -190,8 +190,64 @@ stands and what it must hold: the chest and the grey rat in the inn's basement, 
 abandoned house, axes in the closed ones, the smithy's anvil.  The seed deals its rooms, their
 order and its ways in; the check makes sure what the story needs is there and can be reached.
 
+**Where the town's puzzles come from** (owner, 2026-11-08): two things done to a house, one on
+purpose and one by time.
+- **Closed up, to come back to.**  Families often mean to go back to their homes later (the Fenns
+  fled and might return, STORY.md § 3), so a house is closed the way a family closes it when it
+  means to come back.  Proposed, as variants dealt by the household and the seed:
+  - the front door locked, or barred from inside and the family gone by the back door, locked
+    behind them;
+  - the shutters closed, a window boarded (a window edge made a wall);
+  - the ladder to the loft taken up, the hatch to the basement shut and weighted with stones
+    (LOCATIONS.md's stones off a hatch);
+  - the furniture pushed to the walls and stacked: a chair on a table, a step already there but
+    in the wrong place;
+  - what is worth something put away: down in the basement, up in the loft, in a chest.
+
+  It reads as care: tidy, square, on purpose.  A closed house says someone means to come back,
+  which is why the villagers mind the hero's snooping (LOCATIONS.md § 1).
+- **Neglect.**  Too little maintenance, and time did the rest.  Proposed, laid over the house as
+  it was closed:
+  - **a part of the roof came down** (the owner's example): those roof cells open to the sky, and
+    what fell lies under where it fell, rocks and beams on the floor below; heavy enough, it went
+    through the upper floor to the ground floor as well.  Daylight comes in through the hole (a
+    lit patch by day), and so does the hero, from the roof;
+  - a beam fallen across a doorway; a stair rotted through (the stairs gone, a layer to climb);
+  - a hole in an upper floor: a way down, a fall, a place to look down through (DESIGN.md § What
+    the player sees);
+  - a wall slumped outward, its stones a slope up to the window above; a tree grown against a
+    wall, a climb;
+  - a basement flooded by the brook: what was put away there lost, its beams afloat (kinds.json:
+    a beam floats).
+
+  It reads as time: ragged, uneven, drawn by the seed.  Fallen stones follow the rules that are
+  there: a loose rock is pushed, rocks touching are rubble that pushing cannot move (DESIGN.md
+  § @GM-CartLift), a heap one high is a step.
+- **The puzzle is where the two meet.**  The family closed every way in, and time opened one they
+  did not mean: the door is barred, the roof came down.  And neglect closes what the family left
+  open: the rubble lies on the stairs they left clear, the fallen beam blocks the room their
+  things were put away in.  The same house dealt twice is another puzzle: closed with care and its
+  roof fallen over the kitchen, or closed in haste and a wall slumped.
+
+**Neglect is dealt as events, not cells** (proposed; WORLD.md: the developer depicts, the game
+fills in): "the roof over these cells came down", and the game derives the hole, what fell, where
+it lies and what it broke on the way.  A decay needs its cause: a roof comes down where it spans
+widest, a stair rots in a damp house, a basement floods near the brook.  How much has come down
+follows from how long the family has been gone, a number the seed draws per house; a house still
+lived in is kept up and has none.
+
+**Open, for the owner** ◇:
+- the beams of a fallen roof are beams, wanted for the barricade and the flotilla (LOCATIONS.md
+  § 1): may the hero take them, and is that the snooping the villagers mind, or the aid they
+  thank (the village's own wood, put to the village's defence)?
+- when a family comes back (the Fenns, LOCATIONS.md § Aid), it finds its house as the hero left
+  it: what was taken missed, what was moved noticed?
+- the same two sources serve the mine: closed up (the seam shut by the decree, its gates barred)
+  and neglect (tunnels fallen in, beams rotted), so its parts could be written the same way.
+
 **The town's puzzles as parts** (LOCATIONS.md § 1, ◇):
-- a closed house entered by its upper floor: the window wants *a step* (a chair on a table);
+- a closed house entered by its upper floor: the window wants *a step* (a chair on a table), or
+  its fallen roof is reached from the house beside;
 - one whose way in needs a crate pulled out of a corner first;
 - stones pushed off a cellar hatch, from the street;
 - the chest on a roof ledge, seen from the street, reached from the house beside: across two
