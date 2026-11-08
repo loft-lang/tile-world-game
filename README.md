@@ -13,14 +13,15 @@ A traversal-puzzle game on the `tile_world` library.  Run it:
 loft --native --lib libs main.loft
 ```
 
-**Two worlds**, chosen after the credits (up and down, then Enter, or the world's number):
+**Two worlds**, never shipped together, so the game itself does not ask which:
 **Orbury** (`levels/orbury.json`), the story's first place being built — the hill town with its
 terraces, the main road and the stair roads, the market, the houses with rooms inside them, the dry
 stream and the loading dock, so far without its people or its story — and **the demo village**,
 the test bench of every mechanic.  Each world is saved apart (`saves/orbury/`, `saves/`).
-`TW_WORLD=orbury` or `TW_WORLD=demo` skips the choice.  In a browser the play server is neutral:
-`/` lists the worlds, `/orbury` and `/demo` start each one (each world in order.json's `worlds` at
-`/<its start place>`; the page passes `?LOFT_WORLD=` on to the game as its world).
+`TW_WORLD=orbury` or `TW_WORLD=demo` picks one; without it, order.json's `start`.  In a browser the
+play server is neutral: `/` lists the worlds, `/orbury` and `/demo` start each one (each world in
+order.json's `worlds` at `/<its start place>`; the page tells the game its world as
+`globalThis.loftInput = "world orbury"`, which the game reads with `host_input`).
 
 The demo village (`levels/demo.json`) has a house for each room that shows
 a mechanic, its name written on the ground in front of it.  Walk onto a house's door to go in,

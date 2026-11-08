@@ -370,8 +370,9 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with
     `tools/map.loft`, walked with `TW_WORLD=orbury`.
     **A first draft built (2026-11-08)**, a world of its own (owner: the actual first game world,
-    started apart; the demo village stays, to grow when needed): `order.json`'s `worlds`, chosen
-    after the credits, each saved apart (`game::worlds`, `save_dir_of`; `tests/worlds.loft`).  The
+    started apart; the demo village stays, to grow when needed): `order.json`'s `worlds`, picked
+    before the game (`TW_WORLD`, or the play server's page; owner: one menu, not a second in the
+    game), each saved apart (`game::worlds`, `save_dir_of`; `tests/worlds.loft`).  The
     hill in five layers, the hilltop (4) down to the foot (0), earth under each terrace so its
     front shows as a retaining wall; the main road from the stone bridge up by three slopes to the
     lord's house; two stair roads; the market with the well; eleven houses with rooms (the lord's,

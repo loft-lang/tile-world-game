@@ -245,39 +245,16 @@ fn main() {
     }
     if game::any_key(game) { break; }
   }
-  // Which world (WORLD.md): TW_WORLD names one — in a browser LOFT_WORLD, which a page's query
-  // passes on (the play server's /orbury and /demo set it); else the player chooses among
-  // order.json's `worlds` — the story's, Orbury, and the demo village beside it.
+  // Which world (WORLD.md): TW_WORLD names one; in a browser the page the play server served
+  // (/orbury, /demo) says which, as `world <start place>` on the host's input before the game
+  // starts; else order.json's `start`.  No choice in the game: the world is picked once, before
+  // it (owner, 2026-11-08: one menu is enough; the two worlds are never shipped together).
   start = env_variable("TW_WORLD") ?? "";
-  if start == "" { start = env_variable("LOFT_WORLD") ?? ""; }
   if start == "" {
-    list = game::worlds(game.dir);
-    pick = 0;
-    chosen = if len(list) == 1 { 0 } else { -1 };
-    if chosen < 0 {
-      game::draw_worlds(game, list, pick);
-      mask(game);
-      present(game, size, timing);
-    }
-    while chosen < 0 && screen::poll(15) {
-      if window_keys {
-        game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
-      } else {
-        game.keys.input_tick_device();
-      }
-      if game::quit(game) { return; }
-      c = game::choice(game, len(list), pick);
-      chosen = c.1;
-      if c.0 != pick {
-        pick = c.0;
-        game::draw_worlds(game, list, pick);
-        mask(game);
-        present(game, size, timing);
-      }
-    }
-    if chosen < 0 { return; }
-    start = (list[chosen] ?? game::WorldChoice { name: "", start: game::start_place(game.dir) }).start;
+    said = host_input(0);
+    if said.starts_with("world ") { start = said[6..]; }
   }
+  if start == "" { start = game::start_place(game.dir); }
   if !game::start_world(game, start) { game::start_level(game, 0); }
   // The game saved at a well or fountain (C6) is where play goes on, each world's apart; TW_NEW=1
   // starts afresh.

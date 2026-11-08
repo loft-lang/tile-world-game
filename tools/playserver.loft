@@ -18,8 +18,8 @@ const PORT = 8080;
 const WEB = "../build/web";
 
 /// The worlds the server opens, each at /<its start place> (levels/order.json's `worlds`): the
-/// page is the same, told which world to start by `?LOFT_WORLD=` (the page passes a LOFT_ query on
-/// to the game as an environment variable).
+/// page is the same, told which world to start before the game starts: `world <start place>` as
+/// the host's first input (`globalThis.loftInput`, read by the game's `host_input`).
 const ORDER = "../levels/order.json";
 
 struct World {
@@ -49,7 +49,7 @@ fn front(ws: const vector<World>) -> text {
 
 // The game's page for world `start`: told its world before the game reads its query.
 fn world_page(body: text, start: text) -> text {
-  set = "<script>if(!/[?&]LOFT_WORLD=/.test(location.search))history.replaceState(null,\"\",location.pathname+\"?LOFT_WORLD={start}\");</script>";
+  set = "<script>globalThis.loftInput=\"world {start}\";</script>";
   at = body.find("<head>") ?? -1;
   if at < 0 { return set + body; }
   body[0..at + 6] + set + body[at + 6..]
