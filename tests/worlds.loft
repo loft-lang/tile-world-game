@@ -103,3 +103,54 @@ fn test_the_bed_runs_under_the_stone_bridge() {
   rules::play(w, "d d d d d d");
   assert(w.hero_x == 33 && w.hero_z == -1, "under the bridge and on: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
+
+// From every cell of the stream's bed the hero can stand on, a way out up to the street — no pocket
+// where a hero who fell in is stuck (owner, 2026-11-08: still places to get stuck): steps of a
+// rise at most up or down, and from a slope's top (a layer's height less one) onto the floor
+// beside it on the layer above.  The pools are shallows, waded through.
+fn test_no_pocket_in_the_bed() {
+  lf = orbury();
+  w = lf.level;
+  top = w.k.layer_height - 1;
+  stuck = "";
+  for y in 56..59 {
+    for x in 0..64 {
+      if !rules::walkable(w, tile_world::terrain(w.w, x, y, -1)) { continue; }
+      seen: vector<integer> = [y * 64 + x];
+      at = 0;
+      out = false;
+      while at < len(seen) && !out {
+        c = seen[at] ?? 0;
+        at += 1;
+        cx = c % 64 ?? 0;
+        cy = c / 64 ?? 0;
+        r = tile_world::rise(w.w, cx, cy, -1);
+        for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+          nx = cx + d.0;
+          ny = cy + d.1;
+          if nx < 0 || nx >= 64 { continue; }
+          if r >= top && rules::walkable(w, tile_world::terrain(w.w, nx, ny, 0)) { out = true; }
+          nr = tile_world::rise(w.w, nx, ny, -1);
+          if rules::walkable(w, tile_world::terrain(w.w, nx, ny, -1)) && nr - r <= 1 && r - nr <= 1
+              && !seen.contains(ny * 64 + nx) {
+            seen += [ny * 64 + nx];
+          }
+        }
+      }
+      if !out { stuck += "({x}, {y}) "; }
+    }
+  }
+  assert(stuck == "", "no way out of the bed from {stuck}");
+}
+
+// The shallows are waded through; deep water is not walked into.
+fn test_the_shallows_are_waded_and_deep_water_is_not() {
+  lf = orbury();
+  w = lf.level;
+  rules::put_hero(w, 49, 57, -1);
+  rules::play(w, "d d d d");
+  assert(w.hero_x == 53 && w.hero_y == 57 && w.hero_z == -1, "through the pool: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  tile_world::set_terrain(w.w, 54, 57, -1, rules::terrain_id(w.k, "water"));
+  rules::play(w, "d");
+  assert(w.hero_x == 53, "deep water stops the hero: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}

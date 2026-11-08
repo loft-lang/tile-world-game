@@ -122,7 +122,8 @@ and a tribe acting across places (C3, C4).  The next phase is D, the story's pla
   `Game` in `game.loft`.  Keep new element structs above their holder until the fix
   (fixed-pending-merge) reaches loft main.
 - **The engine's limits met:** tile_world keeps sixteen terrain kinds (four bits) — the door held
-  shut is one kind, its beam's side kept in the level's `bars`; one id is left (15).
+  shut is one kind, its beam's side kept in the level's `bars`; the last id (15) is the shallows
+  (`shallow`, 2026-11-08), so a new kind now needs the engine widened.
 - **Talk** (`talk.loft`, WORLD.md § Talking is moving): beside = talk, passing = bark; stay /
   bump / walk away while a line is said; gifts, take/give, `then`.
 - **Combat** (DESIGN.md @GM-Combat, BUILD.md B1b): built — wind-ups, dodge, block, parry and

@@ -146,6 +146,10 @@ struct TerrainProps {
   saves: boolean,
   /// Water: a bomb rolling into it goes off there, and its blast douses flames.
   water: boolean,
+  /// Shallow water (owner, 2026-11-08: water is shallow or deep): walked through, and water to a
+  /// rolling bomb, a blast and a creature that keeps near water — but nothing floats in it and no
+  /// raft drifts there; that takes deep water (`water`).
+  wade: boolean = false,
   /// Rough: a climbing enemy (a spider) goes over it.
   rough: boolean,
   /// A standing beam (BUILD.md B2b): it holds the tunnel beyond it up; a pick takes it out — a
@@ -477,7 +481,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       blocks_things: flag(e, "blocks_things"), opens_to: word(e, "opens_to", ""),
       stairs: num(e, "stairs", 0), chopped_to: word(e, "chopped_to", ""),
       hits: num(e, "hits", 1), drops: word(e, "drops", ""),
-      saves: flag(e, "saves"), water: flag(e, "water"), rough: flag(e, "rough"), props: flag(e, "props"),
+      saves: flag(e, "saves"), water: flag(e, "water"), wade: flag(e, "wade"), rough: flag(e, "rough"), props: flag(e, "props"),
       barred: flag(e, "barred"), lifts_to: word(e, "lifts_to", ""),
       glyph: word(e, "glyph", "?")
     }];
@@ -4408,7 +4412,7 @@ fn is_bomb(l: const Level, thing: integer) -> boolean {
 fn is_water(l: const Level, kind: integer) -> boolean {
   p = l.k.terrain[kind];
   if !p { return false; }
-  p.water
+  p.water || p.wade
 }
 
 fn fragile(l: const Level, thing: integer) -> boolean {

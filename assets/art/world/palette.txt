@@ -39,3 +39,7 @@ E 73f5ff charge, light
 F 94ffff charge, glint
 I 96a0af the rod's post (Tiny Town)
 J fae678 the rod's spark
+A 84c669 grass, the shore's (Tiny Battle)
+B 8bd87d grass, the shore's light (Tiny Battle)
+K 65a556 grass, the shore's shadow (Tiny Battle)
+L d9f7ff foam on the shore (Tiny Battle)

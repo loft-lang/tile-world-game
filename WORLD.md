@@ -47,7 +47,8 @@ difference the enhanced engine makes is a hex pattern instead of cubes.  So what
 layers (heights, ceilings, domes, what holds) carries over; what assumes four square neighbours
 (the eight-neighbour checks, the facing, the reach across a swing) is what a hex grid revisits.
 The current engine's limits are felt already: tile_world keeps a terrain kind in four bits, so
-sixteen kinds at most (a door held shut is one kind, the side of its beam kept in the level).
+sixteen kinds at most (a door held shut is one kind, the side of its beam kept in the level), and
+all sixteen are taken since shallow water (2026-11-08).
 
 **Places joined by doors.**  The world is a set of places: a dungeon, a building, a stretch of
 land outside.  Each is a map of its own (a place file, the chunked format of EDITOR.md § 2).  A

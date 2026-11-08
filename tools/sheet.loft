@@ -159,7 +159,8 @@ fn tiles(pal: const vector<Colour>) -> vector<text> {
   for f in file(ART).files() {
     n = base(f.path);
     if !n.ends_with(".txt") || n == "palette.txt" || n == "composed.txt" { continue; }
-    i = number(n[0..2]);
+    // The index: the digits before the first `-` (two, or three past 99).
+    i = number(n[0..(n.find("-") ?? 2)]);
     g = read_tile(f.path, pal);
     if len(g) == 0 { bad = true; continue; }
     if len(out[i] ?? "") > 0 {

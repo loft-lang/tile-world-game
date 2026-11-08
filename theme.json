@@ -41,6 +41,9 @@
       "upper": "dungeon:57"
     },
     "water": {
+      "tile": "world:112"
+    },
+    "shallow": {
       "tile": "battle:37"
     },
     "rail": {
@@ -188,7 +191,7 @@
   ],
   "categories": {
     "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "garden_fence", "village_well"],
-    "Water": ["lake", "water"],
+    "Water": ["lake", "shallows", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door", "house_roof", "house_slate"],
     "Dungeon": ["floor", "wall", "rail", "well", "basin", "prop"],
@@ -213,9 +216,11 @@
     },
     "lake": {
       "kind": "water",
-      "autotile": "shore",
+      "autotile": "deep_shore",
+      "group": "water",
       "glyph": "*"
     },
+    "shallows": { "kind": "shallow", "autotile": "shore", "group": "water", "glyph": "$" },
     "oak": { "kind": "tree", "tile": "town:16", "under": "grass", "glyph": "Q" },
     "pine": { "kind": "tree", "tile": "town:28", "under": "grass", "glyph": "P" },
     "village_well": { "kind": "well", "tile": "farm:73", "under": "grass", "glyph": "W" },
@@ -243,6 +248,12 @@
       "w": "town:24", "c": "town:25", "e": "town:26",
       "sw": "town:36", "s": "town:37", "se": "town:38",
       "inner_nw": "town:39", "inner_ne": "town:40", "inner_sw": "town:41", "inner_se": "town:42"
+    },
+    "deep_shore": {
+      "nw": "world:108", "n": "world:109", "ne": "world:110",
+      "w": "world:111", "c": "world:112", "e": "world:113",
+      "sw": "world:114", "s": "world:115", "se": "world:116",
+      "inner_nw": "world:117", "inner_ne": "world:118", "inner_sw": "world:119", "inner_se": "world:120"
     },
     "shore": {
       "nw": "battle:18", "n": "battle:19", "ne": "battle:20",

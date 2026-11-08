@@ -101,7 +101,7 @@ Each kind of place needs particular materials, kinds and rules:
 | Place | Materials | Kinds and rules it needs |
 |---|---|---|
 | **Outer world** | grass, path (autotile), sand, trees, bushes, flowers, fence | `tree` (blocks; light passes); `fence` (climbed over, nothing pushed through — DESIGN.md) |
-| **Water** | water with shores (autotile), shallow ford, bridge | `water` blocks walking; a bridge is floor over water on the same layer |
+| **Water** | deep water (`lake`) and the shallows (`shallows`), each with its shore (autotile; one `group`, so they join with no shore between), bridge | deep `water` blocks walking, beams float in it and rafts drift; `shallow` is waded through (owner, 2026-11-08), water still to a blast, a bomb and a creature that keeps near water; deep is drawn a darker blue; a bridge is floor over water on the same layer |
 | **Castle** | castle wall (autotile), gate, battlement floor on the layer above, tower stairs | `door` (open/closed), `stairs` (walking onto it moves a layer up or down) |
 | **House** | house wall (cells, or edges for thin inner walls), door edges, roof (on the layer above), interior floor, furniture | edges: `tile_world` keeps a wall, door, window or fence BETWEEN two cells; the roof is cut away while the hero is inside (DESIGN.md: what the player sees) |
 | **Hills** | grass with a rise per cell (`set_rise`), cliffs as wall cells | a slope is cells rising one step at a time; with 4-step layers (DESIGN.md), the top of a slope steps onto the layer above |

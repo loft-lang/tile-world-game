@@ -40,7 +40,10 @@ pub struct Material {
   pub glyph: text,
   /// The material drawn under it, by name: what an upright one (a tree, a well) stands on —
   /// grass outdoors, where the kind's own `under` is a dungeon floor.  "" for the kind's own.
-  pub under: text = ""
+  pub under: text = "",
+  /// Materials of one group join in an autotile, with no edge drawn between them: deep water
+  /// and the shallows ("water").  "" for none.
+  pub group: text = ""
 }
 
 struct Owner {
@@ -141,7 +144,7 @@ pub fn load(raw: text, k: const rules::Kinds) -> Materials {
     owned += vs;
     owned += pieces;
     m.list += [Material { name: name, kind: kind, tile: tile, variants: vs, pieces: pieces, glyph: word(e, "glyph"),
-                          under: word(e, "under") }];
+                          under: word(e, "under"), group: word(e, "group") }];
     for t in owned {
       if t != 0 && !m.owners[t] { m.owners += [Owner { tile: t, material: index }]; }
     }
@@ -207,19 +210,28 @@ pub fn at(m: const Materials, w: const tile_world::World, x: integer, y: integer
   i
 }
 
+// Whether material j joins material i in i's autotile: the same material, or one of its `group`
+// (deep water and the shallows are one body of water, no shore between them).
+fn joins(m: const Materials, j: integer, i: integer) -> boolean {
+  if j == i { return true; }
+  if j < 0 { return false; }
+  g = (m.list[i] ?? none_material()).group;
+  g != "" && (m.list[j] ?? none_material()).group == g
+}
+
 // The tile material `i` shows at cell (x, y, z): its autotile piece, else a variant by position.
 fn tile_for(m: const Materials, i: integer, w: const tile_world::World, x: integer, y: integer, z: integer) -> integer {
   mat = m.list[i];
   if !mat { return 0; }
   if len(mat.pieces) == 13 {
-    n = at(m, w, x, y - 1, z) == i;
-    s = at(m, w, x, y + 1, z) == i;
-    we = at(m, w, x - 1, y, z) == i;
-    e = at(m, w, x + 1, y, z) == i;
+    n = joins(m, at(m, w, x, y - 1, z), i);
+    s = joins(m, at(m, w, x, y + 1, z), i);
+    we = joins(m, at(m, w, x - 1, y, z), i);
+    e = joins(m, at(m, w, x + 1, y, z), i);
     p = if !n && !we { 0 } else if !n && !e { 2 } else if !s && !we { 6 } else if !s && !e { 8 }
         else if !n { 1 } else if !s { 7 } else if !we { 3 } else if !e { 5 }
-        else if at(m, w, x - 1, y - 1, z) != i { 9 } else if at(m, w, x + 1, y - 1, z) != i { 10 }
-        else if at(m, w, x - 1, y + 1, z) != i { 11 } else if at(m, w, x + 1, y + 1, z) != i { 12 }
+        else if !joins(m, at(m, w, x - 1, y - 1, z), i) { 9 } else if !joins(m, at(m, w, x + 1, y - 1, z), i) { 10 }
+        else if !joins(m, at(m, w, x - 1, y + 1, z), i) { 11 } else if !joins(m, at(m, w, x + 1, y + 1, z), i) { 12 }
         else { 4 };
     // A set may leave a piece out (no inner corners in a sheet): the centre stands in.
     piece = mat.pieces[p] ?? 0;

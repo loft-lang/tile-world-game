@@ -111,9 +111,26 @@ fn test_a_lake_has_shores() {
   for y in 1..4 {
     for x in 1..4 { materials::paint(m, l.w, lake, x, y, 0); }
   }
-  assert(tiles(l, 1) == "0 787 788 789 0 " && tiles(l, 2) == "0 805 806 807 0 ", "north and middle: {tiles(l, 1)}/ {tiles(l, 2)}");
-  assert(tiles(l, 3) == "0 823 824 825 0 ", "south: {tiles(l, 3)}");
+  // Deep water, the darker shore of the game's own sheet (world 108-116 = 1389-1397).
+  assert(tiles(l, 1) == "0 1389 1390 1391 0 " && tiles(l, 2) == "0 1392 1393 1394 0 ", "north and middle: {tiles(l, 1)}/ {tiles(l, 2)}");
+  assert(tiles(l, 3) == "0 1395 1396 1397 0 ", "south: {tiles(l, 3)}");
   assert(tile_world::terrain(l.w, 2, 2, 0) == rules::tr(l, "water"), "a lake is water");
+}
+
+// The shallows have Tiny Battle's lighter shore (battle 18-56 = 787-825); a deep middle in them
+// joins them as one body of water, with no shore between: it takes the deep centre piece, and the
+// shallows round it their edges as if it were their own.
+fn test_shallows_round_deep_water_are_one_water() {
+  m = mats();
+  l = field();
+  sh = materials::named(m, "shallows");
+  for y in 1..4 {
+    for x in 1..4 { materials::paint(m, l.w, sh, x, y, 0); }
+  }
+  assert(tiles(l, 1) == "0 787 788 789 0 " && tiles(l, 2) == "0 805 806 807 0 ", "shallows: {tiles(l, 1)}/ {tiles(l, 2)}");
+  assert(tile_world::terrain(l.w, 2, 2, 0) == rules::tr(l, "shallow"), "the shallows are shallow");
+  materials::paint(m, l.w, materials::named(m, "lake"), 2, 2, 0);
+  assert(tiles(l, 1) == "0 787 788 789 0 " && tiles(l, 2) == "0 805 1393 807 0 ", "a deep middle: {tiles(l, 1)}/ {tiles(l, 2)}");
 }
 
 // The castle set has no inner corners: a 3x3 castle wall with its north-west cell taken away

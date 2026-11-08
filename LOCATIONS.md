@@ -151,7 +151,9 @@ is not.
     yards onto the bank.
   - **A bridge not needed is not kept up**: a wooden one has lost planks, one has come down into
     the bed, its beams lying there (PUZZLES.md § Houses: neglect).
-  - **What the water left**: a pool or two, a crab come down to one; what fell from a bridge lies
+  - **What the water left**: a pool or two, shallow, waded through (owner, 2026-11-08: water is
+    shallow or deep; deep needs more) — no pocket of the bed is cut off by one (`tests/worlds.loft`
+    walks every cell of the bed out); a crab come down to one; what fell from a bridge lies
     in the bed, a layer down; by the dock, where the ore was washed, the sluices dry ◇.
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons, and the lab that is not easily replaced, which
