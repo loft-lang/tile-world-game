@@ -23,7 +23,9 @@ is not.
   reasons to snoop around, which will clearly not stop players doing so.  The villagers are grumpy
   about snooping, but enough aid to the village makes them look past it (owner, 2026-11-04).  Stones to push; a chest, which someone
   brought down to the inn's basement; a cart to push, on the rails that run from the mine through
-  the Wardens' camp all the way to the village (owner, 2026-11-04).  A well with a pump, driven by
+  the Wardens' camp all the way to the village (owner, 2026-11-04): to its loading dock, on the
+  other side of the stream (owner, 2026-11-08: the town's hill is not joined to the mine's, so the
+  ore never came through the town itself).  A well with a pump, driven by
   small crystals with far less power, which the alchemist can fill himself (owner, 2026-11-04;
   the village's form of the mine's pump, @GM-Flooded).  The lift has no village form: it speaks for
   itself (owner, 2026-11-04).  A small grey rat in the cemetery by daylight, and one in the inn's
@@ -31,8 +33,8 @@ is not.
   can bring a torch into the village at night, but it only makes him seen, so getting into homes
   with one is suspect (owner, 2026-11-04): light gives him away, as it does to the Kharn.  Climbing
   gets into the closed houses, and one of them needs pulling (owner).  The rails have a switch; the
-  way up to the Wardens' camp is uphill, so a cart pushed up it rolls back down to town (owner,
-  2026-11-04; carts roll on slopes, built).  There are axes in the closed houses; the player can take
+  way up to the Wardens' camp is uphill, so a cart pushed up it rolls back down to the dock
+  (owner, 2026-11-04; carts roll on slopes, built).  There are axes in the closed houses; the player can take
   one along, and nothing more is needed than that (owner, 2026-11-04).  There are trees around the
   place too (owner): with an axe, they give sticks (built).
 - **Houses** (owner, 2026-11-08): their insides are part of the village's map, not places of
@@ -46,14 +48,18 @@ is not.
 - **The town's shape** (owner, 2026-11-08): modelled a bit on a medieval Italian town, climbing
   a hill.  The market place is already higher up the hill, and the biggest mansion stands towards
   the top, partly built into the hilltop.  Proposed ◇, from the bottom up:
-  - **at the foot**: the dried stream, the rails coming in from the mine along it, the place the
-    ore was washed, the miners' rows; Thornfield's fields on the flat beyond, the cemetery just
-    outside;
+  - **at the foot**: the dried stream and the miners' rows along it; Thornfield's fields on the
+    flat beyond, the cemetery just outside;
+  - **across the stream, the loading dock** (owner): the town's hill is not joined to the mine's,
+    so the ore never came through the town itself.  The rails come down from the mine through the
+    Wardens' camp and end at the dock, with their switch ◇; there the ore was loaded for the road
+    out ◇, and washed in the stream while it ran ◇.  Idle since the decree: carts standing, the
+    loading floor empty;
   - **the main road** (owner): a bigger road from the market down to the foot, wide enough for a
     cart or a horse, winding to keep its climb gentle: built of slopes (DESIGN.md § The world), so
-    a thing can be pushed up it and a cart rolls down it.  At its foot ◇ the stone bridge, the
-    rails and the ways out of town: the main path up to the Wardens' camp, the road the hero rode
-    in on;
+    a thing can be pushed up it and a cart rolls down it.  At its foot ◇ the stone bridge
+    across the stream to the dock, and beyond it the ways out: the main path up to the Wardens'
+    camp, the road the hero rode in on;
   - **the stair roads** (owner): small stepped alleys through the poorer quarters, the short way
     up and down: built of stairs and steep steps, so the hero and the villagers take them, but
     nothing is pushed or rolled up them, and the horse stays on the main road ◇;
@@ -87,7 +93,8 @@ is not.
   | the miners' rows | cottages | the miners who stayed, and those who left to find work | a few lived in, most closed ◇ |
 
   Around it: the cemetery and the founder's ghost at night (@ST-Founder); the village well and its
-  pump; the rails from the mine through the Wardens' camp, with their switch; the trees.  Out of
+  pump; across the stream, the loading dock where the rails from the mine through the Wardens' camp
+  end, with their switch; the trees.  Out of
   it: the Wardens' camp up the main path (§ 2), the hidden path and the brook (§ 3), the open
   hillside and Rennick's woodland (§ 4).
 - **The market place** (owner, 2026-11-08): a small market place beside the inn, already higher
@@ -104,8 +111,9 @@ is not.
     are (§ 3: the land still has water somewhere); down here the drought (@ST-Outside) has taken
     it, to a few pools.  Its dry bed, followed upstream, leads out to the hidden path.
   - **Its bed lies a layer below the street**, with steep banks a wall high, and slopes down where
-    the old ford was.  The bridges cross it at street level: footbridges of wood and one of stone,
-    and the rails' bridge, still needed.
+    the old ford was.  The bridges cross it at street level: footbridges of wood, which the miners
+    crossed every day to the dock and the way to work, not needed since the mine stopped ◇; and
+    the stone bridge at the main road's foot, still the way out of town.
   - **The bed is a way of its own**: sunken, out of the street's sight, dark under the bridges (a
     ceiling: only the hero's layer is drawn there).  A way through town by night, where a torch
     gives the hero away (@ST-Stealth); the backs of the miners' rows face it, their back doors and
@@ -113,7 +121,7 @@ is not.
   - **A bridge not needed is not kept up**: a wooden one has lost planks, one has come down into
     the bed, its beams lying there (PUZZLES.md § Houses: neglect).
   - **What the water left**: a pool or two, a crab come down to one; what fell from a bridge lies
-    in the bed, a layer down; the place by the stream where the ore was washed, its sluices dry.
+    in the bed, a layer down; by the dock, where the ore was washed, the sluices dry ◇.
 - **Found:** Thornfield's barn, where the hero sleeps, his horse lent to the Dunns (@ST-Farm);
   Hollis's home, potions and the crafting lessons, and the lab that is not easily replaced, which
 kept Hollis in the village (owner, 2026-11-08; @ST-Alchemist); Agnes's house beside the empty
@@ -149,14 +157,15 @@ rope (@GM-Flotilla); the cemetery (@ST-Founder; Tiny Dungeon's gravestones, 64 a
 - **Unique:** the line nobody crosses.  No fighting: the guards block, and the only way past them
   is talk.
 - **Found:** the decree, posted ◇ (a signpost tells when walked into); the closed main road the
-  ore was carried out by, with the mine's rails running through the camp to the village (owner).
+  ore was carried out by, with the mine's rails running through the camp to the village (owner): to its loading dock,
+  across the stream from the town (owner, 2026-11-08).
 - **Learned:** the official side of the court (Voss, sergeant to sergeant); that the Wardens are in
   danger too.
 - **Look out for:** a fellow sergeant's respect, the key to moving them before the climax: once the
   Wardens understand the danger they are in and the right thing to do, the hands for the barricade
   more than double (owner, 2026-11-04).
 
-- **Puzzles ◇:** getting a cart up the slope to the camp (it rolls back to town unless something
+- **Puzzles ◇:** getting a cart up the slope to the camp (it rolls back to the dock unless something
   holds it: a rock behind it, the switch set to a siding); the Wardens step aside only with the
   area clear, as guards do.
 - **Traps ◇:** none set: the danger is a cart rolling back down at speed onto whoever is below.

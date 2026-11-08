@@ -198,8 +198,8 @@ not the door.
 some elaborate, most plain.  **It is a town where most people were lowly miners, but there was
 money too** (owner): the ore was its wealth (STORY.md § 1), and some hands it passed through kept
 some.  Proposed, for Orbury's dozen or so:
-- **most are miners' cottages**, a floor and a room or two, close together: in rows along the
-  rails and the way to the mine, sharing walls, their roofs joined, so a row of roofs is a way
+- **most are miners' cottages**, a floor and a room or two, close together: in rows low on the
+  hill, along the stream, facing the dock across it, sharing walls, their roofs joined, so a row of roofs is a way
   of its own (two roofs that meet are ports joined, above);
 - **a few are two floors**: a craftsman's;
 - **two or three are elaborate**: the lord's house (below), the inn, which served the ore's
