@@ -57,8 +57,9 @@ is not.
     run dry);
   - **at the top**: the lord's house, its back rooms dug into the hilltop.
 
-  The terraces divide sight: a figure sees along its own layer (DESIGN.md § Enemies), so a street
-  one layer below the market is out of Agnes's sight, while from the market the lower town is
+  The terraces divide sight: a figure sees along its own layer (DESIGN.md § Enemies; people too,
+  within SEE_CELLS, 6, in daylight: `rules.loft`), so a street one layer below the market is out
+  of Agnes's sight, and a market wider than her sight cannot all be watched from her door, while from the market the lower town is
   seen below, darker layer by layer (DESIGN.md § What the player sees).  The town is a puzzle of
   levels before any house is: the way up is the streets, or the back of a house.
 - **Who lives where** (gathered 2026-11-08 from STORY.md and this file; the households are

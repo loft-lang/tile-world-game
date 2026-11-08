@@ -215,8 +215,8 @@ who got much of his income from the mine (STORY.md @ST-Decree, @ST-Court).  Prop
 - **Partly built into the hilltop** (owner): its back rooms are dug into the rock, the strong room
   deepest; its front faces down over the town, the market below it.  Its upper floor, or its roof,
   meets the hilltop behind at ground level ◇, so a way in from above lands at a known spot, and
-  its tower, if it has one ◇, is the landmark seen from the dark hillside (§ 4's landmark to steer
-  by).
+  its tower, if it has one ◇, is the landmark seen from the dark hillside (LOCATIONS.md § 4's landmark
+  to steer by).
 - **It shows both uses**: the representative's rooms lived in, an office of ledgers and tallies;
   the lord's chamber kept ready though rarely used, the best bed under a cover, his arms over the
   door.  The stable in the yard is for the lord's horses and his escort's.
