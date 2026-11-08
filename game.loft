@@ -2220,9 +2220,13 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
     if base < 0 { base = own; }
   }
   // The bank: from this cell's bottom edge down to the top edge of the ground south of it — or,
-  // with no ground there (a wall, the void), down to its own base.
+  // with no ground there (a wall, the void), down to its own base.  None where a wall stands
+  // under this cell on the layer below: that wall's face is this cell's side (a roof over a
+  // house's front wall shows the wall and its door, not a bank).
   south = (y + 1 - gr.y0) * gr.w + (x - gr.x0);
-  if base >= 0 && (gr.has[south] ?? false) {
+  if theme::upright(g.look, tile_world::terrain(w.w, x, y, z - 1)) {
+    // the wall below shows
+  } else if base >= 0 && (gr.has[south] ?? false) {
     sl = corner(gr, x, y + 1, 0, 0, dim);
     sr = corner(gr, x, y + 1, 1, 0, dim);
     if bl.0 > sl.0 || br.0 > sr.0 {
@@ -2632,6 +2636,7 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
   figs = figures(g, w, z);
   for y in -1..rows {
     if y >= 0 {
+      if !masked { draw_edges(g, w, cx, cy, y, z, skip); }
       for x in 0..COLS {
         if (!only_set || tile_world::terrain(w.w, cx + x, cy + y, z) != tile_world::VOID)
             && (cx + x != cut.0 || cy + y != cut.1) && (!masked || (only[y * COLS + x] ?? false))
@@ -2660,6 +2665,56 @@ fn draw_layer(g: Game, w: const rules::Level, z: integer, upper: boolean, only_s
         shade = sh[fy * COLS + fx] ?? 0;
         if fx >= 0 && fx < COLS && fy >= 0 && fy < rows { draw_figure(g, f, w.now, if shade < dim { dim } else { shade }); }
       }
+    }
+  }
+}
+
+// The thin walls of view row y on layer z (kinds.json's edges: a house's inner walls, PUZZLES.md
+// § Houses): on each cell's north and west side, standing a little over the floor — a wall a strip
+// with a lit top, a door the same with its middle open, a window a pale pane, a fence a low rail.
+fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integer, z: integer,
+              skip: const vector<boolean>) {
+  ts = g.look.tile_size;
+  wall = rules::edge_id(w.k, "wall");
+  door = rules::edge_id(w.k, "door");
+  window = rules::edge_id(w.k, "window");
+  fence = rules::edge_id(w.k, "fence");
+  body = tiles::rgb(92, 60, 40);
+  top = tiles::rgb(176, 128, 88);
+  pane = tiles::rgb(150, 200, 230);
+  rail = tiles::rgb(140, 100, 60);
+  rise = ts / 2;
+  py = y * ts;
+  for x in 0..COLS {
+    if skip[y * COLS + x] ?? false { continue; }
+    px = x * ts;
+    n = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::NORTH);
+    if n == wall {
+      tiles::rect(g.surface, px, py - rise, ts, rise, body);
+      tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
+    } else if n == door {
+      for part in [(0, 3), (ts - 3, 3)] {
+        tiles::rect(g.surface, px + part.0, py - rise, part.1, rise, body);
+        tiles::rect(g.surface, px + part.0, py - rise - 2, part.1, 2, top);
+      }
+    } else if n == window {
+      tiles::rect(g.surface, px, py - rise, ts, rise, body);
+      tiles::rect(g.surface, px + 3, py - rise + 1, ts - 6, rise - 3, pane);
+      tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
+    } else if n == fence {
+      tiles::rect(g.surface, px, py - 5, ts, 2, rail);
+    }
+    v = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::WEST);
+    if v == wall || v == window {
+      tiles::rect(g.surface, px - 1, py - rise, 3, ts + rise, body);
+      tiles::rect(g.surface, px - 1, py - rise - 2, 3, 2, top);
+      if v == window { tiles::rect(g.surface, px, py, 1, ts - 2, pane); }
+    } else if v == door {
+      tiles::rect(g.surface, px - 1, py - rise, 3, rise + 3, body);
+      tiles::rect(g.surface, px - 1, py - rise - 2, 3, 2, top);
+      tiles::rect(g.surface, px - 1, py + ts - 3, 3, 3, body);
+    } else if v == fence {
+      tiles::rect(g.surface, px - 1, py - 3, 2, ts, rail);
     }
   }
 }
@@ -2781,6 +2836,9 @@ pub fn follow_enemies(g: Game) {
   g.movers = kept;
 }
 
+/// How many layers over the hero the view draws under the open sky.
+const SKY_LAYERS = 4;
+
 /// Draw the frame on `g.surface`, each cell at its light.  What the hero sees depends on where
 /// it stands: on a layer above another, the one below and its own over it; under the open sky,
 /// its own and the layer above (a ledge, drawn lighter); under a ceiling, only its own.
@@ -2818,6 +2876,11 @@ pub fn draw(g: Game) {
       // Standing in an opening, the rock above over ground it sees is left out (owner, 2026-11-07).
       draw_layer(g, w, z + 1, true, true, true, 0, front, false, [], cut_above(g, w, z));
     }
+  }
+  // Higher still under the open sky: every layer up to SKY_LAYERS over the hero, each over the last —
+  // a house's roof over its upper floor, the terraces of a hill (PUZZLES.md § Houses).
+  if tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) {
+    for up in (if z > 0 { 1 } else { 2 })..=SKY_LAYERS { draw_layer(g, w, z + up, true, true, true, 0); }
   }
   draw_sparks(g, z);
   draw_bow(g);

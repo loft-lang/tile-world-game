@@ -96,6 +96,14 @@ pub struct Blob {
 /// A house as seen from outside: `w` by `h` from (x, y) on layer z, its rows of `roof` and its
 /// bottom row of `wall`, with its door (of `door`) in the bottom row at `door_at` cells from its
 /// west side (-1: the middle).  The cell in front of the door is kept free.
+///
+/// With `floors` (1 or more) it is built from the inside out (PUZZLES.md § Houses, BUILD.md D1a):
+/// on each floor, layer z up, a ring of `wall` round a floor; the door in the ground floor's front
+/// row; with `basement`, a floor below too; stairs between the floors (up on one, down on the
+/// same cell of the next); and `roof`, a material that can be walked on, over the whole footprint
+/// on the layer above the top floor.  Its rooms are parted by thin walls, edges with a door in
+/// each, dealt by the seed (`house_edges`).  From the street the roof shows over the front wall;
+/// inside, under it, only the floor the hero stands on is drawn.
 pub struct House {
   pub x: integer,
   pub y: integer,
@@ -105,7 +113,19 @@ pub struct House {
   pub roof: text,
   pub wall: text,
   pub door: text,
-  pub door_at: integer
+  pub door_at: integer,
+  pub floors: integer = 0,
+  pub basement: boolean = false
+}
+
+/// A thin wall the intent implies: on the `side` ("N" or "W") of cell (x, y, z), of edge kind
+/// `what` (kinds.json's edges: wall, door, window, fence).
+pub struct Edge {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub side: text,
+  pub what: text
 }
 
 /// A slope: three cells from (x, y) on layer z, stepping (dx, dy), rising 1, 2 and 3 steps, so the
@@ -289,10 +309,12 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     e = hs.item(i);
     at = e.field("at");
     sz = e.field("size");
+    fl = int_of(e.field("floors"), 0);
     it.houses += [House { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 4), h: int_of(sz.item(1), 3),
-                          z: int_of(e.field("z"), 0), roof: text_of(e.field("roof"), "roof"),
+                          z: int_of(e.field("z"), 0), roof: text_of(e.field("roof"), if fl > 0 { "house_roof" } else { "roof" }),
                           wall: text_of(e.field("wall"), "wood_wall"), door: text_of(e.field("door"), "house_door"),
-                          door_at: int_of(e.field("door_at"), -1) }];
+                          door_at: int_of(e.field("door_at"), -1), floors: fl,
+                          basement: e.field("basement").as_bool() ?? false }];
   }
   ss = v.field("slopes");
   for i in 0..ss.len() {
@@ -401,6 +423,8 @@ pub fn intent_json(it: const Intent) -> text {
       out += if first { "\n" } else { ",\n" };
       out += "    {{ \"at\": [{h.x}, {h.y}], \"size\": [{h.w}, {h.h}], \"z\": {h.z}, \"roof\": {quote(h.roof)}, \"wall\": {quote(h.wall)}, \"door\": {quote(h.door)}";
       if h.door_at >= 0 { out += ", \"door_at\": {h.door_at}"; }
+      if h.floors > 0 { out += ", \"floors\": {h.floors}"; }
+      if h.basement { out += ", \"basement\": true"; }
       out += " }}";
       first = false;
     }
@@ -972,7 +996,8 @@ fn add_trail(g: Grid, t: const Trail) {
   }
 }
 
-fn add_house(g: Grid, h: const House) {
+fn add_house(g: Grid, h: const House, seed: integer) {
+  if h.floors > 0 { add_inside_house(g, h, seed); return; }
   if h.w < 2 || h.h < 2 { return; }
   for y in h.y..h.y + h.h {
     for x in h.x..h.x + h.w { set(g, x, y, h.z, if y < h.y + h.h - 1 { h.roof } else { h.wall }); }
@@ -983,6 +1008,137 @@ fn add_house(g: Grid, h: const House) {
   fk = key_of(h.x + dx, h.y + h.h, h.z);
   b = g.bases[fk];
   if b { set(g, h.x + dx, h.y + h.h, h.z, b.terrain); }
+}
+
+// The layers a house built from the inside out stands on: its basement (when it has one) up to
+// its top floor.
+fn house_lowest(h: const House) -> integer {
+  if h.basement { h.z - 1 } else { h.z }
+}
+
+fn house_top(h: const House) -> integer {
+  h.z + h.floors - 1
+}
+
+// The cell inside a house's front door, on its ground floor.
+fn door_inside(h: const House) -> (integer, integer) {
+  dx = if h.door_at >= 0 && h.door_at < h.w { h.door_at } else { h.w / 2 ?? 0 };
+  (h.x + dx, h.y + h.h - 2)
+}
+
+// The stairs of a house: for each layer but its top, the cell whose stairs go up from it to the
+// same cell on the layer above.  An inside corner, picked by the seed, never the cell inside the
+// front door and never the cell the stairs from below arrive on.
+fn stair_cells(h: const House, seed: integer) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  corners = [(h.x + 1, h.y + 1), (h.x + h.w - 2, h.y + 1), (h.x + 1, h.y + h.h - 2), (h.x + h.w - 2, h.y + h.h - 2)];
+  arrived = (-1, -1);
+  front = door_inside(h);
+  for z in house_lowest(h)..house_top(h) {
+    first = (mix(seed, h.x, h.y, z, 400) % 4)!;
+    for i in 0..4 {
+      c = corners[(first + i) % 4 ?? 0] ?? (h.x + 1, h.y + 1);
+      if c == arrived || (z == h.z && c == front) || (z + 1 == h.z && c == front) { continue; }
+      out += [(c.0, c.1, z)];
+      arrived = c;
+      break;
+    }
+  }
+  out
+}
+
+fn is_stair(stairs: const vector<(integer, integer, integer)>, x: integer, y: integer, z: integer) -> boolean {
+  for s in stairs {
+    if s.0 == x && s.1 == y && (s.2 == z || s.2 + 1 == z) { return true; }
+  }
+  false
+}
+
+fn add_inside_house(g: Grid, h: const House, seed: integer) {
+  if h.w < 4 || h.h < 4 { return; }
+  for z in house_lowest(h)..=house_top(h) {
+    for y in h.y..h.y + h.h {
+      for x in h.x..h.x + h.w {
+        ring = x == h.x || y == h.y || x == h.x + h.w - 1 || y == h.y + h.h - 1;
+        set(g, x, y, z, if ring { h.wall } else { "floor" });
+      }
+    }
+  }
+  front = door_inside(h);
+  set(g, front.0, h.y + h.h - 1, h.z, h.door);
+  fk = key_of(front.0, h.y + h.h, h.z);
+  b = g.bases[fk];
+  if b { set(g, front.0, h.y + h.h, h.z, b.terrain); }
+  for y in h.y..h.y + h.h {
+    for x in h.x..h.x + h.w { set(g, x, y, house_top(h) + 1, h.roof); }
+  }
+  for s in stair_cells(h, seed) {
+    set(g, s.0, s.1, s.2, "stairs_up");
+    set(g, s.0, s.1, s.2 + 1, "stairs_down");
+  }
+}
+
+// The narrowest a room may be, across and deep, in cells.
+const ROOM_WIDE = 3;
+const ROOM_DEEP = 2;
+
+// Part the box of floor (x0, y0, w, h) on layer z into rooms: a thin wall across it, with a door
+// in it, where both sides keep a room's size, and each side parted again, two levels deep at
+// most, by the seed.  A door never opens onto stairs.
+fn part_rooms(out: vector<Edge>, x0: integer, y0: integer, w: integer, h: integer, z: integer, seed: integer,
+              depth: integer, stairs: const vector<(integer, integer, integer)>) {
+  if depth >= 3 { return; }
+  r = mix(seed, x0, y0, z, 300 + depth);
+  if depth > 0 && (r % 3)! == 0 { return; }
+  across = w >= 2 * ROOM_WIDE;
+  down = h >= 2 * ROOM_DEEP + 1;
+  if !across && !down { return; }
+  if across && (!down || w >= h) {
+    cx = x0 + ROOM_WIDE + (r % (w - 2 * ROOM_WIDE + 1))!;
+    door = -1;
+    for i in 0..h {
+      dy = y0 + ((r / 7 + i) % h)!;
+      if !is_stair(stairs, cx - 1, dy, z) && !is_stair(stairs, cx, dy, z) { door = dy; break; }
+    }
+    for y in y0..y0 + h { out += [Edge { x: cx, y: y, z: z, side: "W", what: if y == door { "door" } else { "wall" } }]; }
+    part_rooms(out, x0, y0, cx - x0, h, z, seed, depth + 1, stairs);
+    part_rooms(out, cx, y0, x0 + w - cx, h, z, seed, depth + 1, stairs);
+  } else {
+    cy = y0 + ROOM_DEEP + (r % (h - 2 * ROOM_DEEP + 1))!;
+    door = -1;
+    for i in 0..w {
+      dx = x0 + ((r / 7 + i) % w)!;
+      if !is_stair(stairs, dx, cy - 1, z) && !is_stair(stairs, dx, cy, z) { door = dx; break; }
+    }
+    for x in x0..x0 + w { out += [Edge { x: x, y: cy, z: z, side: "N", what: if x == door { "door" } else { "wall" } }]; }
+    part_rooms(out, x0, y0, w, cy - y0, z, seed, depth + 1, stairs);
+    part_rooms(out, x0, cy, w, y0 + h - cy, z, seed, depth + 1, stairs);
+  }
+}
+
+/// The thin walls intent `it` implies: the rooms of each house built from the inside out, on each
+/// of its floors, dealt by the seed.
+pub fn house_edges(it: const Intent) -> vector<Edge> {
+  out: vector<Edge> = [];
+  for h in it.houses {
+    if h.floors <= 0 || h.w < 4 || h.h < 4 { continue; }
+    stairs = stair_cells(h, it.seed);
+    for z in house_lowest(h)..=house_top(h) {
+      part_rooms(out, h.x + 1, h.y + 1, h.w - 2, h.h - 2, z, it.seed, 0, stairs);
+    }
+  }
+  out
+}
+
+/// The boxes of floor whose thin walls the intent derives — each inside-out house's inside, on
+/// each of its floors, as (x0, y0, x1, y1, z) — so a fill can clear the old ones first.
+pub fn house_insides(it: const Intent) -> vector<(integer, integer, integer, integer, integer)> {
+  out: vector<(integer, integer, integer, integer, integer)> = [];
+  for h in it.houses {
+    if h.floors <= 0 || h.w < 4 || h.h < 4 { continue; }
+    for z in house_lowest(h)..=house_top(h) { out += [(h.x + 1, h.y + 1, h.x + h.w - 2, h.y + h.h - 2, z)]; }
+  }
+  out
 }
 
 fn add_slope(g: Grid, sl: const Slope) {
@@ -1033,7 +1189,7 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
       }
     }
   }
-  for hs in it.houses { add_house(g, hs); }
+  for hs in it.houses { add_house(g, hs, it.seed); }
   for sl in it.slopes { add_slope(g, sl); }
   for im in it.items {
     at = terrain_at(g, im.x, im.y, im.z);

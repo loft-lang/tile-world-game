@@ -1,0 +1,164 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A house built from the inside out (BUILD.md D1a, PUZZLES.md § Houses): its walls on every
+// floor, its door, its stairs, a roof to walk on over the whole of it, and rooms parted by thin
+// walls the seed deals — every room reached from the door, the same seed the same house.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use editor;
+
+// A place of grass with one house on it, `w` by `h` from (2, 2), filled in from its intent.
+fn house(w: integer, h: integer, floors: integer, basement: boolean, seed: integer) -> levels::LevelFile {
+  raw = "{{ \"name\": \"a house\", \"legend\": {{}}, \"chunks\": [], \"start\": [1, 1, 0], \"goal\": {{ \"type\": \"\" }}, ";
+  raw += "\"intent\": {{ \"seed\": {seed}, \"rooms\": [], \"corridors\": [], ";
+  raw += "\"grounds\": [ {{ \"at\": [0, 0], \"size\": [{w + 4}, {h + 4}], \"z\": 0, \"as\": \"grass\" }} ], ";
+  raw += "\"houses\": [ {{ \"at\": [2, 2], \"size\": [{w}, {h}], \"z\": 0, \"floors\": {floors}, \"basement\": {basement} }} ] }} }}";
+  theme = file("../theme.json").content() ?? "";
+  k = rules::kinds();
+  mats = materials::load(theme, k);
+  m = levels::load_with(raw, k, mats);
+  if !m { assert(false, "the house loads"); }
+  lf = m ?? levels::LevelFile { name: "", level: rules::level(k), start_x: 0, start_y: 0, start_z: 0,
+                                 goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } };
+  ed = editor::new_editor_with(lf, mats);
+  _ = editor::refill(ed, lf, intent::words_from(theme));
+  lf
+}
+
+fn kind_at(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> text {
+  rules::terrain_name(lf.level.k, tile_world::terrain(lf.level.w, x, y, z))
+}
+
+struct Seen {
+  const sk: integer
+}
+
+// The floor cells reached from (x, y, z): steps across the edges a walker crosses, and the
+// stairs, which take it to the same cell a layer up or down.
+fn reached(lf: const levels::LevelFile, x: integer, y: integer, z: integer) -> vector<integer> {
+  w = lf.level.w;
+  up = rules::terrain_id(lf.level.k, "stairs_up");
+  down = rules::terrain_id(lf.level.k, "stairs_down");
+  seen: hash<Seen[sk]> = [];
+  out: vector<integer> = [intent::key_of(x, y, z)];
+  seen += [Seen { sk: intent::key_of(x, y, z) }];
+  at = 0;
+  while at < len(out) {
+    c = out[at] ?? 0;
+    at += 1;
+    cx = intent::x_of(c);
+    cy = intent::y_of(c);
+    cz = intent::z_of(c);
+    next: vector<(integer, integer, integer)> = [];
+    for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+      if tile_world::crossable(w, cx, cy, cz, d.0, d.1) && tile_world::passable(w, cx + d.0, cy + d.1, cz) {
+        next += [(cx + d.0, cy + d.1, cz)];
+      }
+    }
+    t = tile_world::terrain(w, cx, cy, cz);
+    if t == up { next += [(cx, cy, cz + 1)]; }
+    if t == down { next += [(cx, cy, cz - 1)]; }
+    for n in next {
+      nk = intent::key_of(n.0, n.1, n.2);
+      if seen[nk] { continue; }
+      seen += [Seen { sk: nk }];
+      out += [nk];
+    }
+  }
+  out
+}
+
+fn edges_of(lf: const levels::LevelFile) -> text {
+  out = "";
+  for e in intent::house_edges(lf.intent) { out += "{e.x},{e.y},{e.z}{e.side}{e.what} "; }
+  out
+}
+
+// The ring of wall round each floor and the floor inside; the door in the middle of the front row.
+fn test_walls_on_every_floor_and_the_door_in_front() {
+  lf = house(8, 6, 2, true, 3);
+  for z in [-1, 0, 1] {
+    assert(kind_at(lf, 2, 2, z) == "wall" && kind_at(lf, 9, 7, z) == "wall", "the corners on layer {z}");
+    assert(kind_at(lf, 3, 3, z) != "wall" && kind_at(lf, 3, 3, z) != "void", "floor inside on layer {z}: {kind_at(lf, 3, 3, z)}");
+  }
+  assert(kind_at(lf, 6, 7, 0) == "open_door", "the door: {kind_at(lf, 6, 7, 0)}");
+  assert(kind_at(lf, 6, 7, 1) == "wall", "no door on the upper floor's front");
+}
+
+// The roof: over every cell of the footprint, on the layer above the top floor, ground to walk on.
+fn test_the_roof_covers_the_house_and_can_be_walked_on() {
+  lf = house(8, 6, 2, false, 3);
+  for y in 2..8 {
+    for x in 2..10 {
+      assert(kind_at(lf, x, y, 2) == "floor", "roof at ({x}, {y}): {kind_at(lf, x, y, 2)}");
+    }
+  }
+  assert(tile_world::terrain(lf.level.w, 5, 5, 3) == tile_world::VOID, "nothing above the roof");
+}
+
+// Every floor cell on every layer, the basement's included, is reached from inside the door.
+fn test_every_room_is_reached_from_the_door() {
+  for seed in [1, 2, 3, 4, 5, 6, 7, 8] {
+    lf = house(12, 9, 2, true, seed);
+    got = reached(lf, 7, 9, 0);
+    for z in [-1, 0, 1] {
+      for y in 3..10 {
+        for x in 3..13 {
+          assert(got.contains(intent::key_of(x, y, z)), "seed {seed}: ({x}, {y}, {z}) not reached; edges {edges_of(lf)}");
+        }
+      }
+    }
+  }
+}
+
+// A big house is parted into rooms; a cottage's inside stays one room.
+fn test_a_big_house_has_rooms_and_a_cottage_one() {
+  big = house(12, 9, 1, false, 5);
+  assert(len(intent::house_edges(big.intent)) > 0, "the big house has thin walls");
+  small = house(5, 4, 1, false, 5);
+  assert(len(intent::house_edges(small.intent)) == 0, "the cottage has none: {edges_of(small)}");
+}
+
+// The same seed deals the same rooms; the seeds between them deal more than one way.
+fn test_the_seed_deals_the_rooms() {
+  a = edges_of(house(12, 9, 1, false, 5));
+  assert(a == edges_of(house(12, 9, 1, false, 5)), "the same seed, the same rooms");
+  ways: vector<text> = [];
+  for seed in 1..9 {
+    e = edges_of(house(12, 9, 1, false, seed));
+    if !ways.contains(e) { ways += [e]; }
+  }
+  assert(len(ways) > 2, "eight seeds deal {len(ways)} ways");
+}
+
+// The stairs go up from one floor and arrive on the same cell of the next, which leads back down.
+fn test_the_stairs_join_the_floors() {
+  lf = house(8, 6, 3, false, 2);
+  ups = 0;
+  for z in 0..2 {
+    for y in 3..7 {
+      for x in 3..9 {
+        if kind_at(lf, x, y, z) == "stairs_up" {
+          ups += 1;
+          assert(kind_at(lf, x, y, z + 1) == "stairs_down", "the stairs up at ({x}, {y}, {z}) arrive on stairs down");
+        }
+      }
+    }
+  }
+  assert(ups == 2, "stairs up from both lower floors: {ups}");
+}
+
+// The hero walks in through the door and stands under the roof, on the ground floor.
+fn test_the_hero_walks_in() {
+  lf = house(8, 6, 1, false, 3);
+  w = lf.level;
+  rules::put_hero(w, 6, 9, 0);
+  rules::play(w, "w w");
+  assert(w.hero_x == 6 && w.hero_y == 7 && w.hero_z == 0, "on the door: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "w");
+  assert(w.hero_y == 6 && w.hero_z == 0, "inside: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+}

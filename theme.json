@@ -190,7 +190,7 @@
     "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "garden_fence", "village_well"],
     "Water": ["lake", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
-    "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door"],
+    "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door", "house_roof", "house_slate"],
     "Dungeon": ["floor", "wall", "rail", "well", "basin", "prop"],
     "Things": ["cart", "full_cart", "pick", "beam", "barricade", "sack", "rope", "herb", "mushroom", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
@@ -229,6 +229,8 @@
     "stone_wall": { "kind": "wall", "autotile": "stone_wall", "glyph": "T" },
     "house_door": { "kind": "open_door", "tile": "town:74", "glyph": "E" },
     "stone_door": { "kind": "open_door", "tile": "town:78", "glyph": "F" },
+    "house_roof": { "kind": "floor", "autotile": "roof", "glyph": "(" },
+    "house_slate": { "kind": "floor", "autotile": "slate_roof", "glyph": ")" },
     "castle_wall": {
       "kind": "wall",
       "autotile": "castle",

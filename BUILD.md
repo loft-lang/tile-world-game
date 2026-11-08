@@ -348,6 +348,20 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     thin inner walls), with door and window edges; the fill writes edges as well as cells.
     Checks: every room reached, the roof over the whole footprint, every window and door landing
     in a room, the roof seen from the street and gone from inside.
+    **Built (2026-11-08)**, `tests/houses.loft` (both backends): a house with `floors` (and
+    `basement`) in a place's intent is a ring of its wall on each floor, its door in front, stairs
+    up from one floor arriving on stairs down on the same cell of the next, `house_roof` (theme.json:
+    a roof of kind floor) over the whole footprint on the layer above, and rooms parted by thin
+    walls with a door in each, by the seed (`intent::house_edges`; the fill writes them,
+    `editor::refill_edges`).  Every floor cell of every layer is reached from the door, over eight
+    seeds.  With it, in the picture (`game.loft`): no bank under a cell with a wall below it, so the
+    roof sits over the front wall and its door as Kenney's houses do; under the open sky every layer
+    up to four above is drawn (a second floor's roof, a hill's terraces); thin walls are drawn
+    (walls, doors, windows, fences: edges were not drawn before).  Open: the rooms are dark by day
+    (no window lets the daylight in: the outer walls are cells, so a window there needs either
+    thin outer walls or a wall that lets light through); an upper floor's front wall is drawn as
+    dark as the rooms behind it; the edges a fill writes are not in the undo (as a paste's are
+    not); the thin walls' look is plain colour for now.
   - **D1b. Households as templates.**  The room templates of PUZZLES.md § Households (a miner's
     cottage, a craftsman's, a well-off house, the inn, the alchemist's, the smithy, the lord's
     house) fitted into a fixed shell by a seed, with what the story fixes kept where it is.
@@ -359,6 +373,10 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     taken up) and neglect (a roof come down, a stair rotted, a basement flooded), dealt as events.
   - **D1e. Dealt anew**: `TW_SEED`, the deal written to the play log, the town played with several
     seeds to judge.
+
+  After the town (owner, 2026-11-08): the other locations, with more threats, and the fight got
+  right there (B1c): pressure and skill mixed, never a show stopper, a sneak or a puzzle always
+  giving the best start of a fight.
 - **D2. The hidden path, the brook, the hillside, the cave-in** — needs B8 (crabs), C1 (night).
 - **D3. The Old Seam, first level** — the Kharn's home: built mechanics, C3 (their points).
 - **D4. The Old Seam, second level** — needs B2, B3.

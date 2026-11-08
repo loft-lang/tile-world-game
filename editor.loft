@@ -291,6 +291,7 @@ pub fn unadjust(ed: Editor, lf: levels::LevelFile, x: integer, y: integer, z: in
 pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Word>) -> boolean {
   k = lf.level.k;
   w = lf.level.w;
+  edges_changed = refill_edges(lf);
   hand = adjusted(ed, lf);
   // The hand-set cells as they are, for the scattering to work round.
   held: vector<intent::Fill> = [];
@@ -319,7 +320,7 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     if was.set && same_terrain && was.stack == stack && was.rise == rise && was.slant == slant { continue; }
     todo += [f];
   }
-  if len(todo) == 0 { return false; }
+  if len(todo) == 0 { return edges_changed; }
   // Every cell the fill can change — its cells and, for a material, the ring round each — as it
   // was, so undo takes the whole fill back.
   spots: vector<integer> = [];
@@ -360,11 +361,44 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     now = cell_of(w, x, y, z);
     if was != now { changes += [Change { x: x, y: y, z: z, was: was, now: now }]; }
   }
-  if len(changes) == 0 { return false; }
+  if len(changes) == 0 { return edges_changed; }
   keep(ed, Edit {
     what: CELL, x: ed.x, y: ed.y, z: ed.z, cells: changes, was_at: no_marker(), now_at: no_marker(), hand: false
   });
   true
+}
+
+// The thin walls the intent derives (intent::house_edges): inside each house built from the inside
+// out, every edge between its floor cells is cleared, then the derived ones set.  Not part of the
+// undo, as the edges a paste brings are not; true when an edge changed.
+fn refill_edges(lf: levels::LevelFile) -> boolean {
+  k = lf.level.k;
+  w = lf.level.w;
+  want: vector<(integer, integer, integer, integer, integer)> = [];
+  for e in intent::house_edges(lf.intent) {
+    side = if e.side == "N" { tile_world::NORTH } else { tile_world::WEST };
+    want += [(e.x, e.y, e.z, side, rules::edge_id(k, e.what))];
+  }
+  changed = false;
+  for b in intent::house_insides(lf.intent) {
+    for y in b.1..=b.3 {
+      for x in b.0..=b.2 {
+        for side in [tile_world::NORTH, tile_world::WEST] {
+          // Only the edges between two floor cells of the box: its outer ring is cells, not edges.
+          if (side == tile_world::NORTH && y == b.1) || (side == tile_world::WEST && x == b.0) { continue; }
+          kind = 0;
+          for wv in want {
+            if wv.0 == x && wv.1 == y && wv.2 == b.4 && wv.3 == side { kind = wv.4; }
+          }
+          if tile_world::edge(w, x, y, b.4, side) != kind {
+            tile_world::set_edge(w, x, y, b.4, side, kind);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  changed
 }
 
 struct Spot {
