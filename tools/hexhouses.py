@@ -160,11 +160,13 @@ page = f"""<!doctype html>
   <p class="lead">The hex and wall model knows no angle.  A house is its cells; the thin walls are the edges
   between inside and outside; the straight walls are solved from those edges.  Even the axes the walls run
   along are read off the cells (<code>hexhouse::axes_of</code>: each boundary edge votes for the heading
-  nearest the way the boundary travels).  The last row is the L edited by hand, one cell taken out of a
-  wall and one added outside another, its walls drawn again from its cells with no angle given.</p>
+  nearest the way the boundary travels).  What matters is that every hex centre is clearly inside or
+  outside: on every house here none is on the wrong side of the drawn walls, and none lies under a wall.</p>
   <figure>{gsvg}</figure>
   <p>The 2 × 2 box (3 × 3 m) is the same seven cells, one hex and its six neighbours, at every angle: its cells
-  show no direction, the vote ties, and only then does the angle it was placed at decide.</p>
+  show no direction, the vote ties, and only then does the angle it was placed at decide.  It marks the
+  limit: a structure must be big enough for its cells to carry its walls, and anything smaller (an
+  outhouse, a well) is a special object with its own rotation instead.</p>
   <div class="scroll"><table>
     <thead><tr><th>Shape</th><th>Placed at</th><th>Cells</th><th>Axes read off the cells</th><th>As placed</th><th>Walls on the axes</th></tr></thead>
     <tbody>{"".join(grows)}</tbody>

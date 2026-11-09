@@ -1,7 +1,6 @@
 // The first hex test (owner, 2026-11-09): one L-shaped house drawn at all twelve 30° angles
-// across a larger empty terrain, the hex grid showing; then a gallery of other shapes (boxes, a
-// T, a U, an L edited by hand) at 0°, 30°, 60° and 90°, each with its walls drawn from its cells
-// alone.  As JSON for tools/hexhouses.py to draw into hexhouses.html.
+// across a larger empty terrain, the hex grid showing; then a gallery of other shapes (boxes, an
+// L, a T, a U) at 0°, 30°, 60° and 90°, each with its walls drawn from its cells alone.  As JSON for tools/hexhouses.py to draw into hexhouses.html.
 //
 //   loft --lib libs tools/hexhouses.loft > build/hexhouses.json && python3 tools/hexhouses.py
 //
@@ -65,10 +64,10 @@ fn main() {
     println("{house_json(b, "L", i, cq, cr)}{sep}");
   }
   // The gallery: a row per shape, a column per angle (0°, 30°, 60°, 90°).
-  names = ["box 5×4", "box 3×2", "box 2×2", "L 4×2 + 2×3", "T", "U", "L, edited"];
+  names = ["box 5×4", "box 3×2", "box 2×2", "L 4×2 + 2×3", "T", "U"];
   plans = [hexhouse::box_plan(5, 4), hexhouse::box_plan(3, 2), hexhouse::box_plan(2, 2),
            hexhouse::l_plan(4, 2, 2, 3), [part(-8, -3, 8, 3), part(-3, 3, 3, 11)],
-           [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)], plan];
+           [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)]];
   rows = len(names);
   gh = rows * GAP + 6;
   println("], \"gterrain\": [0, 0, {w}, {gh}], \"gallery\": [");
@@ -77,15 +76,6 @@ fn main() {
       cq = 2 + GAP / 2 + t * GAP;
       cr = 2 + GAP / 2 + (rows - 1 - s) * GAP;
       b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] });
-      if s == rows - 1 {
-        // Edited by hand: one cell taken out of a wall, one added outside another; then the
-        // walls again from the cells alone, no angle given.
-        cut = b.boundary[5];
-        hex_field::hexset_set(b.cells, cut.qa, cut.ra, false);
-        add = b.boundary[len(b.boundary) / 2 ?? 0];
-        hex_field::hexset_set(b.cells, add.qb, add.rb, true);
-        b = hexwalls::from_cells(b.cells);
-      }
       sep = if s < rows - 1 || t < 3 { "," } else { "" };
       println("{house_json(b, names[s], t, cq, cr)}{sep}");
     }

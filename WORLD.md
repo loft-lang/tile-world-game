@@ -420,6 +420,15 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   plan and no angle: the axes the walls run along are read off the cells.  It works because a
   wall always lies between two hex centres, one inside the house and one outside.  The page
   `hexhouses.html` shows an L at all twelve angles and a gallery of other shapes.
+- **What matters is that every hex centre is clearly inside or outside** (owner, 2026-11-09).
+  Measured over the page's 36 houses (boxes, L's, a T and a U at their angles): no centre is on
+  the wrong side of the drawn walls, and none comes nearer a wall's middle than half its
+  thickness, so no centre lies under a wall.
+- **A structure must be big enough to be drawn this way** (owner, 2026-11-09).  Single hexes
+  marked inside or outside by hand cannot be drawn correctly, and are not a case to draw: a
+  thing too small for its cells to carry its walls (an outhouse, a well) is a special object
+  with its own rotation attached instead.  The smallest box on the page, 3 × 3 m, shows the
+  limit: its seven cells are the same at every angle and show no direction.
 - **Thin walls.**  A wall is a mark on the edge between two cells (`hex_field`'s `EdgeSet`), so
   it takes no cell: the standard house, 5 × 4 hex steps (7.5 × 6 m), keeps all 27 of its floor
   cells.  It is drawn half a hex step thick (0.75 m); movement stops on the edge
