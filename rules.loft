@@ -6615,40 +6615,55 @@ fn enemy_act(l: Level, i: integer) {
       return;
     }
   }
-  // Away from its nest (fled, chased off, up or down a slope): it walks home.
-  if e.z != e.nest_z || steps_apart(e.x, e.y, e.nest_x, e.nest_y) > p.roam {
+  // Away from its nest (fled, chased off): it walks home.  On its nest's layer that is further
+  // than its roam; on another layer (up or down a sloping front) a way home longer than its roam,
+  // or none.
+  away = steps_apart(e.x, e.y, e.nest_x, e.nest_y) > p.roam;
+  if !away && e.z != e.nest_z {
+    hw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, e.nest_z, false, no_shades());
+    away = hw.2 < 0 || hw.2 > p.roam;
+  }
+  if away {
     w = chosen_way(l, p, e, e.nest_x, e.nest_y, e.nest_z, false, true);
     if w.2 > 0 {
       enemy_step(l, i, w.0, w.1, p.move_ms);
       return;
     }
   }
-  // Wandering: a step to a neighbour within its roam of the nest — a light-shunning enemy a dark
-  // one when it has one, a light-loving one the brightest (never back where it just came from) —
+  // @FR-GM-Front: wandering, it goes up and down the sloping fronts within its roam too.
+  // Wandering: a step to a neighbour within its roam of the nest, on its layer or across a
+  // sloping front — a light-shunning enemy a dark one when it has one, a light-loving one the
+  // brightest (never back where it just came from), each cell's light seen on its own layer —
   // chosen by its id and the steps it has taken (the same every time).
   options: vector<(integer, integer)> = [];
+  ups: vector<integer> = [];
   for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-    if enemy_can(l, p, e.x, e.y, e.z, d.0, d.1) && e.z == e.nest_z
-        && steps_apart(e.x + d.0, e.y + d.1, e.nest_x, e.nest_y) <= p.roam {
+    g = enemy_goes(l, p, e.x, e.y, e.z, d.0, d.1);
+    if g != NO_WAY && steps_apart(e.x + d.0, e.y + d.1, e.nest_x, e.nest_y) <= p.roam {
       options += [d];
+      ups += [g];
     }
   }
   if p.shuns_light || p.likes_light {
     s = shades_round(l, e.x, e.y, e.z, 2);
+    shade: vector<integer> = [];
+    for o in options {
+      g = ups[o#index] ?? 0;
+      shade += [if g == 0 { shade_at(s, e.x + o.0, e.y + o.1) }
+                else { shade_at(shades_round(l, e.x, e.y, e.z + g, 2), e.x + o.0, e.y + o.1) }];
+    }
     if p.shuns_light {
       dark: vector<(integer, integer)> = [];
-      for o in options { if !lit_cell(s, e.x + o.0, e.y + o.1) { dark += [o]; } }
+      for o in options { if (shade[o#index] ?? 99) > 2 { dark += [o]; } }
       if len(dark) > 0 { options = dark; }
     } else {
       best = 99;
       for o in options {
-        if (o.0 != -e.face_x || o.1 != -e.face_y) && shade_at(s, e.x + o.0, e.y + o.1) < best {
-          best = shade_at(s, e.x + o.0, e.y + o.1);
-        }
+        if (o.0 != -e.face_x || o.1 != -e.face_y) && (shade[o#index] ?? 99) < best { best = shade[o#index] ?? 99; }
       }
       bright: vector<(integer, integer)> = [];
       for o in options {
-        if (o.0 != -e.face_x || o.1 != -e.face_y) && shade_at(s, e.x + o.0, e.y + o.1) == best { bright += [o]; }
+        if (o.0 != -e.face_x || o.1 != -e.face_y) && (shade[o#index] ?? 99) == best { bright += [o]; }
       }
       if len(bright) > 0 { options = bright; }
     }

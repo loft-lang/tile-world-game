@@ -240,7 +240,9 @@ slope, a few are cliffs.
                 and every front of a place that says nothing stay cliffs: climbed only by stairs
                 and slopes, and a fall off them costs health (DESIGN.md § Falling).  Creatures walk
                 the sloping fronts as the hero does when they chase the hero, go home, keep to a
-                route or a goal (`enemy_goes`, their ways over layers), not when they wander; they
+                route or a goal (`enemy_goes`, their ways over layers), and when they wander,
+                within their roam of the nest; one on another layer than its nest goes home when
+                its way home is longer than its roam; they
                 see the hero a layer up or down when both stand under the open sky, and a creature
                 and the hero beside each other across a sloping front strike each other there.
                 A thing pushed or pulled across it goes up or down onto the ground there
@@ -341,7 +343,7 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HS-File, HS-Wall, HS-Corner | `test_the_sizes_file_keeps_the_rules` |
 | HG-Terrace | `tests/hexground.loft`: `test_terraces_are_flat_away_from_their_edges`, `test_a_terrace_edge_is_a_smooth_slope` |
 | HG-Dig | `tests/hexground.loft`: `test_a_dug_bed_follows_its_sides` |
-| GM-Front | `tests/moves.loft`: `test_a_sloping_front_is_walked_up_and_down`; `tests/worlds.loft`: `test_orburys_fronts_slope_but_the_big_house_stands_on_a_cliff`, `test_the_bed_is_left_up_its_town_bank`, `test_no_pocket_in_the_bed`, `test_every_front_outside_the_cliff_area_slopes`; `tests/enemies.loft`: `test_a_rat_chases_the_hero_up_a_sloping_front`, `test_the_hero_strikes_a_rat_across_a_sloping_front`, `test_a_rat_walks_home_down_a_sloping_front`; `tests/moves.loft`: `test_a_thing_is_pushed_up_and_down_a_sloping_front`, `test_a_thing_is_pulled_down_and_up_a_sloping_front`, `test_an_item_is_shoved_over_a_sloping_front` |
+| GM-Front | `tests/moves.loft`: `test_a_sloping_front_is_walked_up_and_down`; `tests/worlds.loft`: `test_orburys_fronts_slope_but_the_big_house_stands_on_a_cliff`, `test_the_bed_is_left_up_its_town_bank`, `test_no_pocket_in_the_bed`, `test_every_front_outside_the_cliff_area_slopes`; `tests/enemies.loft`: `test_a_rat_chases_the_hero_up_a_sloping_front`, `test_the_hero_strikes_a_rat_across_a_sloping_front`, `test_a_rat_walks_home_down_a_sloping_front`, `test_a_rat_on_a_layer_far_from_home_by_its_way_walks_home`, `test_a_rat_wanders_up_and_down_a_sloping_front`; `tests/moves.loft`: `test_a_thing_is_pushed_up_and_down_a_sloping_front`, `test_a_thing_is_pulled_down_and_up_a_sloping_front`, `test_an_item_is_shoved_over_a_sloping_front` |
 | HG-Cliff | `tests/hexground.loft`: `test_cliffs_only_in_their_areas_and_sharp`; `tests/hexroads.loft`: `test_orburys_cliffs_drop_a_storey_and_its_slopes_do_not` |
 | HG-Hill | `tests/hexground.loft`: `test_a_hill_is_level_at_its_top_and_its_foot` |
 | HG-Seat | `tests/hexground.loft`: `test_a_seated_house_is_level_and_blends_in` |

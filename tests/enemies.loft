@@ -506,10 +506,63 @@ fn test_a_rat_walks_home_down_a_sloping_front() {
   w = terrace(true);
   tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
   rules::put_hero(w, 0, 0, 2);
-  _ = rules::add_enemy(w, "rat", 1, 0, 0);
+  _ = rules::add_enemy(w, "rat", 0, 0, 0);
   w.enemies[0].x = 6;
   w.enemies[0].z = 1;
-  until(w, 6000);
+  // from x 6 its way home is 6; at x 3 up top it is 3, its roam, and the only step within its
+  // roam is down the front
+  down = false;
+  while w.now < 6000 {
+    until(w, w.now + 100);
+    if w.enemies[0].z == 0 { down = true; }
+  }
   e = w.enemies[0];
-  assert(e.z == 0 && e.x <= 4, "back down within its roam of the nest: {rat_at(w)}");
+  assert(down && e.x <= 3, "back down within its roam of the nest: {rat_at(w)}");
+}
+
+// @FR-GM-Front: a rat up on the terrace, beside its nest below but with the only sloping front
+// four rows away (the rest a cliff), is further from home than its roam by the way home: it walks
+// home, down that front, rather than wander up there.
+fn test_a_rat_on_a_layer_far_from_home_by_its_way_walks_home() {
+  w = rules::level(rules::kinds());
+  for y in 0..4 {
+    tile_world::fill(w.w, 0, y, 2, y, 0, rules::tr(w, "floor"));
+    tile_world::fill(w.w, 3, y, 6, y, 0, rules::tr(w, "wall"));
+    tile_world::fill(w.w, 3, y, 6, y, 1, rules::tr(w, "floor"));
+  }
+  s = rules::edge_id(w.k, "slope");
+  tile_world::set_edge(w.w, 3, 3, 0, tile_world::WEST, s);
+  tile_world::set_edge(w.w, 3, 3, 1, tile_world::WEST, s);
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  w.enemies[0].x = 3;
+  w.enemies[0].z = 1;
+  until(w, 10000);
+  e = w.enemies[0];
+  assert(e.z == 0, "home down the far front: {rat_at(w)}");
+}
+
+// @FR-GM-Front: a rat left alone wanders up and down the sloping front by its nest, never further
+// from it than its roam (3); a cliff keeps it on its own layer.
+fn test_a_rat_wanders_up_and_down_a_sloping_front() {
+  for slope in [true, false] {
+    w = terrace(slope);
+    tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+    rules::put_hero(w, 0, 0, 2);
+    _ = rules::add_enemy(w, "rat", 2, 0, 0);
+    layers = [false, false];
+    far = 0;
+    while w.now < 60000 {
+      until(w, w.now + 100);
+      e = w.enemies[0];
+      layers[e.z] = true;
+      if e.x > far { far = e.x; }
+    }
+    if slope {
+      assert(layers[0] && layers[1] && far <= 5, "up and down within its roam: far x{far}");
+    } else {
+      assert(layers[0] && !layers[1] && far <= 2, "kept below by the cliff: far x{far}");
+    }
+  }
 }
