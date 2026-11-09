@@ -1,7 +1,65 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
-State on 2026-11-07 (evening), for picking the work up in a fresh session.  Paths are on the owner's
-machine (`~/workspace`).
+## State on 2026-11-09 (morning) — the owner switches machines
+
+Everything is committed and pushed (`main` @ the commit adding this section).  394 tests
+(`loft --lib libs --tests tests`), 34 game checks (`checks/game.loft`), 8 view checks
+(`loft --native --lib libs checks/view3d.loft`) and the sheet check
+(`cd tools && loft --lib ../libs sheet.loft check`) pass.
+
+**On the new machine.**  Clone, `./fetch-libs.sh`, build loft (`~/workspace/loft`, `make components`
+for the play server's `net`), then `./play-web.sh` and play at http://localhost:8080/orbury.  The
+session's own notes (Claude's memory) live on the old machine under `~/.claude/projects/` and do
+not come along; what they held is here.  **Push** with gh's credentials (plain `git push` has none):
+`git -c credential.helper= -c credential.helper='!gh auth git-credential' -c credential.username=jjstwerff push https://github.com/loft-lang/tile-world-game.git main`
+— the owner wants green work committed and pushed promptly, as a safety measure.  Last machine:
+the release loft (`~/workspace/loft/target/release/loft`) built the page, but its web cdylib did
+not link for the play server, so the server ran with the PATH loft
+(`cd tools && TW_LOG=$PWD/../logs/web-<date>.log loft --lib ../libs playserver.loft`).
+
+**How the work goes now (BUILD.md D1, Orbury).**  The owner plays Orbury in the browser and
+presses F4 where something feels off; each press is a numbered `MARK n` line in the newest
+`logs/web-*.log` with the place, the clock and the hero's cell ("the second thing" is MARK 2).
+Read the log, reproduce (`TW_WORLD=orbury TW_SHOT=… TW_MOVES="w ~300 d ~300"` — the `~ms` waits
+are needed, or moves are swallowed), fix, test, push, rebuild the page.  The 3D view (F1) draws
+only in a browser: `tools/cdp.py` drives a headless Chrome (swiftshader) and takes screenshots.
+
+**Orbury's layout is code**: `tools/orbury_gen.py` writes the intent of `levels/orbury.json`, then
+`loft --lib libs tools/fill.loft orbury` fills it in (`tests/worlds.loft` checks the file is as its
+intent says).  `tools/map.loft orbury OUT.png 2` pictures it whole.  Its parts: the terraces'
+bending fronts as profiles (`HILL`, `TOP`, `MARKET`, `MIDDLE`: the first row of the terrace below,
+run by run), the stream's `COURSE` (the bed's north row), lines kept at an offset from a profile
+(the streets, the lane, the rails), `placed()` houses between the line behind and the line in
+front, a `clear` set foliage keeps off, and the foliage by clumped noise.
+
+**Built 2026-11-08/09** (owner's rulings in LOCATIONS.md § 1 and RENDER_3D.md):
+- the stream: a bed a layer down that winds; ramps out on both banks; no pocket to be stuck in;
+  in the bed the view keeps to the bed (`game::in_trench` — a bank is plain earth, a house's wall
+  is not); shallow water (walk through, the 16th and last terrain kind) and deep water (darker,
+  the game sheet's tiles 108–120);
+- one menu: the world is picked on the server's page (`/orbury`, `/demo`), handed to the game as
+  `host_input` ("world orbury");
+- 3D: thin walls, doors and windows on their edges, stairs as steps, ceilings, pitched roofs
+  (ridge a layer up, gables, the inn's hole open);
+- no straight lines (owner: offset houses, move them up and down the hill, foliage finishes the
+  job): bending terrace fronts and streets, each house at its own depth with a path to its door,
+  the rails and the lane following the stream's bends, bushes and trees (new materials `bush`,
+  `poplar`, `autumn_oak`, `autumn_poplar` of the tree kind); a walk over every layer reaches every
+  front door from the dock (`tests/worlds.loft`).
+
+**Rulings to keep in mind.**  Square maps into hex, never back (RENDER_3D.md § Later): the square
+Orbury is the draft that plays now; a more realistic town is modelled in hex after an import.
+The owner rules the design; proposals are marked ◇ in the docs and kept apart from the owner's
+words.
+
+**Open, not asked for yet.**  House interiors are dark in 3D (daylight through windows); the demo
+village's roofs (wall cells) stay boxes in 3D; the streets jog where the terraces bend — the
+owner may find them too nervous in play.  The D1 items: household templates, neglect states,
+`TW_SEED` dealing, the lord's house in the hilltop, the heart key and the dream (BUILD.md D1).
+
+## State on 2026-11-07 (evening)
+
+Paths are on the owner's machine (`~/workspace`).
 
 **2026-11-07, in short.**  The fight designed again (DESIGN.md @GM-Combat, TEMPLATES.md, BUILD.md
 B1c) and its first steps built: the new keys (Q takes and puts down before the hero, E uses, Tab
