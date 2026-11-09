@@ -396,12 +396,24 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
 | item, tree | a thing on a cell | a thing on a hex cell |
 | edge (a fence, a grate) | between two squares | between two hex cells |
 
-- **Houses at 30°, as far as it is built.**  A `Plan` turns in 60° steps and mirrors: 12
-  orientations.  moros's `place_house` (`pose_footprint`) places a house facing 30°, 90°,
-  150°, … (six of the twelve) and refuses the other six, offering the nearest that fits: their
-  walls run along the hexes' corners (`hex_shape`'s odd turns), for which `hex_draw` has no flat
-  wall yet.  Facing south, as today's houses do, is one of the six.  **Open for the owner:**
-  whether six facings will do for now, or the other six are library work first.
+- **Houses at every 30°, turned or mirrored, never refused** (owner, 2026-11-09).  A turn of
+  30° is not a symmetry of the hex grid, so half the angles can never be exact, but within a few
+  percent a house can always be turned: those angles get the closest approximation instead of a
+  refusal.  Today moros's `place_house` (`pose_footprint`) refuses six of the twelve ("no
+  mitred corners; turn one step"): their walls run along the hexes' corners (`hex_shape`'s odd
+  turns), for which `hex_draw` has no flat wall, because its walls come from a `Plan`, which
+  turns only in 60° steps.  That is a bug to fix in those libraries.
+  - **Measured (2026-11-09, `tools/hex_orbits.py`):** the floor cells (`box_fill`) and the
+    thin walls on their edges already work at every angle.  On the refused angles the edges
+    stray from a straight wall no more than on the accepted ones: at most 0.40–0.66 m on either
+    family (a 7.5 × 6, a 4.5 × 4.5 and a 12 × 7.5 m house), about the drawn wall's thickness,
+    and which family is the closer depends on the house's size, not its angle.
+  - **The fix** ◇: every angle draws its walls as the rectangle's own sides, at the exact angle
+    and size the author gave, mitred at the rectangle's corners, and its roof from the same
+    rectangle; the cells and the edges are the closest the grid has, as on the accepted angles
+    today.  The placement answers how far it is off (moros's `fp_residual` already carries a
+    residual) instead of refusing.  The fix belongs to `hex_shape` and `hex_draw` (walls from a
+    `Box`, not only a `Plan`) and to moros's `hex_editor` (no refusal).
 - **Thin walls.**  A wall is a mark on the edge between two cells (`hex_field`'s `EdgeSet`), so
   it takes no cell: the standard house, 5 × 4 hex steps (7.5 × 6 m), keeps all 27 of its floor
   cells.  It is drawn half a hex step thick (0.75 m); movement stops on the edge
