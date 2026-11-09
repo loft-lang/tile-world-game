@@ -425,6 +425,10 @@ not the owner's is ◇.
   the world is drawn again only when it changes; the hero, the people, the monsters and the items
   in motion are drawn every frame.
 - **Those are simple sprite blits**, not drawn through the 3D routines.
+- **The game logic does not know how it is drawn**: OpenGL and the Tanmatsu's drawing sit behind
+  one abstraction, so neither influences the game logic (E1).
+- **The Tanmatsu's side lives in libraries**: the drawing, the sprites and the frames for the
+  device are libraries' code, not the game's.
 - **As few triangles as possible**: a face whose back is to the eye is skipped, and sight lines
   (the rules already have some) leave out what cannot be seen.
 - **Far away, triangles become dots**: cheaper to draw than a textured triangle.
@@ -563,20 +567,49 @@ The columns overlap, so they do not add up.  What it shows:
       walking, 197 µs for the busy scene; the copy to the panel alone 230 µs.  What they take on
       the device waits for the calibration run.
     - Not yet in it: figures turned and leaned as `motion.loft` poses them, and B drawn by E2.
-- **E1. Landscape and actors apart** ◇.  `render3d.loft` builds the landscape's faces and the
-  actors' sprites as two lists (today the cards are faces drawn with the rest).  On the GPU in
-  the browser nothing changes for the player.  Red: the frames in the browser change
-  (`checks/view3d.loft` and a TW_SHOT before and after, byte-identical).
+- **E1. One seam between the game and its drawing** (owner, 2026-11-09: OpenGL and the new code
+  must not influence the game logic) ◇.
+  - **From the game to a view: what is there, never how to draw it.**  The landscape (the cells,
+    with a counter the rules raise whenever something in it changes: a door, a push, a flame
+    lit), the actors (who, where, facing, the pose `motion.loft` gives, what they carry) and the
+    overlays (speech, the cursor, the intent marks).  The landscape and the actors are two lists
+    (today the cards are faces drawn with the rest).  A view builds its faces or sprites from
+    them on its own side.
+  - **From a view to the game: only acts**, the ones keys give: a step, a turn, an act on a
+    cell.  Today the 3D view turns the hero by writing `g.world.face_x` and `face_y` itself
+    (`render3d::steer`, `after`).  Turning becomes an act the rules perform, so it is in the
+    play log like any other.
+  - **Behind the seam, the views**: the 2D tiles (desktop, browser, Tanmatsu), the 3D on the
+    GPU (OpenGL; WebGL in the browser) and the 3D on the CPU (the Tanmatsu, E2 and E3).  Each
+    keeps its own caches (B, the GPU's meshes, the atlas) and decides from the counter when to
+    build them again.  How long a view takes never changes what the rules do: they tick on their
+    own clock.  The Tanmatsu's views are libraries (owner; E2, E3); the game keeps only what
+    is there and which view shows it.
+  - **Today**: the rules import no drawing already.  `game.loft` draws the 2D itself through
+    `tiles` (about 40 calls; `Game` holds the surface), and `render3d.loft` mixes what is seen
+    with the GPU's calls.  Both move behind the seam: the 2D drawing out of `game.loft`, and
+    `render3d.loft` split into the faces of what is seen and the GPU's drawing of them, so E2
+    draws the same faces on the CPU.
+  - Red: (a) a check that no game-logic module (`rules`, `motion`, `game`, `talk`, `intent`)
+    uses `tiles`, `graphics`, `screen` or `render3d`; (b) one walk-through played with the 2D
+    view, with the 3D view and with none gives the same play log; (c) the frames in the browser
+    do not change (`checks/view3d.loft` and a TW_SHOT before and after, byte-identical).
 - **E2. Drawing B on the CPU** ◇.  The landscape's triangles drawn in software into B: textured
   spans with the atlas's texels sampled nearest, each vertex's light from the rules, a depth
-  test.  Written in C, as a library's C part (as `tiles` draws its pictures): `graphics::Canvas`
-  has only flat triangles and draws pixel by pixel in loft.  Drawn in bands of 32 columns in the
+  test.  **In a library** (owner), as its C part, the way `tiles` draws its pictures: a new one in
+  loft-libs-graphics (working name `raster3d`) ◇ that takes faces, an atlas and a camera and
+  draws a colour and a depth picture, so another game (crawler, moros) can use it too.
+  `graphics::Canvas` is not it: it has only flat triangles and draws pixel by pixel in loft.  Drawn in bands of 32 columns in the
   fast SRAM; with the panel mounted portrait, a band of the picture's columns is a run of the
   panel's rows, one block of memory.  Red: B drawn by this renderer and by the GPU differ beyond
   a stated number of pixels (the tolerance names what affine texturing bends).
 - **E3. The actors as sprites, and the frame** (@PLN218) ◇.  Two framebuffers, flipped at the
-  refresh; the rectangles put back from B; the actors blitted, depth-tested against B.  Red: at
-  every frame of the routine, the picture differs from drawing everything from scratch.
+  refresh; the rectangles put back from B; the actors blitted, depth-tested against B.  **In
+  libraries** (owner) ◇: the depth test added to `tiles::sprite` (it already stretches and turns
+  a tile); the changed rectangles and the flip with @PLN218's engine; two framebuffers in
+  `screen` and loft's `loft_esp.h`.  `bench/actors.c` moves to that library's bench then, as
+  `tiles` has `bench/frame.c`.  Red: at every frame of the routine, the picture differs from
+  drawing everything from scratch.
 - **E4. Culling, so B is drawn faster** ◇.
   - **Back faces**: every face wound one way, its front toward its open side; a thin wall is
     two-sided (two faces).  Red: a check that every face's front points to its open side.
