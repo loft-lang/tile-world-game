@@ -49,16 +49,34 @@ fn house_json(b: hexwalls::Built, name: text, turn: integer, cq: integer, cr: in
     exact += "{hex_draw::surface_heading(wl)}";
   }
   axes = hexwalls::axes_of(b.boundary);
-  "{{\"name\": \"{name}\", \"turn\": {turn}, \"axes\": {axes}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}]}}"
+  ops = "";
+  for o in b.openings {
+    if len(ops) > 0 { ops += ", "; }
+    oe = "";
+    for i in o.edges {
+      e = b.boundary[i];
+      if len(oe) > 0 { oe += ", "; }
+      oe += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
+    }
+    ops += "{{\"kind\": {o.kind}, \"wall\": {o.wall}, \"a\": [{o.ax}, {o.ay}], \"b\": [{o.bx}, {o.by}], \"edges\": [{oe}]}}";
+  }
+  "{{\"name\": \"{name}\", \"turn\": {turn}, \"axes\": {axes}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}], \"openings\": [{ops}]}}"
 }
 
 fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
   hexhouse::Part { u0: u0, v0: v0, u1: u1, v1: v1 }
 }
 
+fn door(u: integer, v: integer) -> hexhouse::Spec { hexhouse::Spec { kind: hexwalls::DOOR, u: u, v: v } }
+fn window(u: integer, v: integer) -> hexhouse::Spec { hexhouse::Spec { kind: hexwalls::WINDOW, u: u, v: v } }
+
 fn main() {
   way = if (arguments()[0] ?? "") == "outline" { hexturn::BY_OUTLINE } else { hexturn::BY_WALLS };
+  sz = hexwalls::sizes_file("hexsizes.json");
   plan = hexhouse::l_plan(6, 3, 3, 4);
+  // A front door and a window beside it, a window at the east end, one in the wing's west side.
+  l_open = [door(2, -3), window(-3, -3), window(6, 0), window(-6, 7)];
+  t_open = [door(0, -3), window(-3, 7), window(3, 7)];
   w = COLS * GAP + 4;
   h = ROWS * GAP + 6;
   println("{{\"terrain\": [0, 0, {w}, {h}], \"houses\": [");
@@ -66,7 +84,7 @@ fn main() {
     cq = 2 + GAP / 2 + (i % COLS ?? 0) * GAP;
     // Rows from the top down (y grows up), so the angles read left to right, top to bottom.
     cr = 2 + GAP / 2 + (ROWS - 1 - (i / COLS ?? 0)) * GAP;
-    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan }, way);
+    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan, openings: l_open }, way, sz);
     sep = if i < 11 { "," } else { "" };
     println("{house_json(b, "L", i, cq, cr)}{sep}");
   }
@@ -83,14 +101,19 @@ fn main() {
     for t in 0..4 {
       cq = 2 + GAP / 2 + t * GAP;
       cr = 2 + GAP / 2 + (rows - 1 - s) * GAP;
-      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] }, way);
+      ops: vector<hexhouse::Spec> = if s >= 4 && s != 5 { t_open } else { [] };
+      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s], openings: ops }, way, sz);
       shown = t;
       if s == rows - 1 {
         // Drawn at 30° and turned from there, by 0°, 30°, 60° and 90°: the turn reads only the
         // cells, whatever direction they were drawn in.
-        drawn = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: 1, parts: plans[s] }, way);
+        // the 30° house's data (cells and marks) is the hexhouse build's, turned on from there
+        d0 = hexhouse::HexHouse { cq: cq, cr: cr, turn: 1, parts: plans[s], openings: t_open };
+        drawn = hexhouse::build(d0, way);
         shown = 1 + t;
-        b = hexwalls::from_cells(hexturn::turn(drawn.cells, cq, cr, t, way), shown);
+        data = hexturn::Data { cells: drawn.cells, marks: drawn.edges };
+        moved = hexturn::turn_data(data, cq, cr, t, way, 1, sz);
+        b = hexwalls::from_data(moved.cells, moved.marks, shown, sz);
       }
       sep = if s < rows - 1 || t < 3 { "," } else { "" };
       println("{house_json(b, names[s], shown, cq, cr)}{sep}");

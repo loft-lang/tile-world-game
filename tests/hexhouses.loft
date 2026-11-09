@@ -30,9 +30,24 @@ fn shapes() -> vector<Shape> {
    Shape { name: "U", parts: [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)] }]
 }
 
+/// The measurements in hexsizes.json: every rule is checked with the sizes the file holds.
+fn sizes() -> hexwalls::Sizes { hexwalls::sizes_file("../hexsizes.json") }
+
 fn house(s: const Shape, turn: integer) -> hexwalls::Built {
-  hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: turn, parts: s.parts })
+  hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: turn, parts: s.parts }, hexturn::BY_WALLS, sizes())
 }
+
+/// The most an opening `w` wide can land from its place along a wall whose edges' midpoints lie
+/// `s` apart (HO-Turn30).
+fn along_bound(w: float, s: float) -> float {
+  if w < s { return s * 0.5; }
+  r = w - s * floor(w / s);
+  (if r > s - r { r } else { s - r }) * 0.5
+}
+
+/// How far apart the midpoints of a wall's edges lie, along it: √3/2 on a tops wall (an even
+/// heading), 3/4 on a sides wall.
+fn spacing(h: integer) -> float { if h % 2 == 0 { 0.8660254037844386 } else { 0.75 } }
 
 fn key(q: integer, r: integer) -> integer { (q + 4096) * 8192 + r + 4096 }
 
@@ -316,4 +331,222 @@ fn test_a_t_keeps_its_proportions_at_thirty_degrees() {
   for i in 0..3 {
     assert(abs_f(thirty[i] - zero[i]) <= 0.25, "the T at 30°: gap {i} {thirty[i]} m against {zero[i]} m at 0°, within 0.25 m");
   }
+}
+
+// ── doors and windows ────────────────────────────────────────────────────────
+
+fn door(u: integer, v: integer) -> hexhouse::Spec { hexhouse::Spec { kind: hexwalls::DOOR, u: u, v: v } }
+fn window(u: integer, v: integer) -> hexhouse::Spec { hexhouse::Spec { kind: hexwalls::WINDOW, u: u, v: v } }
+
+/// Shapes with doors and windows on walls of both kinds.
+struct Opened {
+  name: text,
+  parts: vector<hexhouse::Part>,
+  openings: vector<hexhouse::Spec>
+}
+
+fn opened() -> vector<Opened> {
+  [Opened { name: "L", parts: hexhouse::l_plan(6, 3, 3, 4),
+            openings: [door(2, -3), window(-3, -3), window(6, 0), window(-6, 7)] },
+   Opened { name: "T", parts: [part(-8, -3, 8, 3), part(-3, 3, 3, 11)],
+            openings: [door(0, -3), window(-3, 7), window(3, 7)] },
+   Opened { name: "box 5x4", parts: hexhouse::box_plan(5, 4),
+            openings: [door(0, -4), window(-5, 0), window(5, 1), window(-2, 4), window(4, 4)] }]
+}
+
+fn opened_house(o: const Opened, turn: integer) -> hexwalls::Built {
+  hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: turn, parts: o.parts, openings: o.openings },
+                  hexturn::BY_WALLS, sizes())
+}
+
+fn count_kind(b: hexwalls::Built, kind: integer) -> integer {
+  n = 0;
+  for o in b.openings { if o.kind == kind { n += 1; } }
+  n
+}
+
+fn spec_kind(o: const Opened, kind: integer) -> integer {
+  n = 0;
+  for s in o.openings { if s.kind == kind { n += 1; } }
+  n
+}
+
+// @FR-HO-Width, @FR-HO-Turn30: one width for a kind on every wall at every angle; every opening kept
+fn test_every_opening_has_its_kinds_width() {
+  sz = sizes();
+  for o in opened() {
+    for t in 0..12 {
+      b = opened_house(o, t);
+      assert(count_kind(b, hexwalls::DOOR) == spec_kind(o, hexwalls::DOOR), "{o.name} at {30 * t}°: its doors kept");
+      assert(count_kind(b, hexwalls::WINDOW) == spec_kind(o, hexwalls::WINDOW), "{o.name} at {30 * t}°: its windows kept");
+      for p in b.openings {
+        dx = p.bx - p.ax;
+        dy = p.by - p.ay;
+        w = sqrt(dx * dx + dy * dy);
+        assert(abs_f(w - hexwalls::opening_width(p.kind, sz)) < 0.000000001, "{o.name} at {30 * t}°: an opening {w} wide, its kind's width {hexwalls::opening_width(p.kind, sz)}, on a wall along heading {heading(b.walls[p.wall]!)}");
+      }
+    }
+  }
+}
+
+// @FR-HO-Point, @FR-HO-Place: an opening is one or two marked edges of its wall, and the walls
+// are the same as without it
+fn test_an_opening_is_marked_edges_and_leaves_the_walls_alone() {
+  for o in opened() {
+    for t in 0..12 {
+      b = opened_house(o, t);
+      plain = hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: t, parts: o.parts }, hexturn::BY_WALLS, sizes());
+      assert(len(b.walls) == len(plain.walls), "{o.name} at {30 * t}°: as many walls as without openings");
+      for i in 0..len(b.walls) {
+        same = abs_f(hex_draw::surface_mean_x(b.walls[i]) - hex_draw::surface_mean_x(plain.walls[i]!)) < 0.000000001 &&
+               abs_f(hex_draw::surface_mean_y(b.walls[i]) - hex_draw::surface_mean_y(plain.walls[i]!)) < 0.000000001 &&
+               heading(b.walls[i]) == heading(plain.walls[i]!);
+        assert(same, "{o.name} at {30 * t}°: wall {i} where it is without openings");
+      }
+      for p in b.openings {
+        assert(len(p.edges) >= 1 && len(p.edges) <= 2, "{o.name} at {30 * t}°: an opening over {len(p.edges)} edges, one or two");
+        run = b.runs[p.wall] ?? [];
+        for i in p.edges {
+          inside = false;
+          for j in run { if j == i { inside = true; } }
+          assert(inside, "{o.name} at {30 * t}°: an opening's edge in its own wall");
+          e = b.boundary[i];
+          assert(hex_field::edge_mat(b.edges, e.qa, e.ra, e.qb, e.rb) == p.kind, "{o.name} at {30 * t}°: its edges marked with its kind");
+        }
+      }
+    }
+  }
+}
+
+// @FR-HO-Clear: an opening stays between its wall's corners, half a unit clear
+fn test_every_opening_stands_clear_of_its_corners() {
+  sz = sizes();
+  for o in opened() {
+    for t in 0..12 {
+      b = opened_house(o, t);
+      n = len(b.corners);
+      for p in b.openings {
+        (ax, ay) = b.corners[(p.wall + n - 1) % n ?? 0] ?? (0.0, 0.0);
+        (bx, by) = b.corners[p.wall] ?? (0.0, 0.0);
+        l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+        ux = (bx - ax) / l ?? 0.0;
+        uy = (by - ay) / l ?? 0.0;
+        s0 = (p.ax - ax) * ux + (p.ay - ay) * uy;
+        s1 = (p.bx - ax) * ux + (p.by - ay) * uy;
+        lo = if s0 < s1 { s0 } else { s1 };
+        hi = if s0 < s1 { s1 } else { s0 };
+        need = sz.corner - along_bound(hexwalls::opening_width(p.kind, sz), spacing(heading(b.walls[p.wall]!)));
+        assert(lo >= need - 0.000000001 && hi <= l - need + 0.000000001,
+               "{o.name} at {30 * t}°: an opening from {lo} to {hi} on a wall {l} long, {need} clear of both ends");
+      }
+    }
+  }
+}
+
+/// The opening of `kind` in `b` nearest (x, y), and how far.
+fn nearest_opening(b: hexwalls::Built, kind: integer, x: float, y: float) -> (integer, float) {
+  best = -1;
+  best_d = 0.0;
+  for i in 0..len(b.openings) {
+    p = b.openings[i];
+    if p.kind != kind { continue; }
+    d = sqrt((p.cx - x) * (p.cx - x) + (p.cy - y) * (p.cy - y));
+    if best < 0 || d < best_d { best = i; best_d = d; }
+  }
+  (best, best_d)
+}
+
+// @FR-HO-Turn60: a 60° step turns the openings exactly
+fn test_a_sixty_degree_step_turns_openings_exactly() {
+  for o in opened() {
+    base = [opened_house(o, 0), opened_house(o, 1)];
+    for t in 2..12 {
+      b = opened_house(o, t);
+      a = ((t - t % 2) as float) * PI / 6.0;
+      for p in (base[t % 2]!).openings {
+        x = p.cx * cos(a) - p.cy * sin(a);
+        y = p.cx * sin(a) + p.cy * cos(a);
+        (i, d) = nearest_opening(b, p.kind, x, y);
+        assert(i >= 0 && d < 0.000001, "{o.name} at {30 * t}°: an opening turned {30 * (t - t % 2)}° from {30 * (t % 2)}°, {d} from where it lands");
+      }
+    }
+  }
+}
+
+// @FR-HO-Turn30: an odd step moves an opening along its wall by at most (√3 − 1)/2 unit from its
+// turned place (kept clear of the wall's ends); across, it moves with its wall
+fn test_an_odd_step_moves_an_opening_little_along_its_wall() {
+  sz = sizes();
+  for o in opened() {
+    zero = opened_house(o, 0);
+    turned = opened_house(o, 1);
+    for p in zero.openings {
+      (x, y) = hexturn::turned_point(zero.cells, 0, 0, 1, hexturn::BY_WALLS, p.cx, p.cy);
+      (i, _d) = nearest_opening(turned, p.kind, x, y);
+      assert(i >= 0, "{o.name}: the opening at ({p.cx}, {p.cy}) kept at 30°");
+      q = turned.openings[i];
+      (ux, uy) = hexwalls::wall_dir(turned.walls[q.wall]!);
+      // where along the wall it is to go: its turned place, kept clear of the wall's ends
+      n = len(turned.corners);
+      (ax, ay) = turned.corners[(q.wall + n - 1) % n ?? 0] ?? (0.0, 0.0);
+      (bx, by) = turned.corners[q.wall] ?? (0.0, 0.0);
+      e0 = (ax - x) * ux + (ay - y) * uy;
+      e1 = (bx - x) * ux + (by - y) * uy;
+      clear = hexwalls::opening_width(q.kind, sz) * 0.5 + sz.corner;
+      lo = (if e0 < e1 { e0 } else { e1 }) + clear;
+      hi = (if e0 < e1 { e1 } else { e0 }) - clear;
+      goal = if lo > hi { (lo + hi) * 0.5 } else if 0.0 < lo { lo } else if 0.0 > hi { hi } else { 0.0 };
+      along = abs_f((q.cx - x) * ux + (q.cy - y) * uy - goal);
+      across = abs_f((q.cx - x) * -uy + (q.cy - y) * ux);
+      h = heading(turned.walls[q.wall]!);
+      row = if (h + 3) % 2 == 1 { hexturn::ROW_ODD } else { hexturn::ROW_EVEN };
+      bound = along_bound(hexwalls::opening_width(q.kind, sz), spacing(h));
+      assert(along <= bound + 0.000001, "{o.name} at 30°: an opening {along} along its wall from its turned place, at most {bound}");
+      assert(across <= row * 0.5 + 0.000001, "{o.name} at 30°: an opening {across} across its wall from its turned place, at most half a row ({row * 0.5})");
+    }
+  }
+}
+
+/// How far the opening's span stands from the nearer end of its wall.
+fn clear_of_ends(b: hexwalls::Built, p: hexwalls::Opening) -> float {
+  n = len(b.corners);
+  (ax, ay) = b.corners[(p.wall + n - 1) % n ?? 0] ?? (0.0, 0.0);
+  (bx, by) = b.corners[p.wall] ?? (0.0, 0.0);
+  l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+  ux = (bx - ax) / l ?? 0.0;
+  uy = (by - ay) / l ?? 0.0;
+  s0 = (p.ax - ax) * ux + (p.ay - ay) * uy;
+  s1 = (p.bx - ax) * ux + (p.by - ay) * uy;
+  lo = if s0 < s1 { s0 } else { s1 };
+  hi = if s0 < s1 { s1 } else { s0 };
+  if lo < l - hi { lo } else { l - hi }
+}
+
+// @FR-HO-Place, @FR-HO-Clear: a window asked for at a corner is placed clear of it
+fn test_an_opening_asked_for_at_a_corner_is_kept_clear_of_it() {
+  sz = sizes();
+  for c in [(5, 4), (-5, 4), (5, -4), (-5, -4)] {
+    for t in 0..12 {
+      b = hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: t, parts: hexhouse::box_plan(5, 4),
+                                               openings: [window(c.0, c.1)] }, hexturn::BY_WALLS, sz);
+      assert(len(b.openings) == 1, "box 5x4 at {30 * t}°: the window at corner ({c.0}, {c.1}) kept");
+      p = b.openings[0]!;
+      d = clear_of_ends(b, p);
+      need = sz.corner - along_bound(hexwalls::opening_width(p.kind, sz), spacing(heading(b.walls[p.wall]!)));
+      assert(d >= need - 0.000000001, "box 5x4 at {30 * t}°: the window asked for at corner ({c.0}, {c.1}) {d} from the wall's end, at least {need}");
+    }
+  }
+}
+
+// @FR-HS-File, @FR-HS-Wall, @FR-HS-Corner: the sizes the file holds keep the rules
+fn test_the_sizes_file_keeps_the_rules() {
+  text = file("../hexsizes.json").content() ?? "";
+  assert(len(text) > 0, "hexsizes.json is there to read");
+  sz = sizes();
+  band = 0.8660254037844386;
+  for w in [("an outer wall", sz.wall), ("an inner wall", sz.inner), ("a fence", sz.fence)] {
+    assert(w.1 > 0.0 && w.1 <= band + 0.000000001, "{w.0} {w.1 / hexwalls::PER_METRE} m thick, more than nothing and at most the band between two rows (0.75 m)");
+  }
+  assert(sz.corner >= band - 0.000000001, "the corner clearance {sz.corner / hexwalls::PER_METRE} m, at least 0.75 m");
+  assert(sz.door > 0.0 && sz.window > 0.0, "a door and a window wider than nothing");
 }

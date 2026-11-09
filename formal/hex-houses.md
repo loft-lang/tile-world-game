@@ -66,8 +66,9 @@ are objects with a rotation of their own, not structures of cells.
                 outline closes.
   (HW-Clear)    ⚑ Every hex centre is clearly inside or outside the drawn walls: a centre lies
                 inside the outline exactly when its cell belongs to the structure, and no centre
-                is nearer a wall's middle line than half a wall's thickness (√3/4 unit), so none
-                lies under a wall (owner: the one thing that matters).
+                is nearer a wall's middle line than √3/4 unit (half the band between two rows),
+                so none lies under a wall drawn no thicker than √3/2 (HS-Wall) (owner: the one
+                thing that matters).
 ```
 
 **In words.** The walls are not taken from a plan; they are read from the cells.  The boundary of
@@ -114,6 +115,65 @@ cells inside its turned walls are fixed, and the walls drawn from them stand on 
 their old places.  It is what keeps a T a T: at 0° its arm, stem and arm are 3.75, 5.25 and 3.75
 m wide, at 30° 3.9, 5.2 and 3.9 m; on its pivot instead, the stem could only be 3.9 or 6.5 m.
 
+## Doors and windows
+
+```
+  (HO-Point)    In the data a door or a window is a material on wall edges, never a gap: its
+                edges stay wall, and the walls are solved as if it were not there.  To the walls
+                it is a point on its wall's line, its centre: the mean of its edges' midpoints,
+                taken onto the line (owner).
+  (HO-Width)    An opening is drawn at one width for its kind, on every wall of both kinds and at
+                every angle — the width hexsizes.json gives its kind — centred on its point.
+                The wall leaves room for it there and a mesh fills the room, so one mesh fits
+                every opening of a kind (owner).
+  (HO-Place)    The editor places an opening at a point: on the wall nearest the point, its
+                centre where the point falls along that wall, kept clear of the wall's ends by
+                half its width and the corner clearance (HS-Corner); it marks the edges of that
+                wall whose
+                midpoints, along it, lie within half its width of the centre, or the nearest edge
+                when none does.  So it covers one edge or two.
+  (HO-Clear)    An opening lies wholly on its wall: its drawn span stays between the wall's two
+                corners, at least the corner clearance less the most its edges can move it
+                (HO-Turn30's bound) from each — half a unit (0.43 m) with today's sizes.
+  (HO-Turn60)   A 60° step turns an opening's edges with the cells, exactly.
+  (HO-Turn30)   An odd step turns an opening's centre with the structure, its offset included
+                (`hexturn::turned_point`), and places it again on the turned wall (HO-Place).
+                Every opening is kept, kind by kind.  Along its wall it lands near its turned
+                place (kept clear of the wall's ends): within the most the centre of the edges
+                under it can be from a point — for an opening w wide on a wall whose edges'
+                midpoints lie s apart (√3/2 unit along a tops wall, 3/4 along a sides wall), s/2
+                when w < s, else max(r, s − r)/2 with r the remainder of w over s: (√3 − 1)/2
+                unit (0.32 m) for today's one-unit doors and windows.  Across, it moves with its
+                wall (HT-Near).  So the distance between two openings changes a little (owner).
+```
+
+**In words.** A door is wall in the data — a mark on a few of the wall's edges — so the wall is
+straight and whole whatever doors it has.  What the wall gets from a door is a point, and the
+drawing makes room for a mesh there, of one width for every door, whether the wall is a tops wall
+or a sides wall and whatever the angle.  Placing a door marks the one or two edges under it; along
+a tops wall the edges' midpoints lie 0.866 units apart, along a sides wall 0.75, so with a width of
+one unit there is always an edge under it, and the centre the edges give is never more than
+(√3 − 1)/2 unit from where the door was asked for.  Turning carries the door's point with the
+structure and places it again; that is where the distances between doors change a little.
+
+## Sizes
+
+```
+  (HS-File)     The measurements are read from hexsizes.json, in metres: each kind of wall's
+                thickness (outer, inner, fence: each its own, owner), each kind of opening's
+                width, the corner clearance.  The routines take them as given; changing them
+                changes no routine (owner, 2026-11-09).
+  (HS-Wall)     A wall is drawn no thicker than √3/2 unit (0.75 m), the band between two rows of
+                hex centres, so no centre lies under it (HW-Clear).
+  (HS-Corner)   The corner clearance — how far an opening's edge keeps from its wall's corner —
+                is at least √3/2 unit (0.75 m).  Nearer a corner a wall's edges lie further apart
+                (the corner takes one), and an opening there cannot land near its place: kept
+                only half that, three of 384 measured openings landed 0.46 to 0.57 unit off.
+```
+
+`tests/hexhouses.loft` reads hexsizes.json and checks every rule with the sizes it holds, so a
+change to the file is a change the tests judge.
+
 ## The house's plan
 
 ```
@@ -150,10 +210,24 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HX-Size, HW-Axes (the tie) | `test_the_smallest_box_shows_no_direction` |
 | HT-Drawing, HX-Cells | `test_a_structure_drawn_at_thirty_degrees_turns_from_its_cells` |
 | HP-Fill, HP-Zero | `test_a_box_at_zero_degrees_is_the_box_fill` |
+| HO-Width | `test_every_opening_has_its_kinds_width` |
+| HO-Point, HO-Place | `test_an_opening_is_marked_edges_and_leaves_the_walls_alone` |
+| HO-Clear | `test_every_opening_stands_clear_of_its_corners` |
+| HO-Turn60 | `test_a_sixty_degree_step_turns_openings_exactly` |
+| HO-Turn30 | `test_an_odd_step_moves_an_opening_little_along_its_wall` |
+| HO-Place, HO-Clear (at a corner) | `test_an_opening_asked_for_at_a_corner_is_kept_clear_of_it` |
+| HS-File, HS-Wall, HS-Corner | `test_the_sizes_file_keeps_the_rules` |
+
+Measured for HO-Turn30: a door and a window at every half step along every wall of five boxes
+(384 openings, corners included), turned 30°: the worst 0.317 units along the wall, under the
+bound of 0.366.  Kept only half a wall's thickness from the corners, three places came out at
+0.46 to 0.57, all within about one unit of a corner: what HO-Clear's full thickness is for.
 
 Each was seen to fail (2026-11-09) when the code broke its rule: the axes not read off the cells
 (five tests fail), a 60° step turned one step too far (two), the structure never moved half a
-row (the T's).  Leaving the walls where they are instead of moving them to their nearest lines
+row (the T's); for the openings, a width taken from the count of edges (three), the offset not
+carried to the openings (one), no clearance from the corners (one), a 60° step turning the marked
+edges too far (two).  Leaving the walls where they are instead of moving them to their nearest lines
 fails nothing, and should not: it changes no cell (HT-Turn30).
 
 ## Not covered

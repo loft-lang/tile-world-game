@@ -17,7 +17,8 @@ import json, math, sys
 S3 = math.sqrt(3)
 CK = [0, -1, -1, 0, 1, 1]          # hex_field's corner order, doubled coordinates
 CM = [2, 1, -1, -2, -1, 1]
-BAND = S3 / 2                       # a drawn wall's thickness, ROUNDTRIP §6.2 (0.75 m)
+# a drawn wall's thickness, from hexsizes.json (metres; one world unit is 0.866 m)
+BAND = json.load(open("hexsizes.json")).get("walls", {}).get("outer", 0.75) / 0.8660254037844386
 
 src = sys.argv[1] if len(sys.argv) > 1 else "build/hexhouses.json"
 out = sys.argv[2] if len(sys.argv) > 2 else "hexhouses.html"
@@ -59,6 +60,7 @@ def draw(terrain, houses, label, aria):
 
     grid = "".join(f'<polygon points="{hexagon(q, r)}"/>' for r in range(r0, r0 + h) for q in range(q0, q0 + w))
     floors, thin, tops, sides, skew, labels, stats = [], [], [], [], [], [], []
+    doors, windows, open_edges = [], [], []
     for hs in houses:
         turn = hs["turn"]
         axes = {(turn + 3 * i) % 12 for i in range(4)}
@@ -67,14 +69,31 @@ def draw(terrain, houses, label, aria):
                  for ak, am, bk, bm in hs["edges"]]
         cs = hs["corners"]
         on_axis = 0
+        ops = hs.get("openings", [])
         for i in range(len(cs)):
-            # wall i runs from corner i-1 to corner i (corner i is where wall i meets wall i+1)
-            line = f'<line x1="{cs[i - 1][0]:.3f}" y1="{y_max - cs[i - 1][1]:.3f}" x2="{cs[i][0]:.3f}" y2="{y_max - cs[i][1]:.3f}"/>'
+            # wall i runs from corner i-1 to corner i (corner i is where wall i meets wall i+1),
+            # with room left for its doors and windows
+            (ax, ay), (bx, by) = cs[i - 1], cs[i]
+            length = math.hypot(bx - ax, by - ay)
+            ux, uy = (bx - ax) / length, (by - ay) / length
+            gaps = sorted(sorted(((o["a"][0] - ax) * ux + (o["a"][1] - ay) * uy,
+                                  (o["b"][0] - ax) * ux + (o["b"][1] - ay) * uy)) for o in ops if o["wall"] == i)
+            pieces, at = [], 0.0
+            for g0, g1 in gaps:
+                pieces.append((at, g0)); at = g1
+            pieces.append((at, length))
+            group = (tops if hs["exact"][i] % 2 == 0 else sides) if hs["exact"][i] in axes else skew
+            for p0, p1 in pieces:
+                if p1 - p0 > 1e-6:
+                    group.append(f'<line x1="{ax + ux * p0:.3f}" y1="{y_max - (ay + uy * p0):.3f}" '
+                                 f'x2="{ax + ux * p1:.3f}" y2="{y_max - (ay + uy * p1):.3f}"/>')
             if hs["exact"][i] in axes:
-                (tops if hs["exact"][i] % 2 == 0 else sides).append(line)
                 on_axis += 1
-            else:
-                skew.append(line)
+        for o in ops:
+            line = f'<line x1="{o["a"][0]:.3f}" y1="{y_max - o["a"][1]:.3f}" x2="{o["b"][0]:.3f}" y2="{y_max - o["b"][1]:.3f}"/>'
+            (doors if o["kind"] == 1 else windows).append(line)
+            open_edges += [f'<line x1="{ak * S3 / 2:.3f}" y1="{y_max - am / 2:.3f}" x2="{bk * S3 / 2:.3f}" y2="{y_max - bm / 2:.3f}"/>'
+                           for ak, am, bk, bm in o["edges"]]
         # The label just above the house's highest corner, over its middle.
         mid_x = sum(c[0] for c in cs) / len(cs)
         top = max(c[1] for c in cs)
@@ -85,7 +104,10 @@ def draw(terrain, houses, label, aria):
            f'<g class="tops" stroke-width="{BAND:.4f}">{"".join(tops)}</g>'
            f'<g class="sides" stroke-width="{BAND:.4f}">{"".join(sides)}</g>'
            f'<g class="skew" stroke-width="{BAND:.4f}">{"".join(skew)}</g>'
-           f'<g class="thin">{"".join(thin)}</g><g class="label">{"".join(labels)}</g></svg>')
+           f'<g class="door" stroke-width="{BAND:.4f}">{"".join(doors)}</g>'
+           f'<g class="window" stroke-width="{BAND * 0.55:.4f}">{"".join(windows)}</g>'
+           f'<g class="thin">{"".join(thin)}</g><g class="openedge">{"".join(open_edges)}</g>'
+           f'<g class="label">{"".join(labels)}</g></svg>')
     return svg, stats
 
 svg, stats = draw(d["terrain"], d["houses"], lambda hs: f"{30 * hs['turn']}°", "Twelve L-shaped houses on a hex grid")
@@ -116,6 +138,7 @@ page = f"""<!doctype html>
     --bg: #f6efe2; --panel: #fffaf1; --ink: #2b2230; --muted: #6b5f6e; --line: #e2d5bf;
     --accent: #c8642f; --grass: #d6e4c4; --grass-line: #aabd9e; --floor: #ecd6aa;
     --floor-line: #c4ac80; --thin: #c81e1e; --tops: rgba(50, 60, 120, 0.7); --sides: rgba(40, 110, 70, 0.75);
+    --door: #8a4b1c; --window: #3aa0e0; --openedge: #f2c200;
     --skew: rgba(235, 130, 20, 0.85);
   }}
   @media (prefers-color-scheme: dark) {{
@@ -123,6 +146,7 @@ page = f"""<!doctype html>
       --bg: #1d1922; --panel: #26212d; --ink: #efe7f2; --muted: #b2a6b8; --line: #3a3343;
       --accent: #e8834c; --grass: #2f3b2a; --grass-line: #46563f; --floor: #6b5a3c;
       --floor-line: #8a7550; --thin: #ff6b5b; --tops: rgba(150, 170, 255, 0.7); --sides: rgba(120, 220, 150, 0.7);
+      --door: #d08a50; --window: #6cc4ff; --openedge: #ffd84a;
       --skew: rgba(255, 160, 60, 0.9);
     }}
   }}
@@ -130,6 +154,7 @@ page = f"""<!doctype html>
     --bg: #1d1922; --panel: #26212d; --ink: #efe7f2; --muted: #b2a6b8; --line: #3a3343;
     --accent: #e8834c; --grass: #2f3b2a; --grass-line: #46563f; --floor: #6b5a3c;
     --floor-line: #8a7550; --thin: #ff6b5b; --tops: rgba(150, 170, 255, 0.7); --sides: rgba(120, 220, 150, 0.7);
+      --door: #d08a50; --window: #6cc4ff; --openedge: #ffd84a;
       --skew: rgba(255, 160, 60, 0.9);
   }}
   body {{ margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, sans-serif; }}
@@ -145,6 +170,9 @@ page = f"""<!doctype html>
   .sides line {{ stroke: var(--sides); stroke-linecap: square; }}
   .skew line {{ stroke: var(--skew); stroke-linecap: square; }}
   .thin line {{ stroke: var(--thin); stroke-width: 0.14; }}
+  .door line {{ stroke: var(--door); }}
+  .window line {{ stroke: var(--window); }}
+  .openedge line {{ stroke: var(--openedge); stroke-width: 0.22; }}
   .label text {{ fill: var(--ink); font-size: 2px; text-anchor: middle; }}
   h2 {{ margin: 32px 0 4px; font-size: 1.3rem; }}
   ul.key {{ list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); }}
@@ -168,6 +196,9 @@ page = f"""<!doctype html>
     <li><span class="sw" style="background:var(--tops)"></span>a tops wall: the wobble across the tops of a row of hexes</li>
     <li><span class="sw" style="background:var(--sides)"></span>a sides wall: along the sides of hexes under each other</li>
     <li><span class="sw" style="background:var(--skew)"></span>a wall off the house's axes (none should be)</li>
+    <li><span class="sw" style="background:var(--door)"></span>a door and <span class="sw" style="background:var(--window)"></span>a window,
+    one width on every wall at every angle, in room left in the wall; <span class="sw" style="background:var(--openedge)"></span>the
+    edges marked for it in the data</li>
   </ul>
   <figure>{svg}</figure>
   <p>Even angles are the grid's own edge directions, odd angles its corner directions: a 30° turn is no

@@ -37,6 +37,14 @@ pub struct Part {
   pub v1: integer
 }
 
+/// A door or a window as the plan places it: its kind (hexwalls::DOOR or WINDOW) and the point on
+/// the plan's outline it stands at, in half hex steps of the plan's frame.
+pub struct Spec {
+  pub kind: integer,
+  pub u: integer,
+  pub v: integer
+}
+
 /// A house as the author places it: its plan's origin on cell (cq, cr), turned `turn` × 30°
 /// (0..11), mirrored or not.
 pub struct HexHouse {
@@ -44,8 +52,12 @@ pub struct HexHouse {
   pub cr: integer,
   pub turn: integer,
   pub mirror: boolean = false,
-  pub parts: vector<Part>
+  pub parts: vector<Part>,
+  /// Its doors and windows, each at a point on the plan's outline at 0°.
+  pub openings: vector<Spec> = []
 }
+
+
 
 /// A plain rectangular house, `w` hex steps wide and `d` deep.
 pub fn box_plan(w: integer, d: integer) -> vector<Part> { [Part { u0: -w, v0: -d, u1: w, v1: d }] }
@@ -128,9 +140,20 @@ pub fn reach(h: const HexHouse) -> integer {
 /// (hexturn.loft, `way` one of its BY_WALLS and BY_OUTLINE), then the world's walls from the
 /// cells.
 // @FR-HP-Zero, @FR-HX-Editor: the plan's cells at 0°, then the editor's turn, then the world's walls
-pub fn build(h: const HexHouse, way: integer = hexturn::BY_WALLS) -> hexwalls::Built {
+pub fn build(h: const HexHouse, way: integer = hexturn::BY_WALLS,
+             sz: hexwalls::Sizes = hexwalls::default_sizes()) -> hexwalls::Built {
   r = reach(h) + 2;
   cells = hex_field::hexset_chunk(h.cq - r, h.cr - r, 2 * r + 1, 2 * r + 1);
   fill(HexHouse { cq: h.cq, cr: h.cr, turn: 0, mirror: h.mirror, parts: h.parts }, cells);
-  hexwalls::from_cells(hexturn::turn(cells, h.cq, h.cr, h.turn, way), h.turn)
+  d = hexturn::Data { cells: cells, marks: hexwalls::no_marks(cells) };
+  ox = (hex_field::lattice_k(h.cq, h.cr) as float) * 0.8660254037844386;
+  oy = (hex_field::lattice_m(h.cq, h.cr) as float) * 0.5;
+  for o in h.openings {
+    // half a step is √3/2 units; the mirror flips u
+    u = (o.u as float) * 0.8660254037844386;
+    if h.mirror { u = -u; }
+    hexturn::place(d, o.kind, ox + u, oy + (o.v as float) * 0.8660254037844386, 0, sz);
+  }
+  t = hexturn::turn_data(d, h.cq, h.cr, h.turn, way, 0, sz);
+  hexwalls::from_data(t.cells, t.marks, h.turn, sz)
 }

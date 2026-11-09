@@ -1,0 +1,13 @@
+{
+  "about": "The measurements of structures on the hex grid, in metres (formal/hex-houses.md § Sizes). Change them here, not in the routines; tests/hexhouses.loft checks the rules still hold with them. A hex step is 1.5 m, fixed by the grid. Each kind of wall has its own thickness: an outer wall, an inner wall between rooms and a fence (the inner wall and the fence are not drawn yet; their numbers are first guesses for the owner to set).",
+  "walls": {
+    "outer": 0.75,
+    "inner": 0.45,
+    "fence": 0.15
+  },
+  "openings": {
+    "door": 0.8660254037844386,
+    "window": 0.8660254037844386
+  },
+  "corner_clearance": 0.75
+}
