@@ -1,45 +1,29 @@
 // Copyright (c) 2026 Jurjen Stellingwerff
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
-// A house on the hex grid: a floor plan of rectangles (an L, a plain box) turned to any of the
-// twelve 30° angles, mirrored or not, with walls thinner than a cell (WORLD.md § One game, square
-// or hex).  Built here first; the routines move to the hex libraries once they are right (owner,
-// 2026-11-09).
+// The editor's side of a house on the hex grid: a floor plan of rectangles (an L, a T, a box)
+// placed at any of the twelve 30° angles, mirrored or not, as cells (WORLD.md § One game, square or
+// hex).  Turning is an editor step and stays one (owner, 2026-11-09): what it hands the world is
+// cells, and the world draws its walls from the cells alone (hexwalls.loft).  Built here first;
+// the routines move to the hex libraries once they are right.
 //
 // The owner's rulings (2026-11-09):
 //   - every 30° angle is drawn and a house can always be turned or mirrored, never refused; half
 //     the angles cannot be exact (a 30° turn is no symmetry of the grid), so they get the closest
-//     approximation;
+//     approximation, and the turn is not an exact routine;
 //   - the walls are always straight; only the distances between them differ a little after a turn;
 //   - a house is its cells, the hexes inside against those outside, and the walls follow from them;
-//   - where a wall is drawn is the libraries' routine, not a new one.
+//   - the house at 0° stays as the plan gives it; only the turning changes.
 //
-// So, in order:
-//   1. the plan gives the cells (`fill`): a cell is the house's when its centre lies in one of the
-//      plan's rectangles, tested exactly (no float), as `hex_shape::box_fill` does for one box;
-//   2. the thin walls the rules use are the edges between those cells and the outside
-//      (`hex_draw::draw_walls`), so a wall costs no floor;
-//   3. the boundary is walked, the axes its walls run along read off it (`axes_of`), and it is
-//      cut into runs, one per wall (`runs`): each edge goes with the way the boundary travels over
-//      a few edges round it.  It reads nothing but the cells, so the hex and wall model knows no
-//      angle; the placed angle only breaks a tie, for cells that show no direction;
-//   4. each run's wall is `hex_draw`'s surface (`surface_of`: the sum of its edge vectors for the
-//      direction, the exact mean of their midpoints for the position, ROUNDTRIP §6.1) and the
-//      walls are mitred as `hex_draw::surface_miter` does.  `hex_draw` takes the runs from a
-//      `Plan`, which exists for six of the angles and no L; here they come from step 3.  For a
-//      box on those six angles the two give the identical surfaces and corners (tests/hexhouse).
+// The plan gives the 0° house (`fill`'s test: a cell is the house's when its centre lies in one
+// of the plan's rectangles, exactly, no float, as `hex_shape::box_fill` does for one box).  The
+// other angles are that house turned (`turned_house`, below).
 //
-// Lattice units, as `hex_field` keeps them: a cell centre is (2q + (r & 1), 3r) in doubled
-// coordinates (k, m), a point is at x = k·√3/2, y = m/2 world units, a hex step is √3 units
-// (1.5 m), one unit is 0.866 m.  The plan's own frame: u along the turn's heading, v along the
-// heading three steps on, both in half hex steps; the mirror flips u.
-use hex_grid;
+// The plan's own frame: u along the turn's heading, v along the heading three steps on, both in
+// half hex steps; the mirror flips u.
 use hex_field;
 use hex_form;
-use hex_draw;
-
-/// The edge material of a wall.
-pub const WALL = 9;
+use hexwalls;
 
 /// A rectangle of the plan, in half hex steps of its own frame: u from `u0` to `u1`, v from `v0`
 /// to `v1`.  A house `w` steps wide and `d` deep centred on its cell is `Part { u0: -w, v0: -d,
@@ -59,31 +43,6 @@ pub struct HexHouse {
   pub turn: integer,
   pub mirror: boolean = false,
   pub parts: vector<Part>
-}
-
-/// One stored edge of the boundary: the house's cell (qa, ra) and the outside one (qb, rb), and
-/// its corners from (ak, am) to (bk, bm) in doubled coordinates, the house on the left.
-pub struct Edge {
-  pub qa: integer,
-  pub ra: integer,
-  pub qb: integer,
-  pub rb: integer,
-  pub ak: integer,
-  pub am: integer,
-  pub bk: integer,
-  pub bm: integer
-}
-
-/// The house as built: its cells, its thin walls, the boundary in walking order, the runs (each a
-/// list of indices into `boundary`, in order round the house), a surface per run, and the
-/// corners (corner i is where wall i meets wall i + 1, in world units).
-pub struct Built {
-  pub cells: hex_field::HexSet,
-  pub edges: hex_field::EdgeSet,
-  pub boundary: vector<Edge>,
-  pub runs: vector<vector<integer>>,
-  pub walls: vector<hex_draw::WallSurface>,
-  pub corners: vector<(float, float)>
 }
 
 /// A plain rectangular house, `w` hex steps wide and `d` deep.
@@ -114,9 +73,6 @@ pub fn sign3(a: integer, b: integer) -> integer {
   if a * a > 3 * b * b { sa } else { sb }
 }
 
-/// 4 × the world dot product of two doubled-coordinate vectors (x = k·√3/2, y = m/2).
-fn dot4(ak: integer, am: integer, bk: integer, bm: integer) -> integer { 3 * ak * bk + am * bm }
-
 /// Is coordinate `p`, along heading `head` and scaled, between plan lines `lo` and `hi`
 /// (inclusive)?
 fn within(head: integer, p: integer, lo: integer, hi: integer) -> boolean {
@@ -135,9 +91,9 @@ pub fn fill(h: const HexHouse, cells: hex_field::HexSet) -> integer {
     for fq in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
       pk = 2 * (hex_field::lattice_k(fq, fr) - ck);
       pm = 2 * (hex_field::lattice_m(fq, fr) - cm);
-      u = dot4(pk, pm, uk, um);
+      u = hexwalls::dot4(pk, pm, uk, um);
       if h.mirror { u = -u; }
-      v = dot4(pk, pm, vk, vm);
+      v = hexwalls::dot4(pk, pm, vk, vm);
       inside = false;
       for p in h.parts {
         if within(h.turn, u, p.u0, p.u1) && within(h.turn + 3, v, p.v0, p.v1) { inside = true; }
@@ -161,288 +117,6 @@ pub fn reach(h: const HexHouse) -> integer {
     }
   }
   r + 3
-}
-
-// ── 3. the boundary, walked and cut into runs ───────────────────────────────
-
-/// The boundary of `cells` in walking order, the house on the left: one loop (a house is one
-/// piece without a courtyard).
-pub fn boundary(cells: hex_field::HexSet) -> vector<Edge> {
-  all: vector<Edge> = [];
-  for br in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
-    for bq in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
-      if !hex_field::hexset_get(cells, bq, br) { continue; }
-      for d in 0..6 {
-        nq = hex_field::nb_q(bq, br, d);
-        nr = hex_field::nb_r(bq, br, d);
-        if hex_field::hexset_get(cells, nq, nr) { continue; }
-        // The corners as `hex_draw::surface_of` reads them.
-        (c1, c2) = hex_grid::hex_edge_corners(hex_grid::hex_neighbor_dir(bq, br, nq, nr));
-        k = hex_field::lattice_k(bq, br);
-        m = hex_field::lattice_m(bq, br);
-        all += [Edge { qa: bq, ra: br, qb: nq, rb: nr,
-                       ak: k + hex_field::corner_k(c1), am: m + hex_field::corner_m(c1),
-                       bk: k + hex_field::corner_k(c2), bm: m + hex_field::corner_m(c2) }];
-      }
-    }
-  }
-  walk: vector<Edge> = [];
-  if len(all) == 0 { return walk; }
-  used: vector<boolean> = [for _ in 0..len(all) { false }];
-  at = 0;
-  for _ in 0..len(all) {
-    e = all[at];
-    walk += [e];
-    used[at] = true;
-    nxt = -1;
-    for j in 0..len(all) {
-      if !used[j] && all[j].ak == e.bk && all[j].am == e.bm { nxt = j; }
-    }
-    if nxt < 0 { break; }
-    at = nxt;
-  }
-  walk
-}
-
-/// How many edges either side the travelling direction is read over: enough to span a period of
-/// the zigzag (2 edges) and of the staircase (3).
-pub const WINDOW = 2;
-
-/// Which way the boundary travels at edge i, over WINDOW edges either side: 0 along +u, 1 along
-/// +v, 2 along -u, 3 along -v (u the house's heading, v the heading three steps on); -1 when it
-/// is exactly between.  Exact: the two heading steps are √3 and 3 long, one each way round, so
-/// the projections compare as squares, one of them times 3.
-fn travel(turn: integer, b: const vector<Edge>, i: integer) -> integer {
-  n = len(b);
-  a = b[((i - WINDOW) % n + n) % n ?? 0];
-  z = b[(i + WINDOW) % n ?? 0];
-  wk = z.bk - a.ak;
-  wm = z.bm - a.am;
-  (uk, um) = hex_form::head_step(turn);
-  (vk, vm) = hex_form::head_step(turn + 3);
-  u = dot4(wk, wm, uk, um);
-  v = dot4(wk, wm, vk, vm);
-  // |u| / L_u against |v| / L_v: with L_u = √3, L_v = 3 that is 3u² against v²; the other way
-  // round, u² against 3v².
-  au = if turn % 2 == 0 { 3 * u * u } else { u * u };
-  av = if turn % 2 == 0 { v * v } else { 3 * v * v };
-  if au > av { if u > 0 { 0 } else { 2 } } else if av > au { if v > 0 { 1 } else { 3 } } else { -1 }
-}
-
-/// The boundary cut into runs, one per straight wall, in order round the house.  A run shorter
-/// than 2 edges is the turn of a corner, not a wall: it joins the run before it.
-pub fn runs(turn: integer, b: const vector<Edge>) -> vector<vector<integer>> {
-  n = len(b);
-  label: vector<integer> = [for i in 0..n { travel(turn, b, i) }];
-  for i in 0..n {
-    if label[i] < 0 { label[i] = label[(i + n - 1) % n ?? 0]; }
-  }
-  out: vector<vector<integer>> = [];
-  for _ in 0..n {
-    out = groups(label);
-    short = -1;
-    for g in 0..len(out) {
-      if short < 0 && len(out[g]) < 2 && len(out) > 1 { short = g; }
-    }
-    if short < 0 { break; }
-    prev = label[out[(short + len(out) - 1) % len(out) ?? 0][0] ?? 0] ?? 0;
-    for i in out[short] ?? [] { label[i] = prev; }
-  }
-  out
-}
-
-/// The runs of equal labels round the loop, starting where a label changes.
-fn groups(label: const vector<integer>) -> vector<vector<integer>> {
-  n = len(label);
-  start = 0;
-  for i in 0..n {
-    if start == 0 && label[i] != label[(i + n - 1) % n ?? 0] { start = i; }
-  }
-  out: vector<vector<integer>> = [];
-  cur: vector<integer> = [];
-  for j in 0..n {
-    i = (start + j) % n ?? 0;
-    if len(cur) > 0 && label[i] != label[cur[0] ?? 0] {
-      out += [cur];
-      cur = [];
-    }
-    cur += [i];
-  }
-  if len(cur) > 0 { out += [cur]; }
-  out
-}
-
-// ── 4. the walls: `hex_draw`'s surface and miter, over a run ────────────────
-
-/// `hex_draw::surface_of` over a run of edges rather than a `Plan`'s side: the sum of the edge
-/// vectors and of the doubled midpoints, exact integers.
-pub fn surface_of(b: const vector<Edge>, run: const vector<integer>) -> hex_draw::WallSurface {
-  sdk = 0;
-  sdm = 0;
-  smk = 0;
-  smm = 0;
-  for i in run {
-    e = b[i];
-    (c1, c2) = hex_grid::hex_edge_corners(hex_grid::hex_neighbor_dir(e.qa, e.ra, e.qb, e.rb));
-    sdk = sdk + hex_field::corner_k(c2) - hex_field::corner_k(c1);
-    sdm = sdm + hex_field::corner_m(c2) - hex_field::corner_m(c1);
-    smk = smk + 2 * hex_field::lattice_k(e.qa, e.ra) + hex_field::corner_k(c1) + hex_field::corner_k(c2);
-    smm = smm + 2 * hex_field::lattice_m(e.qa, e.ra) + hex_field::corner_m(c1) + hex_field::corner_m(c2);
-  }
-  n = len(run);
-  hex_draw::WallSurface { ws_dk: sdk, ws_dm: sdm, ws_num_k: smk, ws_num_m: smm, ws_den: 2 * n, ws_n: n }
-}
-
-/// `hex_draw::surface_miter` over two surfaces: where their lines meet, in world units, and
-/// false when they are parallel (adjacent walls never are).
-pub fn surface_miter(wa: hex_draw::WallSurface, wb: hex_draw::WallSurface) -> (float, float, boolean) {
-  ax = hex_draw::surface_mean_x(wa);
-  ay = hex_draw::surface_mean_y(wa);
-  bx = hex_draw::surface_mean_x(wb);
-  by = hex_draw::surface_mean_y(wb);
-  aux = (wa.ws_dk as float) * 0.8660254037844386;
-  auy = (wa.ws_dm as float) * 0.5;
-  bux = (wb.ws_dk as float) * 0.8660254037844386;
-  buy = (wb.ws_dm as float) * 0.5;
-  den = aux * buy - auy * bux;
-  if den < 0.000000001 && den > 0.0 - 0.000000001 { return (0.0, 0.0, false); }
-  tt = (((bx - ax) * buy - (by - ay) * bux) / den) ?? 0.0;
-  (ax + tt * aux, ay + tt * auy, true)
-}
-
-// ── 5. the two kinds of straight wall, solved from the wall data ────────────
-//
-// A straight wall on the hex grid is one of two kinds (owner, 2026-11-09: one routine for each):
-//
-//   TOPS   (an even heading, the grid's own edge directions): the wobble across the tops of a row
-//          of hexes, edges zigzagging between the row's apexes and shoulders.  Turned to run due
-//          east, every edge's midpoint lies on one line, half way up the band (ROUNDTRIP §6.2,
-//          band 1/2 unit) — so the line is exact from any of its edges, a whole run or a cut one.
-//   SIDES  (an odd heading, the grid's corner directions): the line along the sides of hexes
-//          under each other, upright sides alternating with short slanted connectors where the
-//          rows shift by half a cell.  Turned to run due north, every connector's midpoint lies on
-//          the line, in the middle of the band (√3/2 unit); the upright sides lie on its two
-//          edges.
-//
-// So each routine turns its run into its own frame (a 60° turn is exact on the lattice, X1),
-// reads the line off the edges that make its pattern — the most common midpoint: an edge of the
-// next wall, caught in the run at a corner, has a midpoint of its own and is outvoted — and turns
-// the line back.  The direction is the heading itself, exactly.  The answer is a
-// `hex_draw::WallSurface`, so `hex_draw`'s readers and the miter above take it unchanged.  On a
-// whole run (every side of a box) it is the line `hex_draw::surface_of` gives.
-
-/// A doubled-coordinate point or vector turned 60° anticlockwise: exact, since a lattice point's
-/// k and m have the same parity.
-pub fn turn60(k: integer, m: integer) -> (integer, integer) { ((k - m) / 2 ?? 0, (3 * k + m) / 2 ?? 0) }
-
-/// Turned `steps` × 60° anticlockwise.
-pub fn turned(k: integer, m: integer, steps: integer) -> (integer, integer) {
-  tk = k;
-  tm = m;
-  for _ in 0..((steps % 6) + 6) % 6 ?? 0 { (tk, tm) = turn60(tk, tm); }
-  (tk, tm)
-}
-
-/// A rational point (`nk / d`, `nm / d`) turned `steps` × 60°: the numerators doubled first, so
-/// the halving stays exact.
-fn turned_q(nk: integer, nm: integer, d: integer, steps: integer) -> (integer, integer, integer) {
-  tk = nk;
-  tm = nm;
-  td = d;
-  for _ in 0..((steps % 6) + 6) % 6 ?? 0 {
-    (tk, tm) = (tk - tm, 3 * tk + tm);
-    td = 2 * td;
-  }
-  (tk, tm, td)
-}
-
-/// The most common value of `vals`, ties going to the one nearest the mean (`sum / n`).
-fn common(vals: const vector<integer>, sum: integer, n: integer) -> integer {
-  best = 0;
-  best_n = 0;
-  for v in vals {
-    c = 0;
-    for w in vals { if w == v { c += 1; } }
-    far = v * n - sum;
-    if far < 0 { far = -far; }
-    best_far = best * n - sum;
-    if best_far < 0 { best_far = -best_far; }
-    if c > best_n || c == best_n && far < best_far {
-      best = v;
-      best_n = c;
-    }
-  }
-  best
-}
-
-/// A TOPS wall (heading `h` even) through the run's edges.
-pub fn solve_tops(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
-  s = (6 - h / 2 ?? 0) % 6 ?? 0;        // turns heading h to 0, due east
-  mids: vector<integer> = [];
-  sk = 0;
-  sm = 0;
-  for i in run {
-    e = b[i];
-    (ak, am) = turned(e.ak, e.am, s);
-    (bk, bm) = turned(e.bk, e.bm, s);
-    mids += [am + bm];
-    sk += ak + bk;
-    sm += am + bm;
-  }
-  n = len(run);
-  // Due east, the line is m = common / 2: the point (sk / 2n, common / 2).
-  line_m = common(mids, sm, n);
-  (nk, nm, d) = turned_q(sk, n * line_m, 2 * n, 6 - s);
-  (dk, dm) = hex_form::head_step(h);
-  hex_draw::WallSurface { ws_dk: dk, ws_dm: dm, ws_num_k: nk, ws_num_m: nm, ws_den: d, ws_n: n }
-}
-
-/// A SIDES wall (heading `h` odd) through the run's edges.
-pub fn solve_sides(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
-  s = ((3 - h) / 2 ?? 0) % 6 ?? 0;      // turns heading h to 3, due north
-  links: vector<integer> = [];
-  sk = 0;
-  sm = 0;
-  lk = 0;
-  for i in run {
-    e = b[i];
-    (ak, am) = turned(e.ak, e.am, s);
-    (bk, bm) = turned(e.bk, e.bm, s);
-    if ak != bk {
-      links += [ak + bk];
-      lk += ak + bk;
-    }
-    sk += ak + bk;
-    sm += am + bm;
-  }
-  n = len(run);
-  // Due north, the line is k = common / 2 of the connectors (of every edge, when the run has
-  // none: one cell's upright side): the point (common / 2, sm / 2n).
-  line_k = if len(links) > 0 { common(links, lk, len(links)) } else { common(links, sk, n) };
-  if len(links) == 0 { line_k = sk / n ?? 0; }
-  (nk, nm, d) = turned_q(n * line_k, sm, 2 * n, 6 - s);
-  (dk, dm) = hex_form::head_step(h);
-  hex_draw::WallSurface { ws_dk: dk, ws_dm: dm, ws_num_k: nk, ws_num_m: nm, ws_den: d, ws_n: n }
-}
-
-/// The straight wall through a run of wall edges running along heading `h`: a tops wall on an
-/// even heading, a sides wall on an odd one.
-pub fn solve_wall(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
-  if hex_form::head_norm(h) % 2 == 0 { solve_tops(b, run, hex_form::head_norm(h)) }
-  else { solve_sides(b, run, hex_form::head_norm(h)) }
-}
-
-/// The heading a run of the boundary travels along: the way most of its edges travel (`travel`),
-/// as a heading of the house (`turn` for +u, three steps on for +v, and so on).
-pub fn run_heading(turn: integer, b: const vector<Edge>, run: const vector<integer>) -> integer {
-  count = [0, 0, 0, 0];
-  for i in run {
-    t = travel(turn, b, i);
-    if t >= 0 { count[t] += 1; }
-  }
-  best = 0;
-  for t in 1..4 { if count[t] > count[best] { best = t; } }
-  hex_form::head_norm(turn + 3 * best)
 }
 
 // ── turning the house ───────────────────────────────────────────────────────
@@ -470,9 +144,9 @@ pub struct Spot {
 fn part_at(h: const HexHouse, pk: integer, pm: integer) -> integer {
   (uk, um) = hex_form::head_step(h.turn);
   (vk, vm) = hex_form::head_step(h.turn + 3);
-  u = dot4(pk, pm, uk, um);
+  u = hexwalls::dot4(pk, pm, uk, um);
   if h.mirror { u = -u; }
-  v = dot4(pk, pm, vk, vm);
+  v = hexwalls::dot4(pk, pm, vk, vm);
   for i in 0..len(h.parts) {
     p = h.parts[i];
     if within(h.turn, u, p.u0, p.u1) && within(h.turn + 3, v, p.v0, p.v1) { return i; }
@@ -558,7 +232,71 @@ pub fn at_thirty(h: const HexHouse) -> vector<Spot> {
       }
     }
   }
+  closed(out, r)
+}
+
+/// The house with its holes filled: rooms grown or shrunk on their own can leave a cell between
+/// them that no room took and the outside cannot reach.  Such a cell joins the house, in the room
+/// of a neighbour.  `r` bounds the cells' window round the origin.
+fn closed(spots: const vector<Spot>, r: integer) -> vector<Spot> {
+  w = 2 * r + 3;
+  inside = hex_field::hexset_chunk(-r - 1, -r - 1, w, w);
+  room: hash<Room[key]> = [];
+  for s in spots {
+    (q, rr) = cell_of(s.dk, s.dm);
+    hex_field::hexset_set(inside, q, rr, true);
+    room += [Room { key: room_key(q, rr), part: s.part }];
+  }
+  // Every empty cell the window's edge reaches.
+  seen = hex_field::hexset_chunk(-r - 1, -r - 1, w, w);
+  todo: vector<(integer, integer)> = [];
+  for i in 0..w {
+    for e in [(-r - 1 + i, -r - 1), (-r - 1 + i, r + 1), (-r - 1, -r - 1 + i), (r + 1, -r - 1 + i)] {
+      if !hex_field::hexset_get(inside, e.0, e.1) && !hex_field::hexset_get(seen, e.0, e.1) {
+        hex_field::hexset_set(seen, e.0, e.1, true);
+        todo += [e];
+      }
+    }
+  }
+  at = 0;
+  while at < len(todo) {
+    c = todo[at];
+    at += 1;
+    for d in 0..6 {
+      nq = hex_field::nb_q(c.0, c.1, d);
+      nr = hex_field::nb_r(c.0, c.1, d);
+      if nq < -r - 1 || nq > r + 1 || nr < -r - 1 || nr > r + 1 { continue; }
+      if hex_field::hexset_get(inside, nq, nr) || hex_field::hexset_get(seen, nq, nr) { continue; }
+      hex_field::hexset_set(seen, nq, nr, true);
+      todo += [(nq, nr)];
+    }
+  }
+  out: vector<Spot> = [for s in spots { s }];
+  for fr in -r..r + 1 {
+    for fq in -r..r + 1 {
+      if hex_field::hexset_get(inside, fq, fr) || hex_field::hexset_get(seen, fq, fr) { continue; }
+      part = 0;
+      for d in 0..6 {
+        nb = room[room_key(hex_field::nb_q(fq, fr, d), hex_field::nb_r(fq, fr, d))];
+        if nb != null { part = nb.part; }
+      }
+      out += [Spot { dk: hex_field::lattice_k(fq, fr), dm: hex_field::lattice_m(fq, fr), part: part }];
+    }
+  }
   out
+}
+
+struct Room {
+  key: integer,
+  part: integer
+}
+
+fn room_key(q: integer, r: integer) -> integer { (q + 4096) * 8192 + r + 4096 }
+
+/// The cell at doubled-coordinate offset (k, m) from the origin cell (0, 0).
+fn cell_of(k: integer, m: integer) -> (integer, integer) {
+  r = m / 3 ?? 0;
+  ((k - (r & 1)) / 2 ?? 0, r)
 }
 
 /// Is (u, v) in part `p` grown by `gu` on both u sides and `gv` on both v sides (inclusive, as
@@ -580,14 +318,14 @@ pub fn turned_house(h: const HexHouse) -> vector<Spot> {
 }
 
 fn turned_spot(s: const Spot, steps: integer) -> Spot {
-  (k, m) = turned(s.dk, s.dm, steps);
+  (k, m) = hexwalls::turned(s.dk, s.dm, steps);
   Spot { dk: k, dm: m, part: s.part }
 }
 
 // ── the house ───────────────────────────────────────────────────────────────
 
-/// Build the house: its cells (the 0° house turned), then everything else from the cells.
-pub fn build(h: const HexHouse) -> Built {
+/// Build the house: its cells (the 0° house turned), then the world's walls from the cells.
+pub fn build(h: const HexHouse) -> hexwalls::Built {
   r = reach(h) + 2;
   cells = hex_field::hexset_chunk(h.cq - r, h.cr - r, 2 * r + 1, 2 * r + 1);
   ck = hex_field::lattice_k(h.cq, h.cr);
@@ -598,63 +336,5 @@ pub fn build(h: const HexHouse) -> Built {
     row = m / 3 ?? 0;
     hex_field::hexset_set(cells, (k - (row & 1)) / 2 ?? 0, row, true);
   }
-  from_cells(cells, h.turn)
-}
-
-/// The axes a boundary's walls run along, read off the boundary itself: 0 for the headings 0, 3,
-/// 6 and 9 (0°, 90°, …), 1 for 1, 4, 7 and 10, 2 for 2, 5, 8 and 11.  Each edge votes for the
-/// heading nearest the way the boundary travels round it (`WINDOW` edges either side); the axes
-/// with the most votes win, and -1 answers a tie: cells that show no direction (the smallest
-/// house, one hex and its six neighbours, is the same seven cells at every angle).  Exact: a
-/// heading step is √3 or 3 long, so the projections compare as squares, scaled by 9 or 3.
-pub fn axes_of(b: const vector<Edge>) -> integer {
-  votes = [0, 0, 0];
-  n = len(b);
-  for i in 0..n {
-    a = b[((i - WINDOW) % n + n) % n ?? 0];
-    z = b[(i + WINDOW) % n ?? 0];
-    wk = z.bk - a.ak;
-    wm = z.bm - a.am;
-    best = -1;
-    best_d = 0;
-    best_l = 1;
-    for h in 0..12 {
-      (sk, sm) = hex_form::head_step(h);
-      d = dot4(wk, wm, sk, sm);
-      if d <= 0 { continue; }
-      l = if h % 2 == 0 { 3 } else { 9 };   // the step's length squared, in these units
-      // d / √l against best_d / √best_l: d² · best_l against best_d² · l
-      if best < 0 || d * d * best_l > best_d * best_d * l {
-        best = h;
-        best_d = d;
-        best_l = l;
-      }
-    }
-    if best >= 0 { votes[best % 3] += 1; }
-  }
-  if votes[0] > votes[1] && votes[0] > votes[2] { 0 }
-  else if votes[1] > votes[0] && votes[1] > votes[2] { 1 }
-  else if votes[2] > votes[0] && votes[2] > votes[1] { 2 }
-  else { -1 }
-}
-
-/// A house from its cells alone: the thin walls, the boundary, the axes it runs along, a run per
-/// straight wall and the wall solved for each.  The axes are read off the cells; `hint` (a
-/// heading, -1 for none) is asked only when the cells show no direction.
-pub fn from_cells(cells: hex_field::HexSet, hint: integer = -1) -> Built {
-  edges = hex_field::edgeset_new(hex_field::hexset_q0(cells) - 1, hex_field::hexset_r0(cells) - 1,
-                                 hex_field::hexset_w(cells) + 2, hex_field::hexset_h(cells) + 2);
-  hex_draw::draw_walls(cells, edges, WALL);
-  b = boundary(cells);
-  turn = axes_of(b);
-  if turn < 0 { turn = if hint >= 0 { hint % 3 ?? 0 } else { 0 }; }
-  rs = runs(turn, b);
-  walls: vector<hex_draw::WallSurface> = [for run in rs { solve_wall(b, run, run_heading(turn, b, run)) }];
-  corners: vector<(float, float)> = [];
-  nw = len(walls);
-  for i in 0..nw {
-    (x, y, _ok) = surface_miter(walls[i], walls[(i + 1) % nw ?? 0]);
-    corners += [(x, y)];
-  }
-  Built { cells: cells, edges: edges, boundary: b, runs: rs, walls: walls, corners: corners }
+  hexwalls::from_cells(cells, h.turn)
 }

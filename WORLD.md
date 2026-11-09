@@ -414,6 +414,12 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
     today.  The placement answers how far it is off (moros's `fp_residual` already carries a
     residual) instead of refusing.  The fix belongs to `hex_shape` and `hex_draw` (walls from a
     `Box`, not only a `Plan`) and to moros's `hex_editor` (no refusal).
+- **Turning is an editor step, and the world is drawn only from the cells** (owner, 2026-11-09).
+  The editor makes a house's cells from its plan and turns them (`hexhouse.loft`; the turn is
+  not exact, owner); the world draws the walls from the cells alone (`hexwalls.loft`), with no
+  plan and no angle: the axes the walls run along are read off the cells.  It works because a
+  wall always lies between two hex centres, one inside the house and one outside.  The page
+  `hexhouses.html` shows an L at all twelve angles and a gallery of other shapes.
 - **Thin walls.**  A wall is a mark on the edge between two cells (`hex_field`'s `EdgeSet`), so
   it takes no cell: the standard house, 5 × 4 hex steps (7.5 × 6 m), keeps all 27 of its floor
   cells.  It is drawn half a hex step thick (0.75 m); movement stops on the edge

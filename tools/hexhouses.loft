@@ -1,19 +1,55 @@
 // The first hex test (owner, 2026-11-09): one L-shaped house drawn at all twelve 30° angles
-// across a larger empty terrain, the hex grid showing, as JSON for tools/hexhouses.py to draw
-// into hexhouses.html.
+// across a larger empty terrain, the hex grid showing; then a gallery of other shapes (boxes, a
+// T, a U, an L edited by hand) at 0°, 30°, 60° and 90°, each with its walls drawn from its cells
+// alone.  As JSON for tools/hexhouses.py to draw into hexhouses.html.
 //
 //   loft --lib libs tools/hexhouses.loft > build/hexhouses.json && python3 tools/hexhouses.py
 //
-// Each house: its cells, its boundary edges (the thin walls the rules use), and its straight
-// walls as `hex_draw` places them (hexhouse.loft), with the heading each wall's own direction is
-// exact on (-1 where the straight wall is the approximation).
+// Each house: its cells, its boundary edges (the thin walls the rules use), its straight walls
+// as hexwalls.loft solves them, the heading each wall runs along, and the axes read off its cells
+// (-1: the cells show no direction, so the placed angle decided).
 use hex_field;
 use hex_draw;
+use hexwalls;
 use hexhouse;
 
 const COLS = 4;
 const ROWS = 3;
 const GAP = 16;
+
+/// One house as a JSON object.
+fn house_json(b: hexwalls::Built, name: text, turn: integer, cq: integer, cr: integer) -> text {
+  cells = "";
+  for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+    for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+      if hex_field::hexset_get(b.cells, q, r) {
+        if len(cells) > 0 { cells += ", "; }
+        cells += "[{q}, {r}]";
+      }
+    }
+  }
+  edges = "";
+  for e in b.boundary {
+    if len(edges) > 0 { edges += ", "; }
+    edges += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
+  }
+  corners = "";
+  for c in b.corners {
+    if len(corners) > 0 { corners += ", "; }
+    corners += "[{c.0}, {c.1}]";
+  }
+  exact = "";
+  for wl in b.walls {
+    if len(exact) > 0 { exact += ", "; }
+    exact += "{hex_draw::surface_heading(wl)}";
+  }
+  axes = hexwalls::axes_of(b.boundary);
+  "{{\"name\": \"{name}\", \"turn\": {turn}, \"axes\": {axes}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}]}}"
+}
+
+fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
+  hexhouse::Part { u0: u0, v0: v0, u1: u1, v1: v1 }
+}
 
 fn main() {
   plan = hexhouse::l_plan(6, 3, 3, 4);
@@ -25,32 +61,34 @@ fn main() {
     // Rows from the top down (y grows up), so the angles read left to right, top to bottom.
     cr = 2 + GAP / 2 + (ROWS - 1 - (i / COLS ?? 0)) * GAP;
     b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan });
-    cells = "";
-    for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
-      for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
-        if hex_field::hexset_get(b.cells, q, r) {
-          if len(cells) > 0 { cells += ", "; }
-          cells += "[{q}, {r}]";
-        }
-      }
-    }
-    edges = "";
-    for e in b.boundary {
-      if len(edges) > 0 { edges += ", "; }
-      edges += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
-    }
-    corners = "";
-    for c in b.corners {
-      if len(corners) > 0 { corners += ", "; }
-      corners += "[{c.0}, {c.1}]";
-    }
-    exact = "";
-    for wl in b.walls {
-      if len(exact) > 0 { exact += ", "; }
-      exact += "{hex_draw::surface_heading(wl)}";
-    }
     sep = if i < 11 { "," } else { "" };
-    println("{{\"turn\": {i}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}]}}{sep}");
+    println("{house_json(b, "L", i, cq, cr)}{sep}");
+  }
+  // The gallery: a row per shape, a column per angle (0°, 30°, 60°, 90°).
+  names = ["box 5×4", "box 3×2", "box 2×2", "L 4×2 + 2×3", "T", "U", "L, edited"];
+  plans = [hexhouse::box_plan(5, 4), hexhouse::box_plan(3, 2), hexhouse::box_plan(2, 2),
+           hexhouse::l_plan(4, 2, 2, 3), [part(-8, -3, 8, 3), part(-3, 3, 3, 11)],
+           [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)], plan];
+  rows = len(names);
+  gh = rows * GAP + 6;
+  println("], \"gterrain\": [0, 0, {w}, {gh}], \"gallery\": [");
+  for s in 0..rows {
+    for t in 0..4 {
+      cq = 2 + GAP / 2 + t * GAP;
+      cr = 2 + GAP / 2 + (rows - 1 - s) * GAP;
+      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] });
+      if s == rows - 1 {
+        // Edited by hand: one cell taken out of a wall, one added outside another; then the
+        // walls again from the cells alone, no angle given.
+        cut = b.boundary[5];
+        hex_field::hexset_set(b.cells, cut.qa, cut.ra, false);
+        add = b.boundary[len(b.boundary) / 2 ?? 0];
+        hex_field::hexset_set(b.cells, add.qb, add.rb, true);
+        b = hexwalls::from_cells(b.cells);
+      }
+      sep = if s < rows - 1 || t < 3 { "," } else { "" };
+      println("{house_json(b, names[s], t, cq, cr)}{sep}");
+    }
   }
   println("]}}");
 }
