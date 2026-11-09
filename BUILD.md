@@ -429,6 +429,10 @@ not the owner's is ◇.
   one abstraction, so neither influences the game logic (E1).
 - **The Tanmatsu's side lives in libraries**: the drawing, the sprites and the frames for the
   device are libraries' code, not the game's.
+- **The Tanmatsu reads the hex world as any graphics backend does**, and the OpenGL version does
+  the same optimisations the hex mesh code already has.  The hex world itself is made with the
+  drawing kit, houses at 30° angles and walls thinner than a cell (WORLD.md § One game, square
+  or hex).
 - **As few triangles as possible**: a face whose back is to the eye is skipped, and sight lines
   (the rules already have some) leave out what cannot be seen.
 - **Far away, triangles become dots**: cheaper to draw than a textured triangle.
@@ -496,6 +500,31 @@ The columns overlap, so they do not add up.  What it shows:
     whole picture, so B would be drawn again every frame while the hero moves, about 100 ms at
     800 × 480.
   - **Open for the owner**: which camera the Tanmatsu shows.  The test routine measures both.
+
+**One mesh for every backend** ◇ (surveyed 2026-11-09).  The hex mesher is moros's `hex_mesh`
+(project code, not published, 3,300 lines).  It builds the hex world in chunks of 8 × 8 cells
+(with a margin of 2), one mesh per surface: ground, road, wall, roof, floor, rock.  The OpenGL
+view uploads those meshes; the Tanmatsu's renderer (E2) draws the same faces into B.  Neither
+reads the world itself, and render3d's square faces cross the seam (E1) the same way, so the
+renderers do not know which grid they draw.
+
+- **What it already does, so both backends get it:**
+  - only the chunks that changed are built again, and `graphics`' `GroupVboSet` uploads only
+    those (dryopea's terrain mesher, built the same way, takes 7 ms instead of 54 ms for an
+    edit of one hex);
+  - a wall is one flat quad per run (`hex_draw`'s `surface_quad`), not a strip of edges;
+  - a roof is two planes: 18 vertices against 189 for a staircase of cells;
+  - rock sides only where the height steps.
+- **What it does not do yet, added in the mesher so OpenGL gains it too:**
+  - every wall is emitted twice with opposite normals and drawn with no culling: one winding,
+    and back faces culled (E4);
+  - no culling to the view: by chunk, from the bounds `GroupVboSet` already keeps (E4);
+  - nothing simpler far away: dots (E5);
+  - each hex top is its own fan of 6 triangles: a field of one material merged into a few
+    polygons, from `hex_field::trace`'s exact outlines.  On a CPU every triangle has a set-up
+    cost, so many tiny ones cost more than their pixels.
+- **It moves into a library** (the Tanmatsu's side in libraries, owner): moros's to give,
+  loft-libs-world to hold.  **Open for the owner** and moros's agent.
 
 **Moving the camera without drawing B again** ◇.
 
@@ -630,7 +659,8 @@ The columns overlap, so they do not add up.  What it shows:
   browser; the 2D stays.  Checked on the device with the timing log: frame time, B's rebuilds
   per second, and the PSRAM the atlas, B and the faces take.
 - **E7. Then the hex grid**, WORLD.md § One game, square or hex, steps 2 to 4 (the rules asking
-  for the next cell, a hex world, the import).  **No hex area in a design before E6 plays on the
+  for the next cell, a hex world, the drawing kit filled into hex).  The hex world is drawn
+  through the hex mesher, on every backend.  **No hex area in a design before E6 plays on the
   device** (owner, 2026-11-09: no backend lost).  Red: a hex place played through by its
   walk-through test, and drawn on the desktop, in the browser and on the Tanmatsu.
 

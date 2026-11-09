@@ -376,6 +376,40 @@ are tried there.  The notions only squares have show once the rules ask the worl
 diagonals, the 45° slants, the rails' joins, a fence's line, the autotiles — and each is a
 question for the owner in hex, not a translation.
 
+**The drawing kit draws on either grid** (owner, 2026-11-09).  The simple routines that make a
+place stay: a room, a house, a road or a river, a grove, a tree (`intent.loft`'s shapes, which
+the editor's tools and `tools/orbury_gen.py` write).  They are filled into the hex grid the way
+moros's hex editor fills its own, so a place is made the same simple way on both.  On hex,
+houses are placed at 30° angles and their walls are thinner than a cell.  What goes from square
+to hex is the shapes, not the cells: each grid fills them in its own way (RENDER_3D.md § Later's
+import cell by cell is replaced).
+
+What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and moros's
+`hex_editor`, surveyed 2026-11-09):
+
+| Shape | On squares (today) | On hex |
+|---|---|---|
+| house | a ring of wall cells, the roof on the layer above, inner walls as edges | a `hex_form` `Plan` drawn by `hex_draw`: its floor cells, its outline as wall edges, doors and windows as the edges' material, the roof as two planes (moros's `RoofPlan`); turned with the Plan |
+| trail (a road, a stream) | legs along x, then along y, `width` cells | a centreline with its width (`hex_way`): a road or a stream that bends |
+| blob (a pond, a grove, a cave) | ragged round cells | a ragged cell set (`hex_field`) |
+| ground, dome, slope | rectangles, ceiling heights, three rising cells | regions and heights (`hex_field`'s heights, `hex_terrain`) |
+| item, tree | a thing on a cell | a thing on a hex cell |
+| edge (a fence, a grate) | between two squares | between two hex cells |
+
+- **Houses at 30°, as far as it is built.**  A `Plan` turns in 60° steps and mirrors: 12
+  orientations.  moros's `place_house` (`pose_footprint`) places a house facing 30°, 90°,
+  150°, … (six of the twelve) and refuses the other six, offering the nearest that fits: their
+  walls run along the hexes' corners (`hex_shape`'s odd turns), for which `hex_draw` has no flat
+  wall yet.  Facing south, as today's houses do, is one of the six.  **Open for the owner:**
+  whether six facings will do for now, or the other six are library work first.
+- **Thin walls.**  A wall is a mark on the edge between two cells (`hex_field`'s `EdgeSet`), so
+  it takes no cell: the standard house, 5 × 4 hex steps (7.5 × 6 m), keeps all 27 of its floor
+  cells.  It is drawn half a hex step thick (0.75 m); movement stops on the edge
+  (`hex_edge::sweep_path`), and sight reads its opacity and height.  The square game already
+  keeps thin walls as edges inside houses (tile_world's edges); on hex the outer walls are edges
+  too.  So to the rules a hex wall is the edge they know: is the way between these two cells
+  open (step 2)?
+
 **Steps** ◇, each worth having on its own:
 
 1. Free roaming the everyday way to move, once it plays well enough (the owner's call).
@@ -383,8 +417,10 @@ question for the owner in hex, not a translation.
    stays green.
 3. A hex world answering the questions tile_world answers (paths, sight, light, the next cell).
    tile_world needs a new version anyway: its sixteen terrain kinds are taken.
-4. The import (RENDER_3D.md § Later) as the test: a square puzzle place brought into hex, solved by
-   the same rules.
+4. The drawing kit filled into hex, shape by shape as in the table above; then a place's intent
+   (Orbury's, as `tools/orbury_gen.py` writes it) filled into a hex place, its houses at their
+   own angles.  The test: a square puzzle place's intent filled into hex and solved by the same
+   rules, and the square Orbury's walk-through played in the hex one.
 
 **No backend lost** (owner, 2026-11-09).  A hex world has no 2D pictures (Kenney's sheets are
 square), so the 3D routines are ported to the Tanmatsu first (BUILD.md Phase E), and no hex area

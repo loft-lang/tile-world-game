@@ -328,7 +328,10 @@ is checked by a program and looked at.
   curves and twelve facings have nothing to land on in squares.  So the square place is the draft
   that plays now; the more realistic town (a winding stream, houses at angles, the hard part of
   level design, and why the hex grid was made) is modelled in hex after the import, and what is
-  refined there does not come back.
+  refined there does not come back.  **How, since** (owner, 2026-11-09): not the cells but the
+  drawing kit's shapes (a room, a house, a road, a river, a tree) are filled into the hex grid,
+  as moros's hex editor fills its own, with houses at 30° angles and walls thinner than a cell
+  (WORLD.md § One game, square or hex).
 - **The Tanmatsu: an early-phone style of 3D** (owner: an experiment, after this one).  No GPU:
   the techniques of the phones before one — low polygon counts, fixed-point transforms, a software
   rasteriser drawing affine-textured spans, flat or per-vertex light — tried on the same world
