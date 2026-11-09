@@ -19,9 +19,10 @@
 //      plan's rectangles, tested exactly (no float), as `hex_shape::box_fill` does for one box;
 //   2. the thin walls the rules use are the edges between those cells and the outside
 //      (`hex_draw::draw_walls`), so a wall costs no floor;
-//   3. the boundary is walked and cut into runs, one per wall (`runs`): each edge goes with the
-//      way the boundary travels over a few edges round it, along or across the house's heading;
-//      this is the only new rule here, and it reads nothing but the cells and the heading;
+//   3. the boundary is walked, the axes its walls run along read off it (`axes_of`), and it is
+//      cut into runs, one per wall (`runs`): each edge goes with the way the boundary travels over
+//      a few edges round it.  It reads nothing but the cells, so the hex and wall model knows no
+//      angle; the placed angle only breaks a tie, for cells that show no direction;
 //   4. each run's wall is `hex_draw`'s surface (`surface_of`: the sum of its edge vectors for the
 //      direction, the exact mean of their midpoints for the position, ROUNDTRIP §6.1) and the
 //      walls are mitred as `hex_draw::surface_miter` does.  `hex_draw` takes the runs from a
@@ -600,12 +601,53 @@ pub fn build(h: const HexHouse) -> Built {
   from_cells(cells, h.turn)
 }
 
-/// A house from its cells and its heading alone.
-pub fn from_cells(cells: hex_field::HexSet, turn: integer) -> Built {
+/// The axes a boundary's walls run along, read off the boundary itself: 0 for the headings 0, 3,
+/// 6 and 9 (0°, 90°, …), 1 for 1, 4, 7 and 10, 2 for 2, 5, 8 and 11.  Each edge votes for the
+/// heading nearest the way the boundary travels round it (`WINDOW` edges either side); the axes
+/// with the most votes win, and -1 answers a tie: cells that show no direction (the smallest
+/// house, one hex and its six neighbours, is the same seven cells at every angle).  Exact: a
+/// heading step is √3 or 3 long, so the projections compare as squares, scaled by 9 or 3.
+pub fn axes_of(b: const vector<Edge>) -> integer {
+  votes = [0, 0, 0];
+  n = len(b);
+  for i in 0..n {
+    a = b[((i - WINDOW) % n + n) % n ?? 0];
+    z = b[(i + WINDOW) % n ?? 0];
+    wk = z.bk - a.ak;
+    wm = z.bm - a.am;
+    best = -1;
+    best_d = 0;
+    best_l = 1;
+    for h in 0..12 {
+      (sk, sm) = hex_form::head_step(h);
+      d = dot4(wk, wm, sk, sm);
+      if d <= 0 { continue; }
+      l = if h % 2 == 0 { 3 } else { 9 };   // the step's length squared, in these units
+      // d / √l against best_d / √best_l: d² · best_l against best_d² · l
+      if best < 0 || d * d * best_l > best_d * best_d * l {
+        best = h;
+        best_d = d;
+        best_l = l;
+      }
+    }
+    if best >= 0 { votes[best % 3] += 1; }
+  }
+  if votes[0] > votes[1] && votes[0] > votes[2] { 0 }
+  else if votes[1] > votes[0] && votes[1] > votes[2] { 1 }
+  else if votes[2] > votes[0] && votes[2] > votes[1] { 2 }
+  else { -1 }
+}
+
+/// A house from its cells alone: the thin walls, the boundary, the axes it runs along, a run per
+/// straight wall and the wall solved for each.  The axes are read off the cells; `hint` (a
+/// heading, -1 for none) is asked only when the cells show no direction.
+pub fn from_cells(cells: hex_field::HexSet, hint: integer = -1) -> Built {
   edges = hex_field::edgeset_new(hex_field::hexset_q0(cells) - 1, hex_field::hexset_r0(cells) - 1,
                                  hex_field::hexset_w(cells) + 2, hex_field::hexset_h(cells) + 2);
   hex_draw::draw_walls(cells, edges, WALL);
   b = boundary(cells);
+  turn = axes_of(b);
+  if turn < 0 { turn = if hint >= 0 { hint % 3 ?? 0 } else { 0 }; }
   rs = runs(turn, b);
   walls: vector<hex_draw::WallSurface> = [for run in rs { solve_wall(b, run, run_heading(turn, b, run)) }];
   corners: vector<(float, float)> = [];
