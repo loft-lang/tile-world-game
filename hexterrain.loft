@@ -12,6 +12,7 @@
 // in metres.  The measurements (a storey's height, how wide a hillside and a bank are, how far a
 // seated structure blends in) are read from hexsizes.json.
 use hex_field;
+use hexwalls;
 
 /// Surface kinds.
 pub const GRASS = 0;
@@ -223,4 +224,55 @@ pub fn seat(g: Ground, cells: hex_field::HexSet, height: float, m: const Measure
     }
   }
   low
+}
+
+// @FR-HG-Dig: a structure dug in, its bank centred on its straight sides
+/// Dig a structure into the ground (a stream's bed): the ground inside its sides `depth` metres
+/// lower, across a bank `m.bank` wide centred on its sides (`hexwalls::outlines`, the same straight
+/// sides the view draws its edge along), shaped by a smoothstep.  So the bank runs along the sides,
+/// not along the cells' zigzag or the square map's staircase.
+pub fn dig(g: Ground, cells: hex_field::HexSet, depth: float, m: const Measures) {
+  sides: vector<(float, float, float, float)> = [];
+  for o in hexwalls::outlines(cells, 0) {
+    n = len(o.corners);
+    for i in 0..n {
+      (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+      (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+      sides += [(x1 * METRE, y1 * METRE, x2 * METRE, y2 * METRE)];
+    }
+  }
+  if len(sides) == 0 { return; }
+  for r in g.r0..g.r0 + g.h {
+    for q in g.q0..g.q0 + g.w {
+      (x, y) = centre(q, r);
+      d = signed_distance(sides, x, y);
+      z = hex_field::height_get(g.heights, q, r);
+      hex_field::height_set(g.heights, q, r, z - depth * smoothstep((d + m.bank * 0.5) / m.bank ?? 0.0));
+    }
+  }
+}
+
+/// How far (x, y) lies from the nearest of the sides, positive inside them (counted over all their
+/// loops), negative outside.
+pub fn signed_distance(sides: const vector<(float, float, float, float)>, x: float, y: float) -> float {
+  inside = false;
+  near = 1000000.0;
+  for sd in sides {
+    (x1, y1, x2, y2) = sd;
+    if (y1 > y) != (y2 > y) {
+      cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+      if x < cx { inside = !inside; }
+    }
+    dx = x2 - x1;
+    dy = y2 - y1;
+    l2 = dx * dx + dy * dy;
+    t = if l2 > 0.0 { ((x - x1) * dx + (y - y1) * dy) / l2 ?? 0.0 } else { 0.0 };
+    if t < 0.0 { t = 0.0; }
+    if t > 1.0 { t = 1.0; }
+    ex = x - x1 - t * dx;
+    ey = y - y1 - t * dy;
+    e = ex * ex + ey * ey;
+    if e < near { near = e; }
+  }
+  if inside { sqrt(near) } else { -sqrt(near) }
 }

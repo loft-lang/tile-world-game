@@ -6,6 +6,7 @@
 use hex_field;
 use hexterrain;
 use hexhouse;
+use hexwalls;
 
 fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
 
@@ -110,4 +111,56 @@ fn test_a_seated_house_is_level_and_blends_in() {
     }
   }
   assert(abs_f(low - lowest) < 0.000001, "the walls go down to the lowest the ground was: {low} against {lowest}");
+}
+
+// @FR-HG-Dig: the bed's depth by the distance to its straight sides, full half a bank inside,
+// untouched half a bank outside
+fn test_a_dug_bed_follows_its_sides() {
+  m = measures();
+  g = hexterrain::ground_new(-30, -14, 61, 29);
+  // a bed four rows deep that steps over by a row twice, and a slanted spur off it
+  bed = hex_field::hexset_chunk(-30, -14, 61, 29);
+  for i in 0..3 {
+    for r in 0..4 {
+      for q in (i * 8 - 12)..(i * 8 - 3) { hex_field::hexset_set(bed, q, r + i - 4, true); }
+    }
+  }
+  b = hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: 2, parts: hexhouse::box_plan(10, 3) });
+  for r in -14..15 { for q in -30..31 { if hex_field::hexset_get(b.cells, q, r) { hex_field::hexset_set(bed, q, r, true); } } }
+  hexterrain::dig(g, bed, 2.6, m);
+  sides: vector<(float, float, float, float)> = [];
+  for o in hexwalls::outlines(bed, 0) {
+    n = len(o.corners);
+    for i in 0..n {
+      (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+      (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+      sides += [(x1 * hexterrain::METRE, y1 * hexterrain::METRE, x2 * hexterrain::METRE, y2 * hexterrain::METRE)];
+    }
+  }
+  full = 0;
+  untouched = 0;
+  for r in -14..15 {
+    for q in -30..31 {
+      (x, y) = hexterrain::centre(q, r);
+      d = hexterrain::signed_distance(sides, x, y);
+      z = hex_field::height_get(g.heights, q, r);
+      // the bank's profile, as the rule states it
+      t = (d + m.bank * 0.5) / m.bank ?? 0.0;
+      c = if t < 0.0 { 0.0 } else if t > 1.0 { 1.0 } else { t };
+      want = -2.6 * c * c * (3.0 - 2.0 * c);
+      assert(abs_f(z - want) < 0.000001, "cell ({q}, {r}) at {d} m from the sides: {z}, the profile {want}");
+      if d >= m.bank * 0.5 {
+        assert(abs_f(z + 2.6) < 0.000001, "half a bank inside: the full depth at ({q}, {r})");
+        full += 1;
+      }
+      if d <= -m.bank * 0.5 {
+        assert(abs_f(z) < 0.000001, "half a bank outside: untouched at ({q}, {r})");
+        untouched += 1;
+      }
+      // inside the sides deeper than half way, outside shallower
+      if d > 0.0 { assert(z < -1.3 + 0.000001, "inside the sides, below half way at ({q}, {r})"); }
+      if d < 0.0 { assert(z > -1.3 - 0.000001, "outside the sides, above half way at ({q}, {r})"); }
+    }
+  }
+  assert(full > 20 && untouched > 200, "both flats there: {full} cells at depth, {untouched} untouched");
 }

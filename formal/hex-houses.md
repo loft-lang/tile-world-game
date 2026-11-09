@@ -206,6 +206,14 @@ change to the file is a change the tests judge.
                 hillside wide (a stream's bank, for a step up from below level 0, a bank wide),
                 centred on it and shaped by a smoothstep.  Half a hillside or more from any edge
                 the ground is flat at its level's storey, exactly.
+  (HG-Dig)      A structure dug into the ground (a stream's bed) lies `depth` below the ground round
+                it, across a bank a bank wide centred on its straight sides (HW-Loops, HW-Step,
+                HW-Slant: the sides the view draws its edge along) and shaped by a smoothstep of
+                the distance to them.  Half a bank or more inside its sides the ground is `depth`
+                down, exactly; half a bank or more outside it is as it was.  So a bank runs along
+                the sides, not the cells' zigzag or the square map's staircase; Orbury's stream is
+                dug so (its bed the square map's squares below level 0, the dry ground made smooth
+                from level 0 up by HG-Terrace).
   (HG-Hill)     A round hill is added as a cosine: its full height at its top, nothing at its foot
                 and beyond, level at both.
   (HG-Seat)     A structure seated on the ground has its footprint at its floor's height, exactly,
@@ -220,6 +228,13 @@ hex step, its terraces through HG-Terrace, its houses on the cells nearest their
 floors' heights (HG-Seat), its doors where the square houses have them, its trees, fences, well and
 bridges as things on the surface; `hextown.html` shows it in 3D, with a hill (HG-Hill) carrying a
 house at every angle.
+
+Measured on Orbury's stream (2026-11-09), the drawn surface sampled every 0.1 m along its sides,
+where the ideal is half the depth (−1.3 m): the square map's banks gave a spread of 0.44 m, the
+banks along the sides 0.25 m (mean −1.34 m; 1777 of 2255 points within 0.2 m).  What is left is
+the grid's: a side between two rows passes through hex corners, each the mean of three cells, two
+on one side and one on the other (HG-Surface), so the surface along it wobbles up to 0.42 m.  A
+wider bank barely helps (0.21 m at 3.5 m, 0.18 m at 5 m); heights kept per corner would.
 
 ## Roads, rails and the stream
 
@@ -281,6 +296,7 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HO-Place, HO-Clear (at a corner) | `test_an_opening_asked_for_at_a_corner_is_kept_clear_of_it` |
 | HS-File, HS-Wall, HS-Corner | `test_the_sizes_file_keeps_the_rules` |
 | HG-Terrace | `tests/hexground.loft`: `test_terraces_are_flat_away_from_their_edges`, `test_a_terrace_edge_is_a_smooth_slope` |
+| HG-Dig | `tests/hexground.loft`: `test_a_dug_bed_follows_its_sides` |
 | HG-Hill | `tests/hexground.loft`: `test_a_hill_is_level_at_its_top_and_its_foot` |
 | HG-Seat | `tests/hexground.loft`: `test_a_seated_house_is_level_and_blends_in` |
 | HW-Loops | `tests/hexroads.loft`: `test_a_ring_is_two_loops` |

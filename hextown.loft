@@ -7,7 +7,8 @@
 //
 //   - The ground: the terraces of the square place, layer over layer, become smooth hills
 //     (hexterrain::terraces): each step up a slope a hillside wide across where its front stood,
-//     the tops flat at their storeys; the stream's bed a bank's width down.  The surface keeps its
+//     the tops flat at their storeys; the stream's bed dug a storey down, its banks along its
+//     straight sides (hexterrain::dig).  The surface keeps its
 //     kind: grass, path, rail, the bed, shallow water.
 //   - The houses: each a hex house (hexhouse.loft) on the cell nearest its middle, at its floor's
 //     height, its door where the square house has it.  Its angle: facing down the hill, the ground's
@@ -145,7 +146,9 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
                               level: north };
   // The window: the map's width and height in cells, and a margin.
   g = hexterrain::ground_new(-2, -82, 70, 86);
-  hexterrain::terraces(g, steps, m, LO, HI);
+  // the dry ground first (the bed's squares at level 0); the bed is dug in below, along its sides
+  hexterrain::terraces(g, steps, m, 0, HI);
+  bed = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
   // The surface's kinds, tile by tile under each cell's centre.
   paths = hash_tiles(it);
   for r in g.r0..g.r0 + g.h {
@@ -153,6 +156,10 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
       (x, y) = hexterrain::centre(q, r);
       tx = round(x / TILE) as integer;
       ty = round(-y / TILE) as integer;
+      // the bed runs on past the map's edge, as the nearest square there has it (the terraces do too)
+      ex = if tx < 0 { 0 } else if tx >= NX { NX - 1 } else { tx };
+      ey = if ty < 0 { 0 } else if ty >= NY { NY - 1 } else { ty };
+      if (sf.level[ey * NX + ex] ?? 0) < 0 { hex_field::hexset_set(bed, q, r, true); }
       if tx < 0 || tx >= NX || ty < 0 || ty >= NY { continue; }
       i = ty * NX + tx;
       k = sf.what[i] ?? "";
@@ -168,6 +175,9 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
       hex_field::label_set(g.kinds, q, r, kind);
     }
   }
+  // the stream's bed a storey down, its banks along its straight sides (a path running down
+  // into it, a ford, is dug with it)
+  hexterrain::dig(g, bed, (-LO as float) * m.storey, m);
   houses = place_houses(it, g, sz, m);
   things = things_of(cells, sf, m, g);
   Town { ground: g, houses: houses, things: things }
