@@ -45,8 +45,8 @@ fn front(ws: const vector<World>) -> text {
   "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
   "<style>body{{background:#111;color:#eee;font:18px/1.5 monospace;padding:2em}}a{{color:#fc6}}</style></head>" +
   "<body><h1>tile_world</h1><ul>{links}</ul><p><a href=\"/guide.html\">how to play and edit</a></p>" +
-  "<p>the hex grid, houses at twelve angles: <a href=\"/hexhouses.html\">turned room by room</a>, " +
-  "<a href=\"/hexhouses2.html\">turned by the outline</a></p></body></html>"
+  "<p>the hex grid, houses at twelve angles: <a href=\"/hexhouses.html\">each wall to the nearest grid line</a>, " +
+  "<a href=\"/hexhouses2.html\">the outline moved as a whole</a></p></body></html>"
 }
 
 // The game's page for world `start`: told its world before the game reads its query.

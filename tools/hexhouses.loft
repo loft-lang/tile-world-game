@@ -6,8 +6,8 @@
 //   loft --lib libs tools/hexhouses.loft outline > build/hexhouses2.json &&
 //     python3 tools/hexhouses.py build/hexhouses2.json hexhouses2.html outline
 //
-// With `outline` the editor turns a house to 30° by its drawn outline as a whole instead of room
-// by room (hexhouse::BY_OUTLINE), for the second page.
+// With `outline` the editor turns a house to 30° by its drawn outline moved as a whole instead of
+// wall by wall (hexhouse::BY_OUTLINE), for the second page.
 //
 // Each house: its cells, its boundary edges (the thin walls the rules use), its straight walls
 // as hexwalls.loft solves them, the heading each wall runs along, and the axes read off its cells
@@ -56,7 +56,7 @@ fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
 }
 
 fn main() {
-  way = if (arguments()[0] ?? "") == "outline" { hexhouse::BY_OUTLINE } else { hexhouse::BY_ROOMS };
+  way = if (arguments()[0] ?? "") == "outline" { hexhouse::BY_OUTLINE } else { hexhouse::BY_WALLS };
   plan = hexhouse::l_plan(6, 3, 3, 4);
   w = COLS * GAP + 4;
   h = ROWS * GAP + 6;

@@ -6,8 +6,9 @@
 #   loft --lib libs tools/hexhouses.loft outline > build/hexhouses2.json &&
 #     python3 tools/hexhouses.py build/hexhouses2.json hexhouses2.html outline
 #
-# The two pages differ only in how the editor turns a house to 30°: room by room (hexhouses.html)
-# or by its drawn outline as a whole (hexhouses2.html), to compare (owner, 2026-11-09).
+# The two pages differ only in how the editor turns a house to 30°: each wall to the nearest grid
+# line (hexhouses.html) or the drawn outline moved as a whole (hexhouses2.html), to compare (owner,
+# 2026-11-09).
 #
 # Copyright (c) 2026 Jurjen Stellingwerff
 # SPDX-License-Identifier: LGPL-3.0-or-later
@@ -25,15 +26,18 @@ variant = sys.argv[3] if len(sys.argv) > 3 else "rooms"
 TURNS = {
     "rooms": dict(
         title="Hex houses",
-        h1="Hex houses: the turn room by room",
-        other='<a href="/hexhouses2.html">compare: the turn by the outline →</a>',
-        turning="""30° cannot be a copy, so each room is its rectangle turned 30° and grown or shrunk evenly until it
-  holds as many cells as at 0°, or the nearest whole rows come to that; the rooms are taken one after
-  another, and a hole between them is filled."""),
+        h1="Hex houses: each wall to the nearest grid line",
+        other='<a href="/hexhouses2.html">compare: the outline moved as a whole →</a>',
+        turning="""30° cannot be a copy, so a fixed rule makes it: the 0° house's drawn walls, turned 30°, each moved
+  to the nearest line a wall can stand on in the turned grid (midway between two rows of hex centres:
+  every 1.3 m across the house, every 0.75 m along it), and every cell inside joins the house.  Once for
+  each axis the whole house sits on its cell or half a row beside it, whichever moves its walls least
+  (a room centred on a cell can only be an odd number of rows wide).  No search, no rooms; every wall
+  lands within half a row of where it stood at 0°."""),
     "outline": dict(
         title="Hex houses, outline turn",
-        h1="Hex houses: the turn by the outline",
-        other='<a href="/hexhouses.html">← compare: the turn room by room</a>',
+        h1="Hex houses: the outline moved as a whole",
+        other='<a href="/hexhouses.html">← compare: each wall to the nearest grid line</a>',
         turning="""30° cannot be a copy, so the 0° house's drawn outline (its straight walls) is turned 30°, its walls
   along one axis moved out or in by one amount and those along the other by another (up to half a unit
   each), the pair that brings the count nearest the 0° house's, and every cell whose centre lies inside

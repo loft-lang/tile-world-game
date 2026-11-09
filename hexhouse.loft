@@ -122,13 +122,12 @@ pub fn reach(h: const HexHouse) -> integer {
 // ── turning the house ───────────────────────────────────────────────────────
 //
 // The house at 0° is the plan's cells (`fill`) and stays exactly that (owner, 2026-11-09: only
-// the routine that turns it changes).  Every other angle is that house turned, so it holds as
-// many cells, room by room:
+// the routine that turns it changes).  Every other angle is that house turned:
 //   - 60°, 120°, … are the 0° house turned cell for cell: a 60° turn is a symmetry of the grid,
 //     so these are exact copies;
-//   - 30° cannot be a copy (a 30° turn is no symmetry of the grid).  Each room is its rectangle
-//     turned 30° and grown or shrunk evenly until it holds as many cells as at 0°, or the nearest
-//     whole rows can come to it (`at_thirty`);
+//   - 30° cannot be a copy (a 30° turn is no symmetry of the grid): the 0° house's drawn walls,
+//     each moved to the nearest line a wall can stand on in the turned grid (`at_thirty`), or the
+//     drawn outline moved as a whole (`at_thirty_outline`), kept side by side to compare;
 //   - 90°, 150°, … are the 30° house turned cell for cell, exact again.
 
 /// A cell of the house as an offset from its origin cell in doubled coordinates, and the room
@@ -170,152 +169,105 @@ pub fn at_zero(h: const HexHouse) -> vector<Spot> {
   out
 }
 
-/// The house at 30°: room by room, the room's rectangle turned 30° and grown or shrunk evenly
-/// (the same on both its u sides, the same on both its v sides, up to a half step) until it holds
-/// the number of cells the room has at 0°, or the nearest it can come to that: straight walls
-/// take whole rows, so a room cannot gain or lose a single cell.  The least change wins a tie.
-/// Rooms are taken in the plan's order; a cell an earlier room took is not taken again.
-pub fn at_thirty(h: const HexHouse) -> vector<Spot> {
-  zero = at_zero(h);
-  want: vector<integer> = [for _ in 0..len(h.parts) { 0 }];
-  for z in zero { want[z.part] += 1; }
-  r = reach(h) + 2;
-  // Each lattice cell near the house, in the plan's frame turned 30°, in half steps.
-  ks: vector<integer> = [];
-  ms: vector<integer> = [];
-  us: vector<float> = [];
-  vs: vector<float> = [];
-  for fr in -r..r + 1 {
-    for fq in -r..r + 1 {
-      k = hex_field::lattice_k(fq, fr);
-      m = hex_field::lattice_m(fq, fr);
-      x = (k as float) * 0.8660254037844386;
-      y = (m as float) * 0.5;
-      // cos 30° = √3/2, sin 30° = 1/2; a half step is √3/2 units
-      lu = (x * 0.8660254037844386 + y * 0.5) / 0.8660254037844386;
-      if h.mirror { lu = -lu; }
-      ks += [k];
-      ms += [m];
-      us += [lu];
-      vs += [(-x * 0.5 + y * 0.8660254037844386) / 0.8660254037844386];
-    }
-  }
-  taken: vector<boolean> = [for _ in 0..len(ks) { false }];
-  out: vector<Spot> = [];
-  for room in 0..len(h.parts) {
-    p = h.parts[room];
-    best_cost = -1.0;
-    best_gu = 0.0;
-    best_gv = 0.0;
-    for a in 0..9 {
-      for b in 0..9 {
-        gu = ((a - 4) as float) * 0.125;
-        gv = ((b - 4) as float) * 0.125;
-        n = 0;
-        for i in 0..len(ks) {
-          if !taken[i] && in_grown(p, us[i], vs[i], gu, gv) { n += 1; }
-        }
-        miss = n - want[room];
-        if miss < 0 { miss = -miss; }
-        cost = (miss as float) * 100.0 + abs_f(gu) + abs_f(gv);
-        if best_cost < 0.0 || cost < best_cost {
-          best_cost = cost;
-          best_gu = gu;
-          best_gv = gv;
-        }
-      }
-    }
-    for i in 0..len(ks) {
-      if !taken[i] && in_grown(p, us[i], vs[i], best_gu, best_gv) {
-        taken[i] = true;
-        out += [Spot { dk: ks[i], dm: ms[i], part: room }];
-      }
-    }
-  }
-  closed(out, r)
-}
-
-/// The house with its holes filled: rooms grown or shrunk on their own can leave a cell between
-/// them that no room took and the outside cannot reach.  Such a cell joins the house, in the room
-/// of a neighbour.  `r` bounds the cells' window round the origin.
-fn closed(spots: const vector<Spot>, r: integer) -> vector<Spot> {
-  w = 2 * r + 3;
-  inside = hex_field::hexset_chunk(-r - 1, -r - 1, w, w);
-  room: hash<Room[key]> = [];
-  for s in spots {
-    (q, rr) = cell_of(s.dk, s.dm);
-    hex_field::hexset_set(inside, q, rr, true);
-    room += [Room { key: room_key(q, rr), part: s.part }];
-  }
-  // Every empty cell the window's edge reaches.
-  seen = hex_field::hexset_chunk(-r - 1, -r - 1, w, w);
-  todo: vector<(integer, integer)> = [];
-  for i in 0..w {
-    for e in [(-r - 1 + i, -r - 1), (-r - 1 + i, r + 1), (-r - 1, -r - 1 + i), (r + 1, -r - 1 + i)] {
-      if !hex_field::hexset_get(inside, e.0, e.1) && !hex_field::hexset_get(seen, e.0, e.1) {
-        hex_field::hexset_set(seen, e.0, e.1, true);
-        todo += [e];
-      }
-    }
-  }
-  at = 0;
-  while at < len(todo) {
-    c = todo[at];
-    at += 1;
-    for d in 0..6 {
-      nq = hex_field::nb_q(c.0, c.1, d);
-      nr = hex_field::nb_r(c.0, c.1, d);
-      if nq < -r - 1 || nq > r + 1 || nr < -r - 1 || nr > r + 1 { continue; }
-      if hex_field::hexset_get(inside, nq, nr) || hex_field::hexset_get(seen, nq, nr) { continue; }
-      hex_field::hexset_set(seen, nq, nr, true);
-      todo += [(nq, nr)];
-    }
-  }
-  out: vector<Spot> = [for s in spots { s }];
-  for fr in -r..r + 1 {
-    for fq in -r..r + 1 {
-      if hex_field::hexset_get(inside, fq, fr) || hex_field::hexset_get(seen, fq, fr) { continue; }
-      part = 0;
-      for d in 0..6 {
-        nb = room[room_key(hex_field::nb_q(fq, fr, d), hex_field::nb_r(fq, fr, d))];
-        if nb != null { part = nb.part; }
-      }
-      out += [Spot { dk: hex_field::lattice_k(fq, fr), dm: hex_field::lattice_m(fq, fr), part: part }];
-    }
-  }
-  out
-}
-
-struct Room {
-  key: integer,
-  part: integer
-}
-
-fn room_key(q: integer, r: integer) -> integer { (q + 4096) * 8192 + r + 4096 }
-
 /// The cell at doubled-coordinate offset (k, m) from the origin cell (0, 0).
 fn cell_of(k: integer, m: integer) -> (integer, integer) {
   r = m / 3 ?? 0;
   ((k - (r & 1)) / 2 ?? 0, r)
 }
 
-/// Is (u, v) in part `p` grown by `gu` on both u sides and `gv` on both v sides (inclusive, as
-/// the 0° fill is)?
-fn in_grown(p: const Part, u: float, v: float, gu: float, gv: float) -> boolean {
-  e = 0.000000001;
-  u >= (p.u0 as float) - gu - e && u <= (p.u1 as float) + gu + e &&
-    v >= (p.v0 as float) - gv - e && v <= (p.v1 as float) + gv + e
-}
-
 fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
 
 /// The two ways the editor turns a house to 30°, kept side by side to compare (owner,
-/// 2026-11-09): room by room (`at_thirty`), or the drawn outline as a whole (`at_thirty_outline`).
-pub const BY_ROOMS = 0;
+/// 2026-11-09): each wall to the nearest grid line (`at_thirty`), or the drawn outline moved as a
+/// whole (`at_thirty_outline`).
+pub const BY_WALLS = 0;
 pub const BY_OUTLINE = 1;
 
+/// The 0° house's drawn walls: its outline, corner by corner (corner i where wall i meets wall
+/// i + 1), in world units round its origin cell.
+fn outline_at_zero(h: const HexHouse) -> vector<(float, float)> {
+  r = reach(h) + 2;
+  cells = hex_field::hexset_chunk(-r, -r, 2 * r + 1, 2 * r + 1);
+  for z in at_zero(h) {
+    (q, rr) = cell_of(z.dk, z.dm);
+    hex_field::hexset_set(cells, q, rr, true);
+  }
+  hexwalls::from_cells(cells, 0).corners
+}
+
+/// The spacing of the lines a wall can stand on in the grid turned 30°, in world units: across
+/// the turned u axis (an odd heading) the rows of hex centres lie 1.5 units (1.3 m) apart, along
+/// v (an even heading) 0.866 units (0.75 m), and a wall stands midway between two rows.
+pub const ROW_U = 1.5;
+pub const ROW_V = 0.8660254037844386;
+
+/// `x` moved to the nearest line midway between rows `row` apart, with the house moved `off`.
+fn to_line(x: float, row: float, off: float) -> float {
+  k = floor((x + off) / row);
+  k * row + row * 0.5
+}
+
+/// The house at 30°, by a fixed rule: the 0° house's drawn walls, turned 30°, each moved to the
+/// nearest line a wall can stand on in the turned grid (midway between two rows of hex centres),
+/// and every cell inside.  Once for each axis the whole house sits on its cell or half a row
+/// beside it, whichever moves its walls least: a room centred on the cell can only be an odd
+/// number of rows wide, and half a row over an even number.  No search over sizes, no rooms in
+/// turn; every centre is clearly inside or outside, as the walls lie midway between rows.
+pub fn at_thirty(h: const HexHouse) -> vector<Spot> {
+  corners = outline_at_zero(h);
+  n = len(corners);
+  // In the frame turned 30° the turned outline has the 0° outline's coordinates: x along the
+  // turned u, y along v.  Its walls: along x (a line y = c) or along y (a line x = c).
+  xs: vector<float> = [];
+  ys: vector<float> = [];
+  for i in 0..n {
+    (ax, ay) = corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+    (bx, by) = corners[i] ?? (0.0, 0.0);
+    if abs_f(bx - ax) > abs_f(by - ay) { ys += [(ay + by) * 0.5]; } else { xs += [(ax + bx) * 0.5]; }
+  }
+  off_u = best_offset(xs, ROW_U);
+  off_v = best_offset(ys, ROW_V);
+  // The snapped outline, in the turned grid's own coordinates (the house moved by the offsets).
+  poly: vector<(float, float)> = [];
+  for i in 0..n {
+    (cx, cy) = corners[i] ?? (0.0, 0.0);
+    poly += [(to_line(cx, ROW_U, off_u), to_line(cy, ROW_V, off_v))];
+  }
+  r = reach(h) + 2;
+  out: vector<Spot> = [];
+  for fr in -r..r + 1 {
+    for fq in -r..r + 1 {
+      k = hex_field::lattice_k(fq, fr);
+      m = hex_field::lattice_m(fq, fr);
+      x = (k as float) * 0.8660254037844386;
+      y = (m as float) * 0.5;
+      // the cell in the frame turned 30° (cos 30° = √3/2, sin 30° = 1/2)
+      u = x * 0.8660254037844386 + y * 0.5;
+      v = -x * 0.5 + y * 0.8660254037844386;
+      if in_poly(poly, u, v) { out += [Spot { dk: k, dm: m, part: 0 }]; }
+    }
+  }
+  out
+}
+
+/// The house's offset along one axis, 0 or half a row: the one that moves the walls `lines` least
+/// to their nearest grid lines.
+fn best_offset(lines: const vector<float>, row: float) -> float {
+  best = 0.0;
+  best_err = -1.0;
+  for o in [0.0, row * 0.5] {
+    err = 0.0;
+    for x in lines { err += abs_f(to_line(x, row, o) - o - x); }
+    if best_err < 0.0 || err < best_err - 0.000001 {
+      best = o;
+      best_err = err;
+    }
+  }
+  best
+}
+
 /// The house's cells at its turn: the 0° or 30° house turned by whole 60° steps, cell for cell.
-pub fn turned_house(h: const HexHouse, way: integer = BY_ROOMS) -> vector<Spot> {
+pub fn turned_house(h: const HexHouse, way: integer = BY_WALLS) -> vector<Spot> {
   t = hex_form::head_norm(h.turn);
   base = if t % 2 == 0 { at_zero(h) } else if way == BY_OUTLINE { at_thirty_outline(h) } else { at_thirty(h) };
   steps = t / 2 ?? 0;
@@ -331,12 +283,7 @@ pub fn turned_house(h: const HexHouse, way: integer = BY_ROOMS) -> vector<Spot> 
 pub fn at_thirty_outline(h: const HexHouse) -> vector<Spot> {
   zero = at_zero(h);
   r = reach(h) + 2;
-  cells = hex_field::hexset_chunk(-r, -r, 2 * r + 1, 2 * r + 1);
-  for z in zero {
-    (q, rr) = cell_of(z.dk, z.dm);
-    hex_field::hexset_set(cells, q, rr, true);
-  }
-  corners = hexwalls::from_cells(cells, 0).corners;
+  corners = outline_at_zero(h);
   n = len(corners);
   // In the frame turned 30°, the turned outline has the 0° outline's coordinates; so each cell
   // is put in that frame (turned back 30°) and tested against the 0° outline.
@@ -439,9 +386,9 @@ fn turned_spot(s: const Spot, steps: integer) -> Spot {
 
 // ── the house ───────────────────────────────────────────────────────────────
 
-/// Build the house: its cells (the 0° house turned, `way` one of BY_ROOMS and BY_OUTLINE), then
+/// Build the house: its cells (the 0° house turned, `way` one of BY_WALLS and BY_OUTLINE), then
 /// the world's walls from the cells.
-pub fn build(h: const HexHouse, way: integer = BY_ROOMS) -> hexwalls::Built {
+pub fn build(h: const HexHouse, way: integer = BY_WALLS) -> hexwalls::Built {
   r = reach(h) + 2;
   cells = hex_field::hexset_chunk(h.cq - r, h.cr - r, 2 * r + 1, 2 * r + 1);
   ck = hex_field::lattice_k(h.cq, h.cr);
