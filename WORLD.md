@@ -48,7 +48,8 @@ layers (heights, ceilings, domes, what holds) carries over; what assumes four sq
 (the eight-neighbour checks, the facing, the reach across a swing) is what a hex grid revisits.
 The current engine's limits are felt already: tile_world keeps a terrain kind in four bits, so
 sixteen kinds at most (a door held shut is one kind, the side of its beam kept in the level), and
-all sixteen are taken since shallow water (2026-11-08).
+all sixteen are taken since shallow water (2026-11-08).  How one game could play on either grid:
+§ One game, square or hex.
 
 **Places joined by doors.**  The world is a set of places: a dungeon, a building, a stretch of
 land outside.  Each is a map of its own (a place file, the chunked format of EDITOR.md § 2).  A
@@ -333,6 +334,62 @@ it sets going happens when it arrives, not when it was sent.
 
 **The table is never saved.**  Loading rebuilds it from the data and each place's saved changes,
 deterministically, so a save stays small and cannot disagree with the world.
+
+## One game, square or hex
+
+The owner wants both (2026-11-09): the simplicity of the tile world for evaluating and iterating
+on gameplay, and the full hex world for more realistic and engaging worlds.  This section is a
+proposal for how the two meet; what is the owner's is marked so, the rest is ◇.
+
+**The model, in three parts.**
+
+- **Figures roam free** (owner, 2026-11-09): the hero, the monsters and the people move freely,
+  keeping distances like the ones they keep now; their placement on tiles is not the problem.  F3
+  is the first step (DESIGN.md § F3 roams free): the rules see the body on the cell it stands in.
+- **Things and terrain stay on cells** (owner, 2026-11-09): a stone, an item, a door, a wall, water
+  keeps its cell, and the restrictions on movement — what blocks, what is crossed — stay as they
+  are.
+- **An act aims at a cell**: Q acts on the cell before the hero, never the one it stands on
+  (DESIGN.md @GM-Combat), a big step toward this common model (owner, 2026-11-09).  A push, a pull,
+  a door and a blow aim the same way; a thing that moves (pushed, sliding, falling, fire
+  spreading) goes to the next cell along a way.
+
+**Only one question depends on the grid** ◇: which cell is next to this one in this direction.
+Squares have four answers, hex cells six.  The rules ask the world that question instead of
+working it out from `(dx, dy)`, so the same rules play on either grid.  Free roaming takes the
+hero's steps and facing off the grid; what still asks are the things that move from cell to cell.
+
+**What each grid is for** ◇
+
+- **The square tile world** is the test bench: where gameplay is evaluated and iterated, with the
+  2D view, the editor and the checks.
+- **The hex world** holds the realistic places — walls at angles, a winding stream, houses at
+  their own angles, roofs, roads — built with the `hex_*` packages of loft-libs-world.  A hex step
+  is 1.5 m (hexbody's scale), a person's step, so a hex cell plays at a tile's scale.
+- **Square into hex, never back** (owner, 2026-11-09; RENDER_3D.md § Later): a place moves one way.
+  What the two share is the rules, not the places.
+
+**What does not carry over** ◇.  A push goes one of four ways on squares and one of six on hex, so
+a puzzle that depends on four-way alignment (stones in a row, a corridor blocked across) can play
+differently on hex: puzzles inside right-angled rooms keep their shape, those on open hex ground
+are tried there.  The notions only squares have show once the rules ask the world — the
+diagonals, the 45° slants, the rails' joins, a fence's line, the autotiles — and each is a
+question for the owner in hex, not a translation.
+
+**Steps** ◇, each worth having on its own:
+
+1. Free roaming the everyday way to move, once it plays well enough (the owner's call).
+2. The rules ask the world for the next cell.  Nothing changes on squares; every test and check
+   stays green.
+3. A hex world answering the questions tile_world answers (paths, sight, light, the next cell).
+   tile_world needs a new version anyway: its sixteen terrain kinds are taken.
+4. The import (RENDER_3D.md § Later) as the test: a square puzzle place brought into hex, solved by
+   the same rules.
+
+**Open for the owner: which view ships.**  The 2D view the Tanmatsu can draw, or the browser's 3D
+(RENDER_3D.md § Why it matters).  A hex world has no 2D pictures (Kenney's sheets are square), so
+on the Tanmatsu it waits for the low-fidelity 3D the loft repo plans for hex worlds (loft's
+TANMATSU.md § One world, drawn at more than one fidelity: a column renderer on the CPU).
 
 ## The two machines
 
