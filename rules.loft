@@ -1454,7 +1454,7 @@ fn land(l: Level, dx: integer, dy: integer, heavy: boolean) -> Step {
   }
   hit = false;
   for c in cells {
-    foe = enemy_at(l, c.0, c.1, z);
+    foe = if c.0 == tx && c.1 == ty { faced_foe(l, dx, dy) } else { enemy_at(l, c.0, c.1, z) };
     if foe < 0 || !reachable_foe(l, foe, dx, dy) { continue; }
     e = l.enemies[foe] ?? continue;
     ep = enemy_props(l, e.kind);
@@ -2319,7 +2319,7 @@ pub fn route_point(l: const Level, k: integer) -> (integer, integer, integer) {
 fn follow_route(l: Level, i: integer, e: const Enemy, p: const EnemyProps, k: integer) {
   to = route_point(l, k);
   if to.2 == e.z && (to.0 != e.x || to.1 != e.y) {
-    w = enemy_way(l, p, e.x, e.y, e.z, to.0, to.1, false, no_shades());
+    w = enemy_way(l, p, e.x, e.y, e.z, to.0, to.1, to.2, false, no_shades());
     if w.2 > 0 {
       enemy_step(l, i, w.0, w.1, p.move_ms);
       return;
@@ -3693,7 +3693,7 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
   if !alive(l) { return Step.Blocked; }
   // Stance (@GM-Combat): fighting, a step that is not into an enemy keeps the hero facing the
   // fight — a side-step or a step back, not a turn.
-  into_foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z) >= 0;
+  into_foe = faced_foe(l, dx, dy) >= 0;
   if !into_foe {
     l.stepped_at = l.now;
     l.step_x = dx;
@@ -3725,7 +3725,7 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
   }
   // Walking into an enemy strikes it, the hero staying where it is — not a guard (it blocks),
   // nor one up on a wall (out of the sword's reach); one that talks is spoken to.
-  foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
+  foe = faced_foe(l, dx, dy);
   if foe >= 0 && enemy_props(l, (l.enemies[foe] ?? no_enemy()).kind).talks {
     l.face_x = dx;
     l.face_y = dy;
@@ -5278,6 +5278,31 @@ fn enemy_can(l: const Level, p: const EnemyProps, x: integer, y: integer, z: int
   d >= -1 && d <= 1
 }
 
+/// No way for an enemy's step (`enemy_goes`).
+pub const NO_WAY = -100;
+
+// @FR-GM-Front: enemies walk the sloping fronts as the hero does
+// The layer an enemy of kind p steps to from (x, y, z) by (dx, dy), as a change: 0 on its own
+// layer (`enemy_can`); across a terrace's sloping front (a `slope` edge), +1 up onto the ground of
+// the layer above beside it or -1 down onto the ground of the layer below, from and onto flat
+// ground with nothing over it; NO_WAY when it cannot go.
+fn enemy_goes(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
+  if enemy_can(l, p, x, y, z, dx, dy) { return 0; }
+  if (p.sideways && dy != 0) || p.passes_walls || !slope_between(l, x, y, z, dx, dy) { return NO_WAY; }
+  if tile_world::rise(l.w, x, y, z) != 0 { return NO_WAY; }
+  nx = x + dx;
+  ny = y + dy;
+  if tile_world::terrain(l.w, x, y, z + 1) == VOID && enemy_stands(l, p, nx, ny, z + 1)
+      && tile_world::rise(l.w, nx, ny, z + 1) == 0 {
+    return 1;
+  }
+  if tile_world::terrain(l.w, nx, ny, z) == VOID && enemy_stands(l, p, nx, ny, z - 1)
+      && tile_world::rise(l.w, nx, ny, z - 1) == 0 {
+    return -1;
+  }
+  NO_WAY
+}
+
 // Can an enemy of kind p be on (x, y, z): ground it walks (water too if it flies, a rough wall if
 // it climbs), with nothing on it but an item (a bat never a flame), no hero and no other enemy?
 fn enemy_stands(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer) -> boolean {
@@ -5378,42 +5403,46 @@ fn lit_cell(s: const Shades, x: integer, y: integer) -> boolean {
   shade_at(s, x, y) <= 2
 }
 
-// The first step of the shortest way an enemy of kind p on (x, y, z) can walk to (gx, gy), and the
-// way's length: neighbours tried north, east, south, west, so the way is always the same one.  The
-// goal itself need not be enterable (the hero's cell).  With `avoid`, no cell of the way is beside
-// the hero; with `dark`'s cells, none of it is lit.  (0, 0, -1) when there is none within 32 steps.
+// The first step of the shortest way an enemy of kind p on (x, y, z) can walk to (gx, gy) on layer
+// gz, and the way's length: neighbours tried north, east, south, west, so the way is always the
+// same one; up and down the sloping fronts on the way (`enemy_goes`).  The goal itself need not be
+// enterable (the hero's cell): it is reached from beside it on its layer, or from across a sloping
+// front a layer below or above.  With `avoid`, no cell of the way is beside the hero; with
+// `dark`'s cells, none of it is lit.  (0, 0, -1) when there is none within 32 steps.
 fn enemy_way(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer, gx: integer, gy: integer,
-             avoid: boolean, dark: const Shades) -> (integer, integer, integer) {
-  if x == gx && y == gy { return (0, 0, 0); }
-  cells: vector<(integer, integer, integer)> = [(x, y, -1)];
+             gz: integer, avoid: boolean, dark: const Shades) -> (integer, integer, integer) {
+  if x == gx && y == gy && z == gz { return (0, 0, 0); }
+  // (x, y, z, the cell it was reached from)
+  cells: vector<(integer, integer, integer, integer)> = [(x, y, z, -1)];
   i = 0;
   while i < len(cells) && i < 2000 {
-    c = cells[i] ?? (x, y, -1);
+    c = cells[i] ?? (x, y, z, -1);
     for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
       nx = c.0 + d.0;
       ny = c.1 + d.1;
-      seen = false;
-      for o in cells { if o.0 == nx && o.1 == ny { seen = true; } }
-      if seen { continue; }
-      goal = nx == gx && ny == gy;
-      if goal {
-        if !tile_world::crossable(l.w, c.0, c.1, z, d.0, d.1) { continue; }
-      } else {
-        if !enemy_can(l, p, c.0, c.1, z, d.0, d.1) { continue; }
-        if avoid && steps_apart(nx, ny, l.hero_x, l.hero_y) <= 1 && l.hero_z == z { continue; }
-        if lit_cell(dark, nx, ny) { continue; }
-      }
-      cells += [(nx, ny, i)];
-      if goal {
+      if nx == gx && ny == gy {
+        across = if gz == c.2 { tile_world::crossable(l.w, c.0, c.1, c.2, d.0, d.1) }
+                 else { (gz - c.2 == 1 || c.2 - gz == 1) && slope_between(l, c.0, c.1, c.2, d.0, d.1) };
+        if !across { continue; }
+        cells += [(nx, ny, gz, i)];
         j = len(cells) - 1;
         n = 0;
-        while (cells[j] ?? (x, y, -1)).2 > 0 {
-          j = (cells[j] ?? (x, y, 0)).2;
+        while (cells[j] ?? (x, y, z, -1)).3 > 0 {
+          j = (cells[j] ?? (x, y, z, 0)).3;
           n += 1;
         }
-        f = cells[j] ?? (x, y, -1);
+        f = cells[j] ?? (x, y, z, -1);
         return (f.0 - x, f.1 - y, n + 1);
       }
+      dz = enemy_goes(l, p, c.0, c.1, c.2, d.0, d.1);
+      if dz == NO_WAY { continue; }
+      nz = c.2 + dz;
+      seen = false;
+      for o in cells { if o.0 == nx && o.1 == ny && o.2 == nz { seen = true; } }
+      if seen { continue; }
+      if avoid && steps_apart(nx, ny, l.hero_x, l.hero_y) <= 1 && l.hero_z == nz { continue; }
+      if lit_cell(dark, nx, ny) { continue; }
+      cells += [(nx, ny, nz, i)];
     }
     i += 1;
     if steps_apart(c.0, c.1, x, y) > 32 { break; }
@@ -5425,13 +5454,13 @@ fn enemy_way(l: const Level, p: const EnemyProps, x: integer, y: integer, z: int
 // when there is one at most twice as long as the shortest; else, when it has to (going home hurt),
 // the shortest, lit or not; else none.  Standing in light already (daylight, a torch beside it),
 // it has nothing to shun.  Any other enemy, the shortest.
-fn chosen_way(l: const Level, p: const EnemyProps, e: const Enemy, gx: integer, gy: integer, avoid: boolean,
+fn chosen_way(l: const Level, p: const EnemyProps, e: const Enemy, gx: integer, gy: integer, gz: integer, avoid: boolean,
               has_to: boolean) -> (integer, integer, integer) {
-  w = enemy_way(l, p, e.x, e.y, e.z, gx, gy, avoid, no_shades());
+  w = enemy_way(l, p, e.x, e.y, e.z, gx, gy, gz, avoid, no_shades());
   if !p.shuns_light || w.2 <= 0 { return w; }
   s = shades_round(l, e.x, e.y, e.z, 12);
   if lit_cell(s, e.x, e.y) { return w; }
-  dw = enemy_way(l, p, e.x, e.y, e.z, gx, gy, avoid, s);
+  dw = enemy_way(l, p, e.x, e.y, e.z, gx, gy, gz, avoid, s);
   if dw.2 > 0 && dw.2 <= 2 * w.2 { return dw; }
   if has_to { w } else { (0, 0, -1) }
 }
@@ -5521,8 +5550,8 @@ fn pull_hero(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
     l.enemies[i].due = e.due + p.chase_ms;
     return;
   }
-  w = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
-  if w.2 > 1 || (w.2 == 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1)) {
+  w = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, e.nest_z, false, no_shades());
+  if w.2 > 1 || (w.2 == 1 && enemy_goes(l, p, e.x, e.y, e.z, w.0, w.1) != NO_WAY) {
     x = e.x;
     y = e.y;
     enemy_step(l, i, w.0, w.1, p.move_ms);
@@ -5605,14 +5634,26 @@ fn heal(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 }
 
 fn sees_hero(l: const Level, e: const Enemy, sight: integer) -> boolean {
-  e.z == l.hero_z && alive(l) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= sight
-    && hero_line(l, e.x, e.y, e.z)
+  if !alive(l) || steps_apart(e.x, e.y, l.hero_x, l.hero_y) > sight { return false; }
+  if e.z == l.hero_z { return hero_line(l, e.x, e.y, e.z); }
+  sky_line(l, e.x, e.y, e.z)
 }
 
-// Is the hero beside enemy e, across an edge things cross?
+// Can the hero, out under the open sky, be seen from (x, y) a layer above or below it, out under
+// the sky too: along the line on the higher of the two layers, over the lower ground's open air
+// (a terrace's sloping front between them, or its cliff)?
+fn sky_line(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  if z - l.hero_z != 1 && l.hero_z - z != 1 { return false; }
+  if !tile_world::open_sky(l.w, x, y, z) || !tile_world::open_sky(l.w, l.hero_x, l.hero_y, l.hero_z) { return false; }
+  tile_world::line_of_sight(l.w, l.hero_x, l.hero_y, x, y, if z > l.hero_z { z } else { l.hero_z })
+}
+
+// Is the hero beside enemy e, across an edge things cross — or across a sloping front, a layer up
+// or down?
 fn beside_hero(l: const Level, e: const Enemy) -> boolean {
-  e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1
-    && tile_world::crossable(l.w, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y)
+  if steps_apart(e.x, e.y, l.hero_x, l.hero_y) != 1 { return false; }
+  if e.z == l.hero_z { return tile_world::crossable(l.w, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y); }
+  (e.z - l.hero_z == 1 || l.hero_z - e.z == 1) && slope_between(l, e.x, e.y, e.z, l.hero_x - e.x, l.hero_y - e.y)
 }
 
 /// The sight line between the hero and (x, y) on layer z, the same both ways (owner, 2026-11-06):
@@ -5803,10 +5844,13 @@ fn log_act(l: Level, was: const Snap, at: integer, health: integer) {
 
 // Enemy i steps (dx, dy) and acts again `wait` later.
 fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
+  ep = enemy_props(l, l.enemies[i].kind ?? "");
+  // across a sloping front, onto the layer above or below
+  dz = enemy_goes(l, ep, l.enemies[i].x ?? 0, l.enemies[i].y ?? 0, l.enemies[i].z ?? 0, dx, dy);
+  if dz == 1 || dz == -1 { l.enemies[i].z = (l.enemies[i].z ?? 0) + dz; }
   l.enemies[i].x = (l.enemies[i].x ?? 0) + dx;
   l.enemies[i].y = (l.enemies[i].y ?? 0) + dy;
   // One that swallows (the slime, B8) takes an item it comes onto, holding nothing yet.
-  ep = enemy_props(l, l.enemies[i].kind ?? "");
   ex = l.enemies[i].x ?? 0;
   ey = l.enemies[i].y ?? 0;
   ez = l.enemies[i].z ?? 0;
@@ -5860,7 +5904,9 @@ fn strike(l: Level, i: integer, p: const EnemyProps) {
   l.enemies[i].wind_until = 0;
   l.enemies[i].due = l.now + p.bite_ms;
   hit = false;
-  for c in cells { if c.0 == l.hero_x && c.1 == l.hero_y && e.z == l.hero_z { hit = true; } }
+  for c in cells {
+    if c.0 == l.hero_x && c.1 == l.hero_y && (e.z == l.hero_z || beside_hero(l, e)) { hit = true; }
+  }
   if !hit {
     l.misses += 1;
     return;
@@ -5929,7 +5975,8 @@ pub fn parry(l: Level) {
 fn in_stance(l: const Level) -> boolean {
   if l.now < l.blow_until { return true; }
   for e in l.enemies {
-    if e.wind_until > 0 && e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1 { return true; }
+    if e.wind_until > 0 && ((e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) == 1)
+                            || (e.z != l.hero_z && beside_hero(l, e))) { return true; }
   }
   false
 }
@@ -6135,7 +6182,7 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
       next_step(l, i);
       return false;
     }
-    w = enemy_way(l, p, e.x, e.y, e.z, e.aim_x, e.aim_y, false, no_shades());
+    w = enemy_way(l, p, e.x, e.y, e.z, e.aim_x, e.aim_y, e.z, false, no_shades());
     if w.2 > 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) {
       l.enemies[i].tpl_n = e.tpl_n + 1;
       enemy_step(l, i, w.0, w.1, s.ms);
@@ -6266,7 +6313,7 @@ fn enemy_act(l: Level, i: integer) {
       l.enemies[i].due = e.due + p.move_ms;
       return;
     }
-    hw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
+    hw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, e.nest_z, false, no_shades());
     if hw.2 > 0 { enemy_step(l, i, hw.0, hw.1, p.move_ms); } else { l.enemies[i].due = e.due + p.move_ms; }
     return;
   }
@@ -6280,7 +6327,7 @@ fn enemy_act(l: Level, i: integer) {
         l.enemies[i].due = e.due + p.move_ms;
         return;
       }
-      tw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, false, no_shades());
+      tw = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, e.nest_z, false, no_shades());
       if tw.2 > 0 {
         enemy_step(l, i, tw.0, tw.1, p.move_ms);
         return;
@@ -6302,7 +6349,7 @@ fn enemy_act(l: Level, i: integer) {
         return;
       }
       if food.2 > 1 {
-        fw = enemy_way(l, p, e.x, e.y, e.z, food.0, food.1, false, no_shades());
+        fw = enemy_way(l, p, e.x, e.y, e.z, food.0, food.1, e.z, false, no_shades());
         if fw.2 > 0 {
           enemy_step(l, i, fw.0, fw.1, p.move_ms);
           return;
@@ -6313,7 +6360,7 @@ fn enemy_act(l: Level, i: integer) {
   // Led by the hero (C3), it keeps beside it.
   if e.led {
     if e.z == l.hero_z && steps_apart(e.x, e.y, l.hero_x, l.hero_y) > 1 {
-      lw = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, false, no_shades());
+      lw = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, l.hero_z, false, no_shades());
       if lw.2 > 1 {
         enemy_step(l, i, lw.0, lw.1, p.move_ms);
         return;
@@ -6342,7 +6389,7 @@ fn enemy_act(l: Level, i: integer) {
     }
     behind = e.z != l.hero_z || steps_apart(e.x, e.y, l.hero_x, l.hero_y) > GUIDE_CELLS;
     if !(e.guiding && behind) && e.z == e.goal_z {
-      gw = enemy_way(l, p, e.x, e.y, e.z, e.goal_x, e.goal_y, false, no_shades());
+      gw = enemy_way(l, p, e.x, e.y, e.z, e.goal_x, e.goal_y, e.goal_z, false, no_shades());
       if gw.2 > 0 {
         enemy_step(l, i, gw.0, gw.1, p.move_ms);
         return;
@@ -6396,7 +6443,7 @@ fn enemy_act(l: Level, i: integer) {
     }
     if !home {
       // Home it has to go: through light, if there is no dark way.
-      w = chosen_way(l, p, e, e.nest_x, e.nest_y, true, true);
+      w = chosen_way(l, p, e, e.nest_x, e.nest_y, e.nest_z, true, true);
       if w.2 > 0 {
         enemy_step(l, i, w.0, w.1, p.chase_ms);
         return;
@@ -6469,7 +6516,7 @@ fn enemy_act(l: Level, i: integer) {
       }
     }
     // It comes at the hero — a light-shunning one only by a dark way.
-    w = chosen_way(l, p, e, l.hero_x, l.hero_y, false, false);
+    w = chosen_way(l, p, e, l.hero_x, l.hero_y, l.hero_z, false, false);
     if w.2 > 1 {
       enemy_step(l, i, w.0, w.1, p.chase_ms);
       return;
@@ -6496,7 +6543,7 @@ fn enemy_act(l: Level, i: integer) {
         loose(l, i, e, p, a.0, a.1);
         return;
       }
-      w = enemy_way(l, p, e.x, e.y, e.z, pe.x, pe.y, false, no_shades());
+      w = enemy_way(l, p, e.x, e.y, e.z, pe.x, pe.y, pe.z, false, no_shades());
       if w.2 > 1 {
         enemy_step(l, i, w.0, w.1, p.chase_ms);
         return;
@@ -6507,8 +6554,8 @@ fn enemy_act(l: Level, i: integer) {
   // search ends.
   if p.searches && e.due < e.search_until {
     if e.x != e.search_x || e.y != e.search_y {
-      w = enemy_way(l, p, e.x, e.y, e.z, e.search_x, e.search_y, false, no_shades());
-      if w.2 > 1 || (w.2 == 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1)) {
+      w = enemy_way(l, p, e.x, e.y, e.z, e.search_x, e.search_y, e.z, false, no_shades());
+      if w.2 > 1 || (w.2 == 1 && enemy_goes(l, p, e.x, e.y, e.z, w.0, w.1) != NO_WAY) {
         enemy_step(l, i, w.0, w.1, p.chase_ms);
         return;
       }
@@ -6522,15 +6569,15 @@ fn enemy_act(l: Level, i: integer) {
       heal(l, i, e, p);
       return;
     }
-    w = chosen_way(l, p, e, e.nest_x, e.nest_y, false, true);
+    w = chosen_way(l, p, e, e.nest_x, e.nest_y, e.nest_z, false, true);
     if w.2 > 0 {
       enemy_step(l, i, w.0, w.1, p.move_ms);
       return;
     }
   }
-  // Away from its nest (fled, chased off): it walks home.
-  if e.z == e.nest_z && steps_apart(e.x, e.y, e.nest_x, e.nest_y) > p.roam {
-    w = chosen_way(l, p, e, e.nest_x, e.nest_y, false, true);
+  // Away from its nest (fled, chased off, up or down a slope): it walks home.
+  if e.z != e.nest_z || steps_apart(e.x, e.y, e.nest_x, e.nest_y) > p.roam {
+    w = chosen_way(l, p, e, e.nest_x, e.nest_y, e.nest_z, false, true);
     if w.2 > 0 {
       enemy_step(l, i, w.0, w.1, p.move_ms);
       return;
@@ -6638,6 +6685,15 @@ fn opaque_terrain(l: const Level, kind: integer) -> boolean {
 fn recovery(l: const Level) -> integer {
   p = l.k.things[l.hero_item]?;
   if p.recover_ms > 0 { p.recover_ms } else { l.k.blow_ms }
+}
+
+// The enemy in the cell the hero faces (dx, dy): on its layer, or across a sloping front a layer up
+// or down (met there as on the level ground); -1 for none.
+fn faced_foe(l: const Level, dx: integer, dy: integer) -> integer {
+  foe = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z);
+  if foe >= 0 || !slope_between(l, l.hero_x, l.hero_y, l.hero_z, dx, dy) { return foe; }
+  up = enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z + 1);
+  if up >= 0 { up } else { enemy_at(l, l.hero_x + dx, l.hero_y + dy, l.hero_z - 1) }
 }
 
 // Can the hero strike enemy `foe` beside it (dx, dy): across an edge it crosses, not a guard, not up

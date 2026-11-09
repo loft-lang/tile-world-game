@@ -437,3 +437,79 @@ fn test_a_scared_spider_climbs_away() {
   rules::tick(w, 500);
   assert(w.blasted == 1 && spot(w) == "(2,0,1) hp2 nest (2,0,1)", "500: fled up: {spot(w)}");
 }
+
+// A terrace a layer high east of x 2: ground on layer 0 at x 0 .. 2, the terrace's earth on layer
+// 0 and its ground on layer 1 at x 3 .. 6; the front between x 2 and x 3 slopes when `slope`.
+//
+//   layer 1:  . . . # # # #
+//   layer 0:  # # # W W W W     (W the terrace's earth)
+//            x 0 1 2 3 4 5 6
+fn terrace(slope: boolean) -> rules::Level {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 2, 0, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 3, 0, 6, 0, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 3, 0, 6, 0, 1, rules::tr(w, "floor"));
+  if slope {
+    s = rules::edge_id(w.k, "slope");
+    tile_world::set_edge(w.w, 3, 0, 0, tile_world::WEST, s);
+    tile_world::set_edge(w.w, 3, 0, 1, tile_world::WEST, s);
+  }
+  w
+}
+
+fn rat_at(w: const rules::Level) -> text {
+  e = w.enemies[0];
+  "x{e.x} z{e.z}"
+}
+
+// @FR-GM-Front: a rat sees the hero up on the terrace, comes up the sloping front after it — x 1
+// at 600, x 2 at 950, up onto x 3 at 1300, x 4 at 1650, beside the hero — and bites at 2300.  A
+// cliff instead stops it at the foot.
+fn test_a_rat_chases_the_hero_up_a_sloping_front() {
+  w = terrace(true);
+  rules::put_hero(w, 5, 0, 1);
+  _ = rules::add_enemy(w, "rat", 0, 0, 0);
+  until(w, 1300);
+  assert(rat_at(w) == "x3 z1", "1300: up the slope: {rat_at(w)}");
+  until(w, 1650);
+  assert(rat_at(w) == "x4 z1", "1650: beside the hero: {rat_at(w)}");
+  until(w, 2300);
+  assert(w.health == 5, "2300: bitten: {w.health}");
+  c = terrace(false);
+  rules::put_hero(c, 5, 0, 1);
+  _ = rules::add_enemy(c, "rat", 0, 0, 0);
+  until(c, 2300);
+  assert(rat_at(c) == "x2 z0" || rat_at(c) == "x1 z0" || rat_at(c) == "x0 z0", "a cliff stops it: {rat_at(c)}");
+  assert(c.health == 6, "unbitten below the cliff: {c.health}");
+}
+
+// @FR-GM-Front: across a sloping front the hero strikes a rat a layer below, and a rat there bites
+// the hero above.
+fn test_the_hero_strikes_a_rat_across_a_sloping_front() {
+  w = terrace(true);
+  rules::put_hero(w, 3, 0, 1);
+  _ = rules::add_enemy(w, "rat", 2, 0, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Attacked && w.hero_x == 3 && w.hero_z == 1, "struck, not walked down onto it");
+  e = w.enemies[0];
+  assert(e.hp == 2, "the rat is struck: hp {e.hp}");
+  // a healthy rat a layer below bites the hero above across the front
+  v = terrace(true);
+  rules::put_hero(v, 3, 0, 1);
+  _ = rules::add_enemy(v, "rat", 2, 0, 0);
+  until(v, 2000);
+  r = v.enemies[0];
+  assert(v.health < 6 && r.x == 2 && r.z == 0, "bitten from below, the rat still below: {v.health}, {rat_at(v)}");
+}
+
+// @FR-GM-Front: a rat off its nest's layer — up on the terrace — walks home down the sloping front.
+fn test_a_rat_walks_home_down_a_sloping_front() {
+  w = terrace(true);
+  tile_world::set_terrain(w.w, 0, 0, 2, rules::tr(w, "floor"));
+  rules::put_hero(w, 0, 0, 2);
+  _ = rules::add_enemy(w, "rat", 1, 0, 0);
+  w.enemies[0].x = 6;
+  w.enemies[0].z = 1;
+  until(w, 6000);
+  e = w.enemies[0];
+  assert(e.z == 0 && e.x <= 4, "back down within its roam of the nest: {rat_at(w)}");
+}
