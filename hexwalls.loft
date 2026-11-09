@@ -61,6 +61,7 @@ pub fn dot4(ak: integer, am: integer, bk: integer, bm: integer) -> integer { 3 *
 
 /// The boundary of `cells` in walking order, the house on the left: one loop (a house is one
 /// piece without a courtyard).
+// @FR-HX-Edge: the boundary is the edges between a cell inside and one outside
 pub fn boundary(cells: hex_field::HexSet) -> vector<Edge> {
   all: vector<Edge> = [];
   for br in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
@@ -125,6 +126,7 @@ fn travel(turn: integer, b: const vector<Edge>, i: integer) -> integer {
 
 /// The boundary cut into runs, one per straight wall, in order round the house.  A run shorter
 /// than 2 edges is the turn of a corner, not a wall: it joins the run before it.
+// @FR-HW-Runs: one run per straight wall; a run under two edges joins the one before
 pub fn runs(turn: integer, b: const vector<Edge>) -> vector<vector<integer>> {
   n = len(b);
   label: vector<integer> = [for i in 0..n { travel(turn, b, i) }];
@@ -270,6 +272,7 @@ fn common(vals: const vector<integer>, sum: integer, n: integer) -> integer {
 }
 
 /// A TOPS wall (heading `h` even) through the run's edges.
+// @FR-HW-Tops
 pub fn solve_tops(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
   s = (6 - h / 2 ?? 0) % 6 ?? 0;        // turns heading h to 0, due east
   mids: vector<integer> = [];
@@ -292,6 +295,7 @@ pub fn solve_tops(b: const vector<Edge>, run: const vector<integer>, h: integer)
 }
 
 /// A SIDES wall (heading `h` odd) through the run's edges.
+// @FR-HW-Sides
 pub fn solve_sides(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
   s = ((3 - h) / 2 ?? 0) % 6 ?? 0;      // turns heading h to 3, due north
   links: vector<integer> = [];
@@ -321,6 +325,7 @@ pub fn solve_sides(b: const vector<Edge>, run: const vector<integer>, h: integer
 
 /// The straight wall through a run of wall edges running along heading `h`: a tops wall on an
 /// even heading, a sides wall on an odd one.
+// @FR-HW-Straight: a wall's direction is its heading's step, exactly
 pub fn solve_wall(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
   if hex_form::head_norm(h) % 2 == 0 { solve_tops(b, run, hex_form::head_norm(h)) }
   else { solve_sides(b, run, hex_form::head_norm(h)) }
@@ -345,6 +350,7 @@ pub fn run_heading(turn: integer, b: const vector<Edge>, run: const vector<integ
 /// with the most votes win, and -1 answers a tie: cells that show no direction (the smallest
 /// house, one hex and its six neighbours, is the same seven cells at every angle).  Exact: a
 /// heading step is √3 or 3 long, so the projections compare as squares, scaled by 9 or 3.
+// @FR-HW-Axes, @FR-HX-Size: the axes read off the cells; a tie is cells that show no direction
 pub fn axes_of(b: const vector<Edge>) -> integer {
   votes = [0, 0, 0];
   n = len(b);
@@ -379,9 +385,11 @@ pub fn axes_of(b: const vector<Edge>) -> integer {
 /// A house from its cells alone: the thin walls, the boundary, the axes it runs along, a run per
 /// straight wall and the wall solved for each.  The axes are read off the cells; `hint` (a
 /// heading, -1 for none) is asked only when the cells show no direction.
+// @FR-HX-Cells, @FR-HX-Editor: the walls from the cells alone, no plan and no angle
 pub fn from_cells(cells: hex_field::HexSet, hint: integer = -1) -> Built {
   edges = hex_field::edgeset_new(hex_field::hexset_q0(cells) - 1, hex_field::hexset_r0(cells) - 1,
                                  hex_field::hexset_w(cells) + 2, hex_field::hexset_h(cells) + 2);
+  // @FR-HX-Edge: the thin walls the rules use
   hex_draw::draw_walls(cells, edges, WALL);
   b = boundary(cells);
   turn = axes_of(b);
@@ -391,6 +399,7 @@ pub fn from_cells(cells: hex_field::HexSet, hint: integer = -1) -> Built {
   corners: vector<(float, float)> = [];
   nw = len(walls);
   for i in 0..nw {
+    // @FR-HW-Miter: each wall mitred into the next
     (x, y, _ok) = surface_miter(walls[i], walls[(i + 1) % nw ?? 0]);
     corners += [(x, y)];
   }

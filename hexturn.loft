@@ -40,6 +40,7 @@ pub struct Offset {
 
 /// `cells` turned by `steps` × 30° anticlockwise about cell (pq, pr), as a new set round the
 /// pivot.
+// @FR-HT-Pivot, @FR-HT-Turn60, @FR-HT-Drawing: whole 30° steps about a cell; 60° steps cell for cell
 pub fn turn(cells: hex_field::HexSet, pq: integer, pr: integer, steps: integer,
             way: integer = BY_WALLS) -> hex_field::HexSet {
   s = ((steps % 12) + 12) % 12 ?? 0;
@@ -126,6 +127,7 @@ fn in_frame(dx: float, dy: float, h: integer) -> (float, float) {
 }
 
 /// One odd step of 30°: the structure's offsets from the pivot once turned 30°.
+// @FR-HT-Turn30: one odd step, from the drawn walls
 fn turn30(cells: hex_field::HexSet, pq: integer, pr: integer, r: integer, way: integer) -> vector<Offset> {
   b = hexwalls::from_cells(cells);
   c = hexwalls::axes_of(b.boundary);
@@ -175,6 +177,7 @@ fn to_line(x: float, row: float, off: float) -> float {
 /// The structure's offset along one axis, 0 or half a row: the one that moves the walls `lines`
 /// least to their nearest lines.  A room centred on a row can only be an odd number of rows
 /// wide, and half a row over an even number.
+// @FR-HT-Turn30: the structure on its pivot or half a row beside it, per axis
 fn best_offset(lines: const vector<float>, row: float) -> float {
   best = 0.0;
   best_err = -1.0;
@@ -191,6 +194,7 @@ fn best_offset(lines: const vector<float>, row: float) -> float {
 
 /// The outline with each wall moved to the nearest line a wall can stand on (the structure
 /// moved by half a row along an axis where that moves the walls less).
+// @FR-HT-Near, @FR-HW-Clear: each wall to the nearest line midway between rows
 fn walls_snapped(corners: const vector<(float, float)>, row_x: float, row_y: float) -> vector<(float, float)> {
   n = len(corners);
   xs: vector<float> = [];

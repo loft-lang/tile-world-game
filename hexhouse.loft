@@ -83,6 +83,7 @@ fn within(head: integer, p: integer, lo: integer, hi: integer) -> boolean {
 }
 
 /// Mark the house's cells in `cells`: those whose centre lies in a part of the plan.
+// @FR-HP-Fill
 pub fn fill(h: const HexHouse, cells: hex_field::HexSet) -> integer {
   (uk, um) = hex_form::head_step(h.turn);
   (vk, vm) = hex_form::head_step(h.turn + 3);
@@ -126,6 +127,7 @@ pub fn reach(h: const HexHouse) -> integer {
 /// Build the house: its cells at 0° from the plan, turned to its angle by the editor's turn
 /// (hexturn.loft, `way` one of its BY_WALLS and BY_OUTLINE), then the world's walls from the
 /// cells.
+// @FR-HP-Zero, @FR-HX-Editor: the plan's cells at 0°, then the editor's turn, then the world's walls
 pub fn build(h: const HexHouse, way: integer = hexturn::BY_WALLS) -> hexwalls::Built {
   r = reach(h) + 2;
   cells = hex_field::hexset_chunk(h.cq - r, h.cr - r, 2 * r + 1, 2 * r + 1);

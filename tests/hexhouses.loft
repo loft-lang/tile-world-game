@@ -1,0 +1,319 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Structures on the hex grid at any 30° angle (formal/hex-houses.md): each rule checked over
+// boxes, two L's, a T and a U at all twelve angles, the walls drawn from the cells alone
+// (hexwalls.loft), turned by the editor (hexturn.loft) from the plan's 0° cells (hexhouse.loft).
+use hex_field;
+use hex_form;
+use hex_draw;
+use hex_shape;
+use hexwalls;
+use hexturn;
+use hexhouse;
+
+struct Shape {
+  name: text,
+  parts: vector<hexhouse::Part>
+}
+
+fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
+  hexhouse::Part { u0: u0, v0: v0, u1: u1, v1: v1 }
+}
+
+fn shapes() -> vector<Shape> {
+  [Shape { name: "box 5x4", parts: hexhouse::box_plan(5, 4) },
+   Shape { name: "box 3x2", parts: hexhouse::box_plan(3, 2) },
+   Shape { name: "L 6x3+3x4", parts: hexhouse::l_plan(6, 3, 3, 4) },
+   Shape { name: "L 4x2+2x3", parts: hexhouse::l_plan(4, 2, 2, 3) },
+   Shape { name: "T", parts: [part(-8, -3, 8, 3), part(-3, 3, 3, 11)] },
+   Shape { name: "U", parts: [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)] }]
+}
+
+fn house(s: const Shape, turn: integer) -> hexwalls::Built {
+  hexhouse::build(hexhouse::HexHouse { cq: 0, cr: 0, turn: turn, parts: s.parts })
+}
+
+fn key(q: integer, r: integer) -> integer { (q + 4096) * 8192 + r + 4096 }
+
+/// A set of cells as sorted keys.
+fn keys(cells: hex_field::HexSet) -> vector<integer> {
+  out: vector<integer> = [];
+  for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+    for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+      if hex_field::hexset_get(cells, q, r) { out += [key(q, r)]; }
+    }
+  }
+  out.sort();
+  out
+}
+
+/// The cells turned `steps` × 60° about cell (0, 0), as sorted keys: the lattice's own turn.
+fn turned_keys(cells: hex_field::HexSet, steps: integer) -> vector<integer> {
+  out: vector<integer> = [];
+  for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+    for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+      if hex_field::hexset_get(cells, q, r) {
+        (k, m) = hexwalls::turned(hex_field::lattice_k(q, r), hex_field::lattice_m(q, r), steps);
+        (tq, tr) = hexturn::cell_at(k, m);
+        out += [key(tq, tr)];
+      }
+    }
+  }
+  out.sort();
+  out
+}
+
+fn heading(w: hex_draw::WallSurface) -> integer { hex_draw::surface_heading(w) }
+
+fn on_axes(h: integer, turn: integer) -> boolean { h >= 0 && ((h - turn) % 3 + 3) % 3 == 0 }
+
+/// Is (x, y) inside the outline through `corners`?
+fn in_poly(poly: const vector<(float, float)>, x: float, y: float) -> boolean {
+  n = len(poly);
+  inside = false;
+  for i in 0..n {
+    (x1, y1) = poly[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+    (x2, y2) = poly[i] ?? (0.0, 0.0);
+    if (y1 > y) != (y2 > y) {
+      cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+      if x < cx { inside = !inside; }
+    }
+  }
+  inside
+}
+
+/// The distance from (x, y) to the segment from a to b.
+fn to_segment(x: float, y: float, a: (float, float), b: (float, float)) -> float {
+  dx = b.0 - a.0;
+  dy = b.1 - a.1;
+  t = ((x - a.0) * dx + (y - a.1) * dy) / (dx * dx + dy * dy) ?? 0.0;
+  if t < 0.0 { t = 0.0; }
+  if t > 1.0 { t = 1.0; }
+  ex = x - a.0 - t * dx;
+  ey = y - a.1 - t * dy;
+  sqrt(ex * ex + ey * ey)
+}
+
+/// The hex centres round the pivot on the wrong side of the drawn walls, and the nearest any
+/// centre comes to a wall's middle line.
+fn clearance(b: hexwalls::Built) -> (integer, float) {
+  wrong = 0;
+  near = 1000.0;
+  n = len(b.corners);
+  for r in -16..17 {
+    for q in -16..17 {
+      x = (hex_field::lattice_k(q, r) as float) * 0.8660254037844386;
+      y = (hex_field::lattice_m(q, r) as float) * 0.5;
+      for i in 0..n {
+        d = to_segment(x, y, b.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0), b.corners[i] ?? (0.0, 0.0));
+        if d < near { near = d; }
+      }
+      if in_poly(b.corners, x, y) != hex_field::hexset_get(b.cells, q, r) { wrong += 1; }
+    }
+  }
+  (wrong, near)
+}
+
+/// Half a wall's thickness, √3/4 units.
+const HALF_WALL = 0.4330127018922193;
+
+// @FR-HT-Turn60: a 60° step is the lattice's own turn, cell for cell.
+fn test_a_sixty_degree_step_turns_every_cell_exactly() {
+  for s in shapes() {
+    even = house(s, 0);
+    odd = house(s, 1);
+    for t in 2..12 {
+      base = if t % 2 == 0 { even.cells } else { odd.cells };
+      got = keys(house(s, t).cells);
+      want = turned_keys(base, t / 2 ?? 0);
+      assert(got == want, "{s.name} at {30 * t}°: the {30 * (t % 2)}° house turned {30 * (t - t % 2)}°, cell for cell");
+    }
+  }
+}
+
+// @FR-HT-Shape: every angle has the drawn walls, each turning the same way into the next.
+fn test_every_angle_keeps_the_walls_and_their_turns() {
+  for s in shapes() {
+    zero = house(s, 0);
+    nw = len(zero.walls);
+    for t in 0..12 {
+      b = house(s, t);
+      assert(len(b.walls) == nw, "{s.name} at {30 * t}°: {len(b.walls)} walls, as many as at 0° ({nw})");
+      left = 0;
+      for i in 0..len(b.walls) {
+        (ak, am) = hex_form::head_step(heading(b.walls[i]));
+        (bk, bm) = hex_form::head_step(heading(b.walls[(i + 1) % len(b.walls) ?? 0]!));
+        if ak * bm - am * bk > 0 { left += 1; }
+      }
+      zero_left = 0;
+      for i in 0..nw {
+        (ak, am) = hex_form::head_step(heading(zero.walls[i]));
+        (bk, bm) = hex_form::head_step(heading(zero.walls[(i + 1) % nw ?? 0]!));
+        if ak * bm - am * bk > 0 { zero_left += 1; }
+      }
+      assert(left == zero_left, "{s.name} at {30 * t}°: {left} corners turn left, as at 0° ({zero_left})");
+    }
+  }
+}
+
+// @FR-HW-Straight, @FR-HW-Axes: every wall straight along the axes read off the cells.
+fn test_every_wall_is_straight_along_the_axes_read_off_the_cells() {
+  for s in shapes() {
+    for t in 0..12 {
+      b = house(s, t);
+      axes = hexwalls::axes_of(b.boundary);
+      assert(axes == t % 3, "{s.name} at {30 * t}°: the axes read off the cells are {axes}, want {t % 3}");
+      for w in b.walls {
+        h = heading(w);
+        assert(on_axes(h, t), "{s.name} at {30 * t}°: a wall along heading {h}, on the axes of {t}");
+      }
+    }
+  }
+}
+
+// @FR-HW-Miter: each wall meets the next at a right angle, exactly.
+fn test_every_corner_is_square() {
+  for s in shapes() {
+    for t in 0..12 {
+      b = house(s, t);
+      n = len(b.walls);
+      assert(len(b.corners) == n, "{s.name} at {30 * t}°: a corner for every wall");
+      for i in 0..n {
+        (ak, am) = hex_form::head_step(heading(b.walls[i]));
+        (bk, bm) = hex_form::head_step(heading(b.walls[(i + 1) % n ?? 0]!));
+        assert(hexwalls::dot4(ak, am, bk, bm) == 0, "{s.name} at {30 * t}°: wall {i} square to the next");
+      }
+    }
+  }
+}
+
+// @FR-HW-Clear: every hex centre clearly inside or outside, none under a wall.
+fn test_every_hex_centre_is_clearly_inside_or_outside() {
+  for s in shapes() {
+    for t in 0..12 {
+      (wrong, near) = clearance(house(s, t));
+      assert(wrong == 0, "{s.name} at {30 * t}°: {wrong} hex centres on the wrong side of the drawn walls");
+      assert(near >= HALF_WALL - 0.000000001, "{s.name} at {30 * t}°: a centre {near} units from a wall's middle, under half a wall ({HALF_WALL})");
+    }
+  }
+}
+
+/// How far each wall along `axis` (a heading modulo 6) of the turned house sits from the drawn
+/// wall along the same heading nearest it, turned 30°, measured across the wall.
+fn shifts(zero: hexwalls::Built, turned: hexwalls::Built, axis: integer) -> vector<float> {
+  co = 0.8660254037844386;   // cos 30°
+  si = 0.5;
+  a = ((axis + 3) as float) * PI / 6.0;
+  nx = cos(a);
+  ny = sin(a);
+  out: vector<float> = [];
+  for w in turned.walls {
+    h = heading(w);
+    if h % 6 != axis { continue; }
+    p = hex_draw::surface_mean_x(w) * nx + hex_draw::surface_mean_y(w) * ny;
+    best = 1000.0;
+    for z in zero.walls {
+      if hex_form::head_norm(heading(z) + 1) != h { continue; }
+      x = hex_draw::surface_mean_x(z);
+      y = hex_draw::surface_mean_y(z);
+      d = p - ((x * co - y * si) * nx + (x * si + y * co) * ny);
+      if abs_f(d) < abs_f(best) { best = d; }
+    }
+    out += [best];
+  }
+  out
+}
+
+fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
+
+/// Do all `shifts` lie within half a row of one offset: none, or half a row either way?
+fn within_half_a_row(shifts: const vector<float>, row: float) -> boolean {
+  for o in [0.0, row * 0.5, -row * 0.5] {
+    all = true;
+    for d in shifts { if abs_f(d - o) > row * 0.5 + 0.000001 { all = false; } }
+    if all { return true; }
+  }
+  false
+}
+
+// @FR-HT-Near: after an odd step every wall lies within half a row of its drawn place turned 30°,
+// once the structure is moved by its offset (none or half a row, per axis).
+fn test_an_odd_step_moves_each_wall_less_than_half_a_row() {
+  for s in shapes() {
+    zero = house(s, 0);
+    turned = house(s, 1);
+    for axis in [1, 4] {
+      row = if (axis + 3) % 2 == 1 { hexturn::ROW_ODD } else { hexturn::ROW_EVEN };
+      got = shifts(zero, turned, axis);
+      assert(len(got) > 0, "{s.name}: walls along axis {axis}");
+      assert(within_half_a_row(got, row), "{s.name} at 30°: the walls along axis {axis} moved {got}, more than half a row ({row * 0.5}) past one offset");
+    }
+  }
+}
+
+// @FR-HX-Size, @FR-HW-Axes: the smallest box is seven cells that show no direction.
+fn test_the_smallest_box_shows_no_direction() {
+  tiny = Shape { name: "box 2x2", parts: hexhouse::box_plan(2, 2) };
+  for t in 0..12 {
+    b = house(tiny, t);
+    assert(hex_field::hexset_count(b.cells) == 7, "box 2x2 at {30 * t}°: seven cells");
+    assert(hexwalls::axes_of(b.boundary) == -1, "box 2x2 at {30 * t}°: a tie, the cells show no direction");
+  }
+}
+
+// @FR-HT-Drawing, @FR-HX-Cells: the turn reads only the cells, whatever direction they were
+// drawn in; a 60° step from a 30° drawing is exact, a further 30° step is a drawing of its own.
+fn test_a_structure_drawn_at_thirty_degrees_turns_from_its_cells() {
+  for s in shapes() {
+    drawn = house(s, 1).cells;
+    at_ninety = hexturn::turn(drawn, 0, 0, 2);
+    assert(keys(at_ninety) == keys(house(s, 3).cells), "{s.name}: drawn at 30° and turned 60°, the 90° house cell for cell");
+    at_sixty = hexwalls::from_cells(hexturn::turn(drawn, 0, 0, 1), 2);
+    assert(len(at_sixty.walls) == len(house(s, 0).walls), "{s.name}: drawn at 30° and turned 30°, its walls kept");
+    (wrong, _near) = clearance(at_sixty);
+    assert(wrong == 0, "{s.name}: drawn at 30° and turned 30°, every centre clearly in or out");
+  }
+}
+
+// @FR-HP-Fill, @FR-HP-Zero: a box at 0° is the cells hex_shape::box_fill gives.
+fn test_a_box_at_zero_degrees_is_the_box_fill() {
+  for d in [(5, 4), (3, 2), (2, 2), (6, 3)] {
+    b = house(Shape { name: "box", parts: hexhouse::box_plan(d.0, d.1) }, 0);
+    want = hex_field::hexset_chunk(-20, -20, 41, 41);
+    hex_shape::box_fill(hex_shape::box_new(0, 0, d.0, d.1, 0, false), want);
+    assert(keys(b.cells) == keys(want), "box {d.0}x{d.1} at 0°: the cells box_fill gives");
+  }
+}
+
+/// The gaps between the walls across a house (those along heading `along` and the one opposite),
+/// measured along heading `across`, in metres, in order.
+fn gaps(b: hexwalls::Built, along: integer, across: integer) -> vector<float> {
+  a = (across as float) * PI / 6.0;
+  nx = cos(a);
+  ny = sin(a);
+  at: vector<float> = [];
+  for w in b.walls {
+    if heading(w) % 6 != along % 6 { continue; }
+    p = hex_draw::surface_mean_x(w) * nx + hex_draw::surface_mean_y(w) * ny;
+    seen = false;
+    for q in at { if abs_f(q - p) < 0.001 { seen = true; } }
+    if !seen { at += [p]; }
+  }
+  at.sort();
+  [for i in 1..len(at) { (at[i] - at[i - 1]) * 0.8660254037844386 }]
+}
+
+// @FR-HT-Turn30: the structure sits on its pivot or half a row beside it, whichever moves its
+// walls least, so a T stays a T: on its pivot its stem, 3.46 rows wide, could only be 3 or 5
+// rows (3.9 or 6.5 m); half a row over it is 4 (5.2 m), as at 0° (5.25 m), and its arms equal.
+fn test_a_t_keeps_its_proportions_at_thirty_degrees() {
+  t = shapes()[4];
+  zero = gaps(house(t, 0), 3, 0);
+  thirty = gaps(house(t, 1), 4, 1);
+  assert(len(zero) == 3 && len(thirty) == 3, "the T: arm, stem, arm across it, at 0° {zero} and 30° {thirty}");
+  assert(abs_f(thirty[0] - thirty[2]) < 0.001, "the T at 30°: its arms equal, {thirty}");
+  for i in 0..3 {
+    assert(abs_f(thirty[i] - zero[i]) <= 0.25, "the T at 30°: gap {i} {thirty[i]} m against {zero[i]} m at 0°, within 0.25 m");
+  }
+}
