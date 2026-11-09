@@ -388,7 +388,7 @@ question for the owner in hex, not a translation.
 
 **No backend lost** (owner, 2026-11-09).  A hex world has no 2D pictures (Kenney's sheets are
 square), so the 3D routines are ported to the Tanmatsu first (BUILD.md Phase E), and no hex area
-comes into a design before the 3D view plays on the device.  Steps 2 to 4 are that phase's E5.
+comes into a design before the 3D view plays on the device.  Steps 2 to 4 are that phase's E7.
 
 **Open for the owner: which view ships first** — the 2D or the browser's 3D (RENDER_3D.md § Why
 it matters).  With Phase E both machines can show either.

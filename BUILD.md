@@ -417,25 +417,92 @@ are square), so until the Tanmatsu draws 3D a hex area would play only in a brow
 question itself is WORLD.md § One game, square or hex.  This phase runs beside phase D; what is
 not the owner's is ◇.
 
+**The owner's rulings for it (2026-11-09).**
+
+- **The panel's own resolution**, 800 × 480, not a small frame scaled up.
+- **Drawing is reused between frames**, or it is far too slow.
+- **As few triangles as possible**: a face whose back is to the eye is skipped, and sight lines
+  (the rules already have some) leave out what cannot be seen.
+- **Far away, triangles become dots**: cheaper to draw than a textured triangle.
+- **First a test routine**: the demo world in 3D on the Tanmatsu, to learn how to make it fast.
+
+**Measured (2026-11-09, a probe over `render3d::faces` in Orbury, 6 spots × 4 facings each).**
+
+| | Faces built | Out of the view cone | Back to the eye | Out of sight (the hero's layer) | Left to draw |
+|---|---|---|---|---|---|
+| Outdoors | 982 | 67 % | 25 % | 46 % | 147 (15 %) |
+| Indoors | 1446 | 66 % | 31 % | 82 % | 72 (5 %) |
+
+The columns overlap, so they do not add up.  What it shows:
+
+- **Culling leaves about a hundred faces**, so triangles are not the cost.  **The cost is
+  pixels.**  On the 800 × 480 panel every face left is 16 pixels or more across, two-thirds of
+  them over 32, and the frame's 384,000 pixels are filled every frame.  That is why reusing what
+  was drawn matters most.
+- **No face is near a dot within today's reach** (12 cells, fogged out from 10).  A tile's 16
+  texels cover fewer than 16 pixels only beyond about 21 cells.  Dots pay once the view reaches
+  further: outdoors, and in the hex worlds.
+- **The faces are not all wound the same way** (checked by hand on a floor's corner order and a
+  wall's north side).  It never mattered with no culling, but back-face culling needs one winding.
+- The sight test used here is the rules' line of sight on the hero's layer only: an estimate.
+  The 3D view sees across layers (down from a terrace, up a stairwell).
+
+**The hardware** (loft's TANMATSU.md): two RISC-V cores with a single-precision FPU only (a
+`float` is software, so the 3D code runs under `#width 32`); 768 KB of fast SRAM and 32 MB of
+slower PSRAM; the panel mounted portrait (480 × 800) with its framebuffer in PSRAM.  A 16-bit
+800 × 480 frame is 768,000 bytes, the whole of the fast SRAM.
+
+- **E0. The test routine** (owner).  The demo village in 3D, run on the desktop and on the
+  Tanmatsu.  A scripted camera path holds still, turns on the spot, walks a street and enters a
+  house, with a figure moving.  Every frame logs its times as `@t` lines, as `sheet.loft` does:
+  building the faces, culling, transforming, drawing (and how many pixels were written),
+  showing.  Each step below is a switch in it, so each is measured on the device, alone and
+  together.  Red: the routine's summary (frame time per part of the path) is missing a part.
 - **E1. What is drawn, apart from how** ◇.  `render3d.loft` splits in two: building the picture
   (what is seen round the hero, the geometry with its pictures and light, the cards and their
-  poses) and handing it to the GPU.  The first part is what the Tanmatsu shares.  Red: the frames
-  in the browser change (`checks/view3d.loft` and a TW_SHOT taken before and after, byte-identical).
+  poses) and handing it to the GPU.  The first part is shared with the Tanmatsu.  Red: the
+  frames in the browser change (`checks/view3d.loft` and a TW_SHOT before and after,
+  byte-identical).
 - **E2. A renderer on the CPU** ◇.  The same triangles drawn in software, as phones did before
-  they had a GPU (RENDER_3D.md § Later): textured spans with the atlas's texels sampled nearest,
-  each vertex's light from the rules, a depth buffer, and the cards' transparent texels left
-  out.  Built and checked on the desktop first.  Red: a frame of the same moment drawn by the
-  GPU and by this renderer differs beyond a stated number of pixels (the GPU's frame is the
-  oracle; affine texturing bends a picture a little, which the tolerance names).
-- **E3. Within the Tanmatsu's budget** ◇.  Faces turned away and faces out of view are culled
-  (`render3d.loft` draws every face today); how far round the hero is drawn, and the frame's size
-  (the 2D's 208 × 160 at scale 3, WORLD.md § The two machines), are each one constant.  Red: the
-  count of faces drawn in a place, against the count in view.
-- **E4. On the device.**  The 3D view on the Tanmatsu, F1 switching it as in the browser; the 2D
-  stays.  Checked on the device with the timing log: frame time, and the PSRAM the atlas and the
-  meshes take.
-- **E5. Then the hex grid**, WORLD.md § One game, square or hex, steps 2 to 4 (the rules asking
-  for the next cell, a hex world, the import).  **No hex area in a design before E4 plays on the
+  they had a GPU: textured spans with the atlas's texels sampled nearest, each vertex's light
+  from the rules, a depth test, and the cards' transparent texels left out.  It is written in C,
+  as a library's C part (as `tiles` draws its pictures): `graphics::Canvas` has only flat
+  triangles and draws pixel by pixel in loft.  **Drawn in bands** ◇: the frame does not fit in
+  the fast SRAM, so it is drawn a band at a time there and copied out.  With the panel mounted
+  portrait, a band of the picture's columns is a run of the panel's rows, one block of memory.
+  Red: a frame of the same moment drawn by the GPU and by this renderer differs beyond a stated
+  number of pixels (the GPU's frame is the oracle; the tolerance names what affine texturing
+  bends).
+- **E3. Culling** ◇.
+  - **Back faces**: every face wound one way, its front toward its open side.  A thin wall is
+    two-sided (two faces); a card always faces the eye.  Red: a check that every face's front
+    points to its open side.
+  - **The view cone and the distance**: faces outside the field or past the fog are skipped,
+    a block of cells at a time.
+  - **Sight across layers**: which cells can be seen from the hero's cell, layer by layer
+    through the openings between layers, worked out when the hero changes cell, not every
+    frame.  A face belongs to the open cell it faces.  It must never leave out anything
+    visible: a gap is worse than a spare triangle.
+  - Red: on the desktop GPU, a frame drawn with culling differs from one drawn without it, at
+    each spot of the test routine's path.
+- **E4. Reuse between frames** (owner) ◇.
+  - What is visible and its faces are kept until the hero changes cell or the world changes
+    (the faces are already rebuilt only on a change).
+  - **The camera still**: the place's picture and its depth are kept (1.5 MB in PSRAM).  A frame
+    restores and redraws only the rectangles where a card moved.
+  - **The camera moving**: everything is drawn again.  This is the budget case, and free
+    roaming makes it the common one, so the routine measures it hardest.
+  - Red: a frame from the kept picture differs from one drawn whole.
+- **E5. Dots far away** (owner) ◇.  Each tile in the atlas gets smaller copies (16, 8, 4, 2 and
+  1 texels).  A face uses the copy that fits its size on the screen, and the 1-texel copy, the
+  tile's mean colour, is the dot.  It also stops the pictures shimmering at a distance.  It
+  matters only when the view reaches beyond about 20 cells, so it comes after E3 and E4.  Red:
+  the faces drawn as dots against their distance in the routine's log.
+- **E6. On the device, in the game.**  The 3D view on the Tanmatsu, F1 switching it as in the
+  browser; the 2D stays.  Checked on the device with the timing log: frame time, and the PSRAM
+  the atlas, the kept picture and the faces take.
+- **E7. Then the hex grid**, WORLD.md § One game, square or hex, steps 2 to 4 (the rules asking
+  for the next cell, a hex world, the import).  **No hex area in a design before E6 plays on the
   device** (owner, 2026-11-09: no backend lost).  Red: a hex place played through by its
   walk-through test, and drawn on the desktop, in the browser and on the Tanmatsu.
 
@@ -444,7 +511,7 @@ not the owner's is ◇.
 division table, cheaper than triangles.  It draws upright walls and flat floors, which suits a
 hex world, but not this game's slopes, slants, pitched roofs or bent floors.  E2 draws triangles
 so that everything the browser shows is kept; whether the column renderer takes over on hex
-ground, where it fits, is for the owner once E4 is measured.
+ground, where it fits, is for the owner once E0 has measured the device.
 
 ## Where to begin
 
