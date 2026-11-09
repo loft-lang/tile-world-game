@@ -130,6 +130,11 @@ page = f"""<!doctype html>
   (<code>hexhouse::solve_tops</code>, <code>solve_sides</code>): turned to its own frame, the line runs through
   the midpoints its pattern puts on it (every edge across the tops; every slanted connector along the
   sides), along the wall's heading exactly, mitred where two walls meet.</p>
+  <p>Turning: the 0° house is the plan's cells.  60°, 120°, … are that house turned cell for cell (a 60° turn
+  is a symmetry of the grid).  30° cannot be a copy, so each room is its rectangle turned 30° and grown or
+  shrunk evenly until it holds as many cells as at 0°, or the nearest whole rows come to that; 90°, 150°, …
+  are the 30° house turned cell for cell.  Here the body keeps its 19 cells at every angle and the side room
+  has 18 at 0° and 16 at 30°.</p>
   <div class="scroll"><table>
     <thead><tr><th>Angle</th><th>Family</th><th>Cells</th><th>Edges</th><th>Walls on the axes</th></tr></thead>
     <tbody>{"".join(rows)}</tbody>
