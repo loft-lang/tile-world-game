@@ -190,6 +190,11 @@ page = f"""<!doctype html>
   nearest the way the boundary travels).  What matters is that every hex centre is clearly inside or
   outside: on every house here none is on the wrong side of the drawn walls, and none lies under a wall.</p>
   <figure>{gsvg}</figure>
+  <p>The last row is a T drawn at 30° and turned from there by 0°, 30°, 60° and 90°: the turn
+  (<code>hexturn::turn</code>) takes any structure as its cells and reads its walls and their axes off them, so it
+  does not matter which direction it was drawn in.  Turned by 60° it is exact (the 90° T is the same cells as the
+  one above it); turned by 30° it is a second approximation on top of the first (the 60° T differs from the one
+  above it in 8 cells), so the editor always turns from the drawing, not from an earlier turn.</p>
   <p>The 2 × 2 box (3 × 3 m) is the same seven cells, one hex and its six neighbours, at every angle: its cells
   show no direction, the vote ties, and only then does the angle it was placed at decide.  It marks the
   limit: a structure must be big enough for its cells to carry its walls, and anything smaller (an
@@ -198,7 +203,7 @@ page = f"""<!doctype html>
     <thead><tr><th>Shape</th><th>Placed at</th><th>Cells</th><th>Axes read off the cells</th><th>As placed</th><th>Walls on the axes</th></tr></thead>
     <tbody>{"".join(grows)}</tbody>
   </table></div>
-  <p class="lead">Made by <code>tools/hexhouses.loft</code> and <code>tools/hexhouses.py</code> from <code>hexhouse.loft</code> (the editor: plan and turn) and <code>hexwalls.loft</code> (the walls, from the cells alone).</p>
+  <p class="lead">Made by <code>tools/hexhouses.loft</code> and <code>tools/hexhouses.py</code> from <code>hexhouse.loft</code> (the editor's plan), <code>hexturn.loft</code> (the editor's turn, of any structure's cells) and <code>hexwalls.loft</code> (the walls, from the cells alone).</p>
 </main>
 </body>
 </html>

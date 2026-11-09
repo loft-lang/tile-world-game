@@ -7,7 +7,7 @@
 //     python3 tools/hexhouses.py build/hexhouses2.json hexhouses2.html outline
 //
 // With `outline` the editor turns a house to 30° by its drawn outline moved as a whole instead of
-// wall by wall (hexhouse::BY_OUTLINE), for the second page.
+// wall by wall (hexturn::BY_OUTLINE), for the second page.
 //
 // Each house: its cells, its boundary edges (the thin walls the rules use), its straight walls
 // as hexwalls.loft solves them, the heading each wall runs along, and the axes read off its cells
@@ -15,6 +15,7 @@
 use hex_field;
 use hex_draw;
 use hexwalls;
+use hexturn;
 use hexhouse;
 
 const COLS = 4;
@@ -56,7 +57,7 @@ fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
 }
 
 fn main() {
-  way = if (arguments()[0] ?? "") == "outline" { hexhouse::BY_OUTLINE } else { hexhouse::BY_WALLS };
+  way = if (arguments()[0] ?? "") == "outline" { hexturn::BY_OUTLINE } else { hexturn::BY_WALLS };
   plan = hexhouse::l_plan(6, 3, 3, 4);
   w = COLS * GAP + 4;
   h = ROWS * GAP + 6;
@@ -70,10 +71,11 @@ fn main() {
     println("{house_json(b, "L", i, cq, cr)}{sep}");
   }
   // The gallery: a row per shape, a column per angle (0°, 30°, 60°, 90°).
-  names = ["box 5×4", "box 3×2", "box 2×2", "L 4×2 + 2×3", "T", "U"];
+  names = ["box 5×4", "box 3×2", "box 2×2", "L 4×2 + 2×3", "T", "U", "T drawn at 30°"];
   plans = [hexhouse::box_plan(5, 4), hexhouse::box_plan(3, 2), hexhouse::box_plan(2, 2),
            hexhouse::l_plan(4, 2, 2, 3), [part(-8, -3, 8, 3), part(-3, 3, 3, 11)],
-           [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)]];
+           [part(-8, -3, 8, 3), part(-8, 3, -3, 11), part(3, 3, 8, 11)],
+           [part(-8, -3, 8, 3), part(-3, 3, 3, 11)]];
   rows = len(names);
   gh = rows * GAP + 6;
   println("], \"gterrain\": [0, 0, {w}, {gh}], \"gallery\": [");
@@ -82,8 +84,16 @@ fn main() {
       cq = 2 + GAP / 2 + t * GAP;
       cr = 2 + GAP / 2 + (rows - 1 - s) * GAP;
       b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] }, way);
+      shown = t;
+      if s == rows - 1 {
+        // Drawn at 30° and turned from there, by 0°, 30°, 60° and 90°: the turn reads only the
+        // cells, whatever direction they were drawn in.
+        drawn = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: 1, parts: plans[s] }, way);
+        shown = 1 + t;
+        b = hexwalls::from_cells(hexturn::turn(drawn.cells, cq, cr, t, way), shown);
+      }
       sep = if s < rows - 1 || t < 3 { "," } else { "" };
-      println("{house_json(b, names[s], t, cq, cr)}{sep}");
+      println("{house_json(b, names[s], shown, cq, cr)}{sep}");
     }
   }
   println("]}}");

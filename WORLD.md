@@ -415,9 +415,11 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
     residual) instead of refusing.  The fix belongs to `hex_shape` and `hex_draw` (walls from a
     `Box`, not only a `Plan`) and to moros's `hex_editor` (no refusal).
 - **Turning is an editor step, and the world is drawn only from the cells** (owner, 2026-11-09).
-  The editor makes a house's cells from its plan and turns them (`hexhouse.loft`; the turn is
-  not exact, owner); the world draws the walls from the cells alone (`hexwalls.loft`), with no
-  plan and no angle: the axes the walls run along are read off the cells.  It works because a
+  The editor makes a house's cells from its plan (`hexhouse.loft`) and turns them
+  (`hexturn.loft`: any structure, given as its cells, by any multiple of 30°; 60° steps exact,
+  an odd 30° step each drawn wall moved to the nearest line a wall can stand on in the turned
+  grid; not exact, owner); the world draws the walls from the cells alone (`hexwalls.loft`), with
+  no plan and no angle: the axes the walls run along are read off the cells.  It works because a
   wall always lies between two hex centres, one inside the house and one outside.  The page
   `hexhouses.html` shows an L at all twelve angles and a gallery of other shapes.
 - **What matters is that every hex centre is clearly inside or outside** (owner, 2026-11-09).
