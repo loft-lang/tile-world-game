@@ -829,3 +829,80 @@ fn test_a_sloping_front_is_walked_up_and_down() {
   rules::put_hero(w, 2, 1, 1);
   assert(rules::walk(w, -1, 0) == rules::Step.Fell && w.health == hp - 1, "off the cliff, a fall: {at(w)}, health {w.health}");
 }
+
+// A terrace for pushing and pulling over its front: ground below on x 0..2, the terrace's ground
+// on x 3..5 a layer up; row y 0's front slopes, row y 1's is a cliff.
+fn pushing_terrace() -> rules::Level {
+  w = rules::level(rules::kinds());
+  for y in 0..2 {
+    tile_world::fill(w.w, 0, y, 2, y, 0, rules::tr(w, "floor"));
+    tile_world::fill(w.w, 3, y, 5, y, 0, rules::tr(w, "wall"));
+    tile_world::fill(w.w, 3, y, 5, y, 1, rules::tr(w, "floor"));
+  }
+  slope = rules::edge_id(w.k, "slope");
+  tile_world::set_edge(w.w, 3, 0, 0, tile_world::WEST, slope);
+  tile_world::set_edge(w.w, 3, 0, 1, tile_world::WEST, slope);
+  w
+}
+
+fn thing_at(w: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  t = tile_world::top(w.w, x, y, z);
+  if t == 0 { "" } else { rules::thing_name(w.k, t) }
+}
+
+// @FR-GM-Front: a thing is pushed up a sloping front and down it again, the hero walking after it
+// without a fall — from the foot, over the front, and from the top; a cliff stops it.
+fn test_a_thing_is_pushed_up_and_down_a_sloping_front() {
+  w = pushing_terrace();
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "anvil"));
+  rules::put_hero(w, 1, 0, 0);
+  hp = w.health;
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && thing_at(w, 3, 0, 1) == "anvil" && at(w) == "2,0,0 h0",
+         "pushed up the front: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && thing_at(w, 4, 0, 1) == "anvil" && at(w) == "3,0,1 h0",
+         "pushed on, the hero up the front after it: {at(w)}");
+  rules::put_hero(w, 5, 0, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && thing_at(w, 3, 0, 1) == "anvil", "back to the top");
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && thing_at(w, 2, 0, 0) == "anvil" && at(w) == "3,0,1 h0",
+         "pushed down the front: {at(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && thing_at(w, 1, 0, 0) == "anvil" && at(w) == "2,0,0 h0"
+         && w.health == hp, "pushed on below, the hero down after it, no fall: {at(w)}, health {w.health}");
+  // the cliff on row y 1: neither up nor off it
+  tile_world::place(w.w, 2, 1, 0, rules::th(w, "anvil"));
+  rules::put_hero(w, 1, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && thing_at(w, 2, 1, 0) == "anvil", "the cliff keeps it below");
+  tile_world::place(w.w, 3, 1, 1, rules::th(w, "anvil"));
+  rules::put_hero(w, 4, 1, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Blocked && thing_at(w, 3, 1, 1) == "anvil", "nor is it pushed off it");
+}
+
+// @FR-GM-Front: a thing is pulled down a sloping front and up it again, the hero walking it.
+fn test_a_thing_is_pulled_down_and_up_a_sloping_front() {
+  w = pushing_terrace();
+  tile_world::place(w.w, 4, 0, 1, rules::th(w, "chair"));
+  rules::put_hero(w, 3, 0, 1);
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && at(w) == "2,0,0 h0" && thing_at(w, 3, 0, 1) == "chair",
+         "the hero walks down the front, the chair to the top: {at(w)}");
+  assert(rules::pull(w, -1, 0) == rules::Step.Pulled && at(w) == "1,0,0 h0" && thing_at(w, 2, 0, 0) == "chair",
+         "the chair down the front after the hero: {at(w)}");
+  tile_world::place(w.w, 1, 0, 0, tile_world::take(w.w, 2, 0, 0));
+  rules::put_hero(w, 2, 0, 0);
+  assert(rules::pull(w, 1, 0) == rules::Step.Pulled && at(w) == "3,0,1 h0" && thing_at(w, 2, 0, 0) == "chair",
+         "the hero walks up the front, the chair to its foot: {at(w)}");
+  assert(rules::pull(w, 1, 0) == rules::Step.Pulled && at(w) == "4,0,1 h0" && thing_at(w, 3, 0, 1) == "chair",
+         "the chair up the front after the hero: {at(w)}");
+}
+
+// @FR-GM-Front: an item in the way of a push slides up a sloping front, and down it.
+fn test_an_item_is_shoved_over_a_sloping_front() {
+  w = pushing_terrace();
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "anvil"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "stick"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pushed && thing_at(w, 2, 0, 0) == "anvil" && thing_at(w, 3, 0, 1) == "stick",
+         "the stick slides up the front");
+  tile_world::place(w.w, 4, 0, 1, tile_world::take(w.w, 2, 0, 0));
+  rules::put_hero(w, 5, 0, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Pushed && thing_at(w, 3, 0, 1) == "anvil" && thing_at(w, 2, 0, 0) == "stick",
+         "and down it");
+}

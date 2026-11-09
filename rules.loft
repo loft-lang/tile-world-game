@@ -1250,6 +1250,26 @@ pub fn slope_between(l: const Level, x: integer, y: integer, z: integer, dx: int
   p.slope
 }
 
+// @FR-GM-Front: what crosses a sloping front, a thing pushed or pulled or an item shoved aside
+/// The layer flat ground across a terrace's sloping front lies on from (x, y, z), going (dx, dy),
+/// as a change: +1 up onto the ground of the layer above beside it, -1 down onto the ground of the
+/// layer below, both flat and with nothing over the lower cell; 0 when no front is crossed there.
+pub fn over_front(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
+  if !slope_between(l, x, y, z, dx, dy) || tile_world::rise(l.w, x, y, z) != 0 { return 0; }
+  nx = x + dx;
+  ny = y + dy;
+  if tile_world::terrain(l.w, x, y, z + 1) == VOID && tile_world::terrain(l.w, nx, ny, z) != VOID
+      && walkable(l, tile_world::terrain(l.w, nx, ny, z + 1)) && tile_world::rise(l.w, nx, ny, z + 1) == 0
+      && tile_world::crossable(l.w, x, y, z + 1, dx, dy) {
+    return 1;
+  }
+  if tile_world::terrain(l.w, nx, ny, z) == VOID && walkable(l, tile_world::terrain(l.w, nx, ny, z - 1))
+      && tile_world::rise(l.w, nx, ny, z - 1) == 0 && tile_world::crossable(l.w, x, y, z - 1, dx, dy) {
+    return -1;
+  }
+  0
+}
+
 fn rail(l: const Level, kind: integer) -> boolean {
   p = l.k.terrain[kind];
   if !p { return false; }
@@ -2043,12 +2063,14 @@ fn landing(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: 
   nx = x + dx;
   ny = y + dy;
   if !tile_world::crossable(l.w, x, y, z, dx, dy) { return (NO_ROOM, x, y, z); }
-  k = tile_world::terrain(l.w, nx, ny, z);
+  // over a sloping front it slides up or down onto the ground there, not a fall
+  nz = z + over_front(l, x, y, z, dx, dy);
+  k = tile_world::terrain(l.w, nx, ny, nz);
   if k == VOID { return fall(l, nx, ny, z - 1, dx, dy, 0); }
   if !walkable(l, k) || blocks_things(l, k) { return (NO_ROOM, x, y, z); }
-  if !leaving && tile_world::top(l.w, nx, ny, z) != 0 { return (NO_ROOM, x, y, z); }
-  if height(l, nx, ny, z) != height(l, x, y, z) { return (NO_ROOM, x, y, z); }
-  (LANDS, nx, ny, z)
+  if !leaving && tile_world::top(l.w, nx, ny, nz) != 0 { return (NO_ROOM, x, y, z); }
+  if height(l, nx, ny, nz) != height(l, x, y, z) { return (NO_ROOM, x, y, z); }
+  (LANDS, nx, ny, nz)
 }
 
 // Where a light item falling down column (x, y) from layer z comes to rest: the first floor below
@@ -2105,8 +2127,9 @@ fn way_clear(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy
   t = tile_world::top(l.w, x, y, z);
   if t == 0 || !item(l, t) { return true; }
   if slides(l, x, y, z, dx, dy, false) { return true; }
-  if !item(l, tile_world::top(l.w, x + dx, y + dy, z)) || !slides(l, x, y, z, dx, dy, true) { return false; }
-  a = aside(l, x + dx, y + dy, z, dx, dy);
+  r = landing(l, x, y, z, dx, dy, true);
+  if r.0 != LANDS || !item(l, tile_world::top(l.w, r.1, r.2, r.3)) { return false; }
+  a = aside(l, r.1, r.2, r.3, dx, dy);
   a.0 != 0 || a.1 != 0
 }
 
@@ -2141,8 +2164,9 @@ fn clear_way(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: inte
   t = tile_world::top(l.w, x, y, z);
   if t == 0 || !item(l, t) { return; }
   if !slides(l, x, y, z, dx, dy, false) {
-    a = aside(l, x + dx, y + dy, z, dx, dy);
-    shift(l, x + dx, y + dy, z, a.0, a.1);
+    r = landing(l, x, y, z, dx, dy, true);
+    a = aside(l, r.1, r.2, r.3, dx, dy);
+    shift(l, r.1, r.2, r.3, a.0, a.1);
   }
   shift(l, x, y, z, dx, dy);
 }
@@ -3737,6 +3761,14 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
     if !reachable_foe(l, foe, dx, dy) { return Step.Blocked; }
     return hero_blow(l, dx, dy, false);
   }
+  // @FR-GM-Front: a thing standing across a sloping front is pushed on over the ground there, the
+  // hero walking up or down the front after it.
+  fz = l.hero_z + over_front(l, l.hero_x, l.hero_y, l.hero_z, dx, dy);
+  if fz != l.hero_z && l.hero_h == 0 && hero_crosses(l, l.hero_x, l.hero_y, l.hero_z, dx, dy)
+      && push_thing(l, l.hero_x + dx, l.hero_y + dy, fz, dx, dy) {
+    arrive(l, l.hero_x + dx, l.hero_y + dy, fz);
+    return Step.Pushed;
+  }
   c = climb(l, dx, dy);
   if c != null { return c ?? Step.Blocked; }
   tx = l.hero_x + dx;
@@ -3876,11 +3908,7 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
     return Step.Pushed;
   }
   // Any other movable thing at the hero's own level is pushed, when it can go one cell on.
-  if !trainlike(l, thing) && movable(l, thing) && !hands_busy(l) && base == l.hero_h
-      && fits(l, thing, tx + dx, ty + dy, z, base)
-      && tile_world::crossable(l.w, tx, ty, z, dx, dy) && way_clear(l, tx + dx, ty + dy, z, dx, dy) {
-    clear_way(l, tx + dx, ty + dy, z, dx, dy);
-    move_base(l, tx, ty, z, tx + dx, ty + dy);
+  if push_thing(l, tx, ty, z, dx, dy) {
     arrive(l, tx, ty, z);
     return Step.Pushed;
   }
@@ -3890,6 +3918,21 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
     return Step.Walked;
   }
   Step.Blocked
+}
+
+// Push the movable thing (not a train) on (x, y, z), standing at the hero's own height, one cell
+// (dx, dy) on, when it fits there: level, or over a sloping front onto the ground a layer up or
+// down (@FR-GM-Front), an item lying there pushed out of the way.  Answers whether it moved.
+fn push_thing(l: Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  thing = base(l, x, y, z);
+  if thing == 0 || item(l, thing) || trainlike(l, thing) || !movable(l, thing) || hands_busy(l) { return false; }
+  under = height(l, x, y, z) - thing_height(l, thing);
+  if under != l.hero_h || !tile_world::crossable(l.w, x, y, z, dx, dy) { return false; }
+  nz = z + over_front(l, x, y, z, dx, dy);
+  if !fits(l, thing, x + dx, y + dy, nz, under) || !way_clear(l, x + dx, y + dy, nz, dx, dy) { return false; }
+  clear_way(l, x + dx, y + dy, nz, dx, dy);
+  move_base_to(l, x, y, z, x + dx, y + dy, nz);
+  true
 }
 
 /// Walk one cell and drag the thing behind the hero into the cell it left: a train along the
@@ -3917,12 +3960,18 @@ fn pull_step(l: Level, dx: integer, dy: integer) -> Step {
   ty = fy + dy;
   bx = fx - dx;
   by = fy - dy;
-  bz = z;
+  // What the hero pulls may stand across a sloping front behind it, a layer up or down.
+  bz = z + (if l.hero_h == 0 { over_front(l, fx, fy, z, -dx, -dy) } else { 0 });
   if !hero_crosses(l, fx, fy, z, dx, dy) { return Step.Blocked; }
-  // Where the hero goes: on its layer — never up — or down over a layer's edge, into the void
-  // beside onto the ground just below it (a slope's top), less than a layer down.
+  // Where the hero goes: on its layer — never up, but up a terrace's sloping front — or down over a
+  // layer's edge, into the void beside onto the ground just below it (a slope's top), less than a
+  // layer down, or a whole layer down a sloping front.
   tz = z;
-  if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) {
+  // Up or down a terrace's sloping front, from the flat ground, onto the ground across it.
+  front = if l.hero_h == 0 { over_front(l, fx, fy, z, dx, dy) } else { 0 };
+  if front != 0 {
+    tz = z + front;
+  } else if !walkable(l, tile_world::terrain(l.w, tx, ty, z)) {
     if tile_world::terrain(l.w, tx, ty, z) != VOID || !walkable(l, tile_world::terrain(l.w, tx, ty, z - 1)) {
       return Step.Blocked;
     }
@@ -4001,12 +4050,12 @@ fn pull_step(l: Level, dx: integer, dy: integer) -> Step {
     ok = lift >= -reach && lift <= reach
          && (left == 0 || surface_kind(l, tile_world::top(l.w, fx, fy, z)))
          && !blocks_things(l, tile_world::terrain(l.w, fx, fy, z))
-         && tile_world::crossable(l.w, bx, by, z, dx, dy) && bz == z;
+         && tile_world::crossable(l.w, bx, by, bz, dx, dy) && (bz == z || over_front(l, bx, by, bz, dx, dy) == z - bz);
   }
   arrive(l, tx, ty, tz);
   if !ok || !way_clear(l, fx, fy, z, dx, dy) { return Step.Walked; }
   clear_way(l, fx, fy, z, dx, dy);
-  move_base(l, bx, by, z, fx, fy);
+  move_base_to(l, bx, by, bz, fx, fy, z);
   Step.Pulled
 }
 
@@ -5288,18 +5337,9 @@ pub const NO_WAY = -100;
 // ground with nothing over it; NO_WAY when it cannot go.
 fn enemy_goes(l: const Level, p: const EnemyProps, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
   if enemy_can(l, p, x, y, z, dx, dy) { return 0; }
-  if (p.sideways && dy != 0) || p.passes_walls || !slope_between(l, x, y, z, dx, dy) { return NO_WAY; }
-  if tile_world::rise(l.w, x, y, z) != 0 { return NO_WAY; }
-  nx = x + dx;
-  ny = y + dy;
-  if tile_world::terrain(l.w, x, y, z + 1) == VOID && enemy_stands(l, p, nx, ny, z + 1)
-      && tile_world::rise(l.w, nx, ny, z + 1) == 0 {
-    return 1;
-  }
-  if tile_world::terrain(l.w, nx, ny, z) == VOID && enemy_stands(l, p, nx, ny, z - 1)
-      && tile_world::rise(l.w, nx, ny, z - 1) == 0 {
-    return -1;
-  }
+  if (p.sideways && dy != 0) || p.passes_walls { return NO_WAY; }
+  d = over_front(l, x, y, z, dx, dy);
+  if d != 0 && enemy_stands(l, p, x + dx, y + dy, z + d) { return d; }
   NO_WAY
 }
 
