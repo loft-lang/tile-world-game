@@ -428,6 +428,16 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   it in 3D beside a hill carrying a house at every angle and four heights.  The square town has no
   angles to bring: its terraces fall due south at every house, so its houses come over at 0°;
   angles are the hex town's to give (RENDER_3D.md § Later).  Rules in formal/hex-houses.md.
+- **The game's 3D view draws the hex version** (owner, 2026-11-09: make it the 3D version of the
+  game).  Where a place has one (`levels/<place>.hex.json`, written by `tools/hextown.loft level`),
+  F1 shows its smooth ground and its houses, with the theme's pictures, while the hero is out under
+  the sky or in one of its houses; play stays the square game's, the hero and every figure standing
+  on the hex ground (`hexscene.loft`, `render3d.loft`).  Its meshes follow the hex mesh's model:
+  the cells in chunks of 8 × 8 (`gridmesh`), each chunk's mesh kept, chunks in render groups drawn
+  as one GPU mesh each, only dirty chunks built again and only their groups uploaded, a group past
+  the fog or behind the eye not drawn.  Cellars and the mine keep the square view.
+- **A road's sides are walls with no height** (owner, 2026-11-09): a road is cells inside and out
+  like a house, its sides drawn straight by the same routines; next to build.
 - **What matters is that every hex centre is clearly inside or outside** (owner, 2026-11-09).
   Measured over the page's 36 houses (boxes, L's, a T and a U at their angles): no centre is on
   the wrong side of the drawn walls, and none comes nearer a wall's middle than half its

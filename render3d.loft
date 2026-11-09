@@ -27,6 +27,9 @@ use motion;
 use materials;
 use tiles;
 use graphics;
+use hexscene;
+use hex_field;
+use gridmesh;
 
 // A picture's side in pixels, and the atlas: SLOTS x SLOTS pictures, AT texels a side.
 const TS = 16;
@@ -128,7 +131,10 @@ pub struct Gl {
   atlas: graphics::Texture,
   place: graphics::GpuMesh,
   cards: graphics::GpuMesh,
-  hand: graphics::GpuMesh
+  hand: graphics::GpuMesh,
+  /// The hex version's render groups, a mesh each (HEX_SLOTS of them, made when the view opens:
+  /// the draw only fills them).
+  hex: vector<graphics::GpuMesh>
 }
 
 /// What the GPU holds, for the caller to keep: none until the view is first switched on.
@@ -157,7 +163,36 @@ pub struct View3D {
   face_y: integer = 0,
   place: vector<single> = [],
   built: boolean = false,
-  went_off: boolean = false
+  went_off: boolean = false,
+  /// The place's hex version (hexscene.loft), when it has one; the place it is for; and whether
+  /// the place built last was it.
+  hex: vector<hexscene::Scene> = [],
+  hex_place: text = "",
+  hex_mode: boolean = false,
+  /// Its cells in chunks (gridmesh), each chunk's mesh kept, the chunks' render groups, the chunk
+  /// each house is drawn with, and the night the meshes were lit for.
+  hex_field: vector<gridmesh::ChunkField> = [],
+  hex_chunks: hash<HexChunk[ck]> = [],
+  hex_groups: hash<HexGroup[gk]> = [],
+  hex_house_ck: vector<integer> = [],
+  hex_night: boolean = false
+}
+
+/// A chunk of the hex version: its render group and its mesh (vertices, 8 numbers each).
+struct HexChunk {
+  ck: integer,
+  gk: integer,
+  verts: vector<single>
+}
+
+/// A render group: the GPU mesh it fills, and a sphere round it (centre x, z and radius, in the
+/// view's units) to leave it undrawn when it lies past the fog or behind the eye.
+struct HexGroup {
+  gk: integer,
+  slot: integer,
+  x: float,
+  z: float,
+  radius: float
 }
 
 /// A view, off.
@@ -199,7 +234,9 @@ fn open(v: View3D, gpu: Gpu) -> boolean {
   m_place = win.upload(zero, 8);
   m_cards = win.upload(zero, 8);
   m_hand = win.upload(zero, 8);
-  gpu.gls += [Gl { win: win, shader: sh, atlas: atlas, place: m_place, cards: m_cards, hand: m_hand }];
+  groups: vector<graphics::GpuMesh> = [];
+  for _ in 0..HEX_SLOTS { groups += [win.upload(zero, 8)]; }
+  gpu.gls += [Gl { win: win, shader: sh, atlas: atlas, place: m_place, cards: m_cards, hand: m_hand, hex: groups }];
   v.scratch = tiles::surface(TS, TS) ?? 0;
   true
 }
@@ -829,7 +866,7 @@ pub fn cards(v: View3D, g: const game::Game, ms: integer) -> vector<Face> {
         k = tile_world::terrain(w.w, x, y, z);
         if k == tile_world::VOID { continue; }
         light = shade_at(sh, cx, cy, x, y);
-        base = (z as float) + STEP * (tile_world::rise(w.w, x, y, z) as float);
+        base = hex_y(v, w, x, y, z, (z as float) + STEP * (tile_world::rise(w.w, x, y, z) as float));
         if theme::upright(g.look, k) && !tile_world::opaque(w.w, x, y, z) {
           card(out, game::kind_sprite(g, w, x, y, z, false), (x as float) + 0.5, base, (y as float) + 0.5, v.yaw, light);
         }
@@ -861,7 +898,7 @@ pub fn cards(v: View3D, g: const game::Game, ms: integer) -> vector<Face> {
     at.x += (ex - at.x) * k;
     at.y += (ey - at.y) * k;
     esh = layer_sh[e.z - (w.hero_z - LAYERS)] ?? [];
-    ebase = (e.z as float) + STEP * (tile_world::rise(w.w, e.x, e.y, e.z) as float);
+    ebase = hex_y(v, w, e.x, e.y, e.z, (e.z as float) + STEP * (tile_world::rise(w.w, e.x, e.y, e.z) as float));
     card(out, theme::enemy_sprite(g.look, e.kind), at.x + 0.5, ebase, at.y + 0.5, v.yaw, shade_at(esh, cx, cy, e.x, e.y),
          FIGURE);
   }
@@ -904,6 +941,398 @@ pub fn hand(g: const game::Game, aspect: float) -> vector<Face> {
                           rules::lights(w, w.hero_z), rules::light_starts(w, w.hero_z), !w.night);
   face(out, s, corners, light_of(hs[0] ?? 7));
   out
+}
+
+// --- The hex version of a place (hexscene.loft) ---
+//
+// Where a place has a hex version (`levels/<place>.hex.json`, its port: hextown.loft), the view
+// draws it in place of the square cells while the hero is out under the sky or in one of its
+// houses: its smooth ground with the theme's pictures, its houses' walls with room for their doors
+// and windows, their roofs and upper floors (owner, 2026-11-09: the 3D version of the game).  Play
+// stays the square game's; the hero and every card stand on the hex ground.  Cellars and the mine
+// keep the square view.  The hex version draws true to scale, across and up in tiles (1.5 m).
+
+/// A square tile's side in metres.
+const TILE_M = 1.5;
+/// The eye over the feet in the hex view, in metres.
+const EYE_M = 1.6;
+/// The sun the hex version's faces are lit by: a unit vector, x east, y up, z south.
+const SUN = (0.36, 0.84, 0.41);
+/// A lattice cell's corners, in doubled coordinates (hex_field's order).
+const HCK = [0, -1, -1, 0, 1, 1];
+const HCM = [2, 1, -1, -2, -1, 1];
+
+/// The place's hex version, read when the place changes: is there one?
+fn hex_loaded(v: View3D, g: const game::Game) -> boolean {
+  if v.hex_place != g.place {
+    v.hex_place = g.place;
+    v.hex = [];
+    v.hex_field = [];
+    v.hex_chunks = [];
+    v.hex_groups = [];
+    v.hex_house_ck = [];
+    sc = hexscene::load(file("{g.dir}/levels/{g.place}.hex.json").content() ?? "");
+    if sc != null { v.hex += [sc!]; }
+  }
+  len(v.hex) > 0
+}
+
+/// Is the hero where the hex version is drawn: in a place with one, on or over its ground, out
+/// under the sky or inside one of its houses?
+fn hex_here(v: View3D, g: const game::Game) -> boolean {
+  w = g.world;
+  if !hex_loaded(v, g) || w.hero_z < 0 { return false; }
+  if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { return true; }
+  hexscene::house_at(v.hex[0]!, TILE_M * (w.hero_x as float), -TILE_M * (w.hero_y as float)) >= 0
+}
+
+/// The height cell (x, y, z) stands at in the view, `base` its height in layers: in the hex
+/// version, the ground's under the open sky and its storey's indoors, in tiles; else `base`.
+fn hex_y(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, base: float) -> float {
+  if !v.hex_mode { return base; }
+  s = v.hex[0]!;
+  if tile_world::open_sky(w.w, x, y, z) {
+    return hexscene::height_at(s, TILE_M * (x as float), -TILE_M * (y as float)) / TILE_M;
+  }
+  base * s.storey / TILE_M
+}
+
+/// A point of the hex version (metres: x east, y north, h up) as the view places it, with its
+/// place on the picture.
+fn hp(x: float, y: float, h: float, u: float, vv: float) -> (float, float, float, float, float) {
+  (x / TILE_M + 0.5, h / TILE_M, -y / TILE_M + 0.5, u, vv)
+}
+
+/// The light a face is seen in: by how square it stands to the sun, dimmer at night.
+fn sunlit(c: const vector<(float, float, float, float, float)>, night: boolean) -> float {
+  a = c[0] ?? (0.0, 0.0, 0.0, 0.0, 0.0);
+  b = c[1] ?? a;
+  d = c[2] ?? a;
+  ux = b.0 - a.0;
+  uy = b.1 - a.1;
+  uz = b.2 - a.2;
+  wx = d.0 - a.0;
+  wy = d.1 - a.1;
+  wz = d.2 - a.2;
+  nx = uy * wz - uz * wy;
+  ny = uz * wx - ux * wz;
+  nz = ux * wy - uy * wx;
+  l = sqrt(nx * nx + ny * ny + nz * nz);
+  dot = if l > 0.0 { ((nx * SUN.0 + ny * SUN.1 + nz * SUN.2) / l) ?? 0.0 } else { 1.0 };
+  lit = 0.55 + 0.45 * (if dot < 0.0 { -dot } else { dot });
+  if night { lit * 0.45 } else { lit }
+}
+
+/// The picture of material `name` (its plain tile, or an autotile's middle piece), -1 for none.
+fn mat_sprite(g: const game::Game, name: text) -> integer {
+  i = materials::named(g.mats, name);
+  if i < 0 { return -1; }
+  m = g.mats.list[i]!;
+  t = if m.tile > 0 { m.tile } else { m.pieces[4] ?? 0 };
+  theme::tile_sprite(g.look, t)
+}
+
+/// The hex version's chunks: 8 x 8 cells (gridmesh), each chunk's mesh built once and kept; and
+/// its render groups, 2 x 2 chunks drawn as one GPU mesh.  Only a chunk marked dirty is built again
+/// (gridmesh::field_mark_dirty, its border halo with it), and only the groups holding one are
+/// uploaded again (owner, 2026-11-09: the hex mesh's model).
+const HEX_SHIFT = 3;
+const HEX_GROUP = 2;
+const HEX_SLOTS = 96;
+
+/// The surface pictures, by kind (hexterrain.loft): grass, path, rail, a stream's bed, shallows,
+/// a house's floor.
+fn hex_kinds(g: const game::Game) -> vector<integer> {
+  path = mat_sprite(g, "path");
+  [mat_sprite(g, "grass"), path, path, path, mat_sprite(g, "shallows"), mat_sprite(g, "bridge")]
+}
+
+/// Build what is dirty of the hex version's meshes (all of it the first time, or at a change of
+/// day and night) and upload the groups that hold it.
+fn hex_build(v: View3D, gl: const Gl, g: const game::Game) {
+  s = v.hex[0]!;
+  night = g.world.night;
+  if night != v.hex_night { v.hex_field = []; }
+  v.hex_night = night;
+  first = len(v.hex_field) == 0;
+  if first {
+    xs: vector<integer> = [];
+    ys: vector<integer> = [];
+    for r in s.r0..s.r0 + s.h { for q in s.q0..s.q0 + s.w { xs += [q]; ys += [r]; } }
+    v.hex_field += [gridmesh::field_new(0, xs, ys, HEX_SHIFT, 1)];
+    v.hex_house_ck = [];
+    for h in s.houses {
+      n = len(h.xs);
+      cx = 0.0;
+      cy = 0.0;
+      for i in 0..n {
+        cx += h.xs[i] ?? 0.0;
+        cy += h.ys[i] ?? 0.0;
+      }
+      (q, r) = hexscene::cell_near((cx / (n as float)) ?? 0.0, (cy / (n as float)) ?? 0.0);
+      v.hex_house_ck += [gridmesh::chunk_of(q, r, HEX_SHIFT).ck];
+    }
+  }
+  f = v.hex_field[0]!;
+  inputs = if first { gridmesh::all_inputs(f, 1) } else { gridmesh::collect_dirty_inputs(f, 1) };
+  if len(inputs) == 0 { return; }
+  kinds = hex_kinds(g);
+  dirty: vector<integer> = [];
+  for inp in inputs {
+    out: vector<Face> = [];
+    for i in inp.cell_ixs { hex_cell(out, s, f.xs[i] ?? 0, f.ys[i] ?? 0, kinds, night); }
+    for i in 0..len(s.houses) {
+      if (v.hex_house_ck[i] ?? -1) == inp.key.ck { house_faces(out, g, s, s.houses[i], night); }
+    }
+    gk = gridmesh::group_of(inp.key.cx, inp.key.cy, HEX_GROUP).gk;
+    v.hex_chunks[inp.key.ck] = null;
+    v.hex_chunks += [HexChunk { ck: inp.key.ck, gk: gk, verts: vertices(v, gl, out) }];
+    seen = false;
+    for d in dirty { if d == gk { seen = true; } }
+    if !seen { dirty += [gk]; }
+  }
+  // each dirty group: its chunks' kept meshes together, into its GPU mesh
+  for gk in dirty {
+    verts: vector<single> = [];
+    for c in v.hex_chunks { if c.gk == gk { verts += c.verts; } }
+    old = v.hex_groups[gk];
+    slot = if old != null { old.slot } else { len(v.hex_groups) };
+    if slot >= HEX_SLOTS { continue; }
+    // the sphere round it
+    lo_x = 1000000.0;
+    lo_z = 1000000.0;
+    hi_x = -1000000.0;
+    hi_z = -1000000.0;
+    i = 0;
+    while i + 2 < len(verts) {
+      x = (verts[i] ?? 0.0 as single) as float;
+      z = (verts[i + 2] ?? 0.0 as single) as float;
+      if x < lo_x { lo_x = x; }
+      if x > hi_x { hi_x = x; }
+      if z < lo_z { lo_z = z; }
+      if z > hi_z { hi_z = z; }
+      i += 8;
+    }
+    gl.hex[slot]!.update(verts);
+    v.hex_groups[gk] = null;
+    v.hex_groups += [HexGroup { gk: gk, slot: slot, x: (lo_x + hi_x) * 0.5, z: (lo_z + hi_z) * 0.5,
+                                radius: 0.5 * sqrt((hi_x - lo_x) * (hi_x - lo_x) + (hi_z - lo_z) * (hi_z - lo_z)) + 6.0 }];
+  }
+  gridmesh::clear_dirty(f);
+}
+
+/// Draw the hex version's groups the eye at (ex, ez) can see: not past where the fog closes in
+/// (1.25 times `fogd`), not behind it.
+fn hex_draw(v: View3D, gl: const Gl, ex: float, ez: float, fogd: float) {
+  rad = v.yaw * PI / 180.0;
+  fx = sin(rad);
+  fz = -cos(rad);
+  reach = fogd * 1.25;
+  for grp in v.hex_groups {
+    dx = grp.x - ex;
+    dz = grp.z - ez;
+    d = sqrt(dx * dx + dz * dz);
+    if d - grp.radius > reach { continue; }
+    if dx * fx + dz * fz < -grp.radius { continue; }
+    gl.hex[grp.slot]!.draw(gl.shader);
+  }
+}
+
+/// A ground cell of the hex version: a fan of six triangles from its centre, each corner at the
+/// mean height of its three cells, its surface's picture over it.
+fn hex_cell(out: vector<Face>, s: const hexscene::Scene, q: integer, r: integer, kinds: const vector<integer>, night: boolean) {
+  (cx, cy) = hexscene::centre(q, r);
+  hc = hexscene::cell_height(s, q, r);
+  sp = kinds[hexscene::cell_kind(s, q, r)] ?? -1;
+  k = hex_field::lattice_k(q, r);
+  m = hex_field::lattice_m(q, r);
+  for j in 0..6 {
+    j1 = (j + 1) % 6 ?? 0;
+    ak = HCK[j] ?? 0;
+    am = HCM[j] ?? 0;
+    bk = HCK[j1] ?? 0;
+    bm = HCM[j1] ?? 0;
+    tri = [hp(cx, cy, hc, 0.5, 0.5),
+           hp(cx + (ak as float) * 0.75, cy + (am as float) * 0.4330127018922193, hexscene::corner_height(s, k + ak, m + am),
+              0.5 + (ak as float) * 0.375, 0.5 - (am as float) * 0.25),
+           hp(cx + (bk as float) * 0.75, cy + (bm as float) * 0.4330127018922193, hexscene::corner_height(s, k + bk, m + bm),
+              0.5 + (bk as float) * 0.375, 0.5 - (bm as float) * 0.25)];
+    face(out, sp, tri, sunlit(tri, night));
+  }
+}
+
+/// A piece of wall from s0 to s1 along the line from (ax, ay) (direction (ux, uy), outward to its
+/// right), from height z0 to z1, `t` thick: its two faces in pictures of a tile, its top and ends.
+fn wall_piece(out: vector<Face>, sp: integer, ax: float, ay: float, ux: float, uy: float, s0: float, s1: float,
+              z0: float, z1: float, t: float, night: boolean) {
+  if s1 - s0 < 0.001 || z1 - z0 < 0.001 { return; }
+  nx = uy;
+  ny = -ux;
+  na = ceil((s1 - s0) / TILE_M) as integer;
+  nz = ceil((z1 - z0) / TILE_M) as integer;
+  for side in [0.5, -0.5] {
+    ox = nx * t * side;
+    oy = ny * t * side;
+    for i in 0..na {
+      sa = s0 + (s1 - s0) * (i as float) / (na as float) ?? s0;
+      sb = s0 + (s1 - s0) * ((i + 1) as float) / (na as float) ?? s1;
+      for j in 0..nz {
+        za = z0 + (z1 - z0) * (j as float) / (nz as float) ?? z0;
+        zb = z0 + (z1 - z0) * ((j + 1) as float) / (nz as float) ?? z1;
+        quad = [hp(ax + ux * sa + ox, ay + uy * sa + oy, zb, 0.0, 0.0), hp(ax + ux * sb + ox, ay + uy * sb + oy, zb, 1.0, 0.0),
+                hp(ax + ux * sb + ox, ay + uy * sb + oy, za, 1.0, 1.0), hp(ax + ux * sa + ox, ay + uy * sa + oy, za, 0.0, 1.0)];
+        face(out, sp, quad, sunlit(quad, night));
+      }
+    }
+  }
+  // its top and its two ends
+  hx = nx * t * 0.5;
+  hy = ny * t * 0.5;
+  top = [hp(ax + ux * s0 + hx, ay + uy * s0 + hy, z1, 0.0, 0.0), hp(ax + ux * s1 + hx, ay + uy * s1 + hy, z1, 1.0, 0.0),
+         hp(ax + ux * s1 - hx, ay + uy * s1 - hy, z1, 1.0, 1.0), hp(ax + ux * s0 - hx, ay + uy * s0 - hy, z1, 0.0, 1.0)];
+  face(out, sp, top, sunlit(top, night));
+  for e in [s0, s1] {
+    end = [hp(ax + ux * e + hx, ay + uy * e + hy, z1, 0.0, 0.0), hp(ax + ux * e - hx, ay + uy * e - hy, z1, 1.0, 0.0),
+           hp(ax + ux * e - hx, ay + uy * e - hy, z0, 1.0, 1.0), hp(ax + ux * e + hx, ay + uy * e + hy, z0, 0.0, 1.0)];
+    face(out, sp, end, sunlit(end, night));
+  }
+}
+
+/// A patch of corners p00, p10, p11, p01 (metres) in pictures of about a tile, bilinear between
+/// them: a roof's slope, a floor.
+fn patch(out: vector<Face>, sp: integer, p00: (float, float, float), p10: (float, float, float),
+         p11: (float, float, float), p01: (float, float, float), night: boolean) {
+  du = sqrt((p10.0 - p00.0) * (p10.0 - p00.0) + (p10.1 - p00.1) * (p10.1 - p00.1) + (p10.2 - p00.2) * (p10.2 - p00.2));
+  dv = sqrt((p01.0 - p00.0) * (p01.0 - p00.0) + (p01.1 - p00.1) * (p01.1 - p00.1) + (p01.2 - p00.2) * (p01.2 - p00.2));
+  nu = ceil(du / TILE_M ?? 1.0) as integer;
+  nv = ceil(dv / TILE_M ?? 1.0) as integer;
+  if nu < 1 { nu = 1; }
+  if nv < 1 { nv = 1; }
+  for i in 0..nu {
+    for j in 0..nv {
+      c: vector<(float, float, float, float, float)> = [];
+      for uv in [(i, j + 1, 0.0, 0.0), (i + 1, j + 1, 1.0, 0.0), (i + 1, j, 1.0, 1.0), (i, j, 0.0, 1.0)] {
+        a = (uv.0 as float) / (nu as float) ?? 0.0;
+        b = (uv.1 as float) / (nv as float) ?? 0.0;
+        x = (p00.0 * (1.0 - a) + p10.0 * a) * (1.0 - b) + (p01.0 * (1.0 - a) + p11.0 * a) * b;
+        y = (p00.1 * (1.0 - a) + p10.1 * a) * (1.0 - b) + (p01.1 * (1.0 - a) + p11.1 * a) * b;
+        z = (p00.2 * (1.0 - a) + p10.2 * a) * (1.0 - b) + (p01.2 * (1.0 - a) + p11.2 * a) * b;
+        c += [hp(x, y, z, uv.2, uv.3)];
+      }
+      face(out, sp, c, sunlit(c, night));
+    }
+  }
+}
+
+/// A house of the hex version: its walls from the lowest ground under it to its eaves, stone
+/// below its floor, with room for its doors (the ground storey) and windows (every storey); its
+/// upper floors; a hipped roof on four corners, a flat one on more.
+fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene, h: const hexscene::House, night: boolean) {
+  n = len(h.xs);
+  storeys = round((h.top - h.floor) / s.storey ?? 1.0) as integer;
+  if storeys < 1 { storeys = 1; }
+  walls = mat_sprite(g, if storeys > 1 { "stone_wall" } else { "wood_wall" });
+  stone = mat_sprite(g, "stone_wall");
+  t = s.wall;
+  for i in 0..n {
+    ax = h.xs[(i + n - 1) % n ?? 0] ?? 0.0;
+    ay = h.ys[(i + n - 1) % n ?? 0] ?? 0.0;
+    bx = h.xs[i] ?? 0.0;
+    by = h.ys[i] ?? 0.0;
+    l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+    if l < 0.001 { continue; }
+    ux = (bx - ax) / l ?? 0.0;
+    uy = (by - ay) / l ?? 0.0;
+    // run on past each corner by half the wall, so the corners close
+    sx = ax - ux * t * 0.5;
+    sy = ay - uy * t * 0.5;
+    len_w = l + t;
+    wall_piece(out, stone, sx, sy, ux, uy, 0.0, len_w, h.base, h.floor, t, night);
+    // its doors and windows, along it
+    // in order along it (a wall has a few: put each in its place)
+    spans: vector<(float, float, integer)> = [];
+    for gp in h.gaps {
+      if gp.wall != i { continue; }
+      s0 = (gp.ax - sx) * ux + (gp.ay - sy) * uy;
+      s1 = (gp.bx - sx) * ux + (gp.by - sy) * uy;
+      item = (if s0 < s1 { s0 } else { s1 }, if s0 < s1 { s1 } else { s0 }, gp.kind);
+      at_i = len(spans);
+      for j in 0..len(spans) { if at_i == len(spans) && item.0 < (spans[j] ?? item).0 { at_i = j; } }
+      spans = [for j in 0..at_i { spans[j]! }] + [item] + [for j in at_i..len(spans) { spans[j]! }];
+    }
+    at = 0.0;
+    for sp in spans {
+      wall_piece(out, walls, sx, sy, ux, uy, at, sp.0, h.floor, h.top, t, night);
+      z = h.floor;
+      for st in 0..storeys {
+        z0 = h.floor + (st as float) * s.storey;
+        door = sp.2 == 1 && st == 0;
+        lo = if door { z0 } else { z0 + 0.9 };
+        hi = z0 + (if door { 2.1 } else { 2.0 });
+        wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, lo, t, night);
+        z = hi;
+      }
+      wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, h.top, t, night);
+      at = sp.1;
+    }
+    wall_piece(out, walls, sx, sy, ux, uy, at, len_w, h.floor, h.top, t, night);
+  }
+  // the floors between storeys, and the roof
+  cx = 0.0;
+  cy = 0.0;
+  for i in 0..n {
+    cx += h.xs[i] ?? 0.0;
+    cy += h.ys[i] ?? 0.0;
+  }
+  cx = (cx / (n as float)) ?? 0.0;
+  cy = (cy / (n as float)) ?? 0.0;
+  planks = mat_sprite(g, "bridge");
+  for st in 1..storeys {
+    z = h.floor + (st as float) * s.storey;
+    for i in 0..n {
+      a = (h.xs[(i + n - 1) % n ?? 0] ?? 0.0, h.ys[(i + n - 1) % n ?? 0] ?? 0.0, z);
+      b = (h.xs[i] ?? 0.0, h.ys[i] ?? 0.0, z);
+      patch(out, planks, (cx, cy, z), a, b, (cx, cy, z), night);
+    }
+  }
+  roof = mat_sprite(g, if storeys > 1 { "house_slate" } else { "house_roof" });
+  over = 0.4 + t * 0.5;
+  if n != 4 {
+    z = h.top + 0.3;
+    for i in 0..n {
+      patch(out, roof, (cx, cy, z), (h.xs[(i + n - 1) % n ?? 0] ?? 0.0, h.ys[(i + n - 1) % n ?? 0] ?? 0.0, z),
+            (h.xs[i] ?? 0.0, h.ys[i] ?? 0.0, z), (cx, cy, z), night);
+    }
+    return;
+  }
+  // a hipped roof: its ridge along the longer side, a rise of 0.45 times the shorter
+  e0x = (h.xs[1] ?? 0.0) - (h.xs[0] ?? 0.0);
+  e0y = (h.ys[1] ?? 0.0) - (h.ys[0] ?? 0.0);
+  e1x = (h.xs[2] ?? 0.0) - (h.xs[1] ?? 0.0);
+  e1y = (h.ys[2] ?? 0.0) - (h.ys[1] ?? 0.0);
+  l0 = sqrt(e0x * e0x + e0y * e0y);
+  l1 = sqrt(e1x * e1x + e1y * e1y);
+  long_x = if l0 >= l1 { (e0x / l0) ?? 1.0 } else { (e1x / l1) ?? 1.0 };
+  long_y = if l0 >= l1 { (e0y / l0) ?? 0.0 } else { (e1y / l1) ?? 0.0 };
+  la = if l0 >= l1 { l0 } else { l1 };
+  lb = if l0 >= l1 { l1 } else { l0 };
+  ha = la * 0.5 + over;
+  hb = lb * 0.5 + over;
+  rise = 0.45 * lb;
+  ridge = if ha > hb { ha - hb } else { 0.0 };
+  // the short axis, square to the long one
+  sx = -long_y;
+  sy = long_x;
+  c1 = (cx - long_x * ha - sx * hb, cy - long_y * ha - sy * hb, h.top);
+  c2 = (cx + long_x * ha - sx * hb, cy + long_y * ha - sy * hb, h.top);
+  c3 = (cx + long_x * ha + sx * hb, cy + long_y * ha + sy * hb, h.top);
+  c4 = (cx - long_x * ha + sx * hb, cy - long_y * ha + sy * hb, h.top);
+  r1 = (cx - long_x * ridge, cy - long_y * ridge, h.top + rise);
+  r2 = (cx + long_x * ridge, cy + long_y * ridge, h.top + rise);
+  patch(out, roof, c1, c2, r2, r1, night);
+  patch(out, roof, c3, c4, r1, r2, night);
+  patch(out, roof, c2, c3, r2, r2, night);
+  patch(out, roof, c4, c1, r1, r1, night);
 }
 
 // --- The GPU ---
@@ -1012,11 +1441,25 @@ pub fn draw(v: View3D, gpu: const Gpu, g: game::Game, changed: boolean, now: int
   ex = (w.hero_x as float) + 0.5 + p.x / (TS as float);
   ez = (w.hero_y as float) + 0.5 + p.y / (TS as float);
   ey = (w.hero_z as float) + STEP * (w.hero_h as float) + EYE + p.hop / 64.0;
+  // The place's hex version, where it has one and the hero is out under the sky or in a house:
+  // its ground and houses in place of the square cells, the eye on its ground.
+  hex = hex_here(v, g);
+  if hex != v.hex_mode {
+    v.hex_mode = hex;
+    v.built = false;
+  }
+  if hex {
+    ey = hex_y(v, w, w.hero_x, w.hero_y, w.hero_z, (w.hero_z as float) + STEP * (w.hero_h as float))
+         + EYE_M / TILE_M + p.hop / 64.0;
+  }
   for gl in gpu.gls {
     ww = gl.win.width();
     wh = gl.win.height();
     aspect = if wh > 0 { ((ww as float) / (wh as float))! } else { 1.0 };
-    if changed || !v.built {
+    if v.hex_mode {
+      hex_build(v, gl, g);
+      v.built = true;
+    } else if changed || !v.built {
       v.place = vertices(v, gl, faces(g));
       gl.place.update(v.place);
       v.built = true;
@@ -1035,7 +1478,11 @@ pub fn draw(v: View3D, gpu: const Gpu, g: game::Game, changed: boolean, now: int
     gl.shader.set_vec3("eye", ex, ey, ez);
     gl.shader.set_float("fogd", if sky { FAR_SKY } else { FOG });
     gl.shader.set_vec3("fogc", fog.0, fog.1, fog.2);
-    if len(v.place) > 0 { gl.place.draw(gl.shader); }
+    if v.hex_mode {
+      hex_draw(v, gl, ex, ez, if sky { FAR_SKY } else { FOG });
+    } else if len(v.place) > 0 {
+      gl.place.draw(gl.shader);
+    }
     if len(cs) > 0 {
       gl.cards.update(cs);
       gl.cards.draw(gl.shader);

@@ -7,7 +7,9 @@
 #   wait:MS   key:NAME (a, w, s, d, F1, F4 ...)   shot:NAME   keyN:NAME (press N times)
 import base64, json, os, socket, struct, subprocess, sys, time, urllib.request
 
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME = os.environ.get("CHROME") or next((c for c in ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                                                          "/snap/bin/chromium", "/usr/bin/chromium", "/usr/bin/google-chrome"]
+                                                if os.path.exists(c)), "chromium")
 url, out, script = sys.argv[1], sys.argv[2], sys.argv[3]
 port = 9333
 prof = os.path.join(out, "profile")

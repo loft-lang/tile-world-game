@@ -59,7 +59,7 @@ const NY = 68;
 
 fn layer_index(x: integer, y: integer, z: integer) -> integer { ((z - LO) * NY + y) * NX + x }
 
-/// A tile's middle, in metres (north up: the square map's y grows south).
+/// Tile (x, y)'s centre, in metres (north up: the square map's y grows south).
 pub fn tile_xy(x: float, y: float) -> (float, float) { (x * TILE, -y * TILE) }
 
 fn is_tree(k: text) -> boolean {
@@ -275,7 +275,8 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
   taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
   out: vector<Placed> = [];
   for h in it.houses {
-    (x, y) = tile_xy((h.x as float) + (h.w as float) * 0.5, (h.y as float) + (h.h as float) * 0.5);
+    // the middle of its tiles (tile i's centre is at 1.5 i)
+    (x, y) = tile_xy((h.x as float) + ((h.w - 1) as float) * 0.5, (h.y as float) + ((h.h - 1) as float) * 0.5);
     (cq, cr) = hexterrain::cell_near(x, y);
     plan = hexhouse::HexHouse { cq: cq, cr: cr, turn: facing(g, x, y), parts: hexhouse::box_plan(h.w, h.h),
                                 openings: openings_of(h) };
@@ -291,6 +292,11 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
     }
     floor = (h.z as float) * m.storey;
     base = hexterrain::seat(g, b.cells, floor, m);
+    for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+      for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+        if hex_field::hexset_get(b.cells, q, r) { hex_field::label_set(g.kinds, q, r, hexterrain::FLOOR); }
+      }
+    }
     out += [Placed { built: b, turn: plan.turn, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
                      top: floor + ((if h.floors > 0 { h.floors } else { 1 }) as float) * m.storey }];
   }

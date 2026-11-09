@@ -2,6 +2,7 @@
 // for tools/hextown.py to draw in 3D into hextown.html:
 //
 //   loft --lib libs tools/hextown.loft > build/hextown.json && python3 tools/hextown.py
+//   loft --lib libs tools/hextown.loft level > levels/orbury.hex.json     (the game's 3D view reads it)
 //
 // Per scene: the ground (its window, and per cell its height in metres and its surface kind), each
 // house (its angle, the heights of its walls' foot, its floor and its eaves, its outline as the
@@ -53,6 +54,11 @@ fn main() {
   sz = hexwalls::sizes_file("../hexsizes.json");
   m = hexterrain::measures_file("../hexsizes.json");
   town = hextown::port(file("../levels/orbury.json").content() ?? "", sz, m);
+  if (arguments()[0] ?? "") == "level" {
+    // the place's hex version, for the game's 3D view: levels/orbury.hex.json
+    println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scene\": {scene("Orbury", town)}}}");
+    return;
+  }
   hill = hextown::showcase(sz, m);
   println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scenes\": [");
   println("{scene("Orbury, ported", town)},");

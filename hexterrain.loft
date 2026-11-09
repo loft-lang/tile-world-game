@@ -21,6 +21,8 @@ pub const RAIL = 2;
 pub const BED = 3;
 /// Shallow water.
 pub const WATER = 4;
+/// A house's floor.
+pub const FLOOR = 5;
 
 /// Metres per world unit.
 pub const METRE = 0.8660254037844386;

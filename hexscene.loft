@@ -1,0 +1,220 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A place's hex version as the game reads it (`levels/<place>.hex.json`, written by
+// tools/hextown.loft from the place's port, hextown.loft): its ground (a height and a surface kind
+// per cell) and its houses (their outlines, the heights of their walls' foot, floor and eaves,
+// their doors and windows).  The 3D view draws it in place of the square cells where a place has
+// one (render3d.loft); play stays the square game's.
+//
+// Measures are metres, north up (x east, y north), a square tile i at x = 1.5 i, y = -1.5 j.
+use hex_field;
+
+/// A door or a window: its kind (1 a door, 2 a window), the wall it is in, its span from a to b.
+pub struct Gap {
+  pub kind: integer,
+  pub wall: integer,
+  pub ax: float,
+  pub ay: float,
+  pub bx: float,
+  pub by: float
+}
+
+/// A house: the heights of its walls' foot, its floor and its eaves; its outline, corner by corner
+/// (wall i runs from corner i - 1 to corner i); its doors and windows.
+pub struct House {
+  pub base: float,
+  pub floor: float,
+  pub top: float,
+  pub xs: vector<float>,
+  pub ys: vector<float>,
+  pub gaps: vector<Gap>
+}
+
+struct Corner {
+  key: integer,
+  h: float
+}
+
+pub struct Scene {
+  pub q0: integer,
+  pub r0: integer,
+  pub w: integer,
+  pub h: integer,
+  pub heights: vector<float>,
+  pub kinds: vector<integer>,
+  pub storey: float,
+  pub wall: float,
+  pub houses: vector<House>,
+  corners: hash<Corner[key]>
+}
+
+fn num(v: const JsonValue) -> float {
+  if v.kind() == "JInteger" || v.kind() == "JNumber" { v.as_number() } else { 0.0 }
+}
+
+fn corner_key(k: integer, m: integer) -> integer { (k + 100000) * 200000 + m + 100000 }
+
+const CK = [0, -1, -1, 0, 1, 1];
+const CM = [2, 1, -1, -2, -1, 1];
+
+/// The hex version in `text`, or none when there is none.
+pub fn load(text: text) -> Scene? {
+  if text == "" { return null; }
+  v = json_parse(text);
+  s = v.field("scene");
+  g = s.field("ground");
+  if g.kind() != "JObject" { return null; }
+  hs: vector<float> = [];
+  ks: vector<integer> = [];
+  gh = g.field("heights");
+  gk = g.field("kinds");
+  for i in 0..gh.len() {
+    hs += [num(gh.item(i))];
+    ks += [num(gk.item(i)) as integer];
+  }
+  houses: vector<House> = [];
+  hv = s.field("houses");
+  for i in 0..hv.len() {
+    h = hv.item(i);
+    cs = h.field("corners");
+    xs: vector<float> = [];
+    ys: vector<float> = [];
+    for j in 0..cs.len() {
+      xs += [num(cs.item(j).item(0))];
+      ys += [num(cs.item(j).item(1))];
+    }
+    gaps: vector<Gap> = [];
+    os = h.field("openings");
+    for j in 0..os.len() {
+      o = os.item(j);
+      gaps += [Gap { kind: num(o.field("kind")) as integer, wall: num(o.field("wall")) as integer,
+                     ax: num(o.field("a").item(0)), ay: num(o.field("a").item(1)),
+                     bx: num(o.field("b").item(0)), by: num(o.field("b").item(1)) }];
+    }
+    houses += [House { base: num(h.field("base")), floor: num(h.field("floor")), top: num(h.field("top")),
+                       xs: xs, ys: ys, gaps: gaps }];
+  }
+  sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
+               w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,
+               storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [] };
+  // Each corner at the mean height of the cells round it.
+  sums: hash<Corner[key]> = [];
+  counts: hash<Corner[key]> = [];
+  for r in sc.r0..sc.r0 + sc.h {
+    for q in sc.q0..sc.q0 + sc.w {
+      z = cell_height(sc, q, r);
+      k = hex_field::lattice_k(q, r);
+      m = hex_field::lattice_m(q, r);
+      for j in 0..6 {
+        key = corner_key(k + (CK[j] ?? 0), m + (CM[j] ?? 0));
+        s0 = sums[key];
+        if s0 == null {
+          sums += [Corner { key: key, h: z }];
+          counts += [Corner { key: key, h: 1.0 }];
+        } else {
+          s0.h += z;
+          c0 = counts[key]!;
+          c0.h += 1.0;
+        }
+      }
+    }
+  }
+  for c in sums { sc.corners += [Corner { key: c.key, h: (c.h / (counts[c.key]!).h) ?? 0.0 }]; }
+  sc
+}
+
+/// The height of cell (q, r), 0 beyond the scene.
+pub fn cell_height(s: const Scene, q: integer, r: integer) -> float {
+  if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0.0; }
+  s.heights[(r - s.r0) * s.w + (q - s.q0)] ?? 0.0
+}
+
+/// The surface kind of cell (q, r), 0 (grass) beyond the scene.
+pub fn cell_kind(s: const Scene, q: integer, r: integer) -> integer {
+  if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0; }
+  s.kinds[(r - s.r0) * s.w + (q - s.q0)] ?? 0
+}
+
+/// The height of corner (k, m) of the lattice (doubled coordinates): the mean of its three cells.
+pub fn corner_height(s: const Scene, k: integer, m: integer) -> float {
+  c = s.corners[corner_key(k, m)];
+  if c == null { return 0.0; }
+  c.h
+}
+
+/// A cell's centre, in metres.
+pub fn centre(q: integer, r: integer) -> (float, float) {
+  ((hex_field::lattice_k(q, r) as float) * 0.75, (hex_field::lattice_m(q, r) as float) * 0.4330127018922193)
+}
+
+/// The cell whose centre is nearest (x, y) metres.
+pub fn cell_near(x: float, y: float) -> (integer, integer) {
+  r = round(y / 1.299038105676658) as integer;
+  q = round(((x / 0.75) - ((r & 1) as float)) * 0.5) as integer;
+  best_q = q;
+  best_r = r;
+  best = -1.0;
+  for dr in -1..2 {
+    for dq in -1..2 {
+      (cx, cy) = centre(q + dq, r + dr);
+      d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+      if best < 0.0 || d < best {
+        best = d;
+        best_q = q + dq;
+        best_r = r + dr;
+      }
+    }
+  }
+  (best_q, best_r)
+}
+
+/// The ground's height at (x, y) metres, as it is drawn: within the triangle of its cell's fan
+/// that holds the point, between the cell's centre and the two corners.
+pub fn height_at(s: const Scene, x: float, y: float) -> float {
+  (q, r) = cell_near(x, y);
+  (cx, cy) = centre(q, r);
+  k = hex_field::lattice_k(q, r);
+  m = hex_field::lattice_m(q, r);
+  // the corner the point lies past, going round anticlockwise from corner 0 (north)
+  a = atan2(y - cy, x - cx) * 180.0 / PI;
+  // corner j sits at 90 + 60 j degrees
+  t = (a - 90.0) / 60.0;
+  j = floor(t) as integer;
+  f = t - (j as float);
+  j0 = ((j % 6) + 6) % 6 ?? 0;
+  j1 = (j0 + 1) % 6 ?? 0;
+  (ax, ay) = ((CK[j0] ?? 0) as float * 0.75, (CM[j0] ?? 0) as float * 0.4330127018922193);
+  (bx, by) = ((CK[j1] ?? 0) as float * 0.75, (CM[j1] ?? 0) as float * 0.4330127018922193);
+  // barycentric in the triangle (centre, a, b)
+  px = x - cx;
+  py = y - cy;
+  det = ax * by - ay * bx;
+  wa = ((px * by - py * bx) / det) ?? 0.0;
+  wb = ((ax * py - ay * px) / det) ?? 0.0;
+  wc = 1.0 - wa - wb;
+  _ = f;
+  wc * cell_height(s, q, r) + wa * corner_height(s, k + (CK[j0] ?? 0), m + (CM[j0] ?? 0))
+    + wb * corner_height(s, k + (CK[j1] ?? 0), m + (CM[j1] ?? 0))
+}
+
+/// The house whose outline holds (x, y) metres, or -1.
+pub fn house_at(s: const Scene, x: float, y: float) -> integer {
+  for i in 0..len(s.houses) {
+    h = s.houses[i];
+    n = len(h.xs);
+    inside = false;
+    for j in 0..n {
+      x1 = h.xs[(j + n - 1) % n ?? 0] ?? 0.0;
+      y1 = h.ys[(j + n - 1) % n ?? 0] ?? 0.0;
+      x2 = h.xs[j] ?? 0.0;
+      y2 = h.ys[j] ?? 0.0;
+      if (y1 > y) != (y2 > y) {
+        cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+        if x < cx { inside = !inside; }
+      }
+    }
+    if inside { return i; }
+  }
+  -1
+}

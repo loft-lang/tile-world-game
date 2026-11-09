@@ -25,6 +25,7 @@ screen             loft-libs-game       tuxedo-screen-esp-present
 tiles              loft-libs-graphics   tuxedo-native-pixels
 imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
+gridmesh           loft-libs-graphics   main
 mesh3d             loft-libs-assets     main
 glb                loft-libs-assets     main
 web                loft-libs-net        main
