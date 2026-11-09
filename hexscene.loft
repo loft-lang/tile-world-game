@@ -9,6 +9,7 @@
 //
 // Measures are metres, north up (x east, y north), a square tile i at x = 1.5 i, y = -1.5 j.
 use hex_field;
+use hexwalls;
 
 /// A door or a window: its kind (1 a door, 2 a window), the wall it is in, its span from a to b.
 pub struct Gap {
@@ -36,6 +37,30 @@ struct Corner {
   h: float
 }
 
+/// The ground's structures with sides of no height (owner, 2026-11-09: a road's sides are walls
+/// with no height): a road (the path cells), a rail, a stream (its bed and its pools).  Each is
+/// cells inside and out like a house, its sides the straight walls `hexwalls::outlines` draws
+/// from them, every loop of them (the blocks a road goes round too).
+pub const ROAD = 1;
+pub const RAIL = 2;
+pub const STREAM = 3;
+
+/// One side of a structure's outline, a straight wall with no height, from (x1, y1) to (x2, y2)
+/// metres, and the structure it bounds.
+pub struct Side {
+  pub area: integer,
+  pub x1: float,
+  pub y1: float,
+  pub x2: float,
+  pub y2: float
+}
+
+/// The sides near a cell, by its key: those that may cross its fan.
+struct Near {
+  key: integer,
+  ids: vector<integer>
+}
+
 pub struct Scene {
   pub q0: integer,
   pub r0: integer,
@@ -46,7 +71,9 @@ pub struct Scene {
   pub storey: float,
   pub wall: float,
   pub houses: vector<House>,
-  corners: hash<Corner[key]>
+  corners: hash<Corner[key]>,
+  pub sides: vector<Side> = [],
+  near: hash<Near[key]> = []
 }
 
 fn num(v: const JsonValue) -> float {
@@ -121,7 +148,82 @@ pub fn load(text: text) -> Scene? {
     }
   }
   for c in sums { sc.corners += [Corner { key: c.key, h: (c.h / (counts[c.key]!).h) ?? 0.0 }]; }
+  outline_areas(sc);
   sc
+}
+
+/// The cell kinds (hexterrain.loft) each structure is made of.
+fn of_area(area: integer, kind: integer) -> boolean {
+  if area == ROAD { return kind == 1; }
+  if area == RAIL { return kind == 2; }
+  kind == 3 || kind == 4
+}
+
+// @FR-HR-Sides: a road's sides are straight walls with no height, from its cells
+/// Each structure's sides, from its cells (`hexwalls::outlines`), and which cells each may cross.
+fn outline_areas(sc: Scene) {
+  m = 0.8660254037844386;
+  for area in [ROAD, RAIL, STREAM] {
+    cells = hex_field::hexset_chunk(sc.q0, sc.r0, sc.w, sc.h);
+    for r in sc.r0..sc.r0 + sc.h {
+      for q in sc.q0..sc.q0 + sc.w {
+        if of_area(area, cell_kind(sc, q, r)) { hex_field::hexset_set(cells, q, r, true); }
+      }
+    }
+    for o in hexwalls::outlines(cells, 0) {
+      n = len(o.corners);
+      for i in 0..n {
+        (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+        (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+        sc.sides += [Side { area: area, x1: x1 * m, y1: y1 * m, x2: x2 * m, y2: y2 * m }];
+      }
+    }
+  }
+  // each side listed at every cell whose fan it may cross (a fan reaches 0.87 m from its centre)
+  for id in 0..len(sc.sides) {
+    sd = sc.sides[id];
+    lo_x = (if sd.x1 < sd.x2 { sd.x1 } else { sd.x2 }) - 1.0;
+    hi_x = (if sd.x1 < sd.x2 { sd.x2 } else { sd.x1 }) + 1.0;
+    lo_y = (if sd.y1 < sd.y2 { sd.y1 } else { sd.y2 }) - 1.0;
+    hi_y = (if sd.y1 < sd.y2 { sd.y2 } else { sd.y1 }) + 1.0;
+    r0 = floor(lo_y / 1.299038105676658 ?? 0.0) as integer;
+    r1 = ceil(hi_y / 1.299038105676658 ?? 0.0) as integer;
+    q0 = floor(lo_x / 1.5 ?? 0.0) as integer - 1;
+    q1 = ceil(hi_x / 1.5 ?? 0.0) as integer + 1;
+    for r in r0..r1 + 1 {
+      for q in q0..q1 + 1 {
+        (cx, cy) = centre(q, r);
+        if cx < lo_x || cx > hi_x || cy < lo_y || cy > hi_y { continue; }
+        key = corner_key(q, r);
+        e = sc.near[key];
+        if e == null { sc.near += [Near { key: key, ids: [id] }]; } else { e.ids += [id]; }
+      }
+    }
+  }
+}
+
+/// The sides that may cross cell (q, r)'s fan.
+pub fn sides_near(s: const Scene, q: integer, r: integer) -> vector<integer> {
+  e = s.near[corner_key(q, r)];
+  if e == null { return []; }
+  e.ids
+}
+
+/// The structure the point (x, y) metres lies in (ROAD, RAIL or STREAM), 0 for none: inside its
+/// sides, counted over all its loops.
+pub fn area_at(s: const Scene, x: float, y: float) -> integer {
+  for area in [ROAD, RAIL, STREAM] {
+    inside = false;
+    for sd in s.sides {
+      if sd.area != area { continue; }
+      if (sd.y1 > y) != (sd.y2 > y) {
+        cx = sd.x1 + (y - sd.y1) * (sd.x2 - sd.x1) / (sd.y2 - sd.y1) ?? sd.x1;
+        if x < cx { inside = !inside; }
+      }
+    }
+    if inside { return area; }
+  }
+  0
 }
 
 /// The height of cell (q, r), 0 beyond the scene.

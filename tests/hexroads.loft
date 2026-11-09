@@ -1,0 +1,153 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Structures with sides of no height on the hex grid (formal/hex-houses.md § Roads): every loop of
+// an outline, a run cut where its line steps over, a slanted stretch kept slanted, and Orbury's
+// roads, rails and stream drawn from their cells with every hex centre clearly in or out.
+use hex_field;
+use hex_form;
+use hex_draw;
+use hexwalls;
+use hexhouse;
+use hexscene;
+
+fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
+
+/// The cells of a house plan at (cq, cr) turned `turn`, added to `into`.
+fn add(into: hex_field::HexSet, cq: integer, cr: integer, turn: integer, parts: vector<hexhouse::Part>) {
+  b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: turn, parts: parts });
+  for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+    for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+      if hex_field::hexset_get(b.cells, q, r) { hex_field::hexset_set(into, q, r, true); }
+    }
+  }
+}
+
+/// The hex centres in the window on the wrong side of the outlines (inside, counted over all
+/// loops, exactly when the cell is in), and the nearest any comes to a wall's middle line.
+fn clearance(cells: hex_field::HexSet, os: const vector<hexwalls::Outline>) -> (integer, float) {
+  wrong = 0;
+  near = 1000.0;
+  for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+    for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+      x = (hex_field::lattice_k(q, r) as float) * 0.8660254037844386;
+      y = (hex_field::lattice_m(q, r) as float) * 0.5;
+      inside = false;
+      for o in os {
+        n = len(o.corners);
+        for i in 0..n {
+          (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+          (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+          if (y1 > y) != (y2 > y) {
+            cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+            if x < cx { inside = !inside; }
+          }
+          dx = x2 - x1;
+          dy = y2 - y1;
+          l2 = dx * dx + dy * dy;
+          t = if l2 > 0.0 { ((x - x1) * dx + (y - y1) * dy) / l2 ?? 0.0 } else { 0.0 };
+          if t < 0.0 { t = 0.0; }
+          if t > 1.0 { t = 1.0; }
+          d = sqrt((x - x1 - t * dx) * (x - x1 - t * dx) + (y - y1 - t * dy) * (y - y1 - t * dy));
+          if d < near { near = d; }
+        }
+      }
+      if inside != hex_field::hexset_get(cells, q, r) { wrong += 1; }
+    }
+  }
+  (wrong, near)
+}
+
+const HALF_BAND = 0.4330127018922193;
+
+// @FR-HW-Loops: a ring is two loops, the courtyard's walked the other way round
+fn test_a_ring_is_two_loops() {
+  ring = hex_field::hexset_chunk(-14, -14, 29, 29);
+  add(ring, 0, 0, 0, hexhouse::box_plan(8, 6));
+  inner = hex_field::hexset_chunk(-14, -14, 29, 29);
+  add(inner, 0, 0, 0, hexhouse::box_plan(4, 2));
+  for r in -14..15 { for q in -14..15 { if hex_field::hexset_get(inner, q, r) { hex_field::hexset_set(ring, q, r, false); } } }
+  os = hexwalls::outlines(ring, 0);
+  assert(len(os) == 2, "a ring: {len(os)} loops, two");
+  signs: vector<boolean> = [];
+  for o in os {
+    assert(len(o.walls) == 4, "each loop of a box ring has four walls: {len(o.walls)}");
+    a = 0.0;
+    n = len(o.corners);
+    for i in 0..n {
+      (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+      (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+      a += x1 * y2 - x2 * y1;
+    }
+    signs += [a > 0.0];
+  }
+  assert(signs[0] != signs[1], "the outer loop and the courtyard's run opposite ways round");
+  (wrong, near) = clearance(ring, os);
+  assert(wrong == 0 && near >= HALF_BAND - 0.000001, "every centre clear of the ring's walls: {wrong} wrong, {near}");
+}
+
+// @FR-HW-Step: a band stepping over by a row is cut there, the step a short wall across
+fn test_a_band_stepping_over_a_row_keeps_its_steps() {
+  band = hex_field::hexset_chunk(-30, -12, 61, 25);
+  // three stretches of a band four rows deep, each a row higher than the one before
+  for i in 0..3 {
+    for r in 0..4 {
+      for q in (i * 8 - 12)..(i * 8 - 3) { hex_field::hexset_set(band, q, r + i, true); }
+    }
+  }
+  os = hexwalls::outlines(band, 0);
+  assert(len(os) == 1, "one loop");
+  o = os[0]!;
+  n = len(o.walls);
+  assert(n >= 12, "the steps kept: {n} walls, at least 12");
+  for i in 0..n {
+    (ak, am) = hex_form::head_step(hex_draw::surface_heading(o.walls[i]));
+    (bk, bm) = hex_form::head_step(hex_draw::surface_heading(o.walls[(i + 1) % n ?? 0]!));
+    assert(hexwalls::dot4(ak, am, bk, bm) == 0, "every corner square, wall {i}");
+  }
+  (wrong, near) = clearance(band, os);
+  assert(wrong == 0 && near >= HALF_BAND - 0.000001, "every centre clear of the band's walls: {wrong} wrong, {near}");
+}
+
+// @FR-HW-Slant: a stretch slanted off the loop's axes keeps its own heading
+fn test_a_slanted_spur_keeps_its_heading() {
+  roads = hex_field::hexset_chunk(-30, -30, 61, 61);
+  add(roads, 0, 0, 0, hexhouse::box_plan(16, 3));
+  add(roads, 6, 6, 2, hexhouse::box_plan(10, 3));
+  os = hexwalls::outlines(roads, 0);
+  // both stretches keep straight sides along their own heading: the street along 0°, the spur
+  // along 60° (whichever the loop's axes are, the other is a slanted stretch)
+  street = 0;
+  slanted = 0;
+  for o in os {
+    for w in o.walls {
+      h = hex_draw::surface_heading(w);
+      if h == 0 || h == 6 { street += 1; }
+      if h == 2 || h == 8 { slanted += 1; }
+    }
+  }
+  assert(street >= 2 && slanted >= 2, "the street's sides along 0° ({street} walls) and the spur's along 60° ({slanted})");
+  (wrong, near) = clearance(roads, os);
+  assert(wrong == 0 && near >= HALF_BAND - 0.000001, "every centre clear: {wrong} wrong, {near}");
+}
+
+// @FR-HR-Sides, @FR-HW-Clear: Orbury's roads, rails and stream from their cells
+fn test_orburys_roads_rails_and_stream_are_clear() {
+  s = hexscene::load(file("../levels/orbury.hex.json").content() ?? "") ?? return;
+  // the paths' four: one-tile lanes running north and short slanted spurs, which zigzag on the
+  // hex grid and are too narrow to carry straight walls (formal/hex-houses.md § Not covered)
+  for group in [(1, 4), (2, 0), (3, 0)] {
+    cells = hex_field::hexset_chunk(s.q0, s.r0, s.w, s.h);
+    for r in s.r0..s.r0 + s.h {
+      for q in s.q0..s.q0 + s.w {
+        k = hexscene::cell_kind(s, q, r);
+        if (group.0 == 1 && k == 1) || (group.0 == 2 && k == 2) || (group.0 == 3 && (k == 3 || k == 4)) {
+          hex_field::hexset_set(cells, q, r, true);
+        }
+      }
+    }
+    (wrong, _near) = clearance(cells, hexwalls::outlines(cells, 0));
+    assert(wrong <= group.1, "structure {group.0}: {wrong} centres on the wrong side, at most {group.1} (the lanes too narrow to carry walls)");
+  }
+  assert(len(s.sides) > 0, "the scene has its sides");
+}

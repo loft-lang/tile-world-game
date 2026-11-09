@@ -71,6 +71,27 @@ are objects with a rotation of their own, not structures of cells.
                 thing that matters).
 ```
 
+For an outline of any number of loops — a structure with a courtyard, a road network with the
+blocks it goes round — and with stretches in more than two directions (`hexwalls::outlines`):
+
+```
+  (HW-Loops)    Every loop of the boundary is walked, each with the structure's cells on its left:
+                the outer loop of each piece anticlockwise, the loop round each hole in it (a
+                courtyard, a block a ring of road goes round) clockwise.  A hex boundary never
+                pinches (each two of the three cells at a corner are neighbours), so each corner
+                starts one edge and the walk is never in doubt.
+  (HW-Step)     A run is cut where the line it runs along steps over by a row (the midpoint every
+                edge marks along a tops wall, every slanted connector along a sides wall, moves to
+                another row for two edges or more); a part of fewer than three edges at a run's
+                end is a corner's edges caught there and joins its neighbour.  Two walls in a row
+                along the same axis are joined by a short wall across, of the other family,
+                through an edge of the step that marks that family's line, so every corner is a
+                right angle and every line lies between two hex centres.
+  (HW-Slant)    A stretch of boundary that keeps to a heading off the loop's two axes for six
+                edges or more (SLANT) is a wall along that heading: a road's slanted spur.
+                Shorter, it is the bevel of a step and stays on the axes.
+```
+
 **In words.** The walls are not taken from a plan; they are read from the cells.  The boundary of
 the cells is a zigzag of hex edges; a straight wall is laid along each straight stretch of it.
 The two kinds of stretch are different patterns — a wobble across the tops of a row, or a line
@@ -200,6 +221,22 @@ floors' heights (HG-Seat), its doors where the square houses have them, its tree
 bridges as things on the surface; `hextown.html` shows it in 3D, with a hill (HG-Hill) carrying a
 house at every angle.
 
+## Roads, rails and the stream
+
+```
+  (HR-Sides)    A road, a rail and a stream are structures like a house: cells inside and out
+                (the path cells; the rail cells; the stream's bed and pools), their sides walls
+                with no height (owner, 2026-11-09), drawn by the same routines from the cells
+                (HW-Loops, HW-Step, HW-Slant) when a place loads (`hexscene.loft`).  The 3D view
+                cuts the ground along those sides and gives each piece its surface by the side it
+                lies on, so a road's edge is a straight line, not the cells' zigzag.
+```
+
+Measured on Orbury (2026-11-09): its paths are 8 loops and 228 walls from 617 cells, its rail one
+loop of 28 walls, its stream one of 54; every rail and stream centre is clearly in or out, and all
+but four of the paths', every one of those four in a lane too narrow to carry walls (§ Not
+covered).
+
 ## The house's plan
 
 ```
@@ -246,6 +283,10 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HG-Terrace | `tests/hexground.loft`: `test_terraces_are_flat_away_from_their_edges`, `test_a_terrace_edge_is_a_smooth_slope` |
 | HG-Hill | `tests/hexground.loft`: `test_a_hill_is_level_at_its_top_and_its_foot` |
 | HG-Seat | `tests/hexground.loft`: `test_a_seated_house_is_level_and_blends_in` |
+| HW-Loops | `tests/hexroads.loft`: `test_a_ring_is_two_loops` |
+| HW-Step | `tests/hexroads.loft`: `test_a_band_stepping_over_a_row_keeps_its_steps` |
+| HW-Slant | `tests/hexroads.loft`: `test_a_slanted_spur_keeps_its_heading` |
+| HR-Sides, HW-Clear (roads) | `tests/hexroads.loft`: `test_orburys_roads_rails_and_stream_are_clear` |
 
 Measured for HO-Turn30: a door and a window at every half step along every wall of five boxes
 (384 openings, corners included), turned 30°: the worst 0.317 units along the wall, under the
@@ -260,6 +301,12 @@ edges too far (two).  Leaving the walls where they are instead of moving them to
 fails nothing, and should not: it changes no cell (HT-Turn30).
 
 ## Not covered
+
+- **A lane one tile wide running north, or a short slanted spur.**  A row of hex cells running
+  north zigzags (each row is offset by half a cell), so a one-cell lane that way has no straight
+  sides that keep every centre clear.  Four of Orbury's 617 path cells sit in such lanes (a house's
+  door way down to the street, the stair road, the way off the stone bridge) and fall on the wrong
+  side of the drawn sides.  A lane running north needs to be two cells wide in hex.
 
 - **Walls shorter than three hex steps may be lost.**  The runs are cut where the boundary's way,
   read over two edges either side (HW-Runs), turns; a notch only two steps wide and deep can be

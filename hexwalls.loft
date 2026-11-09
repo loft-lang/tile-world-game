@@ -206,7 +206,28 @@ pub fn dot4(ak: integer, am: integer, bk: integer, bm: integer) -> integer { 3 *
 /// The boundary of `cells` in walking order, the house on the left: one loop (a house is one
 /// piece without a courtyard).
 // @FR-HX-Edge: the boundary is the edges between a cell inside and one outside
+/// The boundary of `cells` in walking order, the house on the left: its first loop (a house is one
+/// piece without a courtyard; `loops` gives them all).
 pub fn boundary(cells: hex_field::HexSet) -> vector<Edge> {
+  ls = loops(cells);
+  if len(ls) == 0 { return []; }
+  ls[0]!
+}
+
+/// A boundary edge's start corner, as a key.
+struct Start {
+  key: integer,
+  edge: integer
+}
+
+fn corner_key(k: integer, m: integer) -> integer { (k + 100000) * 200000 + m + 100000 }
+
+// @FR-HW-Loops: every loop of an outline, a courtyard's and a block's too
+/// Every loop of the boundary of `cells`, each in walking order with the cells on its left: the
+/// outer loop of each piece and one round each hole in it (a courtyard, the block a ring of road
+/// goes round).  Each corner of a hex boundary starts exactly one of its edges (three cells meet
+/// at a corner, each two of them neighbours), so the walk is never in doubt.
+pub fn loops(cells: hex_field::HexSet) -> vector<vector<Edge>> {
   all: vector<Edge> = [];
   for br in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
     for bq in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
@@ -225,22 +246,24 @@ pub fn boundary(cells: hex_field::HexSet) -> vector<Edge> {
       }
     }
   }
-  walk: vector<Edge> = [];
-  if len(all) == 0 { return walk; }
+  starts: hash<Start[key]> = [];
+  for i in 0..len(all) { starts += [Start { key: corner_key(all[i].ak, all[i].am), edge: i }]; }
   used: vector<boolean> = [for _ in 0..len(all) { false }];
-  at = 0;
-  for _ in 0..len(all) {
-    e = all[at];
-    walk += [e];
-    used[at] = true;
-    nxt = -1;
-    for j in 0..len(all) {
-      if !used[j] && all[j].ak == e.bk && all[j].am == e.bm { nxt = j; }
+  out: vector<vector<Edge>> = [];
+  for first in 0..len(all) {
+    if used[first] { continue; }
+    walk: vector<Edge> = [];
+    at = first;
+    while at >= 0 && !used[at] {
+      e = all[at];
+      walk += [e];
+      used[at] = true;
+      nx = starts[corner_key(e.bk, e.bm)];
+      at = if nx != null { nx.edge } else { -1 };
     }
-    if nxt < 0 { break; }
-    at = nxt;
+    out += [walk];
   }
-  walk
+  out
 }
 
 /// How many edges either side the travelling direction is read over: enough to span a period of
@@ -273,7 +296,14 @@ fn travel(turn: integer, b: const vector<Edge>, i: integer) -> integer {
 // @FR-HW-Runs: one run per straight wall; a run under two edges joins the one before
 pub fn runs(turn: integer, b: const vector<Edge>) -> vector<vector<integer>> {
   n = len(b);
-  label: vector<integer> = [for i in 0..n { travel(turn, b, i) }];
+  merged(b, [for i in 0..n { travel(turn, b, i) }])
+}
+
+/// The boundary cut into runs of equal labels, in order round the loop: a label of -1 takes the
+/// one before it, and a run shorter than 2 edges (the turn of a corner) joins the run before it.
+fn merged(b: const vector<Edge>, given: const vector<integer>) -> vector<vector<integer>> {
+  n = len(b);
+  label: vector<integer> = [for i in 0..n { given[i] ?? -1 }];
   for i in 0..n {
     if label[i] < 0 { label[i] = label[(i + n - 1) % n ?? 0]; }
   }
@@ -568,4 +598,211 @@ pub fn from_data(cells: hex_field::HexSet, marks: hex_field::EdgeSet, hint: inte
     }
   }
   Built { cells: cells, edges: edges, boundary: b, runs: rs, walls: walls, corners: corners, openings: ops }
+}
+
+// ── outlines with any number of loops ───────────────────────────────────────
+
+/// One loop of an outline drawn as straight walls: its boundary, its walls (in order round it)
+/// and their corners (corner i where wall i meets wall i + 1, world units).
+pub struct Outline {
+  pub boundary: vector<Edge>,
+  pub walls: vector<hex_draw::WallSurface>,
+  pub corners: vector<(float, float)>
+}
+
+// @FR-HW-Step: two walls in a row that run the same way are joined by a step
+/// A loop's straight walls, as `from_cells` draws a house's, with one thing more: where two walls
+/// in a row run along the same axis (a street stepping over by a row, a lane's dead end), a short
+/// wall across joins them, through the midpoint of the edge where the boundary changes row, so
+/// every corner is a right angle and the step's line lies between two hex centres.  None (no walls) for a loop of fewer than three walls: too small
+/// to carry walls (HX-Size).
+pub fn outline_of(b: const vector<Edge>, hint: integer = -1) -> Outline {
+  turn = axes_of(b);
+  if turn < 0 { turn = if hint >= 0 { hint % 3 ?? 0 } else { 0 }; }
+  // the runs, each along the nearest of the twelve headings (a road's stretches run every way),
+  // each cut where its line steps over (`split_by_line`), each part with its heading
+  rs: vector<vector<integer>> = [];
+  hs: vector<integer> = [];
+  heads = headings(b, turn);
+  for run in merged(b, heads) {
+    h = heads[run[0] ?? 0] ?? turn;
+    for part in split_by_line(b, run, h) {
+      rs += [part];
+      hs += [h];
+    }
+  }
+  solved: vector<hex_draw::WallSurface> = [for i in 0..len(rs) { solve_wall(b, rs[i] ?? [], hs[i] ?? 0) }];
+  walls: vector<hex_draw::WallSurface> = [];
+  n = len(solved);
+  for i in 0..n {
+    w = solved[i];
+    walls += [w];
+    nx = solved[(i + 1) % n ?? 0]!;
+    if n > 1 && w.ws_dk * nx.ws_dm - w.ws_dm * nx.ws_dk == 0 {
+      // the step: a short wall across the axis, of the other family, through the edge of the
+      // step that marks that family's line (`step_edge`)
+      h = hex_form::head_norm(hex_draw::surface_heading(w) + 3);
+      e = step_edge(b, rs[i] ?? [], rs[(i + 1) % n ?? 0] ?? [], w, nx, h);
+      (dk, dm) = hex_form::head_step(h);
+      walls += [hex_draw::WallSurface { ws_dk: dk, ws_dm: dm, ws_num_k: e.ak + e.bk, ws_num_m: e.am + e.bm, ws_den: 2, ws_n: 0 }];
+    }
+  }
+  corners: vector<(float, float)> = [];
+  nw = len(walls);
+  if nw < 3 { return Outline { boundary: b, walls: [], corners: [] }; }
+  for i in 0..nw {
+    (x, y, _ok) = surface_miter(walls[i], walls[(i + 1) % nw ?? 0]);
+    corners += [(x, y)];
+  }
+  Outline { boundary: b, walls: walls, corners: corners }
+}
+
+// @FR-HW-Step: a run is cut where its line steps over by a row
+/// A run cut where the line it runs along steps over: along a tops wall each edge's midpoint is on
+/// the line, along a sides wall each slanted connector's is, so where that midpoint moves to
+/// another row (and stays there for two edges or more), a new part begins.  A single edge off the
+/// line (the next wall's, caught at a corner) stays with its part, and so does a part of fewer
+/// than three edges at either end of the run.
+pub fn split_by_line(b: const vector<Edge>, run: const vector<integer>, h: integer) -> vector<vector<integer>> {
+  tops = hex_form::head_norm(h) % 2 == 0;
+  s = if tops { (6 - hex_form::head_norm(h) / 2 ?? 0) % 6 ?? 0 } else { ((3 - hex_form::head_norm(h)) / 2 ?? 0) % 6 ?? 0 };
+  // each edge's line, -1000000 where the edge marks none (an upright side of a sides wall)
+  at: vector<integer> = [];
+  for i in run {
+    e = b[i];
+    (ak, am) = turned(e.ak, e.am, s);
+    (bk, bm) = turned(e.bk, e.bm, s);
+    if tops { at += [am + bm]; } else if ak != bk { at += [ak + bk]; } else { at += [-1000000]; }
+  }
+  parts: vector<vector<integer>> = [];
+  cur: vector<integer> = [];
+  line = -1000000;
+  for j in 0..len(run) {
+    v = at[j] ?? -1000000;
+    // a new line, held by this edge and the next one that marks a line
+    if v != -1000000 && line != -1000000 && v != line {
+      nxt = -1000000;
+      for k in j + 1..len(run) { if nxt == -1000000 && (at[k] ?? -1000000) != -1000000 { nxt = at[k] ?? -1000000; } }
+      if nxt == v && len(cur) > 0 {
+        parts += [cur];
+        cur = [];
+      }
+    }
+    if v != -1000000 && (line == -1000000 || len(cur) == 0 || v == line) { line = v; }
+    if v != -1000000 && len(cur) == 0 { line = v; }
+    cur += [run[j] ?? 0];
+  }
+  if len(cur) > 0 { parts += [cur]; }
+  // a part of fewer than three edges at either end of the run is a corner's edges caught there,
+  // not a step: it joins the part beside it
+  n = len(parts);
+  if n < 2 { return parts; }
+  out: vector<vector<integer>> = [];
+  for i in 0..n {
+    pt = parts[i] ?? [];
+    if i == 1 && len(parts[0] ?? []) < 3 { out = [(parts[0] ?? []) + pt]; continue; }
+    if i == 0 && len(pt) < 3 { continue; }
+    if i == n - 1 && len(pt) < 3 && len(out) > 0 {
+      last = out[len(out) - 1] ?? [];
+      out[len(out) - 1] = last + pt;
+      continue;
+    }
+    out += [pt];
+  }
+  out
+}
+
+/// How many edges a heading off the loop's two axes must hold for to make a wall of its own: fewer
+/// are the bevel of a step, which stays on the axes.
+pub const SLANT = 6;
+
+// @FR-HW-Slant: a stretch off the loop's axes keeps its heading when it holds it long enough
+/// Each edge's heading: along the loop's axes as a house's walls run (`travel`), except where the
+/// boundary keeps to another of the twelve headings for SLANT edges or more (a road's slanted
+/// stretch).
+fn headings(b: const vector<Edge>, turn: integer) -> vector<integer> {
+  n = len(b);
+  free: vector<integer> = [for i in 0..n { nearest_heading(b, i) }];
+  out: vector<integer> = [];
+  for i in 0..n {
+    t = travel(turn, b, i);
+    out += [if t < 0 { -1 } else { hex_form::head_norm(turn + 3 * t) }];
+  }
+  i = 0;
+  while i < n {
+    h = free[i] ?? -1;
+    j = i;
+    while j < n && (free[j] ?? -1) == h { j += 1; }
+    if h >= 0 && ((h - turn) % 3 + 3) % 3 != 0 && j - i >= SLANT {
+      for k in i..j { out[k] = h; }
+    }
+    i = if j > i { j } else { i + 1 };
+  }
+  out
+}
+
+/// The heading nearest the way the boundary travels at edge i, over AROUND edges either side
+/// (as `axes_of` votes), -1 when it does not travel.
+fn nearest_heading(b: const vector<Edge>, i: integer) -> integer {
+  n = len(b);
+  a = b[((i - AROUND) % n + n) % n ?? 0];
+  z = b[(i + AROUND) % n ?? 0];
+  wk = z.bk - a.ak;
+  wm = z.bm - a.am;
+  best = -1;
+  best_d = 0;
+  best_l = 1;
+  for h in 0..12 {
+    (sk, sm) = hex_form::head_step(h);
+    d = dot4(wk, wm, sk, sm);
+    if d <= 0 { continue; }
+    l = if h % 2 == 0 { 3 } else { 9 };
+    if best < 0 || d * d * best_l > best_d * best_d * l {
+      best = h;
+      best_d = d;
+      best_l = l;
+    }
+  }
+  best
+}
+
+/// The edge a step between two parallel walls `wa` and `wb` (the end of run `ra`, the start of
+/// `rb`) runs through, the step along heading `h`: of the edges lying between the two walls'
+/// lines, one that marks a line of the step's family — any edge for a tops wall (every edge's
+/// midpoint is on its line), a slanted one for a sides wall (an upright side lies in line with
+/// the next row's centres).  The run's last edge when none lies between.
+fn step_edge(b: const vector<Edge>, ra: const vector<integer>, rb: const vector<integer>,
+             wa: hex_draw::WallSurface, wb: hex_draw::WallSurface, h: integer) -> Edge {
+  // the walls' common normal, and their lines' places along it (doubled coordinates, scaled)
+  nk = -wa.ws_dm;
+  nm = wa.ws_dk;
+  oa = ((3 * wa.ws_num_k * nk + wa.ws_num_m * nm) as float) / (wa.ws_den as float) ?? 0.0;
+  ob = ((3 * wb.ws_num_k * nk + wb.ws_num_m * nm) as float) / (wb.ws_den as float) ?? 0.0;
+  lo = if oa < ob { oa } else { ob };
+  hi = if oa < ob { ob } else { oa };
+  sides = hex_form::head_norm(h) % 2 == 1;
+  s = if sides { ((3 - hex_form::head_norm(h)) / 2 ?? 0) % 6 ?? 0 } else { (6 - hex_form::head_norm(h) / 2 ?? 0) % 6 ?? 0 };
+  cand: vector<integer> = [];
+  for j in 0..4 { if len(ra) - 1 - j >= 0 { cand += [ra[len(ra) - 1 - j] ?? 0]; } }
+  for j in 0..4 { if j < len(rb) { cand += [rb[j] ?? 0]; } }
+  best = -1;
+  for i in cand {
+    e = b[i];
+    p = ((3 * (e.ak + e.bk) * nk + (e.am + e.bm) * nm) as float) * 0.5;
+    if p <= lo + 0.001 || p >= hi - 0.001 { continue; }
+    if sides {
+      (ak, _am) = turned(e.ak, e.am, s);
+      (bk, _bm) = turned(e.bk, e.bm, s);
+      if ak == bk { continue; }
+    }
+    if best < 0 { best = i; }
+  }
+  if best < 0 { best = ra[len(ra) - 1] ?? 0; }
+  b[best]
+}
+
+/// Every loop of `cells` as straight walls (`outline_of`): a structure with courtyards, a road
+/// network with the blocks it goes round.
+pub fn outlines(cells: hex_field::HexSet, hint: integer = -1) -> vector<Outline> {
+  [for l in loops(cells) { outline_of(l, hint) }]
 }
