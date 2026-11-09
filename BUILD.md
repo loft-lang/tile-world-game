@@ -493,11 +493,37 @@ The columns overlap, so they do not add up.  What it shows:
     800 × 480.
   - **Open for the owner**: which camera the Tanmatsu shows.  The test routine measures both.
 
+**Moving the camera without drawing B again** ◇.
+
+- **Turning: a ring, exact.**  Turning about the eye has no parallax, so B is drawn all the way
+  round the eye as a ring of flat slices (8 of 45°, drawn by the same renderer).  A screen column
+  is then one column of one slice scaled by one factor, and turning picks other columns: no
+  drawing, and the same picture a full redraw gives.  With the panel mounted portrait each such
+  column is one panel row, so a turned frame is 800 scaled row copies.  The ring is about
+  2,160 × 480 pixels, 2 MB of colour and 2 MB of depth in PSRAM, about 2.7 screens of drawing per
+  place it is drawn from.
+- **Looking up and down: a shear** (owner, 2026-11-09: expected on the Tanmatsu's hardware).  The
+  picture is shifted up or down instead of drawn again, as the engines of Doom's time did.
+- **Walking: approximate until the next B.**  A move of the eye has parallax (near walls slide
+  faster than far ones), which no 2D trick gets exactly right.  So:
+  - **the second core draws the next B** in the background, ahead of where the hero is going
+    (@PLN218 names the second core for rebuilds; our C engine can pin a task to it);
+  - **in between, the last B is moved**: zoomed toward the middle for a step forward and shifted
+    for a step aside (the P4's PPA scales in hardware), or each pixel moved by its depth
+    (reprojection, as VR headsets do between frames: closer, but small holes where something
+    near uncovers what was behind it);
+  - **the actors stay exact**: drawn every frame where they are, so the hero and the monsters
+    never lag.  Only the background is approximate, until the next B arrives.
+- **The fixed camera from the south** needs only the slide above: it never turns, and its
+  narrow field makes walking nearly a shift.
+
 - **E0. The test routine** (owner).  The demo village in 3D, run on the desktop and on the
   Tanmatsu.  A scripted path holds still, turns on the spot, walks a street and enters a house
   while a figure moves, once with each camera.  Every frame logs its times as `@t` lines, as
   `sheet.loft` does: drawing B (and how often), putting rectangles back, drawing the actors,
-  showing.  Each step below is a switch in it, so each is measured on the device, alone and
+  showing.  The ring, the shear, the background core and the two ways of moving B while walking
+  are switches too, judged by their artifacts as well as their times.  Each step below is a
+  switch in it, so each is measured on the device, alone and
   together.  Red: the routine's summary (frame time per part of the path, per camera) is missing
   a part.
 - **E1. Landscape and actors apart** ◇.  `render3d.loft` builds the landscape's faces and the
