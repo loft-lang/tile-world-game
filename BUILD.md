@@ -526,6 +526,43 @@ The columns overlap, so they do not add up.  What it shows:
   switch in it, so each is measured on the device, alone and
   together.  Red: the routine's summary (frame time per part of the path, per camera) is missing
   a part.
+  - **Measured off the device first** (owner, 2026-11-09: so we need few uploads) ◇.  The
+    routine is C, so it runs under `qemu-riscv32` (the Tanmatsu's instruction set, as loft's
+    `c_sweep.py --riscv32` runs it) as well as on the desktop.  Each frame counts its own work:
+    pixels drawn into B, put back from B, sprite pixels tested and written, bytes read and
+    written in PSRAM.  One run on the device sets a time for each kind of work; from then on
+    the counts predict the device, and an upload is needed only when the memory layout changes
+    or to check a prediction.  The emulator's own times rank two ways of doing the same work,
+    nothing more: it does float in software (about 10 times an integer step, measured, where the
+    P4's FPU makes them close) and its memory is the PC's (SRAM against PSRAM does not show).
+    A QEMU built with plugins would count instructions exactly; Ubuntu's has none.
+  - **The actors, measured first: `bench/actors.c`** (`bench/run.sh` runs it on the desktop and
+    under the emulator) ◇.  B, its depth and the framebuffers at 800 × 480, laid out as the panel
+    is, and figures scaled and depth-tested as E3 draws them, in three ways: the changed
+    rectangles with two framebuffers flipped; the same in one buffer then copied whole to the
+    panel's (as `screen` does today); and everything from scratch (what a frame costs whenever
+    B moved).  Every frame of the first is checked against the second's picture from scratch.
+    Per frame, PSRAM read and written (2026-11-09):
+
+    | Scene | Changed rectangles, flipped | The same, copied to the panel | From scratch |
+    |---|---|---|---|
+    | 6 figures standing still | 0 | 1,500 KB | 1,671 KB |
+    | 6 idle figures, a new picture every 12 frames | 67 KB | 1,534 KB | 1,671 KB |
+    | The hero walking (200 px tall) among 5 idle | 259 KB | 1,726 KB | 1,740 KB |
+    | Hero, 3 walkers, a thrown bomb, 6 idle | 451 KB | 1,911 KB | 1,821 KB |
+    | 4 walkers close by (320 px tall) | 1,458 KB | 2,948 KB | 2,262 KB |
+
+    - **A slow animation costs almost nothing, a quick one its own rectangle twice**: with two
+      buffers flipped, each puts back where the figure was two frames ago and draws where it is
+      now.  A walking figure 240 px tall moves about 250 KB a frame, one 60 px tall 20 KB.
+    - **The copy to the panel costs 1.5 MB a frame whatever moves**, more than all the actors of
+      a busy scene.  So the two framebuffers (`num_fbs = 2`) pay first, before any 3D.
+    - **Figures close enough to fill the screen cost as much as drawing from scratch**, so a
+      frame never costs more than that: the worst case is bounded.
+    - Under the emulator, the frame's mean: 30 µs for the idle figures, 112 µs with the hero
+      walking, 197 µs for the busy scene; the copy to the panel alone 230 µs.  What they take on
+      the device waits for the calibration run.
+    - Not yet in it: figures turned and leaned as `motion.loft` poses them, and B drawn by E2.
 - **E1. Landscape and actors apart** ◇.  `render3d.loft` builds the landscape's faces and the
   actors' sprites as two lists (today the cards are faces drawn with the rest).  On the GPU in
   the browser nothing changes for the player.  Red: the frames in the browser change
