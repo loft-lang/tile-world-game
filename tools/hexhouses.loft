@@ -1,0 +1,56 @@
+// The first hex test (owner, 2026-11-09): one L-shaped house drawn at all twelve 30° angles
+// across a larger empty terrain, the hex grid showing, as JSON for tools/hexhouses.py to draw
+// into hexhouses.html.
+//
+//   loft --lib libs tools/hexhouses.loft > build/hexhouses.json && python3 tools/hexhouses.py
+//
+// Each house: its cells, its boundary edges (the thin walls the rules use), and its straight
+// walls as `hex_draw` places them (hexhouse.loft), with the heading each wall's own direction is
+// exact on (-1 where the straight wall is the approximation).
+use hex_field;
+use hex_draw;
+use hexhouse;
+
+const COLS = 4;
+const ROWS = 3;
+const GAP = 16;
+
+fn main() {
+  plan = hexhouse::l_plan(6, 3, 3, 4);
+  w = COLS * GAP + 4;
+  h = ROWS * GAP + 6;
+  println("{{\"terrain\": [0, 0, {w}, {h}], \"houses\": [");
+  for i in 0..12 {
+    cq = 2 + GAP / 2 + (i % COLS ?? 0) * GAP;
+    // Rows from the top down (y grows up), so the angles read left to right, top to bottom.
+    cr = 2 + GAP / 2 + (ROWS - 1 - (i / COLS ?? 0)) * GAP;
+    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan });
+    cells = "";
+    for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+      for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+        if hex_field::hexset_get(b.cells, q, r) {
+          if len(cells) > 0 { cells += ", "; }
+          cells += "[{q}, {r}]";
+        }
+      }
+    }
+    edges = "";
+    for e in b.boundary {
+      if len(edges) > 0 { edges += ", "; }
+      edges += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
+    }
+    corners = "";
+    for c in b.corners {
+      if len(corners) > 0 { corners += ", "; }
+      corners += "[{c.0}, {c.1}]";
+    }
+    exact = "";
+    for wl in b.walls {
+      if len(exact) > 0 { exact += ", "; }
+      exact += "{hex_draw::surface_heading(wl)}";
+    }
+    sep = if i < 11 { "," } else { "" };
+    println("{{\"turn\": {i}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}]}}{sep}");
+  }
+  println("]}}");
+}

@@ -12,6 +12,13 @@ cd "$(dirname "$0")"
 # then main)
 LIBS='
 tile_world         loft-libs-world      main
+hex_grid           loft-libs-world      main
+hex_field          loft-libs-world      main
+hex_form           loft-libs-world      main
+hex_shape          loft-libs-world      main
+hex_draw           loft-libs-world      main
+hex_way            loft-libs-world      main
+hex_roof           loft-libs-world      main
 audio              loft-libs-game       tuxedo-screen-esp-present
 input              loft-libs-game       main
 screen             loft-libs-game       tuxedo-screen-esp-present
