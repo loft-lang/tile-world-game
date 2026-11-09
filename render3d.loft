@@ -988,12 +988,14 @@ fn hex_loaded(v: View3D, g: const game::Game) -> boolean {
   len(v.hex) > 0
 }
 
-/// Is the hero where the hex version is drawn: in a place with one, on or over its ground, out
-/// under the sky or inside one of its houses?
+/// Is the hero where the hex version is drawn: in a place with one, out under the sky (a stream's
+/// bed below the street too) or inside one of its houses above the ground?  Under a roof below
+/// the ground (a basement, a cave) the square view draws it.
 fn hex_here(v: View3D, g: const game::Game) -> boolean {
   w = g.world;
-  if !hex_loaded(v, g) || w.hero_z < 0 { return false; }
+  if !hex_loaded(v, g) { return false; }
   if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { return true; }
+  if w.hero_z < 0 { return false; }
   hexscene::house_at(v.hex[0]!, TILE_M * (w.hero_x as float), -TILE_M * (w.hero_y as float)) >= 0
 }
 
