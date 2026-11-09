@@ -179,6 +179,12 @@ layers, where theirs had one height map.
 
 ## Everything else: cardboard
 
+**On a CPU (owner, 2026-11-09; BUILD.md Phase E):** the cards that move — the hero, the people,
+the monsters, the things in motion — are not drawn through the 3D routines but blitted as
+sprites, scaled by their distance and depth-tested against the kept picture of the landscape,
+which is drawn again only when it changes (@PLN218's landscape and actors).  What follows is the
+GPU's drawing, and the picture both must give.
+
 A **card** is a quad 1 × 1 (a tile's picture at one texel per 1/16) standing upright on its base
 point, the bottom middle of the picture.  It turns about the vertical axis to face the camera
 (proposed; with the fixed camera below it shows the picture straight on, as the 2D does).

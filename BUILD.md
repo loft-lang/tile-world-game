@@ -421,6 +421,10 @@ not the owner's is ◇.
 
 - **The panel's own resolution**, 800 × 480, not a small frame scaled up.
 - **Drawing is reused between frames**, or it is far too slow.
+- **The same abstractions as the 2D's** ([@PLN218](https://github.com/loft-lang/plans/issues/218)):
+  the world is drawn again only when it changes; the hero, the people, the monsters and the items
+  in motion are drawn every frame.
+- **Those are simple sprite blits**, not drawn through the 3D routines.
 - **As few triangles as possible**: a face whose back is to the eye is skipped, and sight lines
   (the rules already have some) leave out what cannot be seen.
 - **Far away, triangles become dots**: cheaper to draw than a textured triangle.
@@ -437,8 +441,7 @@ The columns overlap, so they do not add up.  What it shows:
 
 - **Culling leaves about a hundred faces**, so triangles are not the cost.  **The cost is
   pixels.**  On the 800 × 480 panel every face left is 16 pixels or more across, two-thirds of
-  them over 32, and the frame's 384,000 pixels are filled every frame.  That is why reusing what
-  was drawn matters most.
+  them over 32, and a full picture fills all 384,000 pixels.
 - **No face is near a dot within today's reach** (12 cells, fogged out from 10).  A tile's 16
   texels cover fewer than 16 pixels only beyond about 21 cells.  Dots pay once the view reaches
   further: outdoors, and in the hex worlds.
@@ -447,60 +450,89 @@ The columns overlap, so they do not add up.  What it shows:
 - The sight test used here is the rules' line of sight on the hero's layer only: an estimate.
   The 3D view sees across layers (down from a terrace, up a stairwell).
 
-**The hardware** (loft's TANMATSU.md): two RISC-V cores with a single-precision FPU only (a
-`float` is software, so the 3D code runs under `#width 32`); 768 KB of fast SRAM and 32 MB of
-slower PSRAM; the panel mounted portrait (480 × 800) with its framebuffer in PSRAM.  A 16-bit
-800 × 480 frame is 768,000 bytes, the whole of the fast SRAM.
+**The hardware** (loft's TANMATSU.md; the BSP and ESP-IDF's display driver, read 2026-11-09).
+
+- Two RISC-V cores with a single-precision FPU only (a `float` is software, so the 3D code runs
+  under `#width 32`); 768 KB of fast SRAM, whose largest free block is only 37–38 KB, and 32 MB
+  of slower PSRAM.  A 16-bit 800 × 480 frame is 768,000 bytes.
+- The panel (an ST7701 over MIPI-DSI, portrait 480 × 800) has no picture memory of its own: a
+  DMA reads the current framebuffer in PSRAM 60 times a second, 46 MB/s of PSRAM's bandwidth
+  taken all the time.
+- **The driver keeps one to three framebuffers** (`num_fbs`).  Handing it one of its own buffers
+  switches to it at the next refresh, with nothing copied; any other buffer is copied in by the
+  DMA2D engine in the background.  `loft_esp.h` asks for one today, and `screen` keeps a buffer
+  of its own besides and copies it every frame.  @PLN218 already plans two.
+- **What a full 3D picture costs there**, measured by `nullislandspace/synthengine3D` (a
+  software 3D engine for the Tanmatsu; read for comparison only, it has no licence): at 800 ×
+  480, 148 ms a frame drawn straight into PSRAM, 92 ms drawn in bands of 32 columns in SRAM;
+  at a quarter of the pixels, 28 ms.  So a full picture is affordable now and then, never every
+  frame.
+
+**The model: the landscape and the actors, as in 2D** (owner; @PLN218 in 3D) ◇.
+
+- **The landscape** is everything that stands still: the ground, walls, roofs, ceilings, things at
+  rest.  It is drawn with the 3D routines into a kept picture **B**, its colour and its depth,
+  only when it changes.
+- **The actors** are the hero, the people, the monsters and the things in motion (a pushed
+  cart, a thrown bomb, a carried torch).  Each frame they are drawn as **sprites**: a figure's
+  picture scaled by its distance, turned and leaned as `motion.loft` poses it, and its pixels
+  drawn only where they are nearer than B's depth.  So a wall in front hides an actor with no
+  extra work.  This is @PLN209's `sprite` primitive with a depth added, the same call as in 2D.
+- **A thing is landscape while it rests and an actor while it moves** (@PLN218): an item
+  picked up leaves B (one rebuild) and is drawn with its carrier; put down, it goes back.
+- **A frame** puts back from B the rectangles where actors were (in this framebuffer, drawn two
+  frames ago) and draws the actors where they are now.  The rest of the frame is untouched.
+- **When B is drawn again**: the rules say the landscape changed (a door, a push, a flame lit or
+  out), or the camera moved too far.  How far is too far depends on the camera:
+  - **the fixed camera from the south** (RENDER_3D.md § The camera, decided 2026-11-05, not yet
+    built): it never turns and looks at a narrow angle, so walking shifts the picture almost as
+    the 2D scrolls.  B is drawn a margin larger than the screen and slid; it is drawn again
+    about once a cell step;
+  - **the first-person view** (built, in the browser): every step and every turn changes the
+    whole picture, so B would be drawn again every frame while the hero moves, about 100 ms at
+    800 × 480.
+  - **Open for the owner**: which camera the Tanmatsu shows.  The test routine measures both.
 
 - **E0. The test routine** (owner).  The demo village in 3D, run on the desktop and on the
-  Tanmatsu.  A scripted camera path holds still, turns on the spot, walks a street and enters a
-  house, with a figure moving.  Every frame logs its times as `@t` lines, as `sheet.loft` does:
-  building the faces, culling, transforming, drawing (and how many pixels were written),
+  Tanmatsu.  A scripted path holds still, turns on the spot, walks a street and enters a house
+  while a figure moves, once with each camera.  Every frame logs its times as `@t` lines, as
+  `sheet.loft` does: drawing B (and how often), putting rectangles back, drawing the actors,
   showing.  Each step below is a switch in it, so each is measured on the device, alone and
-  together.  Red: the routine's summary (frame time per part of the path) is missing a part.
-- **E1. What is drawn, apart from how** ◇.  `render3d.loft` splits in two: building the picture
-  (what is seen round the hero, the geometry with its pictures and light, the cards and their
-  poses) and handing it to the GPU.  The first part is shared with the Tanmatsu.  Red: the
-  frames in the browser change (`checks/view3d.loft` and a TW_SHOT before and after,
-  byte-identical).
-- **E2. A renderer on the CPU** ◇.  The same triangles drawn in software, as phones did before
-  they had a GPU: textured spans with the atlas's texels sampled nearest, each vertex's light
-  from the rules, a depth test, and the cards' transparent texels left out.  It is written in C,
-  as a library's C part (as `tiles` draws its pictures): `graphics::Canvas` has only flat
-  triangles and draws pixel by pixel in loft.  **Drawn in bands** ◇: the frame does not fit in
-  the fast SRAM, so it is drawn a band at a time there and copied out.  With the panel mounted
-  portrait, a band of the picture's columns is a run of the panel's rows, one block of memory.
-  Red: a frame of the same moment drawn by the GPU and by this renderer differs beyond a stated
-  number of pixels (the GPU's frame is the oracle; the tolerance names what affine texturing
-  bends).
-- **E3. Culling** ◇.
-  - **Back faces**: every face wound one way, its front toward its open side.  A thin wall is
-    two-sided (two faces); a card always faces the eye.  Red: a check that every face's front
-    points to its open side.
+  together.  Red: the routine's summary (frame time per part of the path, per camera) is missing
+  a part.
+- **E1. Landscape and actors apart** ◇.  `render3d.loft` builds the landscape's faces and the
+  actors' sprites as two lists (today the cards are faces drawn with the rest).  On the GPU in
+  the browser nothing changes for the player.  Red: the frames in the browser change
+  (`checks/view3d.loft` and a TW_SHOT before and after, byte-identical).
+- **E2. Drawing B on the CPU** ◇.  The landscape's triangles drawn in software into B: textured
+  spans with the atlas's texels sampled nearest, each vertex's light from the rules, a depth
+  test.  Written in C, as a library's C part (as `tiles` draws its pictures): `graphics::Canvas`
+  has only flat triangles and draws pixel by pixel in loft.  Drawn in bands of 32 columns in the
+  fast SRAM; with the panel mounted portrait, a band of the picture's columns is a run of the
+  panel's rows, one block of memory.  Red: B drawn by this renderer and by the GPU differ beyond
+  a stated number of pixels (the tolerance names what affine texturing bends).
+- **E3. The actors as sprites, and the frame** (@PLN218) ◇.  Two framebuffers, flipped at the
+  refresh; the rectangles put back from B; the actors blitted, depth-tested against B.  Red: at
+  every frame of the routine, the picture differs from drawing everything from scratch.
+- **E4. Culling, so B is drawn faster** ◇.
+  - **Back faces**: every face wound one way, its front toward its open side; a thin wall is
+    two-sided (two faces).  Red: a check that every face's front points to its open side.
   - **The view cone and the distance**: faces outside the field or past the fog are skipped,
     a block of cells at a time.
-  - **Sight across layers**: which cells can be seen from the hero's cell, layer by layer
-    through the openings between layers, worked out when the hero changes cell, not every
-    frame.  A face belongs to the open cell it faces.  It must never leave out anything
-    visible: a gap is worse than a spare triangle.
-  - Red: on the desktop GPU, a frame drawn with culling differs from one drawn without it, at
-    each spot of the test routine's path.
-- **E4. Reuse between frames** (owner) ◇.
-  - What is visible and its faces are kept until the hero changes cell or the world changes
-    (the faces are already rebuilt only on a change).
-  - **The camera still**: the place's picture and its depth are kept (1.5 MB in PSRAM).  A frame
-    restores and redraws only the rectangles where a card moved.
-  - **The camera moving**: everything is drawn again.  This is the budget case, and free
-    roaming makes it the common one, so the routine measures it hardest.
-  - Red: a frame from the kept picture differs from one drawn whole.
+  - **Sight across layers**: which cells can be seen from the hero's cell, layer by layer through
+    the openings between layers, worked out when the hero changes cell.  A face belongs to the
+    open cell it faces.  It must never leave out anything visible: a gap is worse than a spare
+    triangle.
+  - Red: on the desktop GPU, a picture drawn with culling differs from one drawn without it, at
+    each spot of the routine's path.
 - **E5. Dots far away** (owner) ◇.  Each tile in the atlas gets smaller copies (16, 8, 4, 2 and
   1 texels).  A face uses the copy that fits its size on the screen, and the 1-texel copy, the
   tile's mean colour, is the dot.  It also stops the pictures shimmering at a distance.  It
-  matters only when the view reaches beyond about 20 cells, so it comes after E3 and E4.  Red:
-  the faces drawn as dots against their distance in the routine's log.
+  matters only when the view reaches beyond about 20 cells.  Red: the faces drawn as dots
+  against their distance in the routine's log.
 - **E6. On the device, in the game.**  The 3D view on the Tanmatsu, F1 switching it as in the
-  browser; the 2D stays.  Checked on the device with the timing log: frame time, and the PSRAM
-  the atlas, the kept picture and the faces take.
+  browser; the 2D stays.  Checked on the device with the timing log: frame time, B's rebuilds
+  per second, and the PSRAM the atlas, B and the faces take.
 - **E7. Then the hex grid**, WORLD.md § One game, square or hex, steps 2 to 4 (the rules asking
   for the next cell, a hex world, the import).  **No hex area in a design before E6 plays on the
   device** (owner, 2026-11-09: no backend lost).  Red: a hex place played through by its
