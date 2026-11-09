@@ -1,0 +1,340 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A square place ported to the hex grid (owner, 2026-11-09: start porting the town): its intent's
+// shapes, not its cells (WORLD.md § One game, square or hex), one square tile to one hex step
+// (1.5 m), the square map's north up.
+//
+//   - The ground: the terraces of the square place, layer over layer, become smooth hills
+//     (hexterrain::terraces): each step up a slope a hillside wide across where its front stood,
+//     the tops flat at their storeys; the stream's bed a bank's width down.  The surface keeps its
+//     kind: grass, path, rail, the bed, shallow water.
+//   - The houses: each a hex house (hexhouse.loft) on the cell nearest its middle, at its floor's
+//     height, its door where the square house has it.  Its angle: facing down the hill, the ground's
+//     fall at its middle taken to the nearest 30° (a proposal; the square town has no angles to
+//     keep); square to the grid where that would not fit beside the houses already placed.  The
+//     ground under it is levelled and blended in (hexterrain::seat); its walls go down to the
+//     lowest the ground was.
+//   - Trees, fences, the well and the bridges: things standing on the surface.
+use hex_field;
+use hexwalls;
+use hexturn;
+use hexhouse;
+use hexterrain;
+use intent;
+
+/// A square tile's side, in metres: one hex step.
+pub const TILE = 1.5;
+
+/// A house as placed: its walls and openings, its angle, the height of its floor, of the lowest
+/// ground under it (where its walls start) and of its eaves, in metres.
+pub struct Placed {
+  pub built: hexwalls::Built,
+  pub turn: integer,
+  pub floor: float,
+  pub base: float,
+  pub top: float
+}
+
+/// A thing on the surface: a tree, a fence, the well, a bridge; at (x, y) metres, its foot at
+/// height z.
+pub struct Thing {
+  pub kind: text,
+  pub x: float,
+  pub y: float,
+  pub z: float
+}
+
+pub struct Town {
+  pub ground: hexterrain::Ground,
+  pub houses: vector<Placed>,
+  pub things: vector<Thing>
+}
+
+/// The lowest and highest layer, and the square map's size.
+const LO = -1;
+const HI = 4;
+const NX = 64;
+const NY = 68;
+
+fn layer_index(x: integer, y: integer, z: integer) -> integer { ((z - LO) * NY + y) * NX + x }
+
+/// A tile's middle, in metres (north up: the square map's y grows south).
+pub fn tile_xy(x: float, y: float) -> (float, float) { (x * TILE, -y * TILE) }
+
+fn is_tree(k: text) -> boolean {
+  k == "pine" || k == "oak" || k == "poplar" || k == "bush" || k == "autumn_oak" || k == "autumn_poplar"
+}
+
+/// The square place's ground, layer by layer: what each ground shape left at each tile and layer
+/// (a later shape over an earlier; "void" empties it).
+fn layers(it: const intent::Intent) -> vector<text> {
+  cells: vector<text> = [for _ in 0..NX * NY * (HI - LO + 1) { "" }];
+  for g in it.grounds {
+    if g.z < LO || g.z > HI { continue; }
+    for y in g.y..g.y + g.h {
+      for x in g.x..g.x + g.w {
+        if x < 0 || x >= NX || y < 0 || y >= NY { continue; }
+        cells[layer_index(x, y, g.z)] = if g.what == "void" { "" } else { g.what };
+      }
+    }
+  }
+  cells
+}
+
+/// The surface of each tile: its layer (the highest holding ground, a bridge over the bed not
+/// counted) and what is on it there.
+struct Surface {
+  level: vector<integer>,
+  what: vector<text>
+}
+
+fn surface(cells: const vector<text>) -> Surface {
+  level: vector<integer> = [];
+  what: vector<text> = [];
+  for y in 0..NY {
+    for x in 0..NX {
+      top = LO;
+      k = "";
+      for z in LO..HI + 1 {
+        c = cells[layer_index(x, y, z)] ?? "";
+        if c != "" && c != "bridge" {
+          top = z;
+          k = c;
+        }
+      }
+      level += [top];
+      what += [k];
+    }
+  }
+  Surface { level: level, what: what }
+}
+
+/// The tiles a trail runs over: each leg along x first, then along y, `width` tiles wide.
+fn trail_tiles(t: const intent::Trail) -> vector<(integer, integer)> {
+  out: vector<(integer, integer)> = [];
+  for i in 1..len(t.points) {
+    a = t.points[i - 1];
+    b = t.points[i];
+    corner = (b.x, a.y);
+    for leg in [(a.x, a.y, corner.0, corner.1), (corner.0, corner.1, b.x, b.y)] {
+      steps = if leg.0 != leg.2 { leg.2 - leg.0 } else { leg.3 - leg.1 };
+      n = if steps < 0 { -steps } else { steps };
+      sx = if leg.2 > leg.0 { 1 } else if leg.2 < leg.0 { -1 } else { 0 };
+      sy = if leg.3 > leg.1 { 1 } else if leg.3 < leg.1 { -1 } else { 0 };
+      for s in 0..n + 1 {
+        for wd in 0..t.width {
+          out += [(leg.0 + sx * s + (if sx == 0 { wd } else { 0 }), leg.1 + sy * s + (if sy == 0 { wd } else { 0 }))];
+        }
+      }
+    }
+  }
+  out
+}
+
+/// Port a square place, from its level file's text.
+pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
+  it = intent::intent_from(json_parse(raw).field("intent"));
+  cells = layers(it);
+  sf = surface(cells);
+  // The terraces, smooth.
+  // the steps' rows run north, the square map's south
+  north: vector<integer> = [];
+  for j in 0..NY { for i in 0..NX { north += [sf.level[(NY - 1 - j) * NX + i] ?? 0]; } }
+  steps = hexterrain::Steps { x0: -0.5 * TILE, y0: -(NY as float - 0.5) * TILE, size: TILE, nx: NX, ny: NY,
+                              level: north };
+  // The window: the map's width and height in cells, and a margin.
+  g = hexterrain::ground_new(-2, -82, 70, 86);
+  hexterrain::terraces(g, steps, m, LO, HI);
+  // The surface's kinds, tile by tile under each cell's centre.
+  paths = hash_tiles(it);
+  for r in g.r0..g.r0 + g.h {
+    for q in g.q0..g.q0 + g.w {
+      (x, y) = hexterrain::centre(q, r);
+      tx = round(x / TILE) as integer;
+      ty = round(-y / TILE) as integer;
+      if tx < 0 || tx >= NX || ty < 0 || ty >= NY { continue; }
+      i = ty * NX + tx;
+      k = sf.what[i] ?? "";
+      lv = sf.level[i] ?? 0;
+      kind = hexterrain::GRASS;
+      if lv < 0 { kind = hexterrain::BED; }
+      if k == "path" || k == "stairs_up" || k == "stairs_down" || k == "village_well" {
+        kind = if lv < 0 { hexterrain::BED } else { hexterrain::PATH };
+      }
+      if k == "shallows" { kind = hexterrain::WATER; }
+      p = paths[i] ?? -1;
+      if p >= 0 { kind = p; }
+      hex_field::label_set(g.kinds, q, r, kind);
+    }
+  }
+  houses = place_houses(it, g, sz, m);
+  things = things_of(cells, sf, m, g);
+  Town { ground: g, houses: houses, things: things }
+}
+
+/// The surface kind the trails and the shallow pools give a tile (-1: none), by tile index.
+fn hash_tiles(it: const intent::Intent) -> vector<integer> {
+  out: vector<integer> = [for _ in 0..NX * NY { -1 }];
+  for t in it.trails {
+    kind = if t.what == "rail" { hexterrain::RAIL } else { hexterrain::PATH };
+    for c in trail_tiles(t) {
+      if c.0 >= 0 && c.0 < NX && c.1 >= 0 && c.1 < NY { out[c.1 * NX + c.0] = kind; }
+    }
+  }
+  for b in it.blobs {
+    if b.what != "shallows" { continue; }
+    for y in b.y..b.y + b.h {
+      for x in b.x..b.x + b.w {
+        dx = ((x - b.x) as float + 0.5) / (b.w as float) - 0.5;
+        dy = ((y - b.y) as float + 0.5) / (b.h as float) - 0.5;
+        if dx * dx + dy * dy <= 0.25 && x >= 0 && x < NX && y >= 0 && y < NY { out[y * NX + x] = hexterrain::WATER; }
+      }
+    }
+  }
+  out
+}
+
+/// The things on the surface: a tree, a fence, the well where the square place has one; a bridge
+/// where it has a bridge, at its layer.
+fn things_of(cells: const vector<text>, sf: const Surface, m: const hexterrain::Measures, g: hexterrain::Ground) -> vector<Thing> {
+  out: vector<Thing> = [];
+  for y in 0..NY {
+    for x in 0..NX {
+      i = y * NX + x;
+      k = sf.what[i] ?? "";
+      (tx, ty) = tile_xy(x as float, y as float);
+      (q, r) = hexterrain::cell_near(tx, ty);
+      foot = hex_field::height_get(g.heights, q, r);
+      if is_tree(k) || k == "garden_fence" || k == "village_well" {
+        out += [Thing { kind: k, x: tx, y: ty, z: foot }];
+      }
+      for z in LO..HI + 1 {
+        if (cells[layer_index(x, y, z)] ?? "") == "bridge" {
+          out += [Thing { kind: "bridge", x: tx, y: ty, z: (z as float) * m.storey }];
+        }
+      }
+    }
+  }
+  out
+}
+
+/// The square house's doors and windows, as points on its plan's outline (half hex steps, the
+/// plan's frame: u east, v north, its middle at 0): the front door `door_at` tiles from its west
+/// side (the middle when -1) and a window either side of it, and each opening the square house
+/// names, a door unless it is barred.
+fn openings_of(h: const intent::House) -> vector<hexhouse::Spec> {
+  out: vector<hexhouse::Spec> = [];
+  if h.front {
+    at = if h.door_at >= 0 { h.door_at } else { h.w / 2 ?? 0 };
+    u = -h.w + 2 * at + 1;
+    out += [hexhouse::Spec { kind: hexwalls::DOOR, u: u, v: -h.h }];
+    if h.w >= 5 {
+      out += [hexhouse::Spec { kind: hexwalls::WINDOW, u: (u - h.w) / 2 ?? 0, v: -h.h }];
+      out += [hexhouse::Spec { kind: hexwalls::WINDOW, u: (u + h.w) / 2 ?? 0, v: -h.h }];
+    }
+  }
+  for o in h.openings {
+    kind = if o.cell == "barred" || o.edge == "window" { hexwalls::WINDOW } else { hexwalls::DOOR };
+    u = 2 * (o.x - h.x) - h.w + 1;
+    v = -(2 * (o.y - h.y) - h.h + 1);
+    out += [hexhouse::Spec { kind: kind, u: u, v: v }];
+  }
+  out
+}
+
+/// The angle facing down the hill at (x, y) metres: the ground's fall there to the nearest 30°,
+/// 0 where it is near flat (the square house's own angle, its front south).
+fn facing(g: hexterrain::Ground, x: float, y: float) -> integer {
+  (q, r) = hexterrain::cell_near(x, y);
+  (qe, re) = hexterrain::cell_near(x + 3.0, y);
+  (qw, rw) = hexterrain::cell_near(x - 3.0, y);
+  (qn, rn) = hexterrain::cell_near(x, y + 3.0);
+  (qs, rs) = hexterrain::cell_near(x, y - 3.0);
+  gx = (hex_field::height_get(g.heights, qe, re) - hex_field::height_get(g.heights, qw, rw)) / 6.0;
+  gy = (hex_field::height_get(g.heights, qn, rn) - hex_field::height_get(g.heights, qs, rs)) / 6.0;
+  if sqrt(gx * gx + gy * gy) < 0.05 { return 0; }
+  // the front faces south (270°) at turn 0, and 30° further each turn
+  down = atan2(-gy, -gx) * 180.0 / PI;
+  t = round((down - 270.0) / 30.0) as integer;
+  ((t % 12) + 12) % 12 ?? 0
+}
+
+/// Every cell of `a` also in `b`?
+fn overlaps(a: hex_field::HexSet, b: hex_field::HexSet) -> boolean {
+  for r in hex_field::hexset_r0(a)..hex_field::hexset_r0(a) + hex_field::hexset_h(a) {
+    for q in hex_field::hexset_q0(a)..hex_field::hexset_q0(a) + hex_field::hexset_w(a) {
+      if hex_field::hexset_get(a, q, r) && hex_field::hexset_get(b, q, r) { return true; }
+    }
+  }
+  false
+}
+
+/// Every house of the intent, placed (see the top of the file).
+fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::Sizes, m: const hexterrain::Measures) -> vector<Placed> {
+  taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
+  out: vector<Placed> = [];
+  for h in it.houses {
+    (x, y) = tile_xy((h.x as float) + (h.w as float) * 0.5, (h.y as float) + (h.h as float) * 0.5);
+    (cq, cr) = hexterrain::cell_near(x, y);
+    plan = hexhouse::HexHouse { cq: cq, cr: cr, turn: facing(g, x, y), parts: hexhouse::box_plan(h.w, h.h),
+                                openings: openings_of(h) };
+    b = hexhouse::build(plan, hexturn::BY_WALLS, sz);
+    if plan.turn != 0 && overlaps(b.cells, taken) {
+      plan.turn = 0;
+      b = hexhouse::build(plan, hexturn::BY_WALLS, sz);
+    }
+    for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+      for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+        if hex_field::hexset_get(b.cells, q, r) { hex_field::hexset_set(taken, q, r, true); }
+      }
+    }
+    floor = (h.z as float) * m.storey;
+    base = hexterrain::seat(g, b.cells, floor, m);
+    out += [Placed { built: b, turn: plan.turn, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
+                     top: floor + ((if h.floors > 0 { h.floors } else { 1 }) as float) * m.storey }];
+  }
+  out
+}
+
+// ── a hill with a house at every angle ──────────────────────────────────────
+
+/// A round hill with twelve houses round it, each facing down the hill: at every 30° angle, and
+/// each at the height of the ground where it stands, at four distances from the top in turn (owner, 2026-11-09: houses at different
+/// heights and angles).  Boxes and L's in turn, each with a door and windows.
+pub fn showcase(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
+  g = hexterrain::ground_new(-30, -34, 60, 68);
+  hexterrain::hill(g, 0.0, 0.0, 40.0, 10.0);
+  taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
+  houses: vector<Placed> = [];
+  for k in 0..12 {
+    a = (k as float) * PI / 6.0;
+    // at 15, 20, 25 and 30 m from the top in turn: four heights up the slope
+    d = 15.0 + 5.0 * ((k % 4) as float);
+    x = d * cos(a);
+    y = d * sin(a);
+    (cq, cr) = hexterrain::cell_near(x, y);
+    // facing down the hill: outward, the front south at turn 0
+    t = ((k - 9) % 12 + 12) % 12 ?? 0;
+    // an L whose walls are all long enough to keep (a wall under three hex steps may be lost)
+    parts = if k % 2 == 0 { hexhouse::box_plan(5, 4) } else { hexhouse::l_plan(5, 3, 2, 2) };
+    ops = [hexhouse::Spec { kind: hexwalls::DOOR, u: 0, v: if k % 2 == 0 { -4 } else { -3 } },
+           hexhouse::Spec { kind: hexwalls::WINDOW, u: -3, v: if k % 2 == 0 { -4 } else { -3 } },
+           hexhouse::Spec { kind: hexwalls::WINDOW, u: 5, v: 0 }];
+    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: parts, openings: ops }, hexturn::BY_WALLS, sz);
+    floor = round(hex_field::height_get(g.heights, cq, cr) * 10.0) / 10.0;
+    base = hexterrain::seat(g, b.cells, floor, m);
+    houses += [Placed { built: b, turn: t, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
+                        top: floor + ((1 + k % 2) as float) * m.storey }];
+  }
+  things: vector<Thing> = [];
+  for k in 0..24 {
+    a = (k as float + 0.5) * PI / 12.0;
+    x = 40.0 * cos(a);
+    y = 40.0 * sin(a);
+    (q, r) = hexterrain::cell_near(x, y);
+    things += [Thing { kind: if k % 3 == 0 { "pine" } else if k % 3 == 1 { "oak" } else { "poplar" }, x: x, y: y,
+                       z: hex_field::height_get(g.heights, q, r) }];
+  }
+  Town { ground: g, houses: houses, things: things }
+}

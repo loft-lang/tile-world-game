@@ -174,6 +174,32 @@ structure and places it again; that is where the distances between doors change 
 `tests/hexhouses.loft` reads hexsizes.json and checks every rule with the sizes it holds, so a
 change to the file is a change the tests judge.
 
+## The ground
+
+```
+  (HG-Surface)  The ground is a height and a surface kind per cell; it is drawn as a smooth
+                surface, each cell a fan of six triangles from its centre, each corner at the mean
+                height of the three cells round it, so neighbouring cells never step.
+  (HG-Terrace)  A stepped height map (the square world's layers) is made smooth: its lowest level's
+                height, and for every step up a storey's rise across the step's edge, a
+                hillside wide (a stream's bank, for a step up from below level 0, a bank wide),
+                centred on it and shaped by a smoothstep.  Half a hillside or more from any edge
+                the ground is flat at its level's storey, exactly.
+  (HG-Hill)     A round hill is added as a cosine: its full height at its top, nothing at its foot
+                and beyond, level at both.
+  (HG-Seat)     A structure seated on the ground has its footprint at its floor's height, exactly,
+                and the ground round it blends back to its own height over the blend's width from
+                the footprint's edge; beyond that the ground is as it was.  Its walls go down to
+                the lowest the ground was under it.
+```
+
+The measurements (a storey 2.6 m, a hillside 6 m, a bank 2.5 m, the blend 2.5 m) are in
+hexsizes.json's "terrain".  A square place is ported by its intent (`hextown.loft`): one tile one
+hex step, its terraces through HG-Terrace, its houses on the cells nearest their middles at their
+floors' heights (HG-Seat), its doors where the square houses have them, its trees, fences, well and
+bridges as things on the surface; `hextown.html` shows it in 3D, with a hill (HG-Hill) carrying a
+house at every angle.
+
 ## The house's plan
 
 ```
@@ -217,6 +243,9 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HO-Turn30 | `test_an_odd_step_moves_an_opening_little_along_its_wall` |
 | HO-Place, HO-Clear (at a corner) | `test_an_opening_asked_for_at_a_corner_is_kept_clear_of_it` |
 | HS-File, HS-Wall, HS-Corner | `test_the_sizes_file_keeps_the_rules` |
+| HG-Terrace | `tests/hexground.loft`: `test_terraces_are_flat_away_from_their_edges`, `test_a_terrace_edge_is_a_smooth_slope` |
+| HG-Hill | `tests/hexground.loft`: `test_a_hill_is_level_at_its_top_and_its_foot` |
+| HG-Seat | `tests/hexground.loft`: `test_a_seated_house_is_level_and_blends_in` |
 
 Measured for HO-Turn30: a door and a window at every half step along every wall of five boxes
 (384 openings, corners included), turned 30°: the worst 0.317 units along the wall, under the
@@ -231,6 +260,13 @@ edges too far (two).  Leaving the walls where they are instead of moving them to
 fails nothing, and should not: it changes no cell (HT-Turn30).
 
 ## Not covered
+
+- **Walls shorter than three hex steps may be lost.**  The runs are cut where the boundary's way,
+  read over two edges either side (HW-Runs), turns; a notch only two steps wide and deep can be
+  read as a slope instead.  Measured on L's: every wall of three steps (4.5 m) or more kept, at both
+  angle families; of the L's whose inner corner has two-step walls, a 4 × 2 body with a 2 × 2 or a
+  3 × 2 wing lost them at every angle, a 5 × 3 body with a 3 × 3 wing at 30° only, and three others
+  kept them.  Until the runs are read better, HX-Size's "big enough" means walls of three steps.
 
 - a courtyard (a structure with a hole), inner walls, and walls not at a right angle;
 - mirroring (an exact lattice reflection, ROUNDTRIP X2, not yet a routine of `hexturn`);

@@ -422,6 +422,12 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   no plan and no angle: the axes the walls run along are read off the cells.  It works because a
   wall always lies between two hex centres, one inside the house and one outside.  The page
   `hexhouses.html` shows an L at all twelve angles and a gallery of other shapes.
+- **The town ported** (owner, 2026-11-09: start porting the town): `hextown.loft` brings Orbury's
+  intent onto the hex grid — its terraces as smooth hills (`hexterrain.loft`), its houses at their
+  floors' heights with their doors, its trees, fences, well and bridges — and `hextown.html` shows
+  it in 3D beside a hill carrying a house at every angle and four heights.  The square town has no
+  angles to bring: its terraces fall due south at every house, so its houses come over at 0°;
+  angles are the hex town's to give (RENDER_3D.md § Later).  Rules in formal/hex-houses.md.
 - **What matters is that every hex centre is clearly inside or outside** (owner, 2026-11-09).
   Measured over the page's 36 houses (boxes, L's, a T and a U at their angles): no centre is on
   the wrong side of the drawn walls, and none comes nearer a wall's middle than half its

@@ -1,0 +1,61 @@
+// The town ported to the hex grid, and a hill with a house at every angle (hextown.loft), as JSON
+// for tools/hextown.py to draw in 3D into hextown.html:
+//
+//   loft --lib libs tools/hextown.loft > build/hextown.json && python3 tools/hextown.py
+//
+// Per scene: the ground (its window, and per cell its height in metres and its surface kind), each
+// house (its angle, the heights of its walls' foot, its floor and its eaves, its outline as the
+// straight walls' corners in metres, its doors and windows), and the things on the surface.
+use hex_field;
+use hexwalls;
+use hexterrain;
+use hextown;
+
+const M = 0.8660254037844386;
+
+fn scene(name: text, town: hextown::Town) -> text {
+  g = town.ground;
+  hs = "";
+  ks = "";
+  for r in g.r0..g.r0 + g.h {
+    for q in g.q0..g.q0 + g.w {
+      if len(hs) > 0 { hs += ","; ks += ","; }
+      hs += "{round(hex_field::height_get(g.heights, q, r) * 1000.0) / 1000.0}";
+      ks += "{hex_field::label_get(g.kinds, q, r)}";
+    }
+  }
+  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.q0}, \"r0\": {g.r0}, \"w\": {g.w}, \"h\": {g.h}, \"heights\": [{hs}], \"kinds\": [{ks}]}}, \"houses\": [";
+  for i in 0..len(town.houses) {
+    p = town.houses[i];
+    cs = "";
+    for c in p.built.corners {
+      if len(cs) > 0 { cs += ", "; }
+      cs += "[{c.0 * M}, {c.1 * M}]";
+    }
+    ops = "";
+    for o in p.built.openings {
+      if len(ops) > 0 { ops += ", "; }
+      ops += "{{\"kind\": {o.kind}, \"wall\": {o.wall}, \"a\": [{o.ax * M}, {o.ay * M}], \"b\": [{o.bx * M}, {o.by * M}]}}";
+    }
+    if i > 0 { out += ", "; }
+    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"corners\": [{cs}], \"openings\": [{ops}]}}";
+  }
+  out += "], \"things\": [";
+  for i in 0..len(town.things) {
+    t = town.things[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"kind\": \"{t.kind}\", \"x\": {t.x}, \"y\": {t.y}, \"z\": {t.z}}}";
+  }
+  out + "]}}"
+}
+
+fn main() {
+  sz = hexwalls::sizes_file("../hexsizes.json");
+  m = hexterrain::measures_file("../hexsizes.json");
+  town = hextown::port(file("../levels/orbury.json").content() ?? "", sz, m);
+  hill = hextown::showcase(sz, m);
+  println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scenes\": [");
+  println("{scene("Orbury, ported", town)},");
+  println("{scene("A hill, a house at every angle", hill)}");
+  println("]}}");
+}

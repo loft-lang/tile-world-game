@@ -1,0 +1,113 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The ground on the hex grid (hexterrain.loft; formal/hex-houses.md § The ground): terraces made
+// smooth, a round hill, a structure seated on the ground.
+use hex_field;
+use hexterrain;
+use hexhouse;
+
+fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
+
+fn measures() -> hexterrain::Measures { hexterrain::measures_file("../hexsizes.json") }
+
+/// Two terraces side by side on a 20 x 10 map of 1.5 m squares: level 0 west of x = 10, level 1
+/// east of it.
+fn two_terraces() -> hexterrain::Steps {
+  level: vector<integer> = [];
+  for j in 0..10 { for i in 0..20 { level += [if i < 10 { 0 } else { 1 }]; } }
+  hexterrain::Steps { x0: 0.0, y0: 0.0, size: 1.5, nx: 20, ny: 10, level: level }
+}
+
+// @FR-HG-Terrace: half a hillside or more from an edge, the ground is flat at its storey
+fn test_terraces_are_flat_away_from_their_edges() {
+  m = measures();
+  s = two_terraces();
+  // the edge is at x = 15 m
+  for x in [2.0, 15.0 - m.hillside * 0.5 - 0.01, 15.0 + m.hillside * 0.5 + 0.01, 28.0] {
+    h = hexterrain::terrace_height(s, x, 7.5, m, 0, 1);
+    want = if x < 15.0 { 0.0 } else { m.storey };
+    assert(abs_f(h - want) < 0.000001, "at x = {x} m the ground is {h} m, flat at {want}");
+  }
+}
+
+// @FR-HG-Terrace: across an edge the ground climbs a storey without a step, half way at the edge
+fn test_a_terrace_edge_is_a_smooth_slope() {
+  m = measures();
+  s = two_terraces();
+  mid = hexterrain::terrace_height(s, 15.0, 7.5, m, 0, 1);
+  assert(abs_f(mid - m.storey * 0.5) < 0.000001, "half a storey up at the edge: {mid}");
+  last = hexterrain::terrace_height(s, 15.0 - m.hillside, 7.5, m, 0, 1);
+  steepest = 0.0;
+  for i in 1..121 {
+    x = 15.0 - m.hillside + (i as float) * m.hillside * 2.0 / 120.0;
+    h = hexterrain::terrace_height(s, x, 7.5, m, 0, 1);
+    assert(h >= last - 0.000001, "the ground never falls on the way up: {h} after {last} at x = {x}");
+    rise = (h - last) / (m.hillside * 2.0 / 120.0);
+    if rise > steepest { steepest = rise; }
+    last = h;
+  }
+  // a smoothstep's steepest is 1.5 times its mean
+  assert(steepest <= 1.5 * m.storey / m.hillside + 0.01, "no slope steeper than a smoothstep's: {steepest}");
+  // and it leaves the flat with no kink: barely rising just inside the hillside
+  foot = 15.0 - m.hillside * 0.5;
+  d = m.hillside * 0.02;
+  early = (hexterrain::terrace_height(s, foot + d, 7.5, m, 0, 1) - hexterrain::terrace_height(s, foot, 7.5, m, 0, 1)) / d;
+  assert(early < 0.1 * m.storey / m.hillside, "no kink where the slope leaves the flat: {early} m/m");
+}
+
+// @FR-HG-Hill: a hill's full height at its top, nothing at its foot and beyond
+fn test_a_hill_is_level_at_its_top_and_its_foot() {
+  g = hexterrain::ground_new(-30, -30, 60, 60);
+  hexterrain::hill(g, 0.0, 0.0, 30.0, 8.0);
+  assert(abs_f(hex_field::height_get(g.heights, 0, 0) - 8.0) < 0.000001, "8 m at the top");
+  for c in [(25, 0), (-25, 0), (0, 25), (0, -25)] {
+    (x, y) = hexterrain::centre(c.0, c.1);
+    d = sqrt(x * x + y * y);
+    if d >= 30.0 { assert(hex_field::height_get(g.heights, c.0, c.1) == 0.0, "nothing beyond the foot, {d} m out"); }
+  }
+}
+
+// @FR-HG-Seat: the footprint at the floor's height, the ground blending back round it
+fn test_a_seated_house_is_level_and_blends_in() {
+  m = measures();
+  g = hexterrain::ground_new(-30, -30, 60, 60);
+  hexterrain::hill(g, 0.0, 0.0, 40.0, 10.0);
+  before = hexterrain::ground_new(-30, -30, 60, 60);
+  hexterrain::hill(before, 0.0, 0.0, 40.0, 10.0);
+  b = hexhouse::build(hexhouse::HexHouse { cq: 10, cr: 0, turn: 3, parts: hexhouse::box_plan(5, 4) });
+  low = hexterrain::seat(g, b.cells, 5.0, m);
+  lowest = 1000.0;
+  for r in -30..30 {
+    for q in -30..30 {
+      inside = hex_field::hexset_get(b.cells, q, r);
+      h = hex_field::height_get(g.heights, q, r);
+      if inside {
+        assert(h == 5.0, "the footprint level at 5 m: cell ({q}, {r}) at {h}");
+        was = hex_field::height_get(before.heights, q, r);
+        if was < lowest { lowest = was; }
+        continue;
+      }
+      // how far the cell is from the footprint
+      (x, y) = hexterrain::centre(q, r);
+      near = 1000.0;
+      for fr in -30..30 {
+        for fq in -30..30 {
+          if hex_field::hexset_get(b.cells, fq, fr) {
+            (fx, fy) = hexterrain::centre(fq, fr);
+            d = sqrt((fx - x) * (fx - x) + (fy - y) * (fy - y));
+            if d < near { near = d; }
+          }
+        }
+      }
+      if near - 0.75 >= m.blend {
+        assert(h == hex_field::height_get(before.heights, q, r), "beyond the blend the ground as it was: ({q}, {r})");
+      } else {
+        lo = if 5.0 < hex_field::height_get(before.heights, q, r) { 5.0 } else { hex_field::height_get(before.heights, q, r) };
+        hi = if 5.0 > hex_field::height_get(before.heights, q, r) { 5.0 } else { hex_field::height_get(before.heights, q, r) };
+        assert(h >= lo - 0.000001 && h <= hi + 0.000001, "in the blend, between the floor and the ground: ({q}, {r}) at {h}");
+      }
+    }
+  }
+  assert(abs_f(low - lowest) < 0.000001, "the walls go down to the lowest the ground was: {low} against {lowest}");
+}
