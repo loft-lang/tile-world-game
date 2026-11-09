@@ -318,7 +318,11 @@ is checked by a program and looked at.
   `hex_world` and the packages round it) for the more complex hex editor (owner): a square cell's
   kind, rise, slant and ceiling turned into hex cells, so a place made here opens there.  Its
   design waits for this renderer: the 3D model is the common ground the two grids are mapped
-  through.
+  through.  **One way only** (owner, 2026-11-09): square maps into hex, never back — a hex place's
+  curves and twelve facings have nothing to land on in squares.  So the square place is the draft
+  that plays now; the more realistic town (a winding stream, houses at angles, the hard part of
+  level design, and why the hex grid was made) is modelled in hex after the import, and what is
+  refined there does not come back.
 - **The Tanmatsu: an early-phone style of 3D** (owner: an experiment, after this one).  No GPU:
   the techniques of the phones before one — low polygon counts, fixed-point transforms, a software
   rasteriser drawing affine-textured spans, flat or per-vertex light — tried on the same world
