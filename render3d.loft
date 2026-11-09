@@ -102,11 +102,13 @@ void main() {{
 
 /// A face of the place: a sprite on a flat polygon of 3 or 4 corners, each corner five numbers —
 /// its x, y, z (x east, y up in layers, z south) and where it lies on the picture (u right, v
-/// down, 0 .. 1) — and the light it is seen in (1 is full).
+/// down, 0 .. 1) — and the light it is seen in (1 is full): one for the face, or one per corner
+/// where the surface is smooth (`lights`, the ground of the hex version).
 pub struct Face {
   pub sprite: integer,
   pub at: vector<float>,
-  pub light: float
+  pub light: float,
+  pub lights: vector<float> = []
 }
 
 // Where a picture sits in the atlas: its slot.
@@ -397,6 +399,15 @@ fn face(out: vector<Face>, sprite: integer, corners: const vector<(float, float,
   at: vector<float> = [];
   for c in corners { at += [c.0, c.1, c.2, c.3, c.4]; }
   out += [Face { sprite: sprite, at: at, light: light }];
+}
+
+// A face lit per corner: its corners as `face`'s, each with its own light.
+fn face_lit(out: vector<Face>, sprite: integer, corners: const vector<(float, float, float, float, float)>,
+            lights: const vector<float>) {
+  if sprite < 0 { return; }
+  at: vector<float> = [];
+  for c in corners { at += [c.0, c.1, c.2, c.3, c.4]; }
+  out += [Face { sprite: sprite, at: at, light: lights[0] ?? 1.0, lights: lights }];
 }
 
 // The shades of layer z over the square round (cx, cy), row by row: the rules' light.
@@ -1141,7 +1152,9 @@ fn hex_draw(v: View3D, gl: const Gl, ex: float, ez: float, fogd: float) {
 /// A ground cell of the hex version: a fan of six triangles from its centre, each corner at the
 /// mean height of its three cells, cut along the sides of the roads, rails and stream that cross
 /// it (walls with no height, hexscene.loft), each piece with its surface's picture: so a road's
-/// edge is a straight line, not the cells' zigzag.
+/// edge is a straight line, not the cells' zigzag.  The ground is lit smoothly: each vertex by
+/// the slope of the surface there (`slope_light`), the light carried into the cut pieces, so
+/// neither the fan's triangles nor a road's cut show a crease.
 fn hex_cell(out: vector<Face>, s: const hexscene::Scene, q: integer, r: integer, kinds: const vector<integer>, night: boolean) {
   (cx, cy) = hexscene::centre(q, r);
   hc = hexscene::cell_height(s, q, r);
@@ -1149,46 +1162,105 @@ fn hex_cell(out: vector<Face>, s: const hexscene::Scene, q: integer, r: integer,
   near = hexscene::sides_near(s, q, r);
   k = hex_field::lattice_k(q, r);
   m = hex_field::lattice_m(q, r);
+  // the six corners' heights and lights, and the centre's light from the corners round it
+  ch: vector<float> = [];
+  cl: vector<float> = [];
+  gx = 0.0;
+  gy = 0.0;
+  for j in 0..6 {
+    ak = HCK[j] ?? 0;
+    am = HCM[j] ?? 0;
+    h = hexscene::corner_height(s, k + ak, m + am);
+    ch += [h];
+    gx += (h - hc) * (ak as float) * 0.75;
+    gy += (h - hc) * (am as float) * 0.4330127018922193;
+    cl += [corner_light(s, k + ak, m + am, j, night)];
+  }
+  // six points round a centre at 0.866 m: the least-squares slope is their sum over 3 r²
+  lc = slope_light(gx / 2.25 ?? 0.0, gy / 2.25 ?? 0.0, night);
   for j in 0..6 {
     j1 = (j + 1) % 6 ?? 0;
     ak = HCK[j] ?? 0;
     am = HCM[j] ?? 0;
     bk = HCK[j1] ?? 0;
     bm = HCM[j1] ?? 0;
-    // in metres, with the place on the picture
-    tri = [(cx, cy, hc, 0.5, 0.5),
-           (cx + (ak as float) * 0.75, cy + (am as float) * 0.4330127018922193, hexscene::corner_height(s, k + ak, m + am),
-            0.5 + (ak as float) * 0.375, 0.5 - (am as float) * 0.25),
-           (cx + (bk as float) * 0.75, cy + (bm as float) * 0.4330127018922193, hexscene::corner_height(s, k + bk, m + bm),
-            0.5 + (bk as float) * 0.375, 0.5 - (bm as float) * 0.25)];
-    pieces: vector<vector<(float, float, float, float, float)>> = [tri];
+    // in metres, with the height, the place on the picture and the light
+    tri = [(cx, cy, hc, 0.5, 0.5, lc),
+           (cx + (ak as float) * 0.75, cy + (am as float) * 0.4330127018922193, ch[j] ?? hc,
+            0.5 + (ak as float) * 0.375, 0.5 - (am as float) * 0.25, cl[j] ?? lc),
+           (cx + (bk as float) * 0.75, cy + (bm as float) * 0.4330127018922193, ch[j1] ?? hc,
+            0.5 + (bk as float) * 0.375, 0.5 - (bm as float) * 0.25, cl[j1] ?? lc)];
+    pieces: vector<vector<(float, float, float, float, float, float)>> = [tri];
     for id in near {
       sd = s.sides[id];
-      next: vector<vector<(float, float, float, float, float)>> = [];
+      next: vector<vector<(float, float, float, float, float, float)>> = [];
       for pc in pieces { next += cut(pc, sd.x1, sd.y1, sd.x2, sd.y2); }
       pieces = next;
     }
     for pc in pieces {
-      gx = 0.0;
-      gy = 0.0;
+      px = 0.0;
+      py = 0.0;
       for c in pc {
-        gx += c.0;
-        gy += c.1;
+        px += c.0;
+        py += c.1;
       }
-      gx = (gx / (len(pc) as float)) ?? cx;
-      gy = (gy / (len(pc) as float)) ?? cy;
-      sp = piece_sprite(s, own, near, gx, gy, kinds);
+      px = (px / (len(pc) as float)) ?? cx;
+      py = (py / (len(pc) as float)) ?? cy;
+      sp = piece_sprite(s, own, near, px, py, kinds);
       corners = [for c in pc { hp(c.0, c.1, c.2, c.3, c.4) }];
-      face(out, sp, corners, sunlit(corners, night));
+      lights = [for c in pc { c.5 }];
+      face_lit(out, sp, corners, lights);
     }
   }
 }
 
+/// The height of the cell centred at (k, m) in doubled coordinates.
+fn height_km(s: const hexscene::Scene, k: integer, m: integer) -> float {
+  r = m / 3 ?? 0;
+  hexscene::cell_height(s, (k - (r & 1)) / 2 ?? 0, r)
+}
+
+/// The light at the corner (k, m), the j-th of its cell: the slope through the three cells round
+/// it (their centres 0.866 m away at 120° from each other, so the least-squares slope is their sum
+/// over 1.5 r²).  The cells lie away from the corner along headings j, j + 2 and j + 4.
+fn corner_light(s: const hexscene::Scene, k: integer, m: integer, j: integer, night: boolean) -> float {
+  hs: vector<float> = [];
+  mean = 0.0;
+  for t in 0..3 {
+    i = (j + 2 * t) % 6 ?? 0;
+    h = height_km(s, k - (HCK[i] ?? 0), m - (HCM[i] ?? 0));
+    hs += [h];
+    mean += h;
+  }
+  mean = mean / 3.0 ?? 0.0;
+  gx = 0.0;
+  gy = 0.0;
+  for t in 0..3 {
+    i = (j + 2 * t) % 6 ?? 0;
+    gx -= ((hs[t] ?? mean) - mean) * ((HCK[i] ?? 0) as float) * 0.75;
+    gy -= ((hs[t] ?? mean) - mean) * ((HCM[i] ?? 0) as float) * 0.4330127018922193;
+  }
+  slope_light(gx / 1.125 ?? 0.0, gy / 1.125 ?? 0.0, night)
+}
+
+/// The light on ground rising gx metres per metre east and gy per metre north: its normal against
+/// the sun, as `sunlit` lights a flat face.
+fn slope_light(gx: float, gy: float, night: boolean) -> float {
+  // the normal (-gx, 1, gy) in the view's axes (x east, y up, z south)
+  nx = -gx;
+  ny = 1.0;
+  nz = gy;
+  l = sqrt(nx * nx + ny * ny + nz * nz);
+  dot = ((nx * SUN.0 + ny * SUN.1 + nz * SUN.2) / l) ?? 1.0;
+  lit = 0.55 + 0.45 * (if dot < 0.0 { -dot } else { dot });
+  if night { lit * 0.45 } else { lit }
+}
+
 /// A convex piece cut by the line through (x1, y1) and (x2, y2): the two parts, or the piece as it
-/// is when the line misses it.  Every number of a corner (height, place on the picture) is taken
-/// along with it.
-fn cut(pc: const vector<(float, float, float, float, float)>, x1: float, y1: float, x2: float, y2: float)
-    -> vector<vector<(float, float, float, float, float)>> {
+/// is when the line misses it.  Every number of a corner (height, place on the picture, light) is
+/// taken along with it.
+fn cut(pc: const vector<(float, float, float, float, float, float)>, x1: float, y1: float, x2: float, y2: float)
+    -> vector<vector<(float, float, float, float, float, float)>> {
   dx = x2 - x1;
   dy = y2 - y1;
   n = len(pc);
@@ -1200,8 +1272,8 @@ fn cut(pc: const vector<(float, float, float, float, float)>, x1: float, y1: flo
     if v < -0.000001 { neg = true; }
   }
   if !pos || !neg { return [pc]; }
-  left: vector<(float, float, float, float, float)> = [];
-  right: vector<(float, float, float, float, float)> = [];
+  left: vector<(float, float, float, float, float, float)> = [];
+  right: vector<(float, float, float, float, float, float)> = [];
   for i in 0..n {
     a = pc[i]!;
     b = pc[(i + 1) % n ?? 0]!;
@@ -1211,12 +1283,13 @@ fn cut(pc: const vector<(float, float, float, float, float)>, x1: float, y1: flo
     if va <= 0.000001 { right += [a]; }
     if (va > 0.000001 && vb < -0.000001) || (va < -0.000001 && vb > 0.000001) {
       t = (va / (va - vb)) ?? 0.5;
-      p = (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t, a.3 + (b.3 - a.3) * t, a.4 + (b.4 - a.4) * t);
+      p = (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t, a.3 + (b.3 - a.3) * t,
+           a.4 + (b.4 - a.4) * t, a.5 + (b.5 - a.5) * t);
       left += [p];
       right += [p];
     }
   }
-  out: vector<vector<(float, float, float, float, float)>> = [];
+  out: vector<vector<(float, float, float, float, float, float)>> = [];
   if len(left) >= 3 { out += [left]; }
   if len(right) >= 3 { out += [right]; }
   out
@@ -1486,7 +1559,7 @@ fn vertices(v: View3D, gl: const Gl, fs: const vector<Face>) -> vector<single> {
         u = (sx + e + (f.at[i + 3] ?? 0.0) * ((TS as float) - 2.0 * e)) / (AT as float);
         vv = (sy + e + (f.at[i + 4] ?? 0.0) * ((TS as float) - 2.0 * e)) / (AT as float);
         out += [(f.at[i] ?? 0.0) as single, (f.at[i + 1] ?? 0.0) as single, (f.at[i + 2] ?? 0.0) as single,
-                f.light as single, 0.0 as single, 0.0 as single, u! as single, vv! as single];
+                (f.lights[c] ?? f.light) as single, 0.0 as single, 0.0 as single, u! as single, vv! as single];
       }
     }
   }
