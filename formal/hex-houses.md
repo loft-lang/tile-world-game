@@ -222,6 +222,40 @@ change to the file is a change the tests judge.
                 the lowest the ground was under it.
 ```
 
+## Fronts: slopes and cliffs
+
+Owner, 2026-11-09: where a slope is drawn the hero can walk it; where the ground does not let the
+hero through, it shows a clearer edge than a slope.  Not terraces all through a town: most fronts
+slope, a few are cliffs.
+
+```
+  (GM-Front)    A terrace's front — where the ground steps up a layer from one cell to the next,
+                both open to the sky, outside any house — is crossed as the place says (its
+                intent's `fronts`).  In a place whose fronts slope, each such front carries a
+                `slope` edge on both layers it stands between (`editor::refill_fronts`, after the
+                cells are filled), and the hero walks up it onto the layer above and down it
+                without a fall; the fronts with a cell in one of the place's cliff areas (`cliffs`)
+                and every front of a place that says nothing stay cliffs: climbed only by stairs
+                and slopes, and a fall off them costs health (DESIGN.md § Falling).  Things and
+                creatures do not use the slope edge.  The 2D view marks a sloping front with a
+                dashed line of earth on its upper layer.
+  (HG-Cliff)    On the hex ground a front slopes as HG-Terrace's smooth hillside, except in a
+                cliff area: there each cell stands at its level's storey, blending back to the
+                smooth ground over the blend's width beyond the area, and a cliff runs along the
+                straight sides of the cells of each level and up (HW-Loops, HW-Step, HW-Slant),
+                cut to the area.  Either side of a cliff is its own surface, its corners the mean
+                of the cells on that side only, and a face stands on the cliff's line from the low
+                side's surface up to the high side's, so the ground never slopes down a cliff.
+                Who stands by a cliff stands on the surface of the side their layer is on.
+```
+
+Orbury (2026-11-09): every front slopes but those of the big house's terrace — its front over the
+market and the hill behind it, the area x 20–39, y 8–21 — 255 sloping fronts (510 edges); its five
+three-cell ramps are kept clear but no longer rise (a ramp beside a sloping front only stops the
+hero walking onto it from the side), and the main road's landings are the road's two cells wide.
+On the hex ground the big house's terrace carries 7 cliffs (43 stretches of at most 1.5 m), faced
+with the terrace's earth as the square view draws it.
+
 The measurements (a storey 2.6 m, a hillside 6 m, a bank 2.5 m, the blend 2.5 m) are in
 hexsizes.json's "terrain".  A square place is ported by its intent (`hextown.loft`): one tile one
 hex step, its terraces through HG-Terrace, its houses on the cells nearest their middles at their
@@ -297,6 +331,8 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HS-File, HS-Wall, HS-Corner | `test_the_sizes_file_keeps_the_rules` |
 | HG-Terrace | `tests/hexground.loft`: `test_terraces_are_flat_away_from_their_edges`, `test_a_terrace_edge_is_a_smooth_slope` |
 | HG-Dig | `tests/hexground.loft`: `test_a_dug_bed_follows_its_sides` |
+| GM-Front | `tests/moves.loft`: `test_a_sloping_front_is_walked_up_and_down`; `tests/worlds.loft`: `test_orburys_fronts_slope_but_the_big_house_stands_on_a_cliff`, `test_the_bed_is_left_up_its_town_bank`, `test_no_pocket_in_the_bed` |
+| HG-Cliff | `tests/hexground.loft`: `test_cliffs_only_in_their_areas_and_sharp`; `tests/hexroads.loft`: `test_orburys_cliffs_drop_a_storey_and_its_slopes_do_not` |
 | HG-Hill | `tests/hexground.loft`: `test_a_hill_is_level_at_its_top_and_its_foot` |
 | HG-Seat | `tests/hexground.loft`: `test_a_seated_house_is_level_and_blends_in` |
 | HW-Loops | `tests/hexroads.loft`: `test_a_ring_is_two_loops` |

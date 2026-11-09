@@ -799,3 +799,33 @@ fn test_a_swing_strikes_what_the_hero_faces() {
   assert(swung(v) == rules::Step.Swung && tile_world::terrain(v.w, 2, 0, 0) == rules::tr(v, "tree"),
          "a torch swings (owner: a reasonable weapon against bats), and does not chop");
 }
+
+// @FR-GM-Front: across a sloping front the hero walks up a layer and down again without a fall;
+// across a cliff (no slope edge) up is blocked and down is a fall.
+//
+//   layer 1:  . . # #      (x 2, 3: the terrace's ground)
+//   layer 0:  . . W W      (x 0, 1: the ground below; W the terrace's solid earth)
+//            x 0 1 2 3     the front between x 1 and x 2, sloping on row y 0, a cliff on row y 1
+fn test_a_sloping_front_is_walked_up_and_down() {
+  w = rules::level(rules::kinds());
+  for y in 0..2 {
+    tile_world::fill(w.w, 0, y, 1, y, 0, rules::tr(w, "floor"));
+    tile_world::fill(w.w, 2, y, 3, y, 0, rules::tr(w, "wall"));
+    tile_world::fill(w.w, 2, y, 3, y, 1, rules::tr(w, "floor"));
+  }
+  slope = rules::edge_id(w.k, "slope");
+  assert(slope != 0, "kinds.json has the slope edge");
+  // the front's edge, on both layers it stands between: the W side of x 2
+  tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, slope);
+  tile_world::set_edge(w.w, 2, 0, 1, tile_world::WEST, slope);
+  rules::put_hero(w, 1, 0, 0);
+  hp = w.health;
+  assert(rules::walk(w, 1, 0) == rules::Step.Climbed && at(w) == "2,0,1 h0", "up the slope: {at(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Climbed && at(w) == "1,0,0 h0" && w.health == hp,
+         "down it, no fall: {at(w)}, health {w.health}");
+  // the cliff beside it
+  rules::put_hero(w, 1, 1, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,1,0 h0", "the cliff stops the hero: {at(w)}");
+  rules::put_hero(w, 2, 1, 1);
+  assert(rules::walk(w, -1, 0) == rules::Step.Fell && w.health == hp - 1, "off the cliff, a fall: {at(w)}, health {w.health}");
+}

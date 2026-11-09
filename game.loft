@@ -2726,6 +2726,9 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
   door = rules::edge_id(w.k, "door");
   window = rules::edge_id(w.k, "window");
   fence = rules::edge_id(w.k, "fence");
+  slope = rules::edge_id(w.k, "slope");
+  // a terrace's sloping front: a dashed line of earth along it, where the ground below is open
+  earth = tiles::rgb(150, 120, 70);
   body = tiles::rgb(92, 60, 40);
   top = tiles::rgb(176, 128, 88);
   pane = tiles::rgb(150, 200, 230);
@@ -2758,6 +2761,8 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
     } else if n == fence {
       tiles::rect(g.surface, px, py - 5, ts, 2, rail);
+    } else if n == slope && open_n {
+      for d in 0..4 { tiles::rect(g.surface, px + d * (ts / 4) + 1, py - 1, ts / 8, 2, earth); }
     }
     v = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::WEST);
     if v == window && open_w {
@@ -2772,6 +2777,8 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px - 1, py + ts - 3, 3, 3, body);
     } else if v == fence {
       tiles::rect(g.surface, px - 1, py - 3, 2, ts, rail);
+    } else if v == slope && open_w {
+      for d in 0..4 { tiles::rect(g.surface, px - 1, py + d * (ts / 4) + 1, 2, ts / 8, earth); }
     }
   }
 }

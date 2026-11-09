@@ -1005,7 +1005,7 @@ fn hex_y(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, b
   if !v.hex_mode { return base; }
   s = v.hex[0]!;
   if tile_world::open_sky(w.w, x, y, z) {
-    return hexscene::height_at(s, TILE_M * (x as float), -TILE_M * (y as float)) / TILE_M;
+    return hexscene::height_at_layer(s, TILE_M * (x as float), -TILE_M * (y as float), z) / TILE_M;
   }
   base * s.storey / TILE_M
 }
@@ -1057,7 +1057,9 @@ const HEX_SLOTS = 96;
 /// a house's floor.
 fn hex_kinds(g: const game::Game) -> vector<integer> {
   path = mat_sprite(g, "path");
-  [mat_sprite(g, "grass"), path, path, path, mat_sprite(g, "shallows"), mat_sprite(g, "bridge")]
+  // a cliff's face: the earth a terrace stands on, as the square view draws a terrace's front
+  [mat_sprite(g, "grass"), path, path, path, mat_sprite(g, "shallows"), mat_sprite(g, "bridge"),
+   theme::terrain_sprite(g.look, rules::tr(g.world, "wall"), 0, 0, false)]
 }
 
 /// Build what is dirty of the hex version's meshes (all of it the first time, or at a change of
@@ -1209,10 +1211,59 @@ fn hex_cell(out: vector<Face>, s: const hexscene::Scene, q: integer, r: integer,
       px = (px / (len(pc) as float)) ?? cx;
       py = (py / (len(pc) as float)) ?? cy;
       sp = piece_sprite(s, own, near, px, py, kinds);
+      // by a cliff, the piece lies on the surface of its own side, lit as it lies
+      cid = hexscene::cliff_near(s, q, r, px, py);
+      if cid >= 0 {
+        lv = s.sides[cid].level;
+        high = hexscene::above_cliff(s, cid, px, py);
+        corners = [for c in pc { hp(c.0, c.1, hexscene::height_on(s, c.0, c.1, lv, high), c.3, c.4) }];
+        face(out, sp, corners, sunlit(corners, night));
+        continue;
+      }
       corners = [for c in pc { hp(c.0, c.1, c.2, c.3, c.4) }];
       lights = [for c in pc { c.5 }];
       face_lit(out, sp, corners, lights);
     }
+  }
+  // the stretches of cliff whose middle lies in this cell
+  for id in near {
+    sd = s.sides[id];
+    if sd.area != hexscene::CLIFF { continue; }
+    (mq, mr) = hexscene::cell_near((sd.x1 + sd.x2) * 0.5, (sd.y1 + sd.y2) * 0.5);
+    if mq != q || mr != r { continue; }
+    cliff_face(out, s, sd, kinds[6] ?? -1, night);
+  }
+}
+
+// @FR-HG-Cliff: a cliff's face, from the low side's ground up to the high side's
+/// A stretch of cliff: a face standing on its line from the ground of its low side up to that of
+/// its high side, facing the low side, in rows a tile high (the picture is a tile square).
+fn cliff_face(out: vector<Face>, s: const hexscene::Scene, sd: const hexscene::Side, sp: integer, night: boolean) {
+  // a hair to either side of the line, so each surface is read on its own side
+  dx = sd.x2 - sd.x1;
+  dy = sd.y2 - sd.y1;
+  l = sqrt(dx * dx + dy * dy);
+  if l <= 0.0 { return; }
+  nx = (-dy / l) * 0.02 ?? 0.0;
+  ny = (dx / l) * 0.02 ?? 0.0;
+  top_a = hexscene::height_on(s, sd.x1 + nx, sd.y1 + ny, sd.level, true);
+  top_b = hexscene::height_on(s, sd.x2 + nx, sd.y2 + ny, sd.level, true);
+  low_a = hexscene::height_on(s, sd.x1 - nx, sd.y1 - ny, sd.level, false);
+  low_b = hexscene::height_on(s, sd.x2 - nx, sd.y2 - ny, sd.level, false);
+  if top_a <= low_a + 0.01 && top_b <= low_b + 0.01 { return; }
+  du = l / TILE_M;
+  rows = ceil(((if top_a > top_b { top_a } else { top_b }) - (if low_a < low_b { low_a } else { low_b })) / TILE_M ?? 1.0) as integer;
+  for i in 0..rows {
+    // the row's bottom and top at each end, a tile apart, cut to the face
+    ba = low_a + (i as float) * TILE_M;
+    bb = low_b + (i as float) * TILE_M;
+    ta = if ba + TILE_M < top_a { ba + TILE_M } else { top_a };
+    tb = if bb + TILE_M < top_b { bb + TILE_M } else { top_b };
+    if ta <= ba && tb <= bb { continue; }
+    // the low side looks at it: wound from b to a, seen from the right of a → b
+    quad = [hp(sd.x2, sd.y2, tb, 0.0, 1.0 - (tb - bb) / TILE_M), hp(sd.x1, sd.y1, ta, du, 1.0 - (ta - ba) / TILE_M),
+            hp(sd.x1, sd.y1, ba, du, 1.0), hp(sd.x2, sd.y2, bb, 0.0, 1.0)];
+    face(out, sp, quad, sunlit(quad, night) * 0.85);
   }
 }
 

@@ -151,3 +151,27 @@ fn test_orburys_roads_rails_and_stream_are_clear() {
   }
   assert(len(s.sides) > 0, "the scene has its sides");
 }
+
+// @FR-HG-Cliff: across each of Orbury's cliffs the ground drops a storey; across a sloping front it
+// does not step
+fn test_orburys_cliffs_drop_a_storey_and_its_slopes_do_not() {
+  s = hexscene::load(file("../levels/orbury.hex.json").content() ?? "") ?? return;
+  n = 0;
+  for sd in s.sides {
+    if sd.area != hexscene::CLIFF { continue; }
+    n += 1;
+    l = sqrt((sd.x2 - sd.x1) * (sd.x2 - sd.x1) + (sd.y2 - sd.y1) * (sd.y2 - sd.y1));
+    mx = (sd.x1 + sd.x2) * 0.5;
+    my = (sd.y1 + sd.y2) * 0.5;
+    nx = (-(sd.y2 - sd.y1) / l) * 0.3 ?? 0.0;
+    ny = ((sd.x2 - sd.x1) / l) * 0.3 ?? 0.0;
+    up = hexscene::height_at(s, mx + nx, my + ny);
+    down = hexscene::height_at(s, mx - nx, my - ny);
+    assert(up - down > s.storey * 0.9, "the cliff at ({mx}, {my}) drops {up - down} m, a storey");
+  }
+  assert(n > 0, "Orbury has its cliffs");
+  // the market's front at square (25, 33/34) slopes: 0.6 m across it the ground rises little
+  a = hexscene::height_at(s, 25.0 * 1.5, -33.5 * 1.5 + 0.3);
+  b = hexscene::height_at(s, 25.0 * 1.5, -33.5 * 1.5 - 0.3);
+  assert(abs_f(a - b) < 1.0, "the sloping front rises {a - b} m over 0.6 m, no cliff");
+}

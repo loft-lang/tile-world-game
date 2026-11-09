@@ -148,6 +148,14 @@ pub struct Edge {
   pub what: text
 }
 
+/// An area of the map, (x, y) its north-west cell, w by h cells.
+pub struct Area {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer
+}
+
 /// A slope: three cells from (x, y) on layer z, stepping (dx, dy), rising 1, 2 and 3 steps, so the
 /// cell after them is the layer above's.  Their terrain stays what it is.
 pub struct Slope {
@@ -204,7 +212,13 @@ pub struct Intent {
   pub domes: vector<Dome> = [],
   /// Thin walls set where the developer says (a grate's frame, a fence along a yard), beside the
   /// ones houses derive.
-  pub edges: vector<Edge> = []
+  pub edges: vector<Edge> = [],
+  /// How a terrace's front is crossed (owner, 2026-11-09): "slope", the ground slopes up across
+  /// it and the hero walks up and down it (a `slope` edge on the front, `front_edges`); "" (the
+  /// default), a cliff, climbed only by stairs and slopes and fallen off.
+  pub fronts: text = "",
+  /// Where fronts stay cliffs in a place whose fronts slope: every front with a cell in one.
+  pub cliffs: vector<Area> = []
 }
 
 /// A word a room can take: the things it scatters (picked in turn by the hash), how many for
@@ -246,7 +260,19 @@ pub fn no_intent() -> Intent {
 pub fn is_empty(it: const Intent) -> boolean {
   len(it.rooms) == 0 && len(it.corridors) == 0 && len(it.grounds) == 0 && len(it.trails) == 0
     && len(it.blobs) == 0 && len(it.houses) == 0 && len(it.slopes) == 0 && len(it.items) == 0
-    && len(it.domes) == 0 && len(it.edges) == 0
+    && len(it.domes) == 0 && len(it.edges) == 0 && it.fronts == "" && len(it.cliffs) == 0
+}
+
+/// Is the front between cells (x, y) and (x + dx, y + dy) a cliff: in a place whose fronts slope,
+/// one with a cell in a cliff area; in any other place, every one.
+pub fn cliff_front(it: const Intent, x: integer, y: integer, dx: integer, dy: integer) -> boolean {
+  if it.fronts != "slope" { return true; }
+  for a in it.cliffs {
+    for c in [(x, y), (x + dx, y + dy)] {
+      if c.0 >= a.x && c.0 < a.x + a.w && c.1 >= a.y && c.1 < a.y + a.h { return true; }
+    }
+  }
+  false
 }
 
 fn text_of(v: const JsonValue, default: text) -> text {
@@ -354,6 +380,14 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     at = e.field("at");
     it.edges += [Edge { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), z: int_of(at.item(2), 0),
                         side: text_of(e.field("side"), "N"), what: text_of(e.field("what"), "wall") }];
+  }
+  it.fronts = text_of(v.field("fronts"), "");
+  cs = v.field("cliffs");
+  for i in 0..cs.len() {
+    e = cs.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    it.cliffs += [Area { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1), h: int_of(sz.item(1), 1) }];
   }
   ims = v.field("items");
   for i in 0..ims.len() {
@@ -512,6 +546,17 @@ pub fn intent_json(it: const Intent) -> text {
     for e in it.edges {
       out += if first { "\n" } else { ",\n" };
       out += "    {{ \"at\": [{e.x}, {e.y}, {e.z}], \"side\": {quote(e.side)}, \"what\": {quote(e.what)} }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if it.fronts != "" { out += ", \"fronts\": {quote(it.fronts)}"; }
+  if len(it.cliffs) > 0 {
+    out += ", \"cliffs\": [";
+    first = true;
+    for a in it.cliffs {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{a.x}, {a.y}], \"size\": [{a.w}, {a.h}] }}";
       first = false;
     }
     out += " ]";

@@ -276,3 +276,115 @@ pub fn signed_distance(sides: const vector<(float, float, float, float)>, x: flo
   }
   if inside { sqrt(near) } else { -sqrt(near) }
 }
+
+// ── cliffs ──────────────────────────────────────────────────────────────────
+
+/// A stretch of cliff (metres): a straight side of the ground of `level` and up, walked with that
+/// ground on its left from (ax, ay) to (bx, by); the ground drops a storey across it.
+pub struct Cliff {
+  pub level: integer,
+  pub ax: float,
+  pub ay: float,
+  pub bx: float,
+  pub by: float
+}
+
+/// An area where fronts are cliffs, in metres: x0 .. x1 east, y0 .. y1 north.
+pub struct Box {
+  pub x0: float,
+  pub y0: float,
+  pub x1: float,
+  pub y1: float
+}
+
+// @FR-HG-Cliff: a cliff where the ground steps a level within a cliff area, along its straight sides
+/// The cliffs of ground whose cells stand at `levels` (lo .. hi): for each level, the straight
+/// sides of the cells at it and above (`hexwalls::outlines`), the stretches of them inside the
+/// cliff areas.  Elsewhere the fronts slope.
+pub fn cliffs(levels: hex_field::Labels, q0: integer, r0: integer, w: integer, h: integer,
+              lo: integer, hi: integer, areas: const vector<Box>) -> vector<Cliff> {
+  out: vector<Cliff> = [];
+  if len(areas) == 0 { return out; }
+  for level in lo + 1..hi + 1 {
+    cells = hex_field::hexset_chunk(q0, r0, w, h);
+    any = false;
+    for r in r0..r0 + h {
+      for q in q0..q0 + w {
+        if hex_field::label_get(levels, q, r) >= level {
+          hex_field::hexset_set(cells, q, r, true);
+          any = true;
+        }
+      }
+    }
+    if !any { continue; }
+    for o in hexwalls::outlines(cells, 0) {
+      n = len(o.corners);
+      for i in 0..n {
+        (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+        (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+        for a in areas {
+          c = clip(x1 * METRE, y1 * METRE, x2 * METRE, y2 * METRE, a);
+          if len(c) == 4 {
+            ax = c[0] ?? 0.0;
+            ay = c[1] ?? 0.0;
+            bx = c[2] ?? 0.0;
+            by = c[3] ?? 0.0;
+            if (bx - ax) * (bx - ax) + (by - ay) * (by - ay) > 0.0001 {
+              out += [Cliff { level: level, ax: ax, ay: ay, bx: bx, by: by }];
+            }
+          }
+        }
+      }
+    }
+  }
+  out
+}
+
+/// The part of the segment from (ax, ay) to (bx, by) inside the box, as [ax, ay, bx, by]; empty
+/// when it misses.
+fn clip(ax: float, ay: float, bx: float, by: float, b: const Box) -> vector<float> {
+  t0 = 0.0;
+  t1 = 1.0;
+  dx = bx - ax;
+  dy = by - ay;
+  for e in [(-dx, ax - b.x0), (dx, b.x1 - ax), (-dy, ay - b.y0), (dy, b.y1 - ay)] {
+    (p, qv) = e;
+    if p == 0.0 {
+      if qv < 0.0 { return []; }
+      continue;
+    }
+    t = (qv / p) ?? 0.0;
+    if p < 0.0 { if t > t0 { t0 = t; } } else { if t < t1 { t1 = t; } }
+  }
+  if t0 >= t1 { return []; }
+  [ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1]
+}
+
+/// How far (x, y) lies outside the box (0 inside).
+pub fn box_distance(b: const Box, x: float, y: float) -> float {
+  dx = if x < b.x0 { b.x0 - x } else if x > b.x1 { x - b.x1 } else { 0.0 };
+  dy = if y < b.y0 { b.y0 - y } else if y > b.y1 { y - b.y1 } else { 0.0 };
+  sqrt(dx * dx + dy * dy)
+}
+
+/// Make the ground's fronts sharp in the cliff areas: each cell at its level's height, `sharp`
+/// (its level's storey), within them, the smooth ground it has beyond `m.blend` from them, blended
+/// between.
+pub fn sharpen(g: Ground, sharp: hex_field::Heights, areas: const vector<Box>, m: const Measures) {
+  if len(areas) == 0 { return; }
+  for r in g.r0..g.r0 + g.h {
+    for q in g.q0..g.q0 + g.w {
+      (x, y) = centre(q, r);
+      d = 1000000.0;
+      for a in areas {
+        e = box_distance(a, x, y);
+        if e < d { d = e; }
+      }
+      if d >= m.blend { continue; }
+      t = smoothstep(d / m.blend ?? 1.0);
+      z = hex_field::height_get(g.heights, q, r);
+      zs = hex_field::height_get(sharp, q, r);
+      hex_field::height_set(g.heights, q, r, zs + (z - zs) * t);
+    }
+  }
+}

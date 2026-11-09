@@ -640,6 +640,9 @@ on water, and things pushed or blown into it are lost.
   - So a chair climbs a table, and a chair on a table climbs a wall: the wall's top is the next
     layer's floor.
   - A slope is cells rising one step at a time, and its top (3) steps onto the layer above too.
+  - A terrace's front slopes where the place says so (owner, 2026-11-09): a `slope` edge on the
+    front, walked up onto the layer above and down without a fall.  Elsewhere it is a cliff,
+    climbed by stairs and slopes only (formal/hex-houses.md GM-Front).
   - Built with 4-step layers, slopes included (slice 2, `tests/moves.loft`).
 - **Falling.** A drop of a full layer (4 steps) or more is a fall, and costs health by the layers
   fallen: 1 layer costs 1, 2 cost 3, 3 cost 6 (kinds.json `fall_damage`; deeper falls cost the

@@ -44,11 +44,16 @@ struct Corner {
 pub const ROAD = 1;
 pub const RAIL = 2;
 pub const STREAM = 3;
+/// A cliff: a front the ground does not slope across (the place's cliff areas), its side a wall
+/// as high as the drop, the ground of `level` and up on its left.
+pub const CLIFF = 4;
 
 /// One side of a structure's outline, a straight wall with no height, from (x1, y1) to (x2, y2)
 /// metres, and the structure it bounds.
 pub struct Side {
   pub area: integer,
+  /// For a cliff: the level of the ground on its left (the drop is to level - 1 on its right).
+  pub level: integer = 0,
   pub x1: float,
   pub y1: float,
   pub x2: float,
@@ -73,7 +78,9 @@ pub struct Scene {
   pub houses: vector<House>,
   corners: hash<Corner[key]>,
   pub sides: vector<Side> = [],
-  near: hash<Near[key]> = []
+  near: hash<Near[key]> = [],
+  /// Each cell's terrace level, where the place gives them.
+  pub levels: vector<integer> = []
 }
 
 fn num(v: const JsonValue) -> float {
@@ -94,11 +101,14 @@ pub fn load(text: text) -> Scene? {
   if g.kind() != "JObject" { return null; }
   hs: vector<float> = [];
   ks: vector<integer> = [];
+  ls: vector<integer> = [];
   gh = g.field("heights");
   gk = g.field("kinds");
+  gl = g.field("levels");
   for i in 0..gh.len() {
     hs += [num(gh.item(i))];
     ks += [num(gk.item(i)) as integer];
+    if gl.len() > i { ls += [num(gl.item(i)) as integer]; }
   }
   houses: vector<House> = [];
   hv = s.field("houses");
@@ -124,7 +134,26 @@ pub fn load(text: text) -> Scene? {
   }
   sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
                w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,
-               storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [] };
+               storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [], levels: ls };
+  // The cliffs, each cut in stretches of 1.5 m at most: a stretch is drawn with the cell its
+  // middle lies in.
+  cv = s.field("cliffs");
+  for i in 0..cv.len() {
+    c = cv.item(i);
+    ax = num(c.field("a").item(0));
+    ay = num(c.field("a").item(1));
+    bx = num(c.field("b").item(0));
+    by = num(c.field("b").item(1));
+    l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+    n = ceil(l / 1.5 ?? 1.0) as integer;
+    if n < 1 { n = 1; }
+    for j in 0..n {
+      t0 = ((j as float) / (n as float)) ?? 0.0;
+      t1 = (((j + 1) as float) / (n as float)) ?? 1.0;
+      sc.sides += [Side { area: CLIFF, level: num(c.field("level")) as integer, x1: ax + (bx - ax) * t0, y1: ay + (by - ay) * t0,
+                          x2: ax + (bx - ax) * t1, y2: ay + (by - ay) * t1 }];
+    }
+  }
   // Each corner at the mean height of the cells round it.
   sums: hash<Corner[key]> = [];
   counts: hash<Corner[key]> = [];
@@ -275,6 +304,11 @@ pub fn cell_near(x: float, y: float) -> (integer, integer) {
 /// that holds the point, between the cell's centre and the two corners.
 pub fn height_at(s: const Scene, x: float, y: float) -> float {
   (q, r) = cell_near(x, y);
+  id = cliff_near(s, q, r, x, y);
+  if id >= 0 {
+    sd = s.sides[id];
+    return height_on(s, x, y, sd.level, above_cliff(s, id, x, y));
+  }
   (cx, cy) = centre(q, r);
   k = hex_field::lattice_k(q, r);
   m = hex_field::lattice_m(q, r);
@@ -319,4 +353,98 @@ pub fn house_at(s: const Scene, x: float, y: float) -> integer {
     if inside { return i; }
   }
   -1
+}
+
+// ── cliffs ──────────────────────────────────────────────────────────────────
+
+/// A cell's terrace level (0 where the place gives none).
+pub fn cell_level(s: const Scene, q: integer, r: integer) -> integer {
+  if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0; }
+  s.levels[(r - s.r0) * s.w + (q - s.q0)] ?? 0
+}
+
+/// The cliff nearest (x, y) among those that may cross cell (q, r)'s fan, -1 for none.
+pub fn cliff_near(s: const Scene, q: integer, r: integer, x: float, y: float) -> integer {
+  best = -1;
+  best_d = 0.0;
+  for id in sides_near(s, q, r) {
+    sd = s.sides[id];
+    if sd.area != CLIFF { continue; }
+    dx = sd.x2 - sd.x1;
+    dy = sd.y2 - sd.y1;
+    l2 = dx * dx + dy * dy;
+    t = if l2 > 0.0 { ((x - sd.x1) * dx + (y - sd.y1) * dy) / l2 ?? 0.0 } else { 0.0 };
+    if t < 0.0 { t = 0.0; }
+    if t > 1.0 { t = 1.0; }
+    ex = x - sd.x1 - t * dx;
+    ey = y - sd.y1 - t * dy;
+    d = ex * ex + ey * ey;
+    if best < 0 || d < best_d {
+      best = id;
+      best_d = d;
+    }
+  }
+  best
+}
+
+/// Does (x, y) lie on the high side of cliff `id` (its left)?
+pub fn above_cliff(s: const Scene, id: integer, x: float, y: float) -> boolean {
+  sd = s.sides[id];
+  (sd.x2 - sd.x1) * (y - sd.y1) - (sd.y2 - sd.y1) * (x - sd.x1) > 0.0
+}
+
+// @FR-HG-Cliff: either side of a cliff its own surface, from the cells on that side only
+/// The ground's height at (x, y) on one side of a cliff: on its high side (`high`, the cells of
+/// `level` and up) or its low one, each corner the mean of the cells round it on that side only,
+/// so the ground does not slope down the cliff.  A corner with no cell on that side, or the centre
+/// of a cell on the other, takes that side's storey.
+pub fn height_on(s: const Scene, x: float, y: float, level: integer, high: boolean) -> float {
+  (q, r) = cell_near(x, y);
+  (cx, cy) = centre(q, r);
+  k = hex_field::lattice_k(q, r);
+  m = hex_field::lattice_m(q, r);
+  a = atan2(y - cy, x - cx) * 180.0 / PI;
+  j0 = (((floor((a - 90.0) / 60.0) as integer) % 6) + 6) % 6 ?? 0;
+  j1 = (j0 + 1) % 6 ?? 0;
+  own = (if high { level } else { level - 1 } as float) * s.storey;
+  hc = if (cell_level(s, q, r) >= level) == high { cell_height(s, q, r) } else { own };
+  ha = corner_on(s, k + (CK[j0] ?? 0), m + (CM[j0] ?? 0), j0, level, high, own);
+  hb = corner_on(s, k + (CK[j1] ?? 0), m + (CM[j1] ?? 0), j1, level, high, own);
+  (ax, ay) = ((CK[j0] ?? 0) as float * 0.75, (CM[j0] ?? 0) as float * 0.4330127018922193);
+  (bx, by) = ((CK[j1] ?? 0) as float * 0.75, (CM[j1] ?? 0) as float * 0.4330127018922193);
+  px = x - cx;
+  py = y - cy;
+  det = ax * by - ay * bx;
+  wa = ((px * by - py * bx) / det) ?? 0.0;
+  wb = ((ax * py - ay * px) / det) ?? 0.0;
+  (1.0 - wa - wb) * hc + wa * ha + wb * hb
+}
+
+/// Corner (k, m), the j-th of a cell, as the mean of the cells round it on one side of the cliff
+/// of `level`: the cells lie away from it along headings j, j + 2 and j + 4.
+fn corner_on(s: const Scene, k: integer, m: integer, j: integer, level: integer, high: boolean, own: float) -> float {
+  sum = 0.0;
+  n = 0;
+  for t in 0..3 {
+    i = (j + 2 * t) % 6 ?? 0;
+    ck = k - (CK[i] ?? 0);
+    cm = m - (CM[i] ?? 0);
+    r = cm / 3 ?? 0;
+    q = (ck - (r & 1)) / 2 ?? 0;
+    if (cell_level(s, q, r) >= level) == high {
+      sum += cell_height(s, q, r);
+      n += 1;
+    }
+  }
+  if n == 0 { own } else { (sum / (n as float)) ?? own }
+}
+
+/// The ground's height at (x, y) for one standing on layer `z`: by a cliff, the surface of the
+/// side that layer is on; elsewhere the ground's.
+pub fn height_at_layer(s: const Scene, x: float, y: float, z: integer) -> float {
+  (q, r) = cell_near(x, y);
+  id = cliff_near(s, q, r, x, y);
+  if id < 0 { return height_at(s, x, y); }
+  sd = s.sides[id];
+  height_on(s, x, y, sd.level, z >= sd.level)
 }

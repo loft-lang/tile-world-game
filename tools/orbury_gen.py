@@ -81,8 +81,11 @@ def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", r
     d = door_at if door_at >= 0 else w // 2
     keep(x + d, y + h, z, 1, 2)
     _house(x, y, w, h, z, floors, basement, door_at, wall, roof)
+# The terraces' fronts slope (owner, 2026-11-09), so a ramp is the front itself: its cells are kept
+# clear as before, but they no longer rise (three rising cells beside a sloping front would only
+# stop the hero walking onto them from the side).
 def slope(x, y, z, up):
-    keep(x - 1, y - 1, z, 5, 3); keep(x - 1, y - 1, z + 1, 5, 3); _slope(x, y, z, up)
+    keep(x - 1, y - 1, z, 5, 3); keep(x - 1, y - 1, z + 1, 5, 3)
 def stairs(x, y, z):
     keep(x, y - 1, z, 1, 3); keep(x, y - 1, z + 1, 1, 3); _stairs(x, y, z)
 
@@ -144,12 +147,13 @@ keep_cells(line_cells(COURSE, 5, 26, W - 1), 0, 1)
 for c in line_cells(COURSE, 5, 26, W - 1): keep(c[0], c[1] - 1, 0, 1, 3)
 items.append({"at": [33, 61], "z": 0, "stack": ["cart"]})
 items.append({"at": [37, 62], "z": 0, "stack": ["cart"]})
-# The main road: from the stone bridge up to the market and on to the lord's house, by slopes.
+# The main road: from the stone bridge up to the market and on to the lord's house, by slopes.  Each
+# landing is the road's two cells wide, so the road's brush rests on the terrace, not over the street.
 # The road over the stone bridge, not on it: the bridge keeps its own stones.
 ground(30, 59, 2, 1, 0, "path"); trail([[30, 55], [30, 47]], 0, "path", 2)
-slope(30, 46, 0, "E"); ground(33, 46, 1, 1, 0, "wall"); ground(33, 46, 1, 1, 1, "path")
+slope(30, 46, 0, "E"); ground(33, 46, 2, 1, 0, "wall"); ground(33, 46, 2, 1, 1, "path")
 trail([[33, 45], [33, 35]], 1, "path", 2)
-slope(35, 34, 1, "E"); ground(38, 34, 1, 1, 1, "wall"); ground(38, 34, 1, 1, 2, "path")
+slope(35, 34, 1, "E"); ground(38, 34, 2, 1, 1, "wall"); ground(38, 34, 2, 1, 2, "path")
 trail([[38, 33], [38, 23]], 2, "path", 2)
 slope(40, 22, 2, "E"); ground(43, 22, 1, 1, 2, "wall"); ground(43, 22, 1, 1, 3, "path")
 trail([[43, 21], [43, 20], [29, 20]], 3, "path")   # to the lord's door
@@ -262,8 +266,11 @@ for x in range(W):
         elif y < at(MIDDLE, x): plant(x, y, 1, 0.07 if y < at(MIDDLE, x) - 1 else 0.35, TOWN)
         elif y < north(x) - 1: plant(x, y, 0, 0.08, TOWN)
         elif y > north(x) + 3: plant(x, y, 0, 0.16 if y < north(x) + 7 else 0.3, ["oak", "pine", "bush", "autumn_oak"])
+# The terraces' fronts slope: the hero walks up and down them anywhere (owner, 2026-11-09).  Cliffs
+# only round the big house on the top terrace: its front row over the market and the hill behind it.
+cliffs = [{"at": [20, 8], "size": [20, 14]}]
 intent = {"seed": 1, "rooms": rooms, "corridors": [], "edges": edges, "grounds": grounds, "trails": trails, "blobs": blobs,
-          "houses": houses, "slopes": slopes, "items": items}
+          "houses": houses, "slopes": slopes, "items": items, "fronts": "slope", "cliffs": cliffs}
 level = {"name": "Orbury", "camera": "follow", "legend": {}, "ground": [], "chunks": [], "things": [],
          "tiles": [], "edges": [], "rises": [], "intent": intent, "adjusted": [],
          "serves": ["@ST-Setting"], "start": [30, 60, 0], "goal": {"type": ""},

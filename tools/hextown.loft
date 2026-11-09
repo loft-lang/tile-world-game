@@ -18,14 +18,22 @@ fn scene(name: text, town: hextown::Town) -> text {
   g = town.ground;
   hs = "";
   ks = "";
+  ls = "";
   for r in g.r0..g.r0 + g.h {
     for q in g.q0..g.q0 + g.w {
-      if len(hs) > 0 { hs += ","; ks += ","; }
+      if len(hs) > 0 { hs += ","; ks += ","; ls += ","; }
       hs += "{round(hex_field::height_get(g.heights, q, r) * 1000.0) / 1000.0}";
       ks += "{hex_field::label_get(g.kinds, q, r)}";
+      ls += "{hex_field::label_get(town.levels, q, r)}";
     }
   }
-  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.q0}, \"r0\": {g.r0}, \"w\": {g.w}, \"h\": {g.h}, \"heights\": [{hs}], \"kinds\": [{ks}]}}, \"houses\": [";
+  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.q0}, \"r0\": {g.r0}, \"w\": {g.w}, \"h\": {g.h}, \"heights\": [{hs}], \"kinds\": [{ks}], \"levels\": [{ls}]}}, \"cliffs\": [";
+  for i in 0..len(town.cliffs) {
+    c = town.cliffs[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"level\": {c.level}, \"a\": [{c.ax}, {c.ay}], \"b\": [{c.bx}, {c.by}]}}";
+  }
+  out += "], \"houses\": [";
   for i in 0..len(town.houses) {
     p = town.houses[i];
     cs = "";

@@ -320,7 +320,8 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     if was.set && same_terrain && was.stack == stack && was.rise == rise && was.slant == slant { continue; }
     todo += [f];
   }
-  if len(todo) == 0 { return edges_changed; }
+  // the terraces' sloping fronts follow the cells, so they come after them
+  if len(todo) == 0 { return refill_fronts(lf) || edges_changed; }
   // Every cell the fill can change — its cells and, for a material, the ring round each — as it
   // was, so undo takes the whole fill back.
   spots: vector<integer> = [];
@@ -361,7 +362,8 @@ pub fn refill(ed: Editor, lf: levels::LevelFile, words: const vector<intent::Wor
     now = cell_of(w, x, y, z);
     if was != now { changes += [Change { x: x, y: y, z: z, was: was, now: now }]; }
   }
-  if len(changes) == 0 { return edges_changed; }
+  fronts_changed = refill_fronts(lf);
+  if len(changes) == 0 { return fronts_changed || edges_changed; }
   keep(ed, Edit {
     what: CELL, x: ed.x, y: ed.y, z: ed.z, cells: changes, was_at: no_marker(), now_at: no_marker(), hand: false
   });
@@ -407,6 +409,78 @@ fn refill_edges(lf: levels::LevelFile) -> boolean {
     }
   }
   changed
+}
+
+// @FR-GM-Front: a terrace's front slopes where the place says so, a cliff elsewhere
+// A terrace's sloping fronts (intent `fronts`): a `slope` edge on both layers of every front the
+// ground steps up a layer across — the cell below open ground with nothing over it, the one above
+// open ground on the next layer up — outside the houses and the cliff areas; a slope edge no
+// longer wanted is cleared.  True when an edge changed.
+fn refill_fronts(lf: levels::LevelFile) -> boolean {
+  it = lf.intent;
+  k = lf.level.k;
+  w = lf.level.w;
+  slope = rules::edge_id(k, "slope");
+  if slope == 0 || len(it.grounds) == 0 { return false; }
+  x0 = 1000000;
+  y0 = 1000000;
+  z0 = 1000000;
+  x1 = -1000000;
+  y1 = -1000000;
+  z1 = -1000000;
+  for g in it.grounds {
+    if g.x < x0 { x0 = g.x; }
+    if g.y < y0 { y0 = g.y; }
+    if g.z < z0 { z0 = g.z; }
+    if g.x + g.w > x1 { x1 = g.x + g.w; }
+    if g.y + g.h > y1 { y1 = g.y + g.h; }
+    if g.z > z1 { z1 = g.z; }
+  }
+  changed = false;
+  for z in z0..z1 + 1 {
+    for y in y0..y1 + 1 {
+      for x in x0..x1 + 1 {
+        for side in [tile_world::NORTH, tile_world::WEST] {
+          dx = if side == tile_world::WEST { -1 } else { 0 };
+          dy = if side == tile_world::NORTH { -1 } else { 0 };
+          // the front's lower layer is z or z - 1: the edge stands on both
+          want = front_at(lf, x, y, dx, dy, z) || front_at(lf, x, y, dx, dy, z - 1);
+          now = tile_world::edge(w, x, y, z, side);
+          if want && now == 0 {
+            tile_world::set_edge(w, x, y, z, side, slope);
+            changed = true;
+          } else if !want && now == slope {
+            tile_world::set_edge(w, x, y, z, side, 0);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  changed
+}
+
+// Is there a sloping front between cells (x, y) and (x + dx, y + dy), its lower ground on layer z?
+fn front_at(lf: const levels::LevelFile, x: integer, y: integer, dx: integer, dy: integer, z: integer) -> boolean {
+  it = lf.intent;
+  l = lf.level;
+  if intent::cliff_front(it, x, y, dx, dy) { return false; }
+  for h in it.houses {
+    for c in [(x, y), (x + dx, y + dy)] {
+      if c.0 >= h.x && c.0 < h.x + h.w && c.1 >= h.y && c.1 < h.y + h.h { return false; }
+    }
+  }
+  for c in [((x, y), (x + dx, y + dy)), ((x + dx, y + dy), (x, y))] {
+    (lo, hi) = c;
+    if rules::walkable(l, tile_world::terrain(l.w, lo.0, lo.1, z)) && tile_world::rise(l.w, lo.0, lo.1, z) == 0
+        && tile_world::terrain(l.w, lo.0, lo.1, z + 1) == rules::VOID
+        && !rules::walkable(l, tile_world::terrain(l.w, hi.0, hi.1, z))
+        && rules::walkable(l, tile_world::terrain(l.w, hi.0, hi.1, z + 1)) && tile_world::rise(l.w, hi.0, hi.1, z + 1) == 0
+        && tile_world::terrain(l.w, hi.0, hi.1, z + 2) == rules::VOID {
+      return true;
+    }
+  }
+  false
 }
 
 struct Spot {

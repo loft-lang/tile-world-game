@@ -164,3 +164,54 @@ fn test_a_dug_bed_follows_its_sides() {
   }
   assert(full > 20 && untouched > 200, "both flats there: {full} cells at depth, {untouched} untouched");
 }
+
+// @FR-HG-Cliff: cliffs only inside their area, along the level's straight sides; the ground there
+// at its level's storey, untouched beyond the blend
+fn test_cliffs_only_in_their_areas_and_sharp() {
+  m = measures();
+  g = hexterrain::ground_new(-20, -20, 41, 41);
+  levels = hex_field::labels_new(-20, -20, 41, 41);
+  sharp = hex_field::heights_new(-20, -20, 41, 41);
+  // level 1 north of the row r = 0, a smooth rise across it
+  for r in -20..21 {
+    for q in -20..21 {
+      lv = if r < 0 { 1 } else { 0 };
+      hex_field::label_set(levels, q, r, lv);
+      hex_field::height_set(sharp, q, r, (lv as float) * m.storey);
+      (x, y) = hexterrain::centre(q, r);
+      hex_field::height_set(g.heights, q, r, m.storey * (0.5 - 0.5 * (if y > 3.0 { -1.0 } else if y < -3.0 { 1.0 } else { y / -3.0 })));
+    }
+  }
+  b = hexterrain::Box { x0: -6.0, x1: 6.0, y0: -10.0, y1: 10.0 };
+  hexterrain::sharpen(g, sharp, [b], m);
+  cs = hexterrain::cliffs(levels, -20, -20, 41, 41, 0, 1, [b]);
+  assert(len(cs) > 0, "a cliff along the front in the area");
+  for c in cs {
+    assert(c.ax >= b.x0 - 0.000001 && c.ax <= b.x1 + 0.000001 && c.bx >= b.x0 - 0.000001 && c.bx <= b.x1 + 0.000001
+           && c.ay >= b.y0 - 0.000001 && c.ay <= b.y1 + 0.000001 && c.by >= b.y0 - 0.000001 && c.by <= b.y1 + 0.000001,
+           "the cliff ({c.ax}, {c.ay}) .. ({c.bx}, {c.by}) lies in its area");
+    // walked with the high ground on its left: the level-1 cells are north (y < 0 is r > 0 ... north is y up)
+    mx = (c.ax + c.bx) * 0.5;
+    my = (c.ay + c.by) * 0.5;
+    lx = mx - (c.by - c.ay) * 0.1;
+    ly = my + (c.bx - c.ax) * 0.1;
+    (lq, lr) = hexterrain::cell_near(lx, ly);
+    assert(hex_field::label_get(levels, lq, lr) >= c.level, "the high side on the cliff's left");
+  }
+  for r in -20..21 {
+    for q in -20..21 {
+      (x, y) = hexterrain::centre(q, r);
+      z = hex_field::height_get(g.heights, q, r);
+      zs = hex_field::height_get(sharp, q, r);
+      if hexterrain::box_distance(b, x, y) == 0.0 {
+        assert(abs_f(z - zs) < 0.000001, "in the area ({q}, {r}) at its level's storey: {z}");
+      }
+    }
+  }
+  // far from the area the smooth rise is untouched: the cell at x = 15 on the front's row
+  (fq, fr) = hexterrain::cell_near(15.0, 0.0);
+  (fx, fy) = hexterrain::centre(fq, fr);
+  assert(hexterrain::box_distance(b, fx, fy) > m.blend, "the far cell lies beyond the blend");
+  zf = hex_field::height_get(g.heights, fq, fr);
+  assert(zf > 0.1 && zf < m.storey - 0.1, "beyond the blend the front still slopes: {zf}");
+}

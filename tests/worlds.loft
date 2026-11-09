@@ -66,31 +66,27 @@ fn test_a_stair_road_climbs_a_terrace() {
   assert(w.hero_x == 17 && w.hero_y == 45 && w.hero_z == 1, "up the stairs: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
 
-// The stream's bed is no trap (owner, 2026-11-08): fallen in from the town's side, along the bed
-// and up the ramp under the town's bank onto the foot.
-fn test_a_ramp_leads_out_of_the_bed_to_the_town() {
+// The stream's bed is no trap (owner, 2026-11-08), and its banks slope (owner, 2026-11-09): fallen
+// in from the town's side, along the bed and straight up the town's bank onto the lane.
+fn test_the_bed_is_left_up_its_town_bank() {
   lf = orbury();
   w = lf.level;
   rules::put_hero(w, 21, 56, -1);
-  rules::play(w, "a a a a a");
-  assert(w.hero_x == 16 && w.hero_y == 56 && w.hero_z == -1, "along the bed: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
-  rules::play(w, "w d d");
-  assert(w.hero_x == 18 && w.hero_y == 55 && w.hero_h == 3, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
-  rules::play(w, "w");
-  assert(w.hero_x == 18 && w.hero_y == 54 && w.hero_z == 0, "out onto the bank: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
-  rules::play(w, "w");
-  assert(w.hero_y == 53 && w.hero_z == 0, "on the lane by the miners' rows: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  hp = w.health;
+  rules::play(w, "a a a");
+  assert(w.hero_x == 18 && w.hero_y == 56 && w.hero_z == -1, "along the bed: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "w w");
+  assert(w.hero_x == 18 && w.hero_y == 54 && w.hero_z == 0 && w.health == hp,
+         "up the bank onto the lane: ({w.hero_x}, {w.hero_y}, {w.hero_z}), health {w.health}");
 }
 
-// And up the ramp under the far bank, onto the dock's side.
-fn test_a_ramp_leads_out_of_the_bed_to_the_dock() {
+// And up the far bank, onto the dock's side.
+fn test_the_bed_is_left_up_its_far_bank() {
   lf = orbury();
   w = lf.level;
-  rules::put_hero(w, 50, 61, -1);
-  rules::play(w, "a a a");
-  assert(w.hero_x == 47 && w.hero_y == 61 && w.hero_h == 2, "up the ramp: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
-  rules::play(w, "a s");
-  assert(w.hero_x == 46 && w.hero_y == 62 && w.hero_z == 0, "out by the dock: ({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}");
+  rules::put_hero(w, 47, 61, -1);
+  rules::play(w, "s");
+  assert(w.hero_x == 47 && w.hero_y == 62 && w.hero_z == 0, "out by the dock: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
 
 // Under the bridge the bed is walked through: the stone bridge's three columns stand over it.
@@ -108,8 +104,8 @@ fn test_the_bed_runs_under_the_stone_bridge() {
 
 // From every cell of the stream's bed the hero can stand on, a way out up to the street — no pocket
 // where a hero who fell in is stuck (owner, 2026-11-08: still places to get stuck): steps of a
-// rise at most up or down, and from a slope's top (a layer's height less one) onto the floor
-// beside it on the layer above.  The pools are shallows, waded through.
+// rise at most up or down, and from a slope's top (a layer's height less one) or across a sloping
+// front onto the floor beside it on the layer above.  The pools are shallows, waded through.
 fn test_no_pocket_in_the_bed() {
   lf = orbury();
   w = lf.level;
@@ -131,7 +127,9 @@ fn test_no_pocket_in_the_bed() {
           nx = cx + d.0;
           ny = cy + d.1;
           if nx < 0 || nx >= 64 { continue; }
-          if r >= top && rules::walkable(w, tile_world::terrain(w.w, nx, ny, 0)) { out = true; }
+          if (r >= top || rules::slope_between(w, cx, cy, -1, d.0, d.1)) && rules::walkable(w, tile_world::terrain(w.w, nx, ny, 0)) {
+            out = true;
+          }
           nr = tile_world::rise(w.w, nx, ny, -1);
           if rules::walkable(w, tile_world::terrain(w.w, nx, ny, -1)) && nr - r <= 1 && r - nr <= 1
               && !seen.contains(ny * 64 + nx) {
@@ -238,4 +236,21 @@ fn test_the_bed_is_a_trench_and_a_road_between_houses_is_not() {
   assert(game::in_trench(w, mats), "in the bed");
   rules::put_hero(w, 33, 39, 1);
   assert(!game::in_trench(w, mats), "on the road up the middle terrace, between two houses");
+}
+
+// @FR-GM-Front: Orbury's terrace fronts slope (owner, 2026-11-09): up from the middle terrace onto
+// the market's anywhere along the front, no stairs; but the big house's front over the market is
+// a cliff, as is the hill behind it.
+fn test_orburys_fronts_slope_but_the_big_house_stands_on_a_cliff() {
+  lf = orbury();
+  w = lf.level;
+  rules::put_hero(w, 25, 34, 1);
+  hp = w.health;
+  rules::play(w, "w");
+  assert(w.hero_x == 25 && w.hero_y == 33 && w.hero_z == 2, "up the market's front: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
+  rules::play(w, "s");
+  assert(w.hero_x == 25 && w.hero_y == 34 && w.hero_z == 1 && w.health == hp, "and down, unhurt: ({w.hero_x}, {w.hero_y}, {w.hero_z}), {w.health}");
+  rules::put_hero(w, 29, 21, 2);
+  rules::play(w, "w");
+  assert(w.hero_x == 29 && w.hero_y == 21 && w.hero_z == 2, "the big house's front is a cliff: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
