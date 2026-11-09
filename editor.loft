@@ -460,6 +460,12 @@ fn refill_fronts(lf: levels::LevelFile) -> boolean {
   changed
 }
 
+// Is `kind` open ground on either side of a front: walked on, or a plant on it (a tree, a bush)
+// that is felled to such ground — the ground slopes under it, the plant still stands in the way.
+fn ground_up(l: const rules::Level, kind: integer) -> boolean {
+  rules::walkable(l, kind) || rules::walkable(l, rules::chopped_to(l, kind))
+}
+
 // Is there a sloping front between cells (x, y) and (x + dx, y + dy), its lower ground on layer z?
 fn front_at(lf: const levels::LevelFile, x: integer, y: integer, dx: integer, dy: integer, z: integer) -> boolean {
   it = lf.intent;
@@ -472,10 +478,10 @@ fn front_at(lf: const levels::LevelFile, x: integer, y: integer, dx: integer, dy
   }
   for c in [((x, y), (x + dx, y + dy)), ((x + dx, y + dy), (x, y))] {
     (lo, hi) = c;
-    if rules::walkable(l, tile_world::terrain(l.w, lo.0, lo.1, z)) && tile_world::rise(l.w, lo.0, lo.1, z) == 0
+    if ground_up(l, tile_world::terrain(l.w, lo.0, lo.1, z)) && tile_world::rise(l.w, lo.0, lo.1, z) == 0
         && tile_world::terrain(l.w, lo.0, lo.1, z + 1) == rules::VOID
         && !rules::walkable(l, tile_world::terrain(l.w, hi.0, hi.1, z))
-        && rules::walkable(l, tile_world::terrain(l.w, hi.0, hi.1, z + 1)) && tile_world::rise(l.w, hi.0, hi.1, z + 1) == 0
+        && ground_up(l, tile_world::terrain(l.w, hi.0, hi.1, z + 1)) && tile_world::rise(l.w, hi.0, hi.1, z + 1) == 0
         && tile_world::terrain(l.w, hi.0, hi.1, z + 2) == rules::VOID {
       return true;
     }

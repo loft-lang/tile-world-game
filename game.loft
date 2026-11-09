@@ -2285,6 +2285,20 @@ fn draw_ground(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: 
   }
 }
 
+// The picture of the bank a terrace's earth cell (x, y, z) shows when the front south of it slopes
+// (a `slope` edge there): the ground over it, what stands there (a bush on the front row) left for
+// what it stands on.  -1 where the front is a cliff, or none.
+fn bank_sprite(g: const Game, w: const rules::Level, x: integer, y: integer, z: integer) -> integer {
+  if !rules::slope_between(w, x, y + 1, z, 0, -1) { return -1; }
+  above = tile_world::terrain(w.w, x, y, z + 1);
+  if above == tile_world::VOID { return -1; }
+  if !theme::upright(g.look, above) { return kind_sprite(g, w, x, y, z + 1, false); }
+  mu = materials::under_tile(g.mats, w.w, x, y, z + 1);
+  if mu != 0 { return theme::tile_sprite(g.look, mu); }
+  under = theme::under(g.look, above);
+  if under != 0 { theme::terrain_sprite(g.look, under, x, y, false) } else { -1 }
+}
+
 // The light at corner (cx, cy) of a standing cell (a wall): the mean of every set cell sharing
 // it, walls and ground alike, never lighter than `dim`, in sixteenths of a shade.
 fn standing_light(gr: const Ground, x: integer, y: integer, cx: integer, cy: integer, dim: integer) -> integer {
@@ -2318,8 +2332,19 @@ fn open_beside(g: const Game, w: const rules::Level, x: integer, y: integer, z: 
 fn draw_standing(g: Game, w: const rules::Level, gr: const Ground, x: integer, y: integer, z: integer,
                  upper: boolean, dim: integer, shade: integer, things: boolean = true) {
   if theme::upright(g.look, tile_world::terrain(w.w, x, y, z)) {
-    // Standing at its rise, lit gradually like the ground beside it.
     ts = g.look.tile_size;
+    // @FR-GM-Front: a sloping front's face is a grassy bank, a cliff's the terrace's earth
+    // The earth under a terrace's sloping front: its face a bank of the ground above it, darker
+    // toward its foot, not the stone of a cliff (owner, 2026-11-09).
+    bank = bank_sprite(g, w, x, y, z);
+    if bank >= 0 {
+      theme::put_ground(g.surface, bank, (x - g.cam_x) * ts, (y - g.cam_y) * ts - g.lift, (0, 0, 0, 0),
+                        (standing_light(gr, x, y, 0, 0, dim) + 16, standing_light(gr, x, y, 1, 0, dim) + 16,
+                         standing_light(gr, x, y, 0, 1, dim) + 40, standing_light(gr, x, y, 1, 1, dim) + 40));
+      if things { draw_stack(g, w, x, y, z, shade); }
+      return;
+    }
+    // Standing at its rise, lit gradually like the ground beside it.
     up = tile_world::rise(w.w, x, y, z) * 4;
     look = theme::slant_sprite(g.look, kind_sprite(g, w, x, y, z, upper), tile_world::slant(w.w, x, y, z));
     theme::put_ground(g.surface, look, (x - g.cam_x) * ts, (y - g.cam_y) * ts - g.lift,
@@ -2726,9 +2751,6 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
   door = rules::edge_id(w.k, "door");
   window = rules::edge_id(w.k, "window");
   fence = rules::edge_id(w.k, "fence");
-  slope = rules::edge_id(w.k, "slope");
-  // a terrace's sloping front: a dashed line of earth along it, where the ground below is open
-  earth = tiles::rgb(150, 120, 70);
   body = tiles::rgb(92, 60, 40);
   top = tiles::rgb(176, 128, 88);
   pane = tiles::rgb(150, 200, 230);
@@ -2761,8 +2783,6 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
     } else if n == fence {
       tiles::rect(g.surface, px, py - 5, ts, 2, rail);
-    } else if n == slope && open_n {
-      for d in 0..4 { tiles::rect(g.surface, px + d * (ts / 4) + 1, py - 1, ts / 8, 2, earth); }
     }
     v = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::WEST);
     if v == window && open_w {
@@ -2777,8 +2797,6 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px - 1, py + ts - 3, 3, 3, body);
     } else if v == fence {
       tiles::rect(g.surface, px - 1, py - 3, 2, ts, rail);
-    } else if v == slope && open_w {
-      for d in 0..4 { tiles::rect(g.surface, px - 1, py + d * (ts / 4) + 1, 2, ts / 8, earth); }
     }
   }
 }

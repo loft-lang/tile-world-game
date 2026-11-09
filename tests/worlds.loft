@@ -254,3 +254,35 @@ fn test_orburys_fronts_slope_but_the_big_house_stands_on_a_cliff() {
   rules::play(w, "w");
   assert(w.hero_x == 29 && w.hero_y == 21 && w.hero_z == 2, "the big house's front is a cliff: ({w.hero_x}, {w.hero_y}, {w.hero_z})");
 }
+
+// @FR-GM-Front: every front of Orbury slopes outside the big house's cliff area and the houses —
+// where a tree or a bush stands on the ground above or below it too (the plant stands in the way,
+// the ground under it slopes) — so its 2D face is a grassy bank, not a cliff's stone.
+fn test_every_front_outside_the_cliff_area_slopes() {
+  lf = orbury();
+  w = lf.level;
+  wall = rules::terrain_id(w.k, "wall");
+  missing = "";
+  for z in -1..4 {
+    for y in 1..68 {
+      for x in 0..64 {
+        // the earth (x, y - 1, z) under ground on z + 1, open ground on z at (x, y) south of it
+        lo = tile_world::terrain(w.w, x, y, z);
+        if lo == tile_world::VOID || lo == wall || tile_world::terrain(w.w, x, y, z + 1) != tile_world::VOID { continue; }
+        if tile_world::terrain(w.w, x, y - 1, z) != wall { continue; }
+        hi = tile_world::terrain(w.w, x, y - 1, z + 1);
+        if hi == tile_world::VOID || hi == wall || tile_world::terrain(w.w, x, y - 1, z + 2) != tile_world::VOID { continue; }
+        if intent::cliff_front(lf.intent, x, y, 0, -1) { continue; }
+        inh = false;
+        for h in lf.intent.houses {
+          for c in [(x, y), (x, y - 1)] {
+            if c.0 >= h.x && c.0 < h.x + h.w && c.1 >= h.y && c.1 < h.y + h.h { inh = true; }
+          }
+        }
+        if inh || tile_world::rise(w.w, x, y, z) != 0 { continue; }
+        if !rules::slope_between(w, x, y, z, 0, -1) { missing += "({x}, {y}, {z}) "; }
+      }
+    }
+  }
+  assert(missing == "", "fronts that do not slope: {missing}");
+}

@@ -1583,7 +1583,7 @@ fn strike(l: Level, kind: integer, to: integer, x: integer, y: integer, z: integ
 }
 
 // The kind terrain `kind` becomes when chopped (a tree, to floor), 0 when it cannot be.
-fn chopped_to(l: const Level, kind: integer) -> integer {
+pub fn chopped_to(l: const Level, kind: integer) -> integer {
   p = l.k.terrain[kind];
   if !p { return 0; }
   if p.chopped_to == "" { return 0; }
