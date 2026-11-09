@@ -190,7 +190,7 @@
     { "straight": "ew", "turn": "sw", "set_straight": "world:50", "set_turn": "world:51" }
   ],
   "categories": {
-    "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "garden_fence", "village_well"],
+    "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "bush", "poplar", "autumn_oak", "autumn_poplar", "garden_fence", "village_well"],
     "Water": ["lake", "shallows", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
     "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door", "house_roof", "house_slate"],
@@ -223,6 +223,10 @@
     "shallows": { "kind": "shallow", "autotile": "shore", "group": "water", "glyph": "$" },
     "oak": { "kind": "tree", "tile": "town:16", "under": "grass", "glyph": "Q" },
     "pine": { "kind": "tree", "tile": "town:28", "under": "grass", "glyph": "P" },
+    "bush": { "kind": "tree", "tile": "town:5", "under": "grass", "glyph": "[" },
+    "poplar": { "kind": "tree", "tile": "town:4", "under": "grass", "glyph": "]" },
+    "autumn_oak": { "kind": "tree", "tile": "town:15", "under": "grass", "glyph": "{" },
+    "autumn_poplar": { "kind": "tree", "tile": "town:3", "under": "grass", "glyph": "}" },
     "village_well": { "kind": "well", "tile": "farm:73", "under": "grass", "glyph": "W" },
     "fountain": { "kind": "well", "tile": "dungeon:32", "under": "floor", "glyph": "V" },
     "spout": { "kind": "wall", "tile": "dungeon:8", "glyph": "Y" },

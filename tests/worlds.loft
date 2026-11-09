@@ -188,3 +188,54 @@ fn test_the_rails_follow_the_winding_bank() {
   assert(x == 63, "out at the east edge: ({x}, {y})");
   assert(len(rows) >= 3, "round the bends: rows {rows}");
 }
+
+fn cell_key(x: integer, y: integer, z: integer) -> integer { ((z + 2) * 80 + y) * 64 + x }
+
+// The town's lines are broken up (owner, 2026-11-09: houses offset and moved up and down the hill,
+// foliage to finish the job) — and none of it shuts a door: from the dock, walking by the rules'
+// own steps over every layer (slopes, stairs, falls), every house's front door is reached.
+fn test_every_front_door_is_reached_from_the_dock() {
+  lf = orbury();
+  w = lf.level;
+  door = rules::terrain_id(w.k, "open_door");
+  seen: vector<boolean> = [false; 8 * 80 * 64];
+  queue: vector<(integer, integer, integer)> = [(lf.start_x, lf.start_y, lf.start_z)];
+  seen[cell_key(lf.start_x, lf.start_y, lf.start_z)] = true;
+  at = 0;
+  while at < len(queue) {
+    c = queue[at] ?? (0, 0, 0);
+    at += 1;
+    for m in ["w", "a", "s", "d"] {
+      rules::put_hero(w, c.0, c.1, c.2);
+      w.health = 100;
+      rules::play(w, m);
+      if w.hero_x < 0 || w.hero_x >= 64 || w.hero_y < 0 || w.hero_y >= 80 || w.hero_z < -2 || w.hero_z > 5 { continue; }
+      k = cell_key(w.hero_x, w.hero_y, w.hero_z);
+      if !(seen[k] ?? true) {
+        seen[k] = true;
+        queue += [(w.hero_x, w.hero_y, w.hero_z)];
+      }
+    }
+  }
+  missed = "";
+  for z in 0..4 {
+    for y in 0..72 {
+      for x in 0..64 {
+        if tile_world::terrain(w.w, x, y, z) == door && !(seen[cell_key(x, y, z)] ?? false) { missed += "({x}, {y}, {z}) "; }
+      }
+    }
+  }
+  assert(missed == "", "doors not reached: {missed}");
+}
+
+// In the stream's bed the hero sees no further than its banks; on the road between two houses it
+// does — a house's wall with its roof above is no bank of earth.
+fn test_the_bed_is_a_trench_and_a_road_between_houses_is_not() {
+  lf = orbury();
+  w = lf.level;
+  mats = materials::load(file("../theme.json").content() ?? "", w.k);
+  rules::put_hero(w, 27, 57, -1);
+  assert(game::in_trench(w, mats), "in the bed");
+  rules::put_hero(w, 33, 39, 1);
+  assert(!game::in_trench(w, mats), "on the road up the middle terrace, between two houses");
+}

@@ -51,9 +51,18 @@ is not.
 - **The town's layout is fixed** (owner, 2026-11-08), with the farms and the cemetery on its side
   of the stream; what varies is the state of the houses and their interior, dealt from the
   templates (PUZZLES.md § Houses).
-- **The town's shape** (owner, 2026-11-08): modelled a bit on a medieval Italian town, climbing
-  a hill.  The market place is already higher up the hill, and the biggest mansion stands towards
-  the top, partly built into the hilltop.  Proposed ◇, from the bottom up:
+- **The town's shape** (owner, 2026-11-08): modelled a bit on a medieval Italian town, climbing a
+  hill.  The market place is already higher up the hill, and the biggest mansion stands towards
+  the top, partly built into the hilltop.  **No straight lines** (owner, 2026-11-09): a square
+  grid gives every line ninety-degree corners, and a town built on it is hidden in the way many
+  games do — the houses offset from each other, moved up and down the hill, and foliage finishing
+  the job.  Built: each terrace's front bends, run by run (fixed only where a road's slope or a
+  stair road climbs it, under the inn and the lord's house), and the streets bend with it; each
+  house is set at its own depth between the terrace's front behind it and its street or lane, with
+  its door's path down to it; the hilltop is wooded, the terraces' front rows carry bushes where
+  nobody walks, and trees stand in clumps through the town and thick across the stream.  None of
+  it shuts a door: from the dock, every house's front door is walked to (`tests/worlds.loft`).
+  Proposed ◇, from the bottom up:
   - **at the foot**: the dried stream and the miners' rows along it; the farms, Thornfield among
     them, and the cemetery, on the town's side of the stream (owner);
   - **across the stream, the loading dock** (owner): the town's hill is not joined to the mine's,

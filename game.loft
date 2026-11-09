@@ -2900,14 +2900,16 @@ const SKY_LAYERS = 4;
 const BANK_REACH = 4;
 
 // Whether, looking (dx, dy) from the hero along its layer, a bank of earth stands within
-// BANK_REACH: a wall with ground on the layer above it.
-fn banked(w: const rules::Level, dx: integer, dy: integer) -> boolean {
+// BANK_REACH: a wall with ground on the layer above it — plain earth, no material's: a house's
+// wall with its roof above is no bank (a road between two houses is no trench).
+fn banked(w: const rules::Level, mats: const materials::Materials, dx: integer, dy: integer) -> boolean {
   wall = rules::tr(w, "wall");
   for i in 1..=BANK_REACH {
     x = w.hero_x + i * dx;
     y = w.hero_y + i * dy;
     if tile_world::terrain(w.w, x, y, w.hero_z) == wall {
-      return tile_world::terrain(w.w, x, y, w.hero_z + 1) != tile_world::VOID;
+      return tile_world::terrain(w.w, x, y, w.hero_z + 1) != tile_world::VOID
+        && materials::at(mats, w.w, x, y, w.hero_z) < 0;
     }
   }
   false
@@ -2917,9 +2919,9 @@ fn banked(w: const rules::Level, dx: integer, dy: integer) -> boolean {
 /// sees no further than its sides, as under a bridge (owner, 2026-11-08: in the river you cannot
 /// see far outside it; the ground above, which the hero cannot see, would hide it).  Standing high
 /// — a ramp's top step, a chair — it looks out again.
-fn in_trench(w: const rules::Level) -> boolean {
+pub fn in_trench(w: const rules::Level, mats: const materials::Materials) -> boolean {
   w.hero_h < w.k.layer_height - 1
-    && ((banked(w, 0, -1) && banked(w, 0, 1)) || (banked(w, -1, 0) && banked(w, 1, 0)))
+    && ((banked(w, mats, 0, -1) && banked(w, mats, 0, 1)) || (banked(w, mats, -1, 0) && banked(w, mats, 1, 0)))
 }
 
 /// Draw the frame on `g.surface`, each cell at its light.  What the hero sees depends on where
@@ -2943,7 +2945,7 @@ pub fn draw(g: Game) {
   // layer over what it sees there is cut away (owner, 2026-11-07: `look_down`).
   below = look_down(g, w, z);
   over = cut_over(g, w, z, below);
-  sky = tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) && !in_trench(w);
+  sky = tile_world::open_sky(w.w, w.hero_x, w.hero_y, z) && !in_trench(w, g.mats);
   if z > 0 {
     draw_layer(g, w, z - 1, false, false, true, 0);
     draw_layer(g, w, z, false, true, true, 0, (-1000000, -1000000), true, [], over);
