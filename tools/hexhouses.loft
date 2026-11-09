@@ -3,6 +3,11 @@
 // L, a T, a U) at 0°, 30°, 60° and 90°, each with its walls drawn from its cells alone.  As JSON for tools/hexhouses.py to draw into hexhouses.html.
 //
 //   loft --lib libs tools/hexhouses.loft > build/hexhouses.json && python3 tools/hexhouses.py
+//   loft --lib libs tools/hexhouses.loft outline > build/hexhouses2.json &&
+//     python3 tools/hexhouses.py build/hexhouses2.json hexhouses2.html outline
+//
+// With `outline` the editor turns a house to 30° by its drawn outline as a whole instead of room
+// by room (hexhouse::BY_OUTLINE), for the second page.
 //
 // Each house: its cells, its boundary edges (the thin walls the rules use), its straight walls
 // as hexwalls.loft solves them, the heading each wall runs along, and the axes read off its cells
@@ -51,6 +56,7 @@ fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
 }
 
 fn main() {
+  way = if (arguments()[0] ?? "") == "outline" { hexhouse::BY_OUTLINE } else { hexhouse::BY_ROOMS };
   plan = hexhouse::l_plan(6, 3, 3, 4);
   w = COLS * GAP + 4;
   h = ROWS * GAP + 6;
@@ -59,7 +65,7 @@ fn main() {
     cq = 2 + GAP / 2 + (i % COLS ?? 0) * GAP;
     // Rows from the top down (y grows up), so the angles read left to right, top to bottom.
     cr = 2 + GAP / 2 + (ROWS - 1 - (i / COLS ?? 0)) * GAP;
-    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan });
+    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: i, parts: plan }, way);
     sep = if i < 11 { "," } else { "" };
     println("{house_json(b, "L", i, cq, cr)}{sep}");
   }
@@ -75,7 +81,7 @@ fn main() {
     for t in 0..4 {
       cq = 2 + GAP / 2 + t * GAP;
       cr = 2 + GAP / 2 + (rows - 1 - s) * GAP;
-      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] });
+      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: plans[s] }, way);
       sep = if s < rows - 1 || t < 3 { "," } else { "" };
       println("{house_json(b, names[s], t, cq, cr)}{sep}");
     }

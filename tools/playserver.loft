@@ -45,7 +45,8 @@ fn front(ws: const vector<World>) -> text {
   "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
   "<style>body{{background:#111;color:#eee;font:18px/1.5 monospace;padding:2em}}a{{color:#fc6}}</style></head>" +
   "<body><h1>tile_world</h1><ul>{links}</ul><p><a href=\"/guide.html\">how to play and edit</a></p>" +
-  "<p><a href=\"/hexhouses.html\">the hex grid: an L-shaped house at twelve angles</a></p></body></html>"
+  "<p>the hex grid, houses at twelve angles: <a href=\"/hexhouses.html\">turned room by room</a>, " +
+  "<a href=\"/hexhouses2.html\">turned by the outline</a></p></body></html>"
 }
 
 // The game's page for world `start`: told its world before the game reads its query.
@@ -117,8 +118,8 @@ fn main() {
         }
       } else if ev.path == "/guide.html" {
         answer(200, page("guide.html"), "text/html; charset=utf-8");
-      } else if ev.path == "/hexhouses.html" {
-        answer(200, page("hexhouses.html"), "text/html; charset=utf-8");
+      } else if ev.path == "/hexhouses.html" || ev.path == "/hexhouses2.html" {
+        answer(200, page(ev.path[1..]), "text/html; charset=utf-8");
       } else {
         srv.respond_404();
       }

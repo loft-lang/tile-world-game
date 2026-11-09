@@ -3,6 +3,11 @@
 # hexwalls.loft solves them from the cells (tops walls and sides walls), as one SVG on a page of its own.
 #
 #   loft --lib libs tools/hexhouses.loft > build/hexhouses.json && python3 tools/hexhouses.py
+#   loft --lib libs tools/hexhouses.loft outline > build/hexhouses2.json &&
+#     python3 tools/hexhouses.py build/hexhouses2.json hexhouses2.html outline
+#
+# The two pages differ only in how the editor turns a house to 30°: room by room (hexhouses.html)
+# or by its drawn outline as a whole (hexhouses2.html), to compare (owner, 2026-11-09).
 #
 # Copyright (c) 2026 Jurjen Stellingwerff
 # SPDX-License-Identifier: LGPL-3.0-or-later
@@ -15,6 +20,26 @@ BAND = S3 / 2                       # a drawn wall's thickness, ROUNDTRIP §6.2 
 
 src = sys.argv[1] if len(sys.argv) > 1 else "build/hexhouses.json"
 out = sys.argv[2] if len(sys.argv) > 2 else "hexhouses.html"
+variant = sys.argv[3] if len(sys.argv) > 3 else "rooms"
+
+TURNS = {
+    "rooms": dict(
+        title="Hex houses",
+        h1="Hex houses: the turn room by room",
+        other='<a href="/hexhouses2.html">compare: the turn by the outline →</a>',
+        turning="""30° cannot be a copy, so each room is its rectangle turned 30° and grown or shrunk evenly until it
+  holds as many cells as at 0°, or the nearest whole rows come to that; the rooms are taken one after
+  another, and a hole between them is filled."""),
+    "outline": dict(
+        title="Hex houses, outline turn",
+        h1="Hex houses: the turn by the outline",
+        other='<a href="/hexhouses.html">← compare: the turn room by room</a>',
+        turning="""30° cannot be a copy, so the 0° house's drawn outline (its straight walls) is turned 30°, its walls
+  along one axis moved out or in by one amount and those along the other by another (up to half a unit
+  each), the pair that brings the count nearest the 0° house's, and every cell whose centre lies inside
+  joins the house.  No rooms and no plan: the house as drawn is turned."""),
+}
+V = TURNS[variant]
 d = json.load(open(src))
 AXES = {0: "0° and 90°", 1: "30° and 120°", 2: "60° and 150°", -1: "a tie"}
 
@@ -81,7 +106,7 @@ page = f"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hex houses</title>
+<title>{V["title"]}</title>
 <style>
   :root {{
     --bg: #f6efe2; --panel: #fffaf1; --ink: #2b2230; --muted: #6b5f6e; --line: #e2d5bf;
@@ -128,8 +153,8 @@ page = f"""<!doctype html>
 </head>
 <body>
 <main>
-  <p><a href="/">← tile_world</a></p>
-  <h1>Hex houses</h1>
+  <p><a href="/">← tile_world</a> · {V["other"]}</p>
+  <h1>{V["h1"]}</h1>
   <p class="lead">One L-shaped house at all twelve 30° angles on one empty terrain, with the hex grid
   showing.  The house is its cells; the walls follow from them (WORLD.md § One game, square or hex).</p>
   <ul class="key">
@@ -147,11 +172,9 @@ page = f"""<!doctype html>
   (<code>hexhouse::solve_tops</code>, <code>solve_sides</code>): turned to its own frame, the line runs through
   the midpoints its pattern puts on it (every edge across the tops; every slanted connector along the
   sides), along the wall's heading exactly, mitred where two walls meet.</p>
-  <p>Turning: the 0° house is the plan's cells.  60°, 120°, … are that house turned cell for cell (a 60° turn
-  is a symmetry of the grid).  30° cannot be a copy, so each room is its rectangle turned 30° and grown or
-  shrunk evenly until it holds as many cells as at 0°, or the nearest whole rows come to that; 90°, 150°, …
-  are the 30° house turned cell for cell.  Here the body keeps its 19 cells at every angle and the side room
-  has 18 at 0° and 16 at 30°.</p>
+  <p>Turning, an editor step: the 0° house is the plan's cells.  60°, 120°, … are that house turned cell for
+  cell (a 60° turn is a symmetry of the grid).  {V["turning"]}  90°, 150°, … are the 30° house turned cell
+  for cell.  The world then draws the walls from the cells alone, the same way on both pages.</p>
   <div class="scroll"><table>
     <thead><tr><th>Angle</th><th>Family</th><th>Cells</th><th>Edges</th><th>Walls on the axes</th></tr></thead>
     <tbody>{"".join(rows)}</tbody>

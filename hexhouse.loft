@@ -309,12 +309,127 @@ fn in_grown(p: const Part, u: float, v: float, gu: float, gv: float) -> boolean 
 
 fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
 
+/// The two ways the editor turns a house to 30°, kept side by side to compare (owner,
+/// 2026-11-09): room by room (`at_thirty`), or the drawn outline as a whole (`at_thirty_outline`).
+pub const BY_ROOMS = 0;
+pub const BY_OUTLINE = 1;
+
 /// The house's cells at its turn: the 0° or 30° house turned by whole 60° steps, cell for cell.
-pub fn turned_house(h: const HexHouse) -> vector<Spot> {
+pub fn turned_house(h: const HexHouse, way: integer = BY_ROOMS) -> vector<Spot> {
   t = hex_form::head_norm(h.turn);
-  base = if t % 2 == 0 { at_zero(h) } else { at_thirty(h) };
+  base = if t % 2 == 0 { at_zero(h) } else if way == BY_OUTLINE { at_thirty_outline(h) } else { at_thirty(h) };
   steps = t / 2 ?? 0;
   [for s in base { turned_spot(s, steps) }]
+}
+
+/// The house at 30°, the simpler way: the 0° house's drawn outline (its straight walls, mitred)
+/// turned 30°, its walls along one axis moved out or in by one amount and those along the other
+/// by another (up to half a unit each, in sixteenths), the pair that brings the count nearest the
+/// 0° house's and, among those, moves the walls least,
+/// and every cell whose centre lies inside.  No rooms and no plan: the house as drawn is turned.
+/// Its rooms are not told apart (every cell is room 0).
+pub fn at_thirty_outline(h: const HexHouse) -> vector<Spot> {
+  zero = at_zero(h);
+  r = reach(h) + 2;
+  cells = hex_field::hexset_chunk(-r, -r, 2 * r + 1, 2 * r + 1);
+  for z in zero {
+    (q, rr) = cell_of(z.dk, z.dm);
+    hex_field::hexset_set(cells, q, rr, true);
+  }
+  corners = hexwalls::from_cells(cells, 0).corners;
+  n = len(corners);
+  // In the frame turned 30°, the turned outline has the 0° outline's coordinates; so each cell
+  // is put in that frame (turned back 30°) and tested against the 0° outline.
+  ks: vector<integer> = [];
+  ms: vector<integer> = [];
+  us: vector<float> = [];
+  vs: vector<float> = [];
+  for fr in -r..r + 1 {
+    for fq in -r..r + 1 {
+      k = hex_field::lattice_k(fq, fr);
+      m = hex_field::lattice_m(fq, fr);
+      x = (k as float) * 0.8660254037844386;
+      y = (m as float) * 0.5;
+      ks += [k];
+      ms += [m];
+      us += [x * 0.8660254037844386 + y * 0.5];
+      vs += [-x * 0.5 + y * 0.8660254037844386];
+    }
+  }
+  // Wall i runs from corner i - 1 to corner i, the house on its left: along x (a line y = c) or
+  // along y (a line x = c), and its outward side is to its right.
+  // Which way round the outline runs: outward is to the right when anticlockwise.
+  area2 = 0.0;
+  for i in 0..n {
+    (ax, ay) = corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+    (bx, by) = corners[i] ?? (0.0, 0.0);
+    area2 += ax * by - bx * ay;
+  }
+  out_sign = if area2 > 0.0 { 1.0 } else { -1.0 };
+  best_miss = -1;
+  best_cost = 0.0;
+  best: vector<(float, float)> = [];
+  for a in 0..17 {
+    for b in 0..17 {
+      sx = ((a - 8) as float) * 0.0625 * out_sign;    // the walls along x moved out by this
+      sy = ((b - 8) as float) * 0.0625 * out_sign;    // the walls along y
+      poly: vector<(float, float)> = [];
+      for i in 0..n {
+        // corner i: where wall i meets wall i + 1, one along x and one along y
+        (px, py) = shifted_line(corners, i, sx, sy);
+        (qx, qy) = shifted_line(corners, (i + 1) % n ?? 0, sx, sy);
+        poly += [if px > -999.0 { (px, qy) } else { (qx, py) }];
+      }
+      count = 0;
+      for c in 0..len(ks) { if in_poly(poly, us[c], vs[c]) { count += 1; } }
+      miss = count - len(zero);
+      if miss < 0 { miss = -miss; }
+      cost = abs_f(sx) + abs_f(sy);
+      if best_miss < 0 || miss < best_miss || miss == best_miss && cost < best_cost {
+        best_miss = miss;
+        best_cost = cost;
+        best = poly;
+      }
+    }
+  }
+  out: vector<Spot> = [];
+  for c in 0..len(ks) {
+    if in_poly(best, us[c], vs[c]) { out += [Spot { dk: ks[c], dm: ms[c], part: 0 }]; }
+  }
+  out
+}
+
+/// Wall i of the outline moved outward: (x, -1000) for a wall along y (the line x = c), or
+/// (-1000, y) for a wall along x (the line y = c).
+fn shifted_line(corners: const vector<(float, float)>, i: integer, sx: float, sy: float) -> (float, float) {
+  n = len(corners);
+  (ax, ay) = corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+  (bx, by) = corners[i] ?? (0.0, 0.0);
+  dx = bx - ax;
+  dy = by - ay;
+  if abs_f(dx) > abs_f(dy) {
+    // along x: the house on the left, so outward is -y when travelling +x
+    y = (ay + by) * 0.5 + (if dx > 0.0 { -sx } else { sx });
+    return (-1000.0, y);
+  }
+  // along y: outward is +x when travelling +y
+  x = (ax + bx) * 0.5 + (if dy > 0.0 { sy } else { -sy });
+  (x, -1000.0)
+}
+
+/// Is (x, y) inside the polygon (crossings of a ray towards +x)?
+fn in_poly(poly: const vector<(float, float)>, x: float, y: float) -> boolean {
+  n = len(poly);
+  inside = false;
+  for i in 0..n {
+    (x1, y1) = poly[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+    (x2, y2) = poly[i];
+    if (y1 > y) != (y2 > y) {
+      cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+      if x < cx { inside = !inside; }
+    }
+  }
+  inside
 }
 
 fn turned_spot(s: const Spot, steps: integer) -> Spot {
@@ -324,13 +439,14 @@ fn turned_spot(s: const Spot, steps: integer) -> Spot {
 
 // ── the house ───────────────────────────────────────────────────────────────
 
-/// Build the house: its cells (the 0° house turned), then the world's walls from the cells.
-pub fn build(h: const HexHouse) -> hexwalls::Built {
+/// Build the house: its cells (the 0° house turned, `way` one of BY_ROOMS and BY_OUTLINE), then
+/// the world's walls from the cells.
+pub fn build(h: const HexHouse, way: integer = BY_ROOMS) -> hexwalls::Built {
   r = reach(h) + 2;
   cells = hex_field::hexset_chunk(h.cq - r, h.cr - r, 2 * r + 1, 2 * r + 1);
   ck = hex_field::lattice_k(h.cq, h.cr);
   cm = hex_field::lattice_m(h.cq, h.cr);
-  for s in turned_house(h) {
+  for s in turned_house(h, way) {
     k = ck + s.dk;
     m = cm + s.dm;
     row = m / 3 ?? 0;
