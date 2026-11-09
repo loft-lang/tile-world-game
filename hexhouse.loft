@@ -309,6 +309,141 @@ pub fn surface_miter(wa: hex_draw::WallSurface, wb: hex_draw::WallSurface) -> (f
   (ax + tt * aux, ay + tt * auy, true)
 }
 
+// ── 5. the two kinds of straight wall, solved from the wall data ────────────
+//
+// A straight wall on the hex grid is one of two kinds (owner, 2026-11-09: one routine for each):
+//
+//   TOPS   (an even heading, the grid's own edge directions): the wobble across the tops of a row
+//          of hexes, edges zigzagging between the row's apexes and shoulders.  Turned to run due
+//          east, every edge's midpoint lies on one line, half way up the band (ROUNDTRIP §6.2,
+//          band 1/2 unit) — so the line is exact from any of its edges, a whole run or a cut one.
+//   SIDES  (an odd heading, the grid's corner directions): the line along the sides of hexes
+//          under each other, upright sides alternating with short slanted connectors where the
+//          rows shift by half a cell.  Turned to run due north, every connector's midpoint lies on
+//          the line, in the middle of the band (√3/2 unit); the upright sides lie on its two
+//          edges.
+//
+// So each routine turns its run into its own frame (a 60° turn is exact on the lattice, X1),
+// reads the line off the edges that make its pattern — the most common midpoint: an edge of the
+// next wall, caught in the run at a corner, has a midpoint of its own and is outvoted — and turns
+// the line back.  The direction is the heading itself, exactly.  The answer is a
+// `hex_draw::WallSurface`, so `hex_draw`'s readers and the miter above take it unchanged.  On a
+// whole run (every side of a box) it is the line `hex_draw::surface_of` gives.
+
+/// A doubled-coordinate point or vector turned 60° anticlockwise: exact, since a lattice point's
+/// k and m have the same parity.
+pub fn turn60(k: integer, m: integer) -> (integer, integer) { ((k - m) / 2 ?? 0, (3 * k + m) / 2 ?? 0) }
+
+/// Turned `steps` × 60° anticlockwise.
+pub fn turned(k: integer, m: integer, steps: integer) -> (integer, integer) {
+  tk = k;
+  tm = m;
+  for _ in 0..((steps % 6) + 6) % 6 ?? 0 { (tk, tm) = turn60(tk, tm); }
+  (tk, tm)
+}
+
+/// A rational point (`nk / d`, `nm / d`) turned `steps` × 60°: the numerators doubled first, so
+/// the halving stays exact.
+fn turned_q(nk: integer, nm: integer, d: integer, steps: integer) -> (integer, integer, integer) {
+  tk = nk;
+  tm = nm;
+  td = d;
+  for _ in 0..((steps % 6) + 6) % 6 ?? 0 {
+    (tk, tm) = (tk - tm, 3 * tk + tm);
+    td = 2 * td;
+  }
+  (tk, tm, td)
+}
+
+/// The most common value of `vals`, ties going to the one nearest the mean (`sum / n`).
+fn common(vals: const vector<integer>, sum: integer, n: integer) -> integer {
+  best = 0;
+  best_n = 0;
+  for v in vals {
+    c = 0;
+    for w in vals { if w == v { c += 1; } }
+    far = v * n - sum;
+    if far < 0 { far = -far; }
+    best_far = best * n - sum;
+    if best_far < 0 { best_far = -best_far; }
+    if c > best_n || c == best_n && far < best_far {
+      best = v;
+      best_n = c;
+    }
+  }
+  best
+}
+
+/// A TOPS wall (heading `h` even) through the run's edges.
+pub fn solve_tops(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
+  s = (6 - h / 2 ?? 0) % 6 ?? 0;        // turns heading h to 0, due east
+  mids: vector<integer> = [];
+  sk = 0;
+  sm = 0;
+  for i in run {
+    e = b[i];
+    (ak, am) = turned(e.ak, e.am, s);
+    (bk, bm) = turned(e.bk, e.bm, s);
+    mids += [am + bm];
+    sk += ak + bk;
+    sm += am + bm;
+  }
+  n = len(run);
+  // Due east, the line is m = common / 2: the point (sk / 2n, common / 2).
+  line_m = common(mids, sm, n);
+  (nk, nm, d) = turned_q(sk, n * line_m, 2 * n, 6 - s);
+  (dk, dm) = hex_form::head_step(h);
+  hex_draw::WallSurface { ws_dk: dk, ws_dm: dm, ws_num_k: nk, ws_num_m: nm, ws_den: d, ws_n: n }
+}
+
+/// A SIDES wall (heading `h` odd) through the run's edges.
+pub fn solve_sides(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
+  s = ((3 - h) / 2 ?? 0) % 6 ?? 0;      // turns heading h to 3, due north
+  links: vector<integer> = [];
+  sk = 0;
+  sm = 0;
+  lk = 0;
+  for i in run {
+    e = b[i];
+    (ak, am) = turned(e.ak, e.am, s);
+    (bk, bm) = turned(e.bk, e.bm, s);
+    if ak != bk {
+      links += [ak + bk];
+      lk += ak + bk;
+    }
+    sk += ak + bk;
+    sm += am + bm;
+  }
+  n = len(run);
+  // Due north, the line is k = common / 2 of the connectors (of every edge, when the run has
+  // none: one cell's upright side): the point (common / 2, sm / 2n).
+  line_k = if len(links) > 0 { common(links, lk, len(links)) } else { common(links, sk, n) };
+  if len(links) == 0 { line_k = sk / n ?? 0; }
+  (nk, nm, d) = turned_q(n * line_k, sm, 2 * n, 6 - s);
+  (dk, dm) = hex_form::head_step(h);
+  hex_draw::WallSurface { ws_dk: dk, ws_dm: dm, ws_num_k: nk, ws_num_m: nm, ws_den: d, ws_n: n }
+}
+
+/// The straight wall through a run of wall edges running along heading `h`: a tops wall on an
+/// even heading, a sides wall on an odd one.
+pub fn solve_wall(b: const vector<Edge>, run: const vector<integer>, h: integer) -> hex_draw::WallSurface {
+  if hex_form::head_norm(h) % 2 == 0 { solve_tops(b, run, hex_form::head_norm(h)) }
+  else { solve_sides(b, run, hex_form::head_norm(h)) }
+}
+
+/// The heading a run of the boundary travels along: the way most of its edges travel (`travel`),
+/// as a heading of the house (`turn` for +u, three steps on for +v, and so on).
+pub fn run_heading(turn: integer, b: const vector<Edge>, run: const vector<integer>) -> integer {
+  count = [0, 0, 0, 0];
+  for i in run {
+    t = travel(turn, b, i);
+    if t >= 0 { count[t] += 1; }
+  }
+  best = 0;
+  for t in 1..4 { if count[t] > count[best] { best = t; } }
+  hex_form::head_norm(turn + 3 * best)
+}
+
 // ── the house ───────────────────────────────────────────────────────────────
 
 /// Build the house: its cells from the plan, then everything else from the cells.
@@ -326,7 +461,7 @@ pub fn from_cells(cells: hex_field::HexSet, turn: integer) -> Built {
   hex_draw::draw_walls(cells, edges, WALL);
   b = boundary(cells);
   rs = runs(turn, b);
-  walls: vector<hex_draw::WallSurface> = [for run in rs { surface_of(b, run) }];
+  walls: vector<hex_draw::WallSurface> = [for run in rs { solve_wall(b, run, run_heading(turn, b, run)) }];
   corners: vector<(float, float)> = [];
   nw = len(walls);
   for i in 0..nw {
