@@ -326,8 +326,10 @@ is checked by a program and looked at.
 - **The Tanmatsu: an early-phone style of 3D** (owner: an experiment, after this one).  No GPU:
   the techniques of the phones before one — low polygon counts, fixed-point transforms, a software
   rasteriser drawing affine-textured spans, flat or per-vertex light — tried on the same world
-  model.  This renderer is not ported there; the world model and its textures are what the two
-  share.
+  model.  **Now a phase** (owner, 2026-11-09): BUILD.md Phase E ports the 3D routines to the
+  Tanmatsu before the hex grid comes into the area designs, so no backend is lost.  What is
+  ported is the building of the picture (what is seen, the geometry, the cards, the light); the
+  GPU's drawing is replaced by one in software.
 
 ## What it asks of the libraries
 

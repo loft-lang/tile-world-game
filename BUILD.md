@@ -409,6 +409,43 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
 - **D8. Stormcap** — needs B4 (the lightning), B8 (bigfoot), C3 (the alchemist brought up).
 - **D9. The climax and the endings** — needs C4, C5, C7; the whole world played through.
 
+## Phase E — the 3D view on the Tanmatsu, then the hex grid
+
+**The 3D routines are ported to the Tanmatsu, so the hex grid can come into the area designs
+without losing a backend** (owner, 2026-11-09).  A hex world has no 2D pictures (Kenney's sheets
+are square), so until the Tanmatsu draws 3D a hex area would play only in a browser.  The grid
+question itself is WORLD.md § One game, square or hex.  This phase runs beside phase D; what is
+not the owner's is ◇.
+
+- **E1. What is drawn, apart from how** ◇.  `render3d.loft` splits in two: building the picture
+  (what is seen round the hero, the geometry with its pictures and light, the cards and their
+  poses) and handing it to the GPU.  The first part is what the Tanmatsu shares.  Red: the frames
+  in the browser change (`checks/view3d.loft` and a TW_SHOT taken before and after, byte-identical).
+- **E2. A renderer on the CPU** ◇.  The same triangles drawn in software, as phones did before
+  they had a GPU (RENDER_3D.md § Later): textured spans with the atlas's texels sampled nearest,
+  each vertex's light from the rules, a depth buffer, and the cards' transparent texels left
+  out.  Built and checked on the desktop first.  Red: a frame of the same moment drawn by the
+  GPU and by this renderer differs beyond a stated number of pixels (the GPU's frame is the
+  oracle; affine texturing bends a picture a little, which the tolerance names).
+- **E3. Within the Tanmatsu's budget** ◇.  Faces turned away and faces out of view are culled
+  (`render3d.loft` draws every face today); how far round the hero is drawn, and the frame's size
+  (the 2D's 208 × 160 at scale 3, WORLD.md § The two machines), are each one constant.  Red: the
+  count of faces drawn in a place, against the count in view.
+- **E4. On the device.**  The 3D view on the Tanmatsu, F1 switching it as in the browser; the 2D
+  stays.  Checked on the device with the timing log: frame time, and the PSRAM the atlas and the
+  meshes take.
+- **E5. Then the hex grid**, WORLD.md § One game, square or hex, steps 2 to 4 (the rules asking
+  for the next cell, a hex world, the import).  **No hex area in a design before E4 plays on the
+  device** (owner, 2026-11-09: no backend lost).  Red: a hex place played through by its
+  walk-through test, and drawn on the desktop, in the browser and on the Tanmatsu.
+
+◇ Open: the loft repo plans a column renderer for hex worlds on the Tanmatsu (loft's TANMATSU.md
+§ One world, drawn at more than one fidelity): walls as upright spans and floors through a
+division table, cheaper than triangles.  It draws upright walls and flat floors, which suits a
+hex world, but not this game's slopes, slants, pitched roofs or bent floors.  E2 draws triangles
+so that everything the browser shows is kept; whether the column renderer takes over on hex
+ground, where it fits, is for the owner once E4 is measured.
+
 ## Where to begin
 
 A1–A3 and B1 change little and unlock the rest.  The first step with a picture worth playing is

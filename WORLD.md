@@ -386,10 +386,12 @@ question for the owner in hex, not a translation.
 4. The import (RENDER_3D.md § Later) as the test: a square puzzle place brought into hex, solved by
    the same rules.
 
-**Open for the owner: which view ships.**  The 2D view the Tanmatsu can draw, or the browser's 3D
-(RENDER_3D.md § Why it matters).  A hex world has no 2D pictures (Kenney's sheets are square), so
-on the Tanmatsu it waits for the low-fidelity 3D the loft repo plans for hex worlds (loft's
-TANMATSU.md § One world, drawn at more than one fidelity: a column renderer on the CPU).
+**No backend lost** (owner, 2026-11-09).  A hex world has no 2D pictures (Kenney's sheets are
+square), so the 3D routines are ported to the Tanmatsu first (BUILD.md Phase E), and no hex area
+comes into a design before the 3D view plays on the device.  Steps 2 to 4 are that phase's E5.
+
+**Open for the owner: which view ships first** — the 2D or the browser's 3D (RENDER_3D.md § Why
+it matters).  With Phase E both machines can show either.
 
 ## The two machines
 
