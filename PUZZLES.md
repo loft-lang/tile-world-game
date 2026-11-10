@@ -192,8 +192,8 @@ guide for drawing the shells in the town's fixed layout):
 
 | Household | Levels | Rooms | Size | In Orbury |
 |---|---|---|---|---|
-| a poor miner's family | ground floor | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
-| a craftsman's house | ground and upper floor, perhaps a basement | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | the craftsmen who served the mine, most gone |
+| a poor miner's family | ground floor, a cellar (owner, 2026-11-10) | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
+| a craftsman's house | ground and upper floor, a cellar (owner, 2026-11-10) | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | the craftsmen who served the mine, most gone |
 | the alchemist's house | ground and upper floor, a vaulted basement | the shop where potions were sold to the miners, the lab (furnace, still, glass, the bench where small crystals are filled), the store of ingredients, living rooms above | about 8 × 7 | Hollis's (@ST-Alchemist): lived in, kept up |
 | a well-off house (money from the ore) | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above, a strong room or a cellar for what is worth keeping | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper); the ore's other well-off ◇ |
 | the lord's house: his representative's, and the lord's when he comes | basement, ground floor, upper floor, roof, a walled yard | a hall to receive in, the representative's office (the ore's tallies, the lord's share), a kitchen and the servants' rooms; above, the lord's chamber kept ready and the representative's rooms; below, a strong room; a stable in the yard | about 12 × 10, the yard besides | Lord Edric's (@ST-Court), the finest in the town |
@@ -285,6 +285,18 @@ Proposed, where the line falls:
 So each house is a slot whose box is its shell, and a household's room templates are fitted into
 it.  The check makes sure what the story needs is there and can be reached, and the town is the
 same town every game: only what is inside its houses, and how they were left, is fresh.
+
+**Three templates for every ordinary house** (owner, 2026-11-10).  The ghost's urn (STORY.md
+@ST-Urn) takes the hero into the houses' cellars, so an ordinary house is dealt from three
+templates:
+1. **how it was locked**, with a possibility to get inside: the closing, and the way in it leaves;
+2. **how the owners left its inside**;
+3. **its cellar, including the way to get into it.**
+
+So every ordinary house has a cellar, the poor miner's cottage too, and getting into the cellar is
+a puzzle of its own beside getting into the house.  The closing variants and neglect below are
+the material of the first two; a hatch shut and weighted with stones, or a cellar flooded by the
+brook, the material of the third.
 
 **Where the town's puzzles come from** (owner, 2026-11-08): two things done to a house, one on
 purpose and one by time.

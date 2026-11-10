@@ -619,9 +619,12 @@ the cost of a choice is known when it is made; none proposes story content.
   talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`), held in the hands like
   any item, so it competes with a torch or an axe for the one held item — or it is carried apart,
   as the heart is.  "Knowing it is the place" is new: a cell set (a house's cellar) and a sign
-  shown when the urn enters it — the right one, or not this one.  Cellars are the other cost: in
-  Orbury today only four houses have a basement (`tools/orbury_gen.py`: the lord's house, the
-  inn, the well-off house by the market, Hollis's); the cottages and the miners' rows have none.
+  shown when the urn enters it — the right one, or not this one.  Cellars are the other cost:
+  every ordinary house gets one (owner, 2026-11-10; PUZZLES.md § Houses: three templates), where
+  Orbury today has four basements (`tools/orbury_gen.py`: the lord's house, the inn, the
+  well-off house by the market, Hollis's).  The miners' rows at the foot stand on layer 0, so
+  their cellars are on −1, the stream bed's layer: earth has to stay between a cellar and the
+  bed.
   The reward is a told place, as Wick's bombs are (a hint, @ST-Hints): a line that names it, the
   better pick lying there from the start.  "Better" needs a meaning in the rules, which today know
   one pick (`holds_pick`, BUILD.md B2): faster blows, more damage as a weapon, or work the plain
