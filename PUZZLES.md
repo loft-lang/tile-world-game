@@ -314,7 +314,8 @@ cellar and the cellar's way in as the parts.
 
 The closing variants and neglect below are
 the material of the first two; a hatch shut and weighted with stones, a hatch hidden, or a cellar
-flooded by the brook, the material of the third.
+flooded by the brook, the material of the third.  The templates themselves, made of what the game has, are
+HOUSES.md.
 
 **Where the town's puzzles come from** (owner, 2026-11-08): two things done to a house, one on
 purpose and one by time.
