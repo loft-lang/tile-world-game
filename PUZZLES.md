@@ -365,9 +365,10 @@ lived in is kept up and has none.
 
 **Open, for the owner** ◇:
 - the beams of a fallen roof are beams, wanted for the barricade and the flotilla (LOCATIONS.md
-  § 1): the hero can keep one (owner, 2026-11-10), though it should surely not be simple to take
-  it into the mine, and a player probably will not if it means leaving a weapon behind (HOUSES.md
-  § Carrying the urn: a beam takes the hands).  Still open: is taking it the snooping the
+  § 1): the hero can keep one (owner, 2026-11-10); taking it into the mine is not made hard on
+  purpose, but not aided either — the hidden path and the cave-in are not inviting with a beam,
+  and a player probably will not if it means leaving a weapon behind (HOUSES.md § Carrying the
+  urn: a beam takes the hands).  Still open: is taking it the snooping the
   villagers mind, or the aid they thank (the village's own wood, put to the village's defence)?
 - when a family comes back (the Fenns, LOCATIONS.md § Aid), it finds its house as the hero left
   it: what was taken missed, what was moved noticed?

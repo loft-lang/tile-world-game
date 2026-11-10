@@ -239,9 +239,10 @@ player who knows the town still has to search it in every game.  The urn check a
 Sibil's house; the others need only the hero's.
 
 **The beams are the hero's** (owner, 2026-11-10): a beam from a boarded door or a fallen roof can be
-kept.  It should surely not be simple to take one into the mine, and a player probably will not
-if it means leaving behind something more useful, a weapon: a beam takes the hands as the urn
-does, all the long way to the mine and through its fights.  So the town's beams are there for the
+kept.  Taking one into the mine is not made hard by how the game is structured, but nothing aids
+it either (owner, 2026-11-10): the hidden path and the cave-in are not inviting ways to walk with
+a beam, and a player probably will not if it means leaving behind something more useful, a
+weapon, for a beam takes the hands as the urn does.  So the town's beams are there for the
 one who wants them, and the mine's own (LOCATIONS.md § 6) stay the ones the flotilla is built of.
 
 ## 5. A house dealt
