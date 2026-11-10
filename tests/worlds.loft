@@ -12,6 +12,9 @@ use intent;
 use editor;
 use game;
 
+// Orbury's width in cells (tools/orbury_gen.py's W): the town, and Thornfield east of it.
+const WIDE = 88;
+
 fn test_orbury_first_then_the_demo_village() {
   ws = game::worlds("..");
   assert(len(ws) == 2, "two worlds: {len(ws)}");
@@ -112,28 +115,28 @@ fn test_no_pocket_in_the_bed() {
   top = w.k.layer_height - 1;
   stuck = "";
   for y in 50..68 {
-    for x in 0..64 {
+    for x in 0..WIDE {
       if !rules::walkable(w, tile_world::terrain(w.w, x, y, -1)) { continue; }
-      seen: vector<integer> = [y * 64 + x];
+      seen: vector<integer> = [y * WIDE + x];
       at = 0;
       out = false;
       while at < len(seen) && !out {
         c = seen[at] ?? 0;
         at += 1;
-        cx = c % 64 ?? 0;
-        cy = c / 64 ?? 0;
+        cx = c % WIDE ?? 0;
+        cy = c / WIDE ?? 0;
         r = tile_world::rise(w.w, cx, cy, -1);
         for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
           nx = cx + d.0;
           ny = cy + d.1;
-          if nx < 0 || nx >= 64 { continue; }
+          if nx < 0 || nx >= WIDE { continue; }
           if (r >= top || rules::slope_between(w, cx, cy, -1, d.0, d.1)) && rules::walkable(w, tile_world::terrain(w.w, nx, ny, 0)) {
             out = true;
           }
           nr = tile_world::rise(w.w, nx, ny, -1);
           if rules::walkable(w, tile_world::terrain(w.w, nx, ny, -1)) && nr - r <= 1 && r - nr <= 1
-              && !seen.contains(ny * 64 + nx) {
-            seen += [ny * 64 + nx];
+              && !seen.contains(ny * WIDE + nx) {
+            seen += [ny * WIDE + nx];
           }
         }
       }
@@ -166,7 +169,7 @@ fn test_the_rails_follow_the_winding_bank() {
   from = (-1, 0);
   rows: vector<integer> = [];
   steps = 0;
-  while x < 63 && steps < 200 {
+  while x < WIDE - 1 && steps < 200 {
     m = rules::joins(w, x, y, 0);
     assert(m != 0, "the track goes on at ({x}, {y})");
     if m == 0 { return; }
@@ -183,11 +186,11 @@ fn test_the_rails_follow_the_winding_bank() {
     y += next.1;
     steps += 1;
   }
-  assert(x == 63, "out at the east edge: ({x}, {y})");
+  assert(x == WIDE - 1, "out at the east edge: ({x}, {y})");
   assert(len(rows) >= 3, "round the bends: rows {rows}");
 }
 
-fn cell_key(x: integer, y: integer, z: integer) -> integer { ((z + 2) * 80 + y) * 64 + x }
+fn cell_key(x: integer, y: integer, z: integer) -> integer { ((z + 2) * 80 + y) * WIDE + x }
 
 // The town's lines are broken up (owner, 2026-11-09: houses offset and moved up and down the hill,
 // foliage to finish the job) — and none of it shuts a door: from the dock, walking by the rules'
@@ -196,7 +199,7 @@ fn test_every_front_door_is_reached_from_the_dock() {
   lf = orbury();
   w = lf.level;
   door = rules::terrain_id(w.k, "open_door");
-  seen: vector<boolean> = [false; 8 * 80 * 64];
+  seen: vector<boolean> = [false; 8 * 80 * WIDE];
   queue: vector<(integer, integer, integer)> = [(lf.start_x, lf.start_y, lf.start_z)];
   seen[cell_key(lf.start_x, lf.start_y, lf.start_z)] = true;
   at = 0;
@@ -207,7 +210,7 @@ fn test_every_front_door_is_reached_from_the_dock() {
       rules::put_hero(w, c.0, c.1, c.2);
       w.health = 100;
       rules::play(w, m);
-      if w.hero_x < 0 || w.hero_x >= 64 || w.hero_y < 0 || w.hero_y >= 80 || w.hero_z < -2 || w.hero_z > 5 { continue; }
+      if w.hero_x < 0 || w.hero_x >= WIDE || w.hero_y < 0 || w.hero_y >= 80 || w.hero_z < -2 || w.hero_z > 5 { continue; }
       k = cell_key(w.hero_x, w.hero_y, w.hero_z);
       if !(seen[k] ?? true) {
         seen[k] = true;
@@ -218,12 +221,15 @@ fn test_every_front_door_is_reached_from_the_dock() {
   missed = "";
   for z in 0..4 {
     for y in 0..72 {
-      for x in 0..64 {
+      for x in 0..WIDE {
         if tile_world::terrain(w.w, x, y, z) == door && !(seen[cell_key(x, y, z)] ?? false) { missed += "({x}, {y}, {z}) "; }
       }
     }
   }
   assert(missed == "", "doors not reached: {missed}");
+  // Thornfield's barn (LOCATIONS.md § 1): its bed against the back wall, and the cell beside it.
+  assert(rules::thing_name(w.k, tile_world::top(w.w, 73, 52, 0)) == "bed", "the hero's bed in the barn");
+  assert(seen[cell_key(74, 52, 0)] ?? false, "walked to, from the dock");
 }
 
 // In the stream's bed the hero sees no further than its banks; on the road between two houses it
@@ -265,7 +271,7 @@ fn test_every_front_outside_the_cliff_area_slopes() {
   missing = "";
   for z in -1..4 {
     for y in 1..68 {
-      for x in 0..64 {
+      for x in 0..WIDE {
         // the earth (x, y - 1, z) under ground on z + 1, open ground on z at (x, y) south of it
         lo = tile_world::terrain(w.w, x, y, z);
         if lo == tile_world::VOID || lo == wall || tile_world::terrain(w.w, x, y, z + 1) != tile_world::VOID { continue; }

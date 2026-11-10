@@ -192,10 +192,10 @@
     { "straight": "ew", "turn": "sw", "set_straight": "world:50", "set_turn": "world:51" }
   ],
   "categories": {
-    "Outdoor": ["grass", "path", "tree", "fence", "oak", "pine", "bush", "poplar", "autumn_oak", "autumn_poplar", "garden_fence", "village_well"],
+    "Outdoor": ["grass", "path", "field", "tree", "fence", "oak", "pine", "bush", "poplar", "autumn_oak", "autumn_poplar", "garden_fence", "village_well"],
     "Water": ["lake", "shallows", "water"],
     "Castle": ["castle_wall", "stairs_up", "stairs_down"],
-    "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "slate_roof", "stone_wall", "stone_door", "house_roof", "house_slate"],
+    "House": ["door", "open_door", "wall", "roof", "wood_wall", "house_door", "barn_wall", "barn_door", "slate_roof", "stone_wall", "stone_door", "house_roof", "house_slate"],
     "Dungeon": ["floor", "wall", "rail", "well", "basin", "prop"],
     "Things": ["cart", "full_cart", "pick", "beam", "barricade", "sack", "rope", "herb", "mushroom", "chair", "table", "rock", "anvil", "potion", "health_potion", "spirit_potion", "staff", "chest", "axe", "sword", "bow", "bomb", "signpost"],
     "Light": ["socket", "stick", "torch", "burning_torch", "tar_barrel", "staff"],
@@ -234,6 +234,9 @@
     "spout": { "kind": "wall", "tile": "dungeon:8", "glyph": "Y" },
     "bridge": { "kind": "floor", "tile": "town:73", "glyph": "J" },
     "garden_fence": { "kind": "fence", "tile": "town:81", "under": "grass", "glyph": "G" },
+    "field": { "kind": "floor", "tile": "farm:12", "glyph": "v" },
+    "barn_wall": { "kind": "wall", "tile": "farm:115", "glyph": "K" },
+    "barn_door": { "kind": "open_door", "tile": "farm:126", "glyph": "k" },
     "roof": { "kind": "wall", "autotile": "roof", "glyph": "R" },
     "slate_roof": { "kind": "wall", "autotile": "slate_roof", "glyph": "S" },
     "wood_wall": { "kind": "wall", "autotile": "wood_wall", "glyph": "H" },

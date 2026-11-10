@@ -646,7 +646,7 @@ the cost of a choice is known when it is made; none proposes story content.
   wounded hero to his top health; a haunted one (the urn left behind) wakes him with that top 1
   lower for a day (`top_less`; a potion heals up to it), and the status line says A HAUNTED DREAM.
   A night awake: no dream, no toll, no health back; a nap by day heals nothing (◇, a reading of
-  "sleep gives the points back").  The hero's bed is at the dock until Thornfield's barn is built.
+  "sleep gives the points back").  The hero's bed is in Thornfield's barn (LOCATIONS.md § 1).
   The dream itself (owner, 2026-11-10: the image of the ghost with what he is saying, in the
   dark): on waking from a haunted night the screen is dark, the ghost large in the middle and one
   of his haunting barks under him, in turn by the day, for six seconds or until a key

@@ -6,15 +6,16 @@
 # Copyright (c) 2026 Jurjen Stellingwerff
 # SPDX-License-Identifier: LGPL-3.0-or-later
 import json, sys
-W = 64
+W = 88   # the town, and Thornfield at its east edge (LOCATIONS.md § 1, @ST-Farm)
 grounds, trails, houses, slopes, items, blobs, rooms, edges = [], [], [], [], [], [], [], []
 def ground(x, y, w, h, z, what): grounds.append({"at": [x, y], "size": [w, h], "z": z, "as": what})
 def earth(x, y, w, h, top):  # solid hill under a terrace on layer `top`
     for z in range(0, top): ground(x, y, w, h, z, "wall")
 def terrace(x, y, w, h, z, what="grass"):
     earth(x, y, w, h, z); ground(x, y, w, h, z, what)
-def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False):
-    e = {"at": [x, y], "size": [w, h], "z": z, "floors": floors, "wall": wall, "roof": roof, "door": "house_door" if wall == "wood_wall" else "stone_door"}
+def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False, door=None):
+    e = {"at": [x, y], "size": [w, h], "z": z, "floors": floors, "wall": wall, "roof": roof,
+         "door": door or ("house_door" if wall == "wood_wall" else "stone_door")}
     if basement: e["basement"] = True
     if door_at >= 0: e["door_at"] = door_at
     if dealt: e["dealt"] = True   # an ordinary house, dealt from the templates (HOUSES.md § The deal)
@@ -77,11 +78,11 @@ def trail(points, z, what="path", width=1):
 def ground(x, y, w, h, z, what):
     if what not in ("grass", "wall", "void"): keep(x, y, z, w, h)
     _ground(x, y, w, h, z, what)
-def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False):
+def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False, door=None):
     keep(x, y, z, w, h, 1)
     d = door_at if door_at >= 0 else w // 2
     keep(x + d, y + h, z, 1, 2)
-    _house(x, y, w, h, z, floors, basement, door_at, wall, roof, dealt)
+    _house(x, y, w, h, z, floors, basement, door_at, wall, roof, dealt, door)
 # The terraces' fronts slope (owner, 2026-11-09), so a ramp is the front itself: its cells are kept
 # clear as before, but they no longer rise (three rising cells beside a sloping front would only
 # stop the hero walking onto them from the side).
@@ -116,7 +117,7 @@ while x < W:
 # banks): its bed a layer down, three cells wide, its north edge row run by run along the course;
 # banks of earth, the far side with the dock.
 COURSE = [(0, 57), (4, 58), (9, 57), (12, 56), (15, 55), (23, 56), (36, 57), (40, 58), (44, 59),
-          (51, 58), (55, 57), (59, 56)]
+          (51, 58), (55, 57), (59, 56), (66, 58), (75, 59)]   # past the cemetery it swings south, for the farm's fields
 def north(x): return at(COURSE, x)   # the bed's first row at column x
 runs = [(COURSE[i][0], (COURSE[i + 1][0] if i + 1 < len(COURSE) else W) - COURSE[i][0], COURSE[i][1])
         for i in range(len(COURSE))]
@@ -241,6 +242,15 @@ ground(53, 48, 1, 6, 0, "garden_fence"); ground(61, 48, 1, 6, 0, "garden_fence")
 ground(57, 53, 1, 1, 0, "grass")
 for p in ((55, 50), (59, 50), (56, 52)): ground(p[0], p[1], 1, 1, 0, "oak")
 keep(53, 48, 0, 9, 7, 0)
+# Thornfield (@ST-Farm), the Dunns' farm at the village's edge, east of the cemetery on the town's
+# side of the stream (owner): the farmhouse, lived in; the barn, of red planks, where the hero
+# sleeps (@ST-Hero), its bed against the back wall; their fields of tilled soil to the east, a path
+# between them down to the lane.
+FARMHOUSE = placed(64, 6, 5, 0, behind0, before0, 1, 0, front=True)
+BARN = placed(72, 7, 5, 0, behind0, before0, 0, 0, front=True, wall="barn_wall", door="barn_door")
+items.append({"at": [73, BARN + 1], "z": 0, "stack": ["bed"]})
+for fx in (80, 84): ground(fx, 49, 3, 5, 0, "field")
+trail([[83, 49], [83, first_row(LANE, 83)]], 0, "path")
 
 
 for it in items: keep(it["at"][0], it["at"][1], it["z"], 1, 1, 1)
@@ -292,9 +302,6 @@ GHOST_TALK = {"at": [57, 50, 0], "name": "ghost",
     {"ghost": "HERE I CAN REST. THANK YOU."},
     {"ghost": "MY GOOD PICK, I LEFT IT IN THE MINE.", "sets": "pick_told", "end": True},
     {"id": "rested", "ghost": "AT REST, AT LAST.", "end": True}]}
-# Where the hero sleeps until Thornfield's barn is built (@ST-Farm, @ST-Hero): a bed at the dock,
-# where he arrives.
-items.append({"at": [24, 60], "z": 0, "stack": ["bed"]})
 intent = {"seed": 1, "rooms": rooms, "corridors": [], "edges": edges, "grounds": grounds, "trails": trails, "blobs": blobs,
           "houses": houses, "slopes": slopes, "items": items, "fronts": "slope", "cliffs": cliffs}
 level = {"name": "Orbury", "camera": "follow", "legend": {}, "ground": [], "chunks": [], "things": [],
@@ -302,3 +309,4 @@ level = {"name": "Orbury", "camera": "follow", "legend": {}, "ground": [], "chun
          "serves": ["@ST-Setting"], "start": [30, 60, 0], "goal": {"type": ""},
          "bars": [[14, 29, 2, "N"]], "enemies": [["grey_rat", 17, 25, 1], GHOST], "talks": [GHOST_TALK]}
 json.dump(level, open(sys.argv[1], "w"), indent=1)
+print("farmhouse at y", FARMHOUSE, "barn at y", BARN, file=sys.stderr)

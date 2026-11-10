@@ -96,7 +96,7 @@ is not.
 
   | House | Household | Who | Now |
   |---|---|---|---|
-  | Thornfield: the farmhouse and the barn | a farm, at the village's edge | the Dunns, Lark among them (@ST-Farm, @ST-YoungVillager); the hero sleeps in the barn, his horse lent to the farm | lived in |
+  | Thornfield: the farmhouse and the barn | a farm, at the village's edge | the Dunns, Lark among them (@ST-Farm, @ST-YoungVillager); the hero sleeps in the barn, his horse lent to the farm | lived in.  Built (2026-11-10): east of the cemetery at the foot, the town widened to 88 cells for it and the stream swinging south past it; the farmhouse (6 × 5), the barn of red planks with its barn door (7 × 5, Tiny Farm's), the hero's bed inside against its back wall, two fields of tilled soil east of it with a path between them down to the lane.  Not yet: the Dunns and Lark in it, the horse, the bargain that opens the barn (C9, built in the demo's farm) |
   | Hollis's house | the alchemist's, with the lab | Hollis (@ST-Alchemist) | lived in: stayed for the lab |
   | Agnes's house, beside the inn, on the market | a well-off house ◇, easier to keep than the inn | Agnes (@ST-Innkeeper), with an eye on the market | lived in |
   | the inn | elaborate | nobody | abandoned; the bow in a room, the chest and a grey rat in the basement |

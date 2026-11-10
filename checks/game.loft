@@ -934,7 +934,8 @@ fn test_a_slanted_wall_is_drawn_cut() {
   for i in 0..16 { assert(cp[i * 16 + 15 - i] == line && line != back, "the cut along the diagonal, at ({15 - i}, {i})"); }
 }
 
-// The haunted dream (STORY.md @ST-Urn): in Orbury, with the founder's urn given and left behind, a
+// The haunted dream (STORY.md @ST-Urn): in Orbury, in Thornfield's barn (its bed at (73, 52)), with
+// the founder's urn given and left behind, a
 // nap by day heals nothing; by night the ghost haunts, and a night slept is a haunted dream — the
 // hero healed, but to a top health of 5 for the day.  The urn back in his hands, the next night is
 // a plain one: the top health 6 again, the hero healed to it.
@@ -947,11 +948,11 @@ fn test_the_haunted_dream() {
   rules::learn(g.world, "urn_given");
   g.world.hero_item = rules::th(g.world, "urn");
   g.world.health = 3;
-  rules::put_hero(g.world, 25, 60, 0);
+  rules::put_hero(g.world, 74, 52, 0);
   game::move(g, -1, 0, false);
   assert(g.note == "SLEPT TILL 20:00" && g.world.health == 3, "a nap by day heals nothing: {g.note}, health {g.world.health}");
   assert(g.world.haunting && rules::knows(g.world, "haunting"), "by night, the urn left behind: haunted");
-  rules::put_hero(g.world, 25, 60, 0);
+  rules::put_hero(g.world, 74, 52, 0);
   game::move(g, -1, 0, false);
   assert(g.note == "A HAUNTED DREAM. SLEPT TILL 07:00", "a haunted dream: {g.note}");
   // The dream shown on waking: the ghost in the dark, saying one of his haunting barks; gone after
@@ -968,10 +969,10 @@ fn test_the_haunted_dream() {
     if (g.world.enemies[i]!.kind) == "ghost" { g.world.enemies[i].item = rules::th(g.world, "urn"); }
   }
   g.world.health = 2;
-  rules::put_hero(g.world, 25, 60, 0);
+  rules::put_hero(g.world, 74, 52, 0);
   game::move(g, -1, 0, false);
   assert(!g.world.haunting, "with the urn home, no haunting");
-  rules::put_hero(g.world, 25, 60, 0);
+  rules::put_hero(g.world, 74, 52, 0);
   game::move(g, -1, 0, false);
   assert(g.note == "SLEPT TILL 07:00" && rules::top_health(g.world) == 6 && g.world.health == 6,
          "a plain night: {g.note}, {g.world.health} of {rules::top_health(g.world)}");
