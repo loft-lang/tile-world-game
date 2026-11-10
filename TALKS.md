@@ -38,6 +38,13 @@ PICK, I LEFT IT IN THE MINE. (`pick_told`) — then AT REST, AT LAST.  Barks: NO
 COLD, THIS GROUND.  Haunting the hero by night, the urn left behind: MY URN... YOU LEFT MY URN. /
 BRING IT HOME, OR TO HER.  Where in the mine the pick lies waits for the mine's layout.
 
+**Thornfield, drafted** (2026-11-10, `tools/orbury_gen.py`'s `THORNFIELD_TALKS`): Dunn's bargain is
+the demo farm's (A FINE HORSE. LEND IT TO THE FARM, AND THE BARN IS YOURS TO SLEEP IN. / DONE. THE
+HORSE STAYS WITH US. / THINK IT OVER. / THE HORSE IS DOING FINE.), with a bark TOO MANY MOUTHS, TOO
+LITTLE LAND.  Lark, a draft for the owner to rewrite: I AM LARK. THE DUNNS ARE MY FAMILY. / YOU KNOW
+THE HILLS? / PATHS NOBODY ELSE KNOWS. ASK ME ONE DAY.; bark THE HILLS HAVE PATHS NOBODY KNOWS.  The
+horse: NEIGH. (and it follows).
+
 ## What the whole village argues over
 
 They know each other well, depend on each other, and disagree on just about everything

@@ -105,6 +105,8 @@
     "cyclops": { "hp": 8, "bite": 2, "move_ms": 800, "chase_ms": 450, "bite_ms": 1200, "sight": 8, "dark_sight": 2, "roam": 3, "heal_ms": 4000, "searches": true, "calls": 6, "brave": true, "holds": "axe", "bombs": 3, "pulls": true, "windup_ms": 700, "sweep": true, "poise": true },
     "hunter": { "hp": 3, "bite": 1, "move_ms": 600, "chase_ms": 400, "bite_ms": 1500, "sight": 8, "dark_sight": 2, "roam": 4, "heal_ms": 4000, "shoots": true, "holds": "bow", "windup_ms": 300 },
     "villager": { "hp": 3, "bite": 0, "move_ms": 1400, "chase_ms": 1400, "bite_ms": 1000, "sight": 0, "roam": 2, "heal_ms": 4000, "talks": true },
+    "farmer": { "hp": 3, "bite": 0, "move_ms": 1400, "chase_ms": 1400, "bite_ms": 1000, "sight": 0, "roam": 2, "heal_ms": 4000, "talks": true },
+    "youngster": { "hp": 3, "bite": 0, "move_ms": 900, "chase_ms": 900, "bite_ms": 1000, "sight": 0, "roam": 3, "heal_ms": 4000, "talks": true },
     "elder": { "hp": 3, "bite": 0, "move_ms": 2000, "chase_ms": 2000, "bite_ms": 1000, "sight": 0, "roam": 1, "heal_ms": 4000, "talks": true },
     "maid": { "hp": 3, "bite": 0, "move_ms": 1600, "chase_ms": 1600, "bite_ms": 1000, "sight": 0, "roam": 2, "heal_ms": 4000, "talks": true },
     "grey_rat": { "hp": 2, "bite": 0, "move_ms": 700, "chase_ms": 500, "bite_ms": 1000, "sight": 4, "roam": 3, "heal_ms": 4000, "out_by": "day", "thief": true },

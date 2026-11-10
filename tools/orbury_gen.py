@@ -251,6 +251,26 @@ BARN = placed(72, 7, 5, 0, behind0, before0, 0, 0, front=True, wall="barn_wall",
 items.append({"at": [73, BARN + 1], "z": 0, "stack": ["bed"]})
 for fx in (80, 84): ground(fx, 49, 3, 5, 0, "field")
 trail([[83, 49], [83, first_row(LANE, 83)]], 0, "path")
+# Who lives there, and the bargain (@ST-Farm, @ST-Hero; BUILD.md C9, as the demo's farm has it): the
+# hero rides in on his horse (the dock, where he starts) and can lead it here; Dunn lends him the
+# barn for it, and the barn's door stays shut till then; Lark, the Dunns' youngest
+# (@ST-YoungVillager), by the fields.  Lark's lines are drafts, the owner's to rewrite.
+DUNN = [70, 53, 0]
+LARK = [79, 52, 0]
+HORSE = [31, 60, 0]
+THORNFIELD = [["farmer"] + DUNN, ["youngster"] + LARK, ["horse"] + HORSE]
+GATES = [[72 + 7 // 2, BARN + 4, 0, "bargain"]]   # the barn's door
+THORNFIELD_TALKS = [
+  {"at": HORSE, "name": "horse", "lines": [{"horse": "NEIGH.", "end": True, "follows": True}]},
+  {"at": DUNN, "name": "dunn", "barks": ["TOO MANY MOUTHS, TOO LITTLE LAND."], "lines": [
+    {"dunn": "A FINE HORSE. LEND IT TO THE FARM, AND THE BARN IS YOURS TO SLEEP IN.", "away": "no", "bump": "deal"},
+    {"id": "deal", "dunn": "DONE. THE HORSE STAYS WITH US.", "then": "after", "end": True, "sets": "bargain", "keeps": "horse"},
+    {"id": "no", "dunn": "THINK IT OVER.", "end": True},
+    {"id": "after", "dunn": "THE HORSE IS DOING FINE.", "end": True}]},
+  {"at": LARK, "name": "lark", "barks": ["THE HILLS HAVE PATHS NOBODY KNOWS."], "lines": [
+    "I AM LARK. THE DUNNS ARE MY FAMILY.",
+    {"hero": "YOU KNOW THE HILLS?"},
+    {"lark": "PATHS NOBODY ELSE KNOWS. ASK ME ONE DAY.", "end": True}]}]
 
 
 for it in items: keep(it["at"][0], it["at"][1], it["z"], 1, 1, 1)
@@ -307,6 +327,7 @@ intent = {"seed": 1, "rooms": rooms, "corridors": [], "edges": edges, "grounds":
 level = {"name": "Orbury", "camera": "follow", "legend": {}, "ground": [], "chunks": [], "things": [],
          "tiles": [], "edges": [], "rises": [], "intent": intent, "adjusted": [],
          "serves": ["@ST-Setting"], "start": [30, 60, 0], "goal": {"type": ""},
-         "bars": [[14, 29, 2, "N"]], "enemies": [["grey_rat", 17, 25, 1], GHOST], "talks": [GHOST_TALK]}
+         "bars": [[14, 29, 2, "N"]], "enemies": [["grey_rat", 17, 25, 1], GHOST] + THORNFIELD,
+         "talks": [GHOST_TALK] + THORNFIELD_TALKS, "gates": GATES}
 json.dump(level, open(sys.argv[1], "w"), indent=1)
 print("farmhouse at y", FARMHOUSE, "barn at y", BARN, file=sys.stderr)

@@ -1434,6 +1434,11 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     g.note = "SHUT";
     return;
   }
+  // A door of the map shut the same way (rules::Gate: Thornfield's barn before the bargain).
+  if !pull && rules::shut(w, w.hero_x + dx, w.hero_y + dy, z) {
+    g.note = "SHUT";
+    return;
+  }
   step = if pull { rules::pull(w, dx, dy) } else { rules::walk(w, dx, dy) };
   if w.drunk > drunk { sound(g, "potion"); }
   if w.money > money { sound(g, "coins"); }
@@ -2206,6 +2211,12 @@ fn take(g: Game) {
 
 // The hero spoke to (walked into) the one with id `id`: its talk goes on (talk.loft).
 fn talk_to(g: Game, id: integer) {
+  owners = talk_owners(g);
+  talk_bump(g, id);
+  follow_homes(g, owners);
+}
+
+fn talk_bump(g: Game, id: integer) {
   for e in 0..len(g.world.enemies) {
     if (g.world.enemies[e]!.id) != id { continue; }
     ti = talk::of(g.file.talks, g.world, e);
@@ -2237,13 +2248,48 @@ fn rest_urn(g: Game) -> boolean {
   true
 }
 
+// The figure each talk of the place belongs to, by id (-1: none here), before its lines run.
+fn talk_owners(g: const Game) -> vector<integer> {
+  out: vector<integer> = [];
+  for t in g.file.talks {
+    o = talk::owner(t, g.world);
+    out += [if o >= 0 { g.world.enemies[o]!.id } else { -1 }];
+  }
+  out
+}
+
+// A figure whose home a line moved (`keeps`: the horse lent to the farm) takes its talk along, kept
+// as a talk moved, so a saved game keeps it.  `owners` is `talk_owners` from before the lines ran.
+// (The world's people move their talks with their points themselves: `move_people`.)
+fn follow_homes(g: Game, owners: const vector<integer>) {
+  moving: vector<(talk::Talk, (integer, integer, integer))> = [];
+  for i in 0..len(g.file.talks) {
+    id = owners[i] ?? -1;
+    if id < 0 { continue; }
+    t = g.file.talks[i]!;
+    for e in g.world.enemies {
+      if e.id == id && e.person == "" && (e.nest_x != t.x || e.nest_y != t.y || e.nest_z != t.z) {
+        moving += [(t, (e.nest_x, e.nest_y, e.nest_z))];
+      }
+    }
+  }
+  for mv in moving {
+    kept: vector<talk::Talk> = [];
+    for t in g.file.talks { if t.x != mv.0.x || t.y != mv.0.y || t.z != mv.0.z { kept += [t]; } }
+    g.file.talks = kept;
+    bring_talk(g, g.place, mv.0, mv.1.0, mv.1.1, mv.1.2);
+  }
+}
+
 // Every talk of the place at its clock and the hero's place: answers whether what is said changed.
 fn step_talks(g: Game) -> boolean {
+  owners = talk_owners(g);
   changed = false;
   for t in g.file.talks {
     o = talk::owner(t, g.world);
     if o >= 0 && talk::step(t, g.world, o) { changed = true; }
   }
+  follow_homes(g, owners);
   changed
 }
 

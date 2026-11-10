@@ -288,7 +288,11 @@ share, so each is built once and shown in the test world first.
   his talk starting after it from then on — and a line's `keeps` leaves the horse with the farm,
   no longer following.  The barn's door `needs` the bargain: shut (SHUT) until it holds; a bed
   inside.  Answered (proposed): the horse taken back by speaking to it again, the bargain and the
-  bed kept; the words are placeholders for the owner's.
+  bed kept; the words are placeholders for the owner's.  **In Orbury's own map (2026-11-10)**:
+  Thornfield's barn is part of the town, so its door is a `gate` of the map (`rules::Gate`, a
+  place file's `gates`), shut until `bargain` holds; a line's `keeps` makes the kept figure's
+  home where it stands, and the game moves its talk along (`game::step_talks`, a talk moved;
+  `checks/game.loft`'s `test_thornfields_bargain`).
 - **C4. A group acting together — built** (the *raid* house; `tests/tribe.loft`).  The Kharn as
   a tribe (a place's `tribe`): its members the place's enemies of its kind; its prey counted down
   by the clock (one eaten every `eat_ms`) and by what happens to the monsters (one of its

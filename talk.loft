@@ -441,8 +441,17 @@ fn begin(t: const Talk, l: rules::Level, i: integer, n: integer, taking: boolean
   if line.sets != "" { rules::learn(l, line.sets); }
   if line.follows { l.enemies[i].led = true; }
   if line.stays { l.enemies[i].led = false; }
+  // Whoever of that kind the hero leads stays here: led no more, and here its home now (the horse
+  // lent to the farm, BUILD.md C9).
   if line.keeps != "" {
-    for j in 0..len(l.enemies) { if l.enemies[j].kind == line.keeps { l.enemies[j].led = false; } }
+    for j in 0..len(l.enemies) {
+      if l.enemies[j].kind == line.keeps && l.enemies[j].led {
+        l.enemies[j].led = false;
+        l.enemies[j].nest_x = l.enemies[j].x;
+        l.enemies[j].nest_y = l.enemies[j].y;
+        l.enemies[j].nest_z = l.enemies[j].z;
+      }
+    }
   }
   if line.guides {
     rules::send_to(l, i, line.guide_x, line.guide_y, line.guide_z);

@@ -1,5 +1,55 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
+## State on 2026-11-10 (evening)
+
+Everything is committed and pushed (`main` @ the commit adding this section).  455+ tests
+(`loft --lib libs --tests tests`), 37 game checks (`checks/game.loft`) and the sheet check
+(`cd tools && loft --lib ../libs sheet.loft check`) pass.  Not run today: `checks/view3d.loft`
+(the 3D view of Orbury's new east end and Thornfield is unseen), and nothing was played in the
+browser.
+
+**Built today, in the owner's order:**
+- **The founder's urn quest** (STORY.md @ST-Urn; `urn.loft`, `tests/urn.loft`).  The ghost in
+  Orbury's cemetery by night gives the urn (a held thing, tile 132 of our sheet; floats on deep
+  water, Q takes it out again); brought into Sibil's cellar he comes to it and rests there, says
+  where his good pick lies (`pick_told`).  Sibil's house is dealt (any ordinary house).  The
+  haunting: the urn left anywhere but his hands, his graveyard or at rest, he follows the hero by
+  night; a night slept heals to the day's top health, a haunted one leaves it 1 lower for a day and
+  shows the dream (dark, the ghost, one of his haunting barks).
+- **House templates as files** (HOUSES.md § Templates as files): 45 under `levels/templates/`,
+  each a place file with a `template` block (kind, turns, flips, at, wall, closes, gives, weight,
+  needs, solution, floors) — the owner edits them in the editor (OPEN `templates/<name>`) or as
+  JSON; `stamp.loft` lays one turned and mirrored.
+- **The deal** (HOUSES.md § The deal; `deal.loft`, `tests/deal.loft`): Orbury's eleven ordinary
+  houses (`"dealt": true`) dealt by the game's seed (`TW_SEED`, else the clock), each PLAYED by the
+  rules before it is kept — in by its way, down to its cellar, and for Sibil's the urn walked in
+  too; a failing draw is drawn again.  The deal goes to the play log; `TW_SEED=7 loft --lib libs
+  tools/map.loft orbury OUT.png` pictures it.
+- **The font's comma and question mark** (tiles 144, 145; ART.md row 12): Tiny Ski has neither.
+- **Thornfield** (LOCATIONS.md § 1): Orbury widened to 88 cells, the stream swinging south past
+  the cemetery; the farmhouse, the red barn with the hero's bed, the fields; Dunn, Lark, the horse
+  at the dock and the bargain (the barn's door a `gate` of the map, shut until `bargain`).
+
+**The owner's rulings today** (in STORY.md, PUZZLES.md, HOUSES.md, DESIGN.md): a puzzle is unfair
+only when it is unsolvable, and the game has none — hard, hidden, not straightforward are fine; the
+urn quest is a side quest; not every house has a cellar (none marks a wrong house) and a cellar can
+be hidden; each house an opportunity, with non-critical finds dealt in some; the urn takes the
+hands, cannot break, floats; the ghost haunts every night while it is left behind; a haunted dream
+lowers the top health by 1 for a day; sleep heals, a night awake neither costs nor heals; the hero
+may keep a beam; blasts in town sparingly.  How to work with the owner (Claude's memory, which does
+not travel): design choices go in prose in the reply, never the option picker; never push "fair"
+or signposting on puzzles — guard solvability.
+
+**Drafts the owner is to rewrite**: the ghost's lines and Lark's (`tools/orbury_gen.py`,
+TALKS.md); Dunn's are the demo farm's.  ◇ readings to confirm: a nap by day heals nothing; the
+ghost follows within 32 steps on his own layer only.
+
+**Open next**: tunnels and the cellars that need a second way (under the fall, outside door, tunnel
+only); two-floor templates (upper window, upper door); the walled-up door (a directed blast in its
+solution); finds laid in the cellar; where in the mine the pick lies (the mine's layout); Lark's
+hidden path; the green barn roof (Tiny Farm's pieces as an autotile).
+
+
 ## State on 2026-11-09 (morning) — the owner switches machines
 
 Everything is committed and pushed (`main` @ the commit adding this section).  394 tests

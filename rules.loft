@@ -686,6 +686,15 @@ pub struct Route {
 /// A cell where the roof no longer holds (DESIGN.md § Bombs: a span widened by blasting keeps
 /// gathering stones): the next stone falls at `at`, -1 while something stands there.
 /// Where the beam of a door held shut lies: the door's cell and the side, "N", "E", "S" or "W".
+/// A door in the map shut until a fact holds (BUILD.md C9 in a place's own map: Thornfield's barn,
+/// open once the Dunns' bargain is struck): the hero does not get through it before.
+pub struct Gate {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub needs: text
+}
+
 pub struct Bar {
   pub x: integer,
   pub y: integer,
@@ -932,6 +941,8 @@ pub struct Level {
   /// the kinds' `health`: 1 after a haunted dream, for the next day.
   pub haunting: boolean = false,
   pub top_less: integer = 0,
+  /// The doors of the map shut until a fact holds (`Gate`).
+  pub gates: vector<Gate> = [],
   /// The barricades being built (C5) and the groups acting together (C4).
   pub works: vector<Work> = [],
   pub tribes: vector<Tribe> = [],
@@ -2410,6 +2421,12 @@ pub fn knows(l: const Level, f: text) -> boolean {
   false
 }
 
+/// Is (x, y, z) a door of the map shut until something holds, and does it not hold yet (`Gate`)?
+pub fn shut(l: const Level, x: integer, y: integer, z: integer) -> boolean {
+  for g in l.gates { if g.x == x && g.y == y && g.z == z && !holds(l, g.needs) { return true; } }
+  false
+}
+
 /// How far from its home a figure of `kind` roams (kinds.json `roam`).
 pub fn roam_of(l: const Level, kind: text) -> integer {
   enemy_props(l, kind).roam
@@ -3837,6 +3854,8 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
   // An edge between the hero and the cell it steps to: a wall or a window stops it; a fence is
   // climbed over.
   if !hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) { return Step.Blocked; }
+  // A door shut until something holds (Gate: the barn before the bargain) does not give.
+  if shut(l, tx, ty, z) { return Step.Blocked; }
   kind = tile_world::terrain(l.w, tx, ty, z);
   // Holding an axe, a tree or a fence takes a blow, and falls at its last; the hero stays where
   // it is.

@@ -52,7 +52,8 @@ fn main() {
   test_a_block_and_a_parry_are_seen();
   test_the_haunted_dream();
   test_the_font_has_a_comma_and_a_question_mark();
-  println("checks/game.loft: 36 passed");
+  test_thornfields_bargain();
+  println("checks/game.loft: 37 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -990,4 +991,43 @@ fn test_the_font_has_a_comma_and_a_question_mark() {
            "character {n}: tile {f.glyphs[n] ?? -1} on sheet {f.sheets[n] ?? -1}");
   }
   assert((f.sheets[65] ?? -1) < 0, "the letters stay on the font's sheet");
+}
+
+// Thornfield (LOCATIONS.md § 1, BUILD.md C9 in Orbury's own map): the barn's door shut; the horse
+// the hero rode in on follows him from the dock; Dunn strikes the bargain and keeps it — the horse
+// at home at the farm now, its talk with it — and the barn opens.
+fn test_thornfields_bargain() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  g.seed = 7;
+  assert(game::start_world(g, "orbury"), "Orbury opens");
+  rules::put_hero(g.world, 75, 56, 0);
+  game::move(g, 0, -1, false);
+  assert(g.note == "SHUT" && g.world.hero_y == 56, "the barn shut: {g.note} at {at(g)}");
+  h = -1;
+  for i in 0..len(g.world.enemies) { if g.world.enemies[i]!.kind == "horse" { h = i; } }
+  assert(h >= 0, "the horse at the dock");
+  rules::put_hero(g.world, 33, 60, 0);
+  game::move(g, -1, 0, false);
+  assert(g.world.enemies[h]!.led, "the horse follows");
+  // Led to the farm: the hero beside Dunn, the horse beside the hero.
+  rules::put_hero(g.world, 68, 53, 0);
+  g.world.enemies[h].x = 67;
+  g.world.enemies[h].y = 53;
+  d = -1;
+  for i in 0..len(g.world.enemies) { if g.world.enemies[i]!.kind == "farmer" { d = i; } }
+  g.world.enemies[d].x = 70;
+  g.world.enemies[d].y = 53;
+  game::move(g, 1, 0, false);
+  game::move(g, 1, 0, false);
+  assert(rules::knows(g.world, "bargain") && !(g.world.enemies[h]!.led), "struck: the horse stays");
+  hn = g.world.enemies[h]!;
+  assert(hn.nest_x == hn.x && hn.nest_y == hn.y && hn.x > 60, "at home at the farm: ({hn.nest_x}, {hn.nest_y})");
+  talk_there = false;
+  for t in g.file.talks { if t.x == hn.nest_x && t.y == hn.nest_y && t.z == hn.nest_z { talk_there = true; } }
+  assert(talk_there, "its talk came with it");
+  rules::put_hero(g.world, 75, 56, 0);
+  game::move(g, 0, -1, false);
+  assert(g.world.hero_y == 55, "the barn open: {g.note} at {at(g)}");
 }

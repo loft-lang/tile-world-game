@@ -198,6 +198,8 @@ fn cell_key(x: integer, y: integer, z: integer) -> integer { ((z + 2) * 80 + y) 
 fn test_every_front_door_is_reached_from_the_dock() {
   lf = orbury();
   w = lf.level;
+  // Thornfield's barn is shut until the bargain (a gate of the map): the layout is walked as after it.
+  rules::learn(w, "bargain");
   door = rules::terrain_id(w.k, "open_door");
   seen: vector<boolean> = [false; 8 * 80 * WIDE];
   queue: vector<(integer, integer, integer)> = [(lf.start_x, lf.start_y, lf.start_z)];

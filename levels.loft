@@ -322,6 +322,11 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     }];
   }
   // The doors held shut by a beam (DESIGN.md § Bombs): each cell, and the side its beam is on.
+  gv = v.field("gates");
+  for i in 0..gv.len() {
+    c = gv.item(i);
+    l.gates += [rules::Gate { x: num(c.item(0), 0), y: num(c.item(1), 0), z: num(c.item(2), 0), needs: str(c.item(3), "") }];
+  }
   rv = v.field("rest");
   for i in 0..rv.len() {
     c = rv.item(i);
@@ -787,6 +792,11 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     pk = "";
     for pn in tb.prey_kinds { pk += if pk == "" { quoted(pn) } else { ", {quoted(pn)}" }; }
     out += "\n  \"tribe\": {{ \"kind\": {quoted(tb.kind)}, \"prey\": {tb.prey}, \"eat_ms\": {tb.eat_ms}, \"prey_kinds\": [{pk}], \"raid\": [{tb.raid_x}, {tb.raid_y}, {tb.raid_z}] }},";
+  }
+  if len(lf.level.gates) > 0 {
+    gs = "";
+    for g in lf.level.gates { gs += if gs == "" { "[{g.x}, {g.y}, {g.z}, {quoted(g.needs)}]" } else { ", [{g.x}, {g.y}, {g.z}, {quoted(g.needs)}]" }; }
+    out += "\n  \"gates\": [{gs}],";
   }
   if len(lf.level.rest) > 0 {
     rs = "";
