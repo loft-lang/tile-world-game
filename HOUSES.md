@@ -146,8 +146,16 @@ tools/map.loft orbury OUT.png` pictures that deal whole.
 **Sibil's cellar** is laid as the level's `rest` (its floor cells, saved with the place): the urn
 brought there brings the ghost to rest (STORY.md § 6, `urn.loft`).
 
-**Still to come**: the urn's own check for Sibil's house (the same walk with the urn in the hands:
-the urn is a thing now, and the check does not carry it yet); tunnels and the cellars that need them; the finds laid in the cellar
+**The urn's own check** (2026-11-10): Sibil's house is played once more.  Once the hero alone has
+opened the way (the barrel pushed off, the bushes felled, the boards taken apart), the hero walks
+from the town again with the urn in the hands, which push, pull and lift nothing, and must reach
+her cellar's floor, by the hero's way or another (over the roof, down the hole).  That is the
+"open the way, then fetch it" pattern (§ Carrying the urn), and a house that passes it is one the
+urn can always be brought to.  A draw that fails is drawn again; a house no draw passes as Sibil's
+is dealt as an ordinary one, and she moves on to the next.  With the urn's walk broken on purpose,
+no house is Sibil's, and every house is still dealt.
+
+**Still to come**: tunnels and the cellars that need them; the finds laid in the cellar
 rather than on the ground floor; two-floor houses.
 
 ## What the town gives to work with

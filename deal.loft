@@ -16,7 +16,9 @@
 // Never unsolvable (PUZZLES.md): a house is dealt only once its deal has been PLAYED by the rules —
 // the hero walked from the town (the cells reached before the deal) to the way in's start, its
 // solution played turned as the template lies, the hero then inside the house; walked on to the
-// cellar's start and its solution played, the hero then in the cellar.  A draw that fails is drawn
+// cellar's start and its solution played, the hero then in the cellar.  Sibil's house is played
+// once more for the urn, which takes the hands: the way opened, the urn walked from the town into
+// her cellar.  A draw that fails is drawn
 // again; a house no draw passes stays as the layout has it.  The same seed deals the same town.
 use tile_world;
 use rules;
@@ -210,10 +212,11 @@ fn take_cells(used: hash<Key[k]>, t: const levels::LevelFile, p: const Laid) {
 // --- The check, played by the rules ---
 
 // The cells reached from `seeds` by plain walking — steps, stairs, slopes, climbs and falls, doors
-// opened — never pushing, pulling or drinking, within the box x0..x1, y0..y1 on layers z0..z1.
-// The hero is moved about in `l`; what walking changes there (a door opened) stays.
+// opened — never pushing, pulling or drinking, within the box x0..x1, y0..y1 on layers z0..z1, with
+// `held` in the hands (0: none; the urn, for its own walk).  The hero is moved about in `l`; what
+// walking changes there (a door opened) stays.
 fn reach(l: rules::Level, seeds: const vector<integer>, x0: integer, y0: integer, x1: integer, y1: integer,
-         z0: integer, z1: integer) -> hash<Key[k]> {
+         z0: integer, z1: integer, held: integer = 0) -> hash<Key[k]> {
   seen: hash<Key[k]> = [];
   queue: vector<integer> = [];
   for sk in seeds {
@@ -234,7 +237,7 @@ fn reach(l: rules::Level, seeds: const vector<integer>, x0: integer, y0: integer
       if th != 0 && (rules::movable(l, th) || rules::is_potion(l, th)) { continue; }
       if rules::enemy_at(l, tx, ty, cz) >= 0 { continue; }
       rules::put_hero(l, cx, cy, cz);
-      l.hero_item = 0;
+      l.hero_item = held;
       l.health = 99;
       st = rules::walk(l, d.0, d.1);
       if st == rules::Step.Opened { st = rules::walk(l, d.0, d.1); }
@@ -268,15 +271,37 @@ fn solve(l: rules::Level, s: const Shell, seeds: const vector<integer>, t: const
   true
 }
 
-// Is house `s`, dealt in `l`, solved by the rules: in by its way, and down into its cellar?
+// The floor of the cellar `cellar` laid as `p` under house `s` in `l`: its walkable cells a layer
+// down, within the footprint.
+fn cellar_floor(l: const rules::Level, s: const Shell, cellar: const levels::LevelFile,
+                p: const Laid) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  for c in stamp::cells(cellar, p.x, p.y, p.z, p.turn, p.flip) {
+    if c.2 == s.z - 1 && in_footprint(s, c.0, c.1) && tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) {
+      out += [c];
+    }
+  }
+  out
+}
+
+// Is house `s`, dealt in `l`, solved by the rules: in by its way, and down into its cellar?  And,
+// with `with_urn` (Sibil's: STORY.md @ST-Urn), the urn brought there too: once the hero alone has
+// opened the way, from the town again with the urn in the hands — which push, pull and lift
+// nothing — on to the cellar's floor.  The urn's way may be another than the hero's (over the
+// roof, through the hole the hero climbed out of); any that walks is enough.
 fn passes(l: rules::Level, s: const Shell, town: const vector<integer>, way: const levels::LevelFile,
-          way_p: const Laid, cellar: const levels::LevelFile, cellar_p: const Laid) -> boolean {
+          way_p: const Laid, cellar: const levels::LevelFile, cellar_p: const Laid, with_urn: boolean) -> boolean {
   if !solve(l, s, town, way, way_p) { return false; }
   inside = in_floor(s, l.hero_x, l.hero_y) && l.hero_z >= s.z && l.hero_z < s.z + s.floors;
   if !inside { return false; }
-  if cellar.template.solution == "" { return true; }
+  if cellar.template.solution == "" { return !with_urn; }
   if !solve(l, s, [intent::key_of(l.hero_x, l.hero_y, l.hero_z)], cellar, cellar_p) { return false; }
-  l.hero_z == s.z - 1 && in_footprint(s, l.hero_x, l.hero_y)
+  if l.hero_z != s.z - 1 || !in_footprint(s, l.hero_x, l.hero_y) { return false; }
+  if !with_urn { return true; }
+  carried = reach(l, town, s.x - MARGIN, s.y - MARGIN, s.x + s.w - 1 + MARGIN, s.y + s.h - 1 + MARGIN,
+                  s.z - 1, s.z + s.floors, rules::th(l, "urn"));
+  for c in cellar_floor(l, s, cellar, cellar_p) { if carried[intent::key_of(c.0, c.1, c.2)] { return true; } }
+  false
 }
 
 /// The cells of `l` reached from (x, y, z) by plain walking (`reach`), over the whole place: the
@@ -341,81 +366,80 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
         town_here += [tk];
       }
     }
-    is_sibil = out.sibil < 0 && oi >= first_sibil;
+    // Drawn as Sibil's while she has no house yet; a house no draw passes as hers is drawn again as
+    // an ordinary one, and she moves on to the next.
+    as_sibil = out.sibil < 0 && oi >= first_sibil;
     dealt = Dealt { house: hi, laid: [], sibil: false, cellar: "", draw: -1 };
-    for dr in 0..DRAWS {
-      r = rng(seed, hi, dr);
-      used: hash<Key[k]> = [];
-      laid: vector<Laid> = [];
-      ci = pick(r, closings);
-      if ci < 0 { break; }
-      closing = closings[ci]!;
-      cp = place(r, closing, s, used) ?? continue;
-      take_cells(used, closing, cp);
-      laid += [cp];
-      way = closing;
-      way_p = cp;
-      if !closing.template.gives || next(r, 3) != 0 {
-        wi = pick(r, ways);
-        if wi < 0 { continue; }
-        way = ways[wi]!;
-        way_p = place(r, way, s, used) ?? continue;
-        take_cells(used, way, way_p);
-        laid += [way_p];
-      }
-      for _ in 0..next(r, 3) {
-        ii = pick(r, insides);
-        if ii < 0 { break; }
-        ins = insides[ii]!;
-        ip = place(r, ins, s, used) ?? continue;
-        take_cells(used, ins, ip);
-        laid += [ip];
-      }
-      pool = if is_sibil { with_cellar } else { cellars };
-      cellar = none ?? closing;
-      cellar_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
-      kk = pick(r, pool);
-      if kk >= 0 {
-        cand = pool[kk]!;
-        cpl = place(r, cand, s, used);
-        if cpl {
-          cellar = cand;
-          cellar_p = cpl ?? cellar_p;
+    for round in 0..(if as_sibil { 2 } else { 1 }) {
+      is_sibil = as_sibil && round == 0;
+      for dr in 0..DRAWS {
+        r = rng(seed, hi, dr + round * DRAWS);
+        used: hash<Key[k]> = [];
+        laid: vector<Laid> = [];
+        ci = pick(r, closings);
+        if ci < 0 { break; }
+        closing = closings[ci]!;
+        cp = place(r, closing, s, used) ?? continue;
+        take_cells(used, closing, cp);
+        laid += [cp];
+        way = closing;
+        way_p = cp;
+        if !closing.template.gives || next(r, 3) != 0 {
+          wi = pick(r, ways);
+          if wi < 0 { continue; }
+          way = ways[wi]!;
+          way_p = place(r, way, s, used) ?? continue;
+          take_cells(used, way, way_p);
+          laid += [way_p];
         }
-      }
-      if is_sibil && cellar.template.solution == "" { continue; }
-      if cellar_p.name != "" {
-        take_cells(used, cellar, cellar_p);
-        laid += [cellar_p];
-      }
-      if next(r, 3) == 0 {
-        fi = pick(r, finds);
-        if fi >= 0 {
-          fd = finds[fi]!;
-          fp = place(r, fd, s, used);
-          if fp {
-            found = fp ?? cellar_p;
-            take_cells(used, fd, found);
-            laid += [found];
+        for _ in 0..next(r, 3) {
+          ii = pick(r, insides);
+          if ii < 0 { break; }
+          ins = insides[ii]!;
+          ip = place(r, ins, s, used) ?? continue;
+          take_cells(used, ins, ip);
+          laid += [ip];
+        }
+        pool = if is_sibil { with_cellar } else { cellars };
+        cellar = none ?? closing;
+        cellar_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
+        kk = pick(r, pool);
+        if kk >= 0 {
+          cand = pool[kk]!;
+          cpl = place(r, cand, s, used);
+          if cpl {
+            cellar = cand;
+            cellar_p = cpl ?? cellar_p;
           }
         }
-      }
-      // Played on a copy: in by the way, down to the cellar.
-      trial = l;
-      for p in laid { stamp::apply(trial, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
-      if !passes(trial, s, town_here, way, way_p, cellar, cellar_p) { continue; }
-      for p in laid { stamp::apply(l, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
-      // Sibil's cellar is where the urn's ghost finds his rest: its floor, a layer down.
-      if is_sibil {
-        l.rest = [];
-        for c in stamp::cells(cellar, cellar_p.x, cellar_p.y, cellar_p.z, cellar_p.turn, cellar_p.flip) {
-          if c.2 == s.z - 1 && in_footprint(s, c.0, c.1) && tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) {
-            l.rest += [c];
+        if is_sibil && cellar.template.solution == "" { continue; }
+        if cellar_p.name != "" {
+          take_cells(used, cellar, cellar_p);
+          laid += [cellar_p];
+        }
+        if next(r, 3) == 0 {
+          fi = pick(r, finds);
+          if fi >= 0 {
+            fd = finds[fi]!;
+            fp = place(r, fd, s, used);
+            if fp {
+              found = fp ?? cellar_p;
+              take_cells(used, fd, found);
+              laid += [found];
+            }
           }
         }
+        // Played on a copy: in by the way, down to the cellar.
+        trial = l;
+        for p in laid { stamp::apply(trial, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+        if !passes(trial, s, town_here, way, way_p, cellar, cellar_p, is_sibil) { continue; }
+        for p in laid { stamp::apply(l, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+        // Sibil's cellar is where the urn's ghost finds his rest: its floor, a layer down.
+        if is_sibil { l.rest = cellar_floor(l, s, cellar, cellar_p); }
+        dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
+        break;
       }
-      dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
-      break;
+      if dealt.draw >= 0 { break; }
     }
     if dealt.sibil { out.sibil = hi; }
     out.houses += [dealt];

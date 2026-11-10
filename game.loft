@@ -267,8 +267,16 @@ pub struct Game {
   pub dealt: deal::Deal = deal::no_deal(),
   /// The haunted dream's toll (STORY.md @ST-Urn): until this time of the game's clock the day's top
   /// health is 1 lower; 0, none.
-  pub haunted_until: integer = 0
+  pub haunted_until: integer = 0,
+  /// The haunted dream shown on waking (owner, 2026-11-10: the ghost in the dark, with what he is
+  /// saying): while `dreaming`, for DREAM_MS or until a key; what he says.
+  pub dreaming: boolean = false,
+  pub dream_ms: integer = 0,
+  pub dream_says: text = ""
 }
+
+/// How long the haunted dream is shown, unless a key ends it sooner.
+pub const DREAM_MS = 6000;
 
 /// How long a spark shows, small (a block) and big (a parry), and its size against a tile
 /// (proposed, to tune in play).
@@ -1306,7 +1314,39 @@ pub fn sleep(g: Game) {
   keep_time(g);
   if night && rules::alive(g.world) { g.world.health = rules::top_health(g.world); }
   g.note = if haunted { "A HAUNTED DREAM. SLEPT TILL {clock_text(g)}" } else { "SLEPT TILL {clock_text(g)}" };
+  if haunted {
+    g.dreaming = true;
+    g.dream_ms = 0;
+    g.dream_says = dream_words(g);
+  }
   if haunted { g.log += ["clock {g.world.now}  a haunted dream: top health {rules::top_health(g.world)} for the day"]; }
+}
+
+// What the ghost says in the haunted dream: his barks for the haunting (`when: haunting`), one a
+// night in turn — from his talk here, or the one moved with him elsewhere.
+fn dream_words(g: const Game) -> text {
+  said: vector<text> = [];
+  for t in g.file.talks { for b in t.barks { if b.when == urn::HAUNTING { said += [b.says]; } } }
+  if len(said) == 0 {
+    for mt in g.moved_talks { for b in mt.talk.barks { if b.when == urn::HAUNTING { said += [b.says]; } } }
+  }
+  if len(said) == 0 { return "MY URN..."; }
+  said[(g.clock / DAY_MS ?? 0) % len(said) ?? 0] ?? "MY URN..."
+}
+
+// The haunted dream: the dark, the ghost large in it, and what he says under him.
+fn draw_dream(g: Game) {
+  tiles::clear(g.surface, 0);
+  ts = g.look.tile_size;
+  half = ts / 2;
+  sp = theme::enemy_sprite(g.look, "ghost");
+  if sp >= 0 { theme::put_scaled(g.surface, g.look, sp, (W / 2) as float, (H / 2 - ts) as float, 4.0, 0); }
+  rows = talk::wrap(g.dream_says, (W - 8) / half ?? 20);
+  y = H / 2 + 2 * ts;
+  for r in 0..len(rows) {
+    row = rows[r] ?? "";
+    theme::write_small(g.surface, g.look, row, ((W - len(row) * half) / 2 ?? 0) as float, (y + r * (half + 1)) as float, 0);
+  }
 }
 
 // Is the founder's urn left behind (urn.loft): judged where the ghost lives — this place, or the
@@ -1860,6 +1900,12 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.editing { return update_editor(g, now); }
+  // The haunted dream on waking: for DREAM_MS, or until a key.
+  if g.dreaming {
+    g.dream_ms += ms;
+    if g.dream_ms >= DREAM_MS || (ms > 0 && any_key(g)) { g.dreaming = false; }
+    return true;
+  }
   // The epilogue: a still for STILL_MS, or until a key; the last stays.
   if g.ending {
     g.still_ms += ms;
@@ -3062,6 +3108,10 @@ pub fn draw(g: Game) {
   }
   if g.ending {
     draw_still(g);
+    return;
+  }
+  if g.dreaming {
+    draw_dream(g);
     return;
   }
   follow_enemies(g);

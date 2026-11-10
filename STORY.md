@@ -647,8 +647,11 @@ the cost of a choice is known when it is made; none proposes story content.
   lower for a day (`top_less`; a potion heals up to it), and the status line says A HAUNTED DREAM.
   A night awake: no dream, no toll, no health back; a nap by day heals nothing (◇, a reading of
   "sleep gives the points back").  The hero's bed is at the dock until Thornfield's barn is built.
-  Not yet: the urn's own walk in the deal's check; the dream's pictures (an image or two, as the
-  witch's dream will have).
+  The dream itself (owner, 2026-11-10: the image of the ghost with what he is saying, in the
+  dark): on waking from a haunted night the screen is dark, the ghost large in the middle and one
+  of his haunting barks under him, in turn by the day, for six seconds or until a key
+  (`game::draw_dream`).  The deal plays Sibil's house once more with the urn in the hands
+  (HOUSES.md § The deal).
 - **The urn asks for a carried thing that answers to a place** (@ST-Urn).  The urn is given by a
   talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`) and held in the hands
   like any item (owner, 2026-11-10), so the rules' `hands_busy` already makes its puzzle: no push,

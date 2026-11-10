@@ -30,13 +30,14 @@ yet.  The lines themselves are the owner's to write.
 
 **The founder's ghost, drafted** (2026-11-10, `tools/orbury_gen.py`'s `GHOST_TALK`; drafts for the
 owner to rewrite, @ST-Urn): THIS GRAVE GIVES ME NO REST. / WHO ARE YOU? / I DUG THE FIRST SHAFT.
-THE LAKE TOOK ME. / MY LOVE, SIBIL, LIVED IN THE TOWN. / WHICH HOUSE? TIME TOOK THAT FROM ME. /
+THE LAKE TOOK ME. / MY LOVE SIBIL LIVED IN THE TOWN. / WHICH HOUSE... TIME TOOK THAT FROM ME. /
 TAKE MY URN TO THE CELLARS. IN HERS I WILL KNOW. (gives the urn) — then IN HER CELLAR I WILL KNOW.
-SEEK ON.  Brought the urn back: BACK WITH ME A WHILE. ASK, AND IT IS YOURS AGAIN.  At rest in
+SEEK ON.  Brought the urn back: BACK WITH ME A WHILE. ASK AND IT IS YOURS AGAIN.  At rest in
 Sibil's cellar: SIBIL... THIS WAS HER HOUSE. (takes the urn) / HERE I CAN REST. THANK YOU. / MY GOOD
-PICK, I LEFT IT IN THE MINE. (`pick_told`) — then AT REST, AT LAST.  Barks: NO REST HERE. / SO
-COLD, THIS GROUND.  Haunting the hero by night, the urn left behind: MY URN... YOU LEFT MY URN. /
-BRING IT HOME, OR TO HER.  Where in the mine the pick lies waits for the mine's layout.
+PICK: I LEFT IT IN THE MINE. (`pick_told`) — then AT REST AT LAST.  Barks: NO REST HERE. / SO
+COLD THIS GROUND.  Haunting the hero by night, the urn left behind: MY URN... YOU LEFT MY URN. /
+BRING IT HOME OR TO HER.  Where in the mine the pick lies waits for the mine's layout.  No commas:
+the font (Tiny Ski's) has none, nor a question mark.
 
 ## What the whole village argues over
 

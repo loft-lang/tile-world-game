@@ -1621,19 +1621,19 @@
     { "at": [24, 60], "z": 0, "stack": ["bed"] } ] },
   "adjusted": [ ],
   "talks": [
-    { "at": [57, 50, 0], "name": "ghost", "barks": [ { "ghost": "NO REST HERE.", "when": "!haunting" }, { "ghost": "SO COLD, THIS GROUND.", "when": "!haunting" }, { "ghost": "MY URN... YOU LEFT MY URN.", "when": "haunting" }, { "ghost": "BRING IT HOME, OR TO HER.", "when": "haunting" } ], "gifts": { "urn": "back" }, "facts": { "pick_told": "rested", "ghost_at_rest": "rest" }, "lines": [
+    { "at": [57, 50, 0], "name": "ghost", "barks": [ { "ghost": "NO REST HERE.", "when": "!haunting" }, { "ghost": "SO COLD THIS GROUND.", "when": "!haunting" }, { "ghost": "MY URN... YOU LEFT MY URN.", "when": "haunting" }, { "ghost": "BRING IT HOME OR TO HER.", "when": "haunting" } ], "gifts": { "urn": "back" }, "facts": { "pick_told": "rested", "ghost_at_rest": "rest" }, "lines": [
         "THIS GRAVE GIVES ME NO REST.",
         { "hero": "WHO ARE YOU?" },
         "I DUG THE FIRST SHAFT. THE LAKE TOOK ME.",
-        "MY LOVE, SIBIL, LIVED IN THE TOWN.",
-        "WHICH HOUSE? TIME TOOK THAT FROM ME.",
+        "MY LOVE SIBIL LIVED IN THE TOWN.",
+        "WHICH HOUSE... TIME TOOK THAT FROM ME.",
         { "id": "ask", "ghost": "TAKE MY URN TO THE CELLARS. IN HERS I WILL KNOW.", "then": "seek", "end": true, "give": "urn", "sets": "urn_given" },
         { "id": "seek", "ghost": "IN HER CELLAR I WILL KNOW. SEEK ON.", "end": true },
-        { "id": "back", "ghost": "BACK WITH ME A WHILE. ASK, AND IT IS YOURS AGAIN.", "then": "ask", "end": true, "take": true },
+        { "id": "back", "ghost": "BACK WITH ME A WHILE. ASK AND IT IS YOURS AGAIN.", "then": "ask", "end": true, "take": true },
         { "id": "rest", "ghost": "SIBIL... THIS WAS HER HOUSE.", "take": true },
         "HERE I CAN REST. THANK YOU.",
-        { "ghost": "MY GOOD PICK, I LEFT IT IN THE MINE.", "end": true, "sets": "pick_told" },
-        { "id": "rested", "ghost": "AT REST, AT LAST.", "end": true } ] }
+        { "ghost": "MY GOOD PICK: I LEFT IT IN THE MINE.", "end": true, "sets": "pick_told" },
+        { "id": "rested", "ghost": "AT REST AT LAST.", "end": true } ] }
   ],
   "bars": [ [14, 29, 2, "N"] ],
   "start": [30, 60, 0],

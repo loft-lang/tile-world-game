@@ -953,6 +953,12 @@ fn test_the_haunted_dream() {
   rules::put_hero(g.world, 25, 60, 0);
   game::move(g, -1, 0, false);
   assert(g.note == "A HAUNTED DREAM. SLEPT TILL 07:00", "a haunted dream: {g.note}");
+  // The dream shown on waking: the ghost in the dark, saying one of his haunting barks; gone after
+  // DREAM_MS.
+  assert(g.dreaming && (g.dream_says == "MY URN... YOU LEFT MY URN." || g.dream_says == "BRING IT HOME OR TO HER."),
+         "the dream: {g.dreaming} '{g.dream_says}'");
+  _ = game::update(g, game::DREAM_MS, 0);
+  assert(!g.dreaming, "and over");
   assert(rules::top_health(g.world) == 5 && g.world.health == 5, "healed, to 5: {g.world.health} of {rules::top_health(g.world)}");
   assert(!g.world.haunting && !rules::knows(g.world, "haunting"), "by day the haunting is over");
   // The urn home in his hands; a day and a night slept.
