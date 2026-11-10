@@ -21,6 +21,8 @@ rulings it follows are the owner's:
 - the ways in include climbing from another house, from up the hill, and an underground tunnel
   (owner, 2026-11-10); a bomb blast too, used sparingly: it may blow open an entrance the hero
   needs to go through (owner, 2026-11-10);
+- Sibil's house is not predefined on the map: any ordinary house could in principle be hers
+  (owner, 2026-11-10);
 - the urn is a real carried item, taking the hands: the hero may get in more easily without it,
   and may need another route with it to get it there (owner, 2026-11-10);
 - the town's layout and every house's shell are fixed; what is dealt is the state and the inside
@@ -192,8 +194,8 @@ cellar it opens into.  The town is a mining town, so the people dug.
 **What lies in a tunnel** (◇): a standing beam that holds it up (taken out with a pick, it
 collapses the tunnel beyond: so the beam is wanted, and the way is lost for it), a barricade a
 family put across its end (taken apart, or burnt), loose rocks to push, a rat run, the dark.  The
-trial digging ties the urn's search to the founder himself: a tunnel he dug leads to the house of
-his love.
+trial digging is the founder's own: in a game where Sibil's house is dealt one of the cellars it
+ends in, the tunnel he dug leads to the house of his love.
 
 ## Carrying the urn
 
@@ -229,6 +231,12 @@ The patterns that come of it ◇:
 
 The template's check is run twice for it: the house solved by the hero alone, and the urn brought
 from the street into the cellar (PUZZLES.md § Solvable, the urn a role that takes the hands).
+
+**Sibil's house is dealt** (owner, 2026-11-10: any ordinary house could be hers).  The seed picks
+one of the ordinary houses, and that house is dealt a cellar (never *none*) that the urn can be
+brought into; every other house is dealt as ever, cellar or not.  Nothing on the map marks it, so a
+player who knows the town still has to search it in every game.  The urn check above runs on
+Sibil's house; the others need only the hero's.
 
 ## 5. A house dealt
 
@@ -266,5 +274,4 @@ The templates ask little that is not built:
 - whether the urn can be lost: a blast within 2 breaks what is fragile, a thing in deep water is
   lost.  Never unsolvable asks either an urn that does not break, or one that goes back to the
   ghost to be fetched again;
-- whether Sibil's house is dealt with the rest, or fixed, so the trial digging can lead to it;
 - whether the beams from a boarded door are the hero's to take (PUZZLES.md § Houses, open).

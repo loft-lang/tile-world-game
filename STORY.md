@@ -438,7 +438,9 @@ At rest, he tells the hero where in the mine a mining pick of better quality lie
 2026-11-10; @ST-Mine).  It is not on the main quest line, and this is a puzzle
 game (owner, 2026-11-10): it need not be straightforward at all, and a player giving up after the
 first house is fine.  What carries the search is the houses themselves (PUZZLES.md § Houses).
-The urn is a real carried item, taking the hands (owner, 2026-11-10), and that is an important
+Sibil's house is not predefined on the map (owner, 2026-11-10): any ordinary house could in
+principle be hers, so which one it is is dealt with the houses.  The urn is a real carried item,
+taking the hands (owner, 2026-11-10), and that is an important
 part of these puzzles: the hero may get into a house more easily without it, and may need to take
 another route with it to get it there (HOUSES.md § Carrying the urn).
 
