@@ -367,8 +367,8 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     house) fitted into a fixed shell by a seed, with what the story fixes kept where it is.
     Every ordinary house is dealt from three templates (owner, 2026-11-10; PUZZLES.md § Houses):
     how it was locked, with a way in; how its owners left its inside; its cellar and the way into
-    it.  So every ordinary house has a cellar (STORY.md @ST-Urn), and D1d's closing is the
-    first of the three.
+    it.  No cellar is one of the third's options, the sign of a wrong house, and a cellar can be
+    hidden (STORY.md @ST-Urn); D1d's closing is the first of the three.
   - **D1c. The town's fixed layout** (`levels/orbury.json`): the hill in terraces, the main road
     of slopes, the stair roads, the market, the houses' shells, the dried stream a layer down with
     its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with

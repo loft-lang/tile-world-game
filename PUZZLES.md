@@ -192,8 +192,8 @@ guide for drawing the shells in the town's fixed layout):
 
 | Household | Levels | Rooms | Size | In Orbury |
 |---|---|---|---|---|
-| a poor miner's family | ground floor, a cellar (owner, 2026-11-10) | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
-| a craftsman's house | ground and upper floor, a cellar (owner, 2026-11-10) | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | the craftsmen who served the mine, most gone |
+| a poor miner's family | ground floor, perhaps a cellar, perhaps hidden (owner, 2026-11-10) | one room to live and sleep in, perhaps a lean-to | about 5 × 4 | the miners' cottages, some shut |
+| a craftsman's house | ground and upper floor, perhaps a cellar, perhaps hidden (owner, 2026-11-10) | the workshop or shop on the street, a kitchen behind, sleeping rooms above | about 7 × 6 | the craftsmen who served the mine, most gone |
 | the alchemist's house | ground and upper floor, a vaulted basement | the shop where potions were sold to the miners, the lab (furnace, still, glass, the bench where small crystals are filled), the store of ingredients, living rooms above | about 8 × 7 | Hollis's (@ST-Alchemist): lived in, kept up |
 | a well-off house (money from the ore) | ground and upper floor, basement, roof hatch | a front room, a kitchen, a store, several rooms above, a strong room or a cellar for what is worth keeping | about 8 × 7 | Agnes's, beside the inn (@ST-Innkeeper); the ore's other well-off ◇ |
 | the lord's house: his representative's, and the lord's when he comes | basement, ground floor, upper floor, roof, a walled yard | a hall to receive in, the representative's office (the ore's tallies, the lord's share), a kitchen and the servants' rooms; above, the lord's chamber kept ready and the representative's rooms; below, a strong room; a stable in the yard | about 12 × 10, the yard besides | Lord Edric's (@ST-Court), the finest in the town |
@@ -293,10 +293,12 @@ templates:
 2. **how the owners left its inside**;
 3. **its cellar, including the way to get into it.**
 
-So every ordinary house has a cellar, the poor miner's cottage too, and getting into the cellar is
-a puzzle of its own beside getting into the house.  The closing variants and neglect below are
-the material of the first two; a hatch shut and weighted with stones, or a cellar flooded by the
-brook, the material of the third.
+Not every house has a cellar (owner, 2026-11-10): no cellar is one of the third template's
+options, and it tells the hero this is the wrong house, for Sibil's has one.  A cellar can be
+hidden (owner), so a house that shows none is not yet a house without one.  Getting into a cellar
+is a puzzle of its own beside getting into the house.  The closing variants and neglect below are
+the material of the first two; a hatch shut and weighted with stones, a hatch hidden, or a cellar
+flooded by the brook, the material of the third.
 
 **Where the town's puzzles come from** (owner, 2026-11-08): two things done to a house, one on
 purpose and one by time.
