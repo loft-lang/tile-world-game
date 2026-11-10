@@ -275,23 +275,23 @@ cliffs = [{"at": [20, 8], "size": [20, 14]}]
 # cellar, where he says where his good pick lies.  The lines are drafts, the owner's to rewrite.
 GHOST = ["ghost", 57, 50, 0]
 GHOST_TALK = {"at": [57, 50, 0], "name": "ghost",
-  "barks": [{"ghost": "NO REST HERE.", "when": "!haunting"}, {"ghost": "SO COLD THIS GROUND.", "when": "!haunting"},
-            {"ghost": "MY URN... YOU LEFT MY URN.", "when": "haunting"}, {"ghost": "BRING IT HOME OR TO HER.", "when": "haunting"}],
+  "barks": [{"ghost": "NO REST HERE.", "when": "!haunting"}, {"ghost": "SO COLD, THIS GROUND.", "when": "!haunting"},
+            {"ghost": "MY URN... YOU LEFT MY URN.", "when": "haunting"}, {"ghost": "BRING IT HOME, OR TO HER.", "when": "haunting"}],
   "gifts": {"urn": "back"},
   "facts": {"pick_told": "rested", "ghost_at_rest": "rest"},
   "lines": [
     "THIS GRAVE GIVES ME NO REST.",
     {"hero": "WHO ARE YOU?"},
     {"ghost": "I DUG THE FIRST SHAFT. THE LAKE TOOK ME."},
-    {"ghost": "MY LOVE SIBIL LIVED IN THE TOWN."},
-    {"ghost": "WHICH HOUSE... TIME TOOK THAT FROM ME."},
+    {"ghost": "MY LOVE, SIBIL, LIVED IN THE TOWN."},
+    {"ghost": "WHICH HOUSE? TIME TOOK THAT FROM ME."},
     {"id": "ask", "ghost": "TAKE MY URN TO THE CELLARS. IN HERS I WILL KNOW.", "give": "urn", "sets": "urn_given", "then": "seek", "end": True},
     {"id": "seek", "ghost": "IN HER CELLAR I WILL KNOW. SEEK ON.", "end": True},
-    {"id": "back", "ghost": "BACK WITH ME A WHILE. ASK AND IT IS YOURS AGAIN.", "take": True, "then": "ask", "end": True},
+    {"id": "back", "ghost": "BACK WITH ME A WHILE. ASK, AND IT IS YOURS AGAIN.", "take": True, "then": "ask", "end": True},
     {"id": "rest", "ghost": "SIBIL... THIS WAS HER HOUSE.", "take": True},
     {"ghost": "HERE I CAN REST. THANK YOU."},
-    {"ghost": "MY GOOD PICK: I LEFT IT IN THE MINE.", "sets": "pick_told", "end": True},
-    {"id": "rested", "ghost": "AT REST AT LAST.", "end": True}]}
+    {"ghost": "MY GOOD PICK, I LEFT IT IN THE MINE.", "sets": "pick_told", "end": True},
+    {"id": "rested", "ghost": "AT REST, AT LAST.", "end": True}]}
 # Where the hero sleeps until Thornfield's barn is built (@ST-Farm, @ST-Hero): a bed at the dock,
 # where he arrives.
 items.append({"at": [24, 60], "z": 0, "stack": ["bed"]})

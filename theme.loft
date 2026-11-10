@@ -88,9 +88,12 @@ struct EnemyLook {
   tile: integer
 }
 
+// A character of the font: its tile, on the font's sheet (`sheet` -1) or on another — a character
+// the font's sheet lacks, drawn on the game's own (the comma, the question mark; ART.md row 12).
 struct Glyph {
   const ch: text,
-  tile: integer
+  tile: integer,
+  sheet: integer = -1
 }
 
 pub struct Theme {
@@ -196,7 +199,13 @@ pub fn load(raw: text, dir: text, k: const rules::Kinds) -> Theme? {
   th.letters = num(f, "letters", -1);
   cs = f.field("chars");
   for c in cs.keys() {
-    th.chars += [Glyph { ch: c, tile: (cs.field(c).as_number() as integer) ?? -1 }];
+    cv = cs.field(c);
+    if cv.kind() == "JString" {
+      sp = sprite(th, cv.as_text());
+      th.chars += [Glyph { ch: c, tile: if sp >= 0 { sp % 4096 ?? -1 } else { -1 }, sheet: if sp >= 0 { sp / 4096 ?? -1 } else { -1 } }];
+    } else {
+      th.chars += [Glyph { ch: c, tile: (cv.as_number() as integer) ?? -1 }];
+    }
   }
   t = v.field("terrain");
   for name in t.keys() {
@@ -518,17 +527,20 @@ pub fn put_held_fine(surface: integer, th: const Theme, thing: integer, hand_x: 
 /// The theme's font for the widgets: its digits and letters, and the characters it names.
 pub fn ui_font(th: const Theme) -> ui::Font {
   glyphs: vector<integer> = [];
+  sheets: vector<integer> = [];
   for n in 0..128 {
     t = -1;
+    sh = -1;
     if n >= 48 && n <= 57 && th.digits >= 0 { t = th.digits + n - 48; }
     else if n >= 65 && n <= 90 && th.letters >= 0 { t = th.letters + n - 65; }
     else if n > 32 && n != 92 && n != 34 {
       c = th.chars["{n as character}"];
-      if c { t = c.tile; }
+      if c { t = c.tile; sh = c.sheet; }
     }
     glyphs += [t];
+    sheets += [sh];
   }
-  ui::Font { sheet: th.font, size: th.tile_size, glyphs: glyphs }
+  ui::Font { sheet: th.font, size: th.tile_size, glyphs: glyphs, sheets: sheets }
 }
 
 /// Write `s` in the theme's font at half its size, its top-left at (x, y): half a tile a
@@ -542,11 +554,12 @@ pub fn write_small(surface: integer, th: const Theme, s: text, x: float, y: floa
     if n >= 48 && n <= 57 && th.digits >= 0 { t = th.digits + n - 48; }
     else if n >= 65 && n <= 90 && th.letters >= 0 { t = th.letters + n - 65; }
     else if n >= 97 && n <= 122 && th.letters >= 0 { t = th.letters + n - 97; }
-    else {
+    sh = th.font;
+    if t < 0 {
       g = th.chars["{c}"];
-      if g { t = g.tile; }
+      if g { t = g.tile; if g.sheet >= 0 { sh = g.sheet; } }
     }
-    if t >= 0 { tiles::sprite(surface, th.font, t, cx, y, scale_x: 0.5, scale_y: 0.5, shade: shade); }
+    if t >= 0 { tiles::sprite(surface, sh, t, cx, y, scale_x: 0.5, scale_y: 0.5, shade: shade); }
     cx += step;
   }
 }
@@ -561,11 +574,12 @@ pub fn write(surface: integer, th: const Theme, s: text, x: integer, y: integer)
     if n >= 48 && n <= 57 && th.digits >= 0 { t = th.digits + n - 48; }
     else if n >= 65 && n <= 90 && th.letters >= 0 { t = th.letters + n - 65; }
     else if n >= 97 && n <= 122 && th.letters >= 0 { t = th.letters + n - 97; }
-    else {
+    sh = th.font;
+    if t < 0 {
       g = th.chars["{c}"];
-      if g { t = g.tile; }
+      if g { t = g.tile; if g.sheet >= 0 { sh = g.sheet; } }
     }
-    if t >= 0 { tiles::draw(surface, th.font, t, cx, y); }
+    if t >= 0 { tiles::draw(surface, sh, t, cx, y); }
     cx += th.tile_size;
   }
 }

@@ -20,7 +20,9 @@ use tiles;
 pub struct Font {
   pub sheet: integer,
   pub size: integer,
-  pub glyphs: vector<integer>
+  pub glyphs: vector<integer>,
+  /// Per character, the sheet its glyph is on when not `sheet` (-1: `sheet`'s).
+  pub sheets: vector<integer> = []
 }
 
 /// The colours (RGB565) widgets are drawn in.
@@ -126,8 +128,9 @@ pub fn write(ui: const Ui, x: float, y: float, t: text) {
     n = c as integer;
     g = if n >= 0 && n < 128 { f.glyphs[n] ?? -1 } else { -1 };
     if g < 0 && n >= 97 && n <= 122 { g = f.glyphs[n - 32] ?? -1; }
+    on = if n >= 0 && n < 128 { f.sheets[n] ?? -1 } else { -1 };
     if g >= 0 {
-      tiles::sprite(ui.surface, f.sheet, g, cx, y, scale_x: s, scale_y: s);
+      tiles::sprite(ui.surface, if on >= 0 { on } else { f.sheet }, g, cx, y, scale_x: s, scale_y: s);
     } else if n == 95 {
       tiles::fill(ui.surface, cx + ui.glyph * 0.125, y + ui.glyph * 0.75, ui.glyph * 0.75, ui.glyph * 0.125, ui.style.edge);
     }

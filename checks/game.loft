@@ -51,7 +51,8 @@ fn main() {
   test_a_door_made_in_the_editor();
   test_a_block_and_a_parry_are_seen();
   test_the_haunted_dream();
-  println("checks/game.loft: 35 passed");
+  test_the_font_has_a_comma_and_a_question_mark();
+  println("checks/game.loft: 36 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -955,7 +956,7 @@ fn test_the_haunted_dream() {
   assert(g.note == "A HAUNTED DREAM. SLEPT TILL 07:00", "a haunted dream: {g.note}");
   // The dream shown on waking: the ghost in the dark, saying one of his haunting barks; gone after
   // DREAM_MS.
-  assert(g.dreaming && (g.dream_says == "MY URN... YOU LEFT MY URN." || g.dream_says == "BRING IT HOME OR TO HER."),
+  assert(g.dreaming && (g.dream_says == "MY URN... YOU LEFT MY URN." || g.dream_says == "BRING IT HOME, OR TO HER."),
          "the dream: {g.dreaming} '{g.dream_says}'");
   _ = game::update(g, game::DREAM_MS, 0);
   assert(!g.dreaming, "and over");
@@ -974,4 +975,18 @@ fn test_the_haunted_dream() {
   game::move(g, -1, 0, false);
   assert(g.note == "SLEPT TILL 07:00" && rules::top_health(g.world) == 6 && g.world.health == 6,
          "a plain night: {g.note}, {g.world.health} of {rules::top_health(g.world)}");
+}
+
+// The characters Tiny Ski's font lacks, drawn on the game's own sheet (ART.md row 12): the font
+// finds "?" and "," there, on another sheet than its letters'.
+fn test_the_font_has_a_comma_and_a_question_mark() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  f = theme::ui_font(g.look);
+  for n in [63, 44] {
+    assert((f.glyphs[n] ?? -1) >= 0 && (f.sheets[n] ?? -1) >= 0 && (f.sheets[n] ?? -1) != f.sheet,
+           "character {n}: tile {f.glyphs[n] ?? -1} on sheet {f.sheets[n] ?? -1}");
+  }
+  assert((f.sheets[65] ?? -1) < 0, "the letters stay on the font's sheet");
 }
