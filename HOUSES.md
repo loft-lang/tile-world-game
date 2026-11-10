@@ -226,8 +226,14 @@ The patterns that come of it ◇:
   that a rock blocks behind the hero again.  So the urn goes in by another way, over the roofs or
   down the hole, the one that is longer but asks nothing.
 - **The urn goes down first** ◇ verify: set down beside a roof's hole or a rotted stair, it falls
-  to the floor below, and the hero follows by the way that needs both hands (or none).  Whether a
-  thing put down over a void falls, and whether the urn survives it, is the rules' to say.
+  to the floor below, and the hero follows by the way that needs both hands (or none).  It
+  survives the fall (it cannot break, owner); whether a thing put down over a void falls is the
+  rules' to say.
+
+**Left behind** (owner, 2026-11-10): the urn cannot break, and it can be left in a house, but then
+the ghost haunts the hero every night, until the urn is back in the graveyard or in the correct
+spot.  So setting it down to do the hands' work is free by day, and a house left unfinished at
+dusk has a price: the search can be paused, by taking the urn back to the graveyard.
 
 The template's check is run twice for it: the house solved by the hero alone, and the urn brought
 from the street into the cellar (PUZZLES.md § Solvable, the urn a role that takes the hands).
@@ -278,6 +284,8 @@ The templates ask little that is not built:
 
 ## Open, for the owner
 
-- whether the urn can be lost: a blast within 2 breaks what is fragile, a thing in deep water is
-  lost.  Never unsolvable asks either an urn that does not break, or one that goes back to the
-  ghost to be fetched again;
+- the urn cannot break (owner, 2026-11-10), but a thing in deep water is lost by today's rules:
+  is the urn the one thing deep water gives back (it floats, as a beam does), or does it go back
+  to the graveyard, so the haunting is never forever;
+- what the haunting does to the hero's night: only there, or in his way (seen by the villagers
+  he sneaks past, waking the house he is in);

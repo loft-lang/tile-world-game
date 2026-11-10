@@ -442,7 +442,9 @@ Sibil's house is not predefined on the map (owner, 2026-11-10): any ordinary hou
 principle be hers, so which one it is is dealt with the houses.  The urn is a real carried item,
 taking the hands (owner, 2026-11-10), and that is an important
 part of these puzzles: the hero may get into a house more easily without it, and may need to take
-another route with it to get it there (HOUSES.md § Carrying the urn).
+another route with it to get it there (HOUSES.md § Carrying the urn).  The urn cannot break
+(owner, 2026-11-10).  It can be left in a house, but then the ghost haunts the hero every night,
+for as long as the urn is neither in the graveyard nor in the correct spot.
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
@@ -625,7 +627,11 @@ the cost of a choice is known when it is made; none proposes story content.
 - **The urn asks for a carried thing that answers to a place** (@ST-Urn).  The urn is given by a
   talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`) and held in the hands
   like any item (owner, 2026-11-10), so the rules' `hands_busy` already makes its puzzle: no push,
-  pull or lift, no torch, axe or pick while it is held.  "Knowing it is the place" is new: a cell set (a house's cellar) and a sign
+  pull or lift, no torch, axe or pick while it is held.  The haunting is the ghost's night
+  (`out_by: night`, `passes_walls`) bound to the hero instead of the graveyard while a fact
+  holds — the urn neither in the graveyard nor in Sibil's cellar — the way a talk's `follows`
+  binds a person; what the haunting does to the hero's night is still open.  "Knowing it is the
+  place" is new: a cell set (a house's cellar) and a sign
   shown when the urn enters it — the right one, or not this one.  Cellars are the other cost:
   a cellar is a template's option, and no cellar marks a wrong house; a cellar can be hidden
   (owner, 2026-11-10; PUZZLES.md § Houses: three templates).  Orbury today has four basements (`tools/orbury_gen.py`: the lord's house, the inn, the
