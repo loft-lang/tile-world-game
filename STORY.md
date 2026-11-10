@@ -435,7 +435,9 @@ him to bring his remains to Sibil's house.  To know it for sure, the hero has to
 the cellars of the houses: there he will know whether that is the place where the ghost finds
 his rest.  The ghost is the founder's (owner, 2026-11-10): the urn holds the founder's remains.
 At rest, he tells the hero where in the mine a mining pick of better quality lies (owner,
-2026-11-10; @ST-Mine).
+2026-11-10; @ST-Mine).  It is not on the main quest line, and this is a puzzle
+game (owner, 2026-11-10): it need not be straightforward at all, and a player giving up after the
+first house is fine.  What carries the search is the houses themselves (PUZZLES.md § Houses).
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;

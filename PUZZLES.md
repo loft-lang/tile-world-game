@@ -296,7 +296,17 @@ templates:
 Not every house has a cellar (owner, 2026-11-10): no cellar is one of the third template's
 options, and it tells the hero this is the wrong house, for Sibil's has one.  A cellar can be
 hidden (owner), so a house that shows none is not yet a house without one.  Getting into a cellar
-is a puzzle of its own beside getting into the house.  The closing variants and neglect below are
+is a puzzle of its own beside getting into the house.
+
+**Each house an opportunity** (owner, 2026-11-10): the urn's search is a side quest in a puzzle
+game, so it need not be straightforward, and a player may give up after the first house.  The
+templates have to make the houses interesting enough that a player wants to go on to the others,
+each one a chance to find out how to get inside and whether it has a basement.  A house may hold
+useful objects that are not critical: not in every house every game, and never super easy to
+find, just a reason to keep puzzling into them.  They are dealt, unlike the progression items,
+which keep their place (§ Chests and progression items have their place).
+
+The closing variants and neglect below are
 the material of the first two; a hatch shut and weighted with stones, a hatch hidden, or a cellar
 flooded by the brook, the material of the third.
 
