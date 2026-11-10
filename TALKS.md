@@ -26,7 +26,7 @@ yet.  The lines themselves are the owner's to write.
 | Master Odran, the wizard (@ST-Wizard) | the magical materials deep in the mine | his own goals, hidden from his lord | grumbling; the witch he disapproves of |
 | Rennick, the hunter (@ST-Hunter) | that the mine has stopped | *(a grudge)* | the village that cast him out |
 | Urgha (@ST-Cyclopes) | broken words of the hero's language | *(open)* | what can be said in a few words |
-| The founder's ghost, at night (@ST-Founder) | the first shaft, the lake that drowned him; that Sibil, his love, lived in the town, but no longer which house (@ST-Urn) | a resting place: his urn brought to Sibil's house (@ST-Urn) | the mine's beginning; the graveyard that gives him no rest; Sibil |
+| The founder's ghost, at night (@ST-Founder) | the first shaft, the lake that drowned him; that Sibil, his love, lived in the town, but no longer which house; where in the mine a better pick lies (@ST-Urn) | a resting place: his urn brought to Sibil's house (@ST-Urn) | the mine's beginning; the graveyard that gives him no rest; Sibil |
 
 ## What the whole village argues over
 

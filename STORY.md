@@ -433,7 +433,9 @@ There is a house in the town where he would like to be instead: the house of his
 lived there.  With time he has forgotten which house it was.  He shows the hero his urn and asks
 him to bring his remains to Sibil's house.  To know it for sure, the hero has to take the urn into
 the cellars of the houses: there he will know whether that is the place where the ghost finds
-his rest.
+his rest.  The ghost is the founder's (owner, 2026-11-10): the urn holds the founder's remains.
+At rest, he tells the hero where in the mine a mining pick of better quality lies (owner,
+2026-11-10; @ST-Mine).
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
@@ -620,6 +622,10 @@ the cost of a choice is known when it is made; none proposes story content.
   shown when the urn enters it — the right one, or not this one.  Cellars are the other cost: in
   Orbury today only four houses have a basement (`tools/orbury_gen.py`: the lord's house, the
   inn, the well-off house by the market, Hollis's); the cottages and the miners' rows have none.
+  The reward is a told place, as Wick's bombs are (a hint, @ST-Hints): a line that names it, the
+  better pick lying there from the start.  "Better" needs a meaning in the rules, which today know
+  one pick (`holds_pick`, BUILD.md B2): faster blows, more damage as a weapon, or work the plain
+  pick cannot do.
 - **Hints for a stuck player** need to know the player is stuck (time spent in a place, tries,
   returns) and lines that depend on it: facts and conditions again, the same mechanism as gossip.
 - **Relations that last** (the hunter befriended, a family returning, the village's mood) are facts
