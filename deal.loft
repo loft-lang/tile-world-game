@@ -405,6 +405,15 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
       for p in laid { stamp::apply(trial, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
       if !passes(trial, s, town_here, way, way_p, cellar, cellar_p) { continue; }
       for p in laid { stamp::apply(l, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+      // Sibil's cellar is where the urn's ghost finds his rest: its floor, a layer down.
+      if is_sibil {
+        l.rest = [];
+        for c in stamp::cells(cellar, cellar_p.x, cellar_p.y, cellar_p.z, cellar_p.turn, cellar_p.flip) {
+          if c.2 == s.z - 1 && in_footprint(s, c.0, c.1) && tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) {
+            l.rest += [c];
+          }
+        }
+      }
       dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
       break;
     }

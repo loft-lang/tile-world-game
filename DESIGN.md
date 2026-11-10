@@ -71,7 +71,9 @@ This is what the game built on tile_world should be.
   day-night cycle clear them, and lingering ailments with them (owner, planned).  **Sleep heals**
   (owner, 2026-11-10): a wounded hero gets his points back by sleeping, and the player can ignore
   it; a haunted dream (STORY.md @ST-Urn) wakes him with a maximum 1 lower for the next day, and a
-  night awake has no dream, so no penalty, but also no health back.  **Built**
+  night awake has no dream, so no penalty, but also no health back.  Built (2026-11-10,
+  `game::sleep`): a night slept heals to the day's top health (`rules::top_health`); a nap by day
+  heals nothing (proposed).  **Built**
   (`tests/potions.loft`): the red health potion (Kenney's 115) restores 3 up to the start's 6; the
   blue spirit potion (116) gives 2 temporary health — every hurt (a bite, a blast, a fall, a cart)
   takes it first (`rules::harm`), and it never fades.  The status line shows `6+2`.

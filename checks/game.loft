@@ -50,7 +50,8 @@ fn main() {
   test_the_epilogue_follows_the_facts();
   test_a_door_made_in_the_editor();
   test_a_block_and_a_parry_are_seen();
-  println("checks/game.loft: 34 passed");
+  test_the_haunted_dream();
+  println("checks/game.loft: 35 passed");
 }
 
 // A fresh game on the first climb with a well under the start, the hero having drunk from it.
@@ -930,4 +931,41 @@ fn test_a_slanted_wall_is_drawn_cut() {
   assert(cp[13 * 16 + 13] == back && wp[13 * 16 + 13] != back, "the south-east corner is open");
   line = cp[0 * 16 + 15];
   for i in 0..16 { assert(cp[i * 16 + 15 - i] == line && line != back, "the cut along the diagonal, at ({15 - i}, {i})"); }
+}
+
+// The haunted dream (STORY.md @ST-Urn): in Orbury, with the founder's urn given and left behind, a
+// nap by day heals nothing; by night the ghost haunts, and a night slept is a haunted dream — the
+// hero healed, but to a top health of 5 for the day.  The urn back in his hands, the next night is
+// a plain one: the top health 6 again, the hero healed to it.
+fn test_the_haunted_dream() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game loads"); return; }
+  g = m;
+  g.seed = 7;
+  assert(game::start_world(g, "orbury"), "Orbury opens");
+  rules::learn(g.world, "urn_given");
+  g.world.hero_item = rules::th(g.world, "urn");
+  g.world.health = 3;
+  rules::put_hero(g.world, 25, 60, 0);
+  game::move(g, -1, 0, false);
+  assert(g.note == "SLEPT TILL 20:00" && g.world.health == 3, "a nap by day heals nothing: {g.note}, health {g.world.health}");
+  assert(g.world.haunting && rules::knows(g.world, "haunting"), "by night, the urn left behind: haunted");
+  rules::put_hero(g.world, 25, 60, 0);
+  game::move(g, -1, 0, false);
+  assert(g.note == "A HAUNTED DREAM. SLEPT TILL 07:00", "a haunted dream: {g.note}");
+  assert(rules::top_health(g.world) == 5 && g.world.health == 5, "healed, to 5: {g.world.health} of {rules::top_health(g.world)}");
+  assert(!g.world.haunting && !rules::knows(g.world, "haunting"), "by day the haunting is over");
+  // The urn home in his hands; a day and a night slept.
+  g.world.hero_item = 0;
+  for i in 0..len(g.world.enemies) {
+    if (g.world.enemies[i]!.kind) == "ghost" { g.world.enemies[i].item = rules::th(g.world, "urn"); }
+  }
+  g.world.health = 2;
+  rules::put_hero(g.world, 25, 60, 0);
+  game::move(g, -1, 0, false);
+  assert(!g.world.haunting, "with the urn home, no haunting");
+  rules::put_hero(g.world, 25, 60, 0);
+  game::move(g, -1, 0, false);
+  assert(g.note == "SLEPT TILL 07:00" && rules::top_health(g.world) == 6 && g.world.health == 6,
+         "a plain night: {g.note}, {g.world.health} of {rules::top_health(g.world)}");
 }

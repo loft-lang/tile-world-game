@@ -322,6 +322,11 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     }];
   }
   // The doors held shut by a beam (DESIGN.md § Bombs): each cell, and the side its beam is on.
+  rv = v.field("rest");
+  for i in 0..rv.len() {
+    c = rv.item(i);
+    l.rest += [(num(c.item(0), 0), num(c.item(1), 0), num(c.item(2), 0))];
+  }
   bv = v.field("bars");
   for i in 0..bv.len() {
     b = bv.item(i);
@@ -782,6 +787,11 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     pk = "";
     for pn in tb.prey_kinds { pk += if pk == "" { quoted(pn) } else { ", {quoted(pn)}" }; }
     out += "\n  \"tribe\": {{ \"kind\": {quoted(tb.kind)}, \"prey\": {tb.prey}, \"eat_ms\": {tb.eat_ms}, \"prey_kinds\": [{pk}], \"raid\": [{tb.raid_x}, {tb.raid_y}, {tb.raid_z}] }},";
+  }
+  if len(lf.level.rest) > 0 {
+    rs = "";
+    for c in lf.level.rest { rs += if rs == "" { "[{c.0}, {c.1}, {c.2}]" } else { ", [{c.0}, {c.1}, {c.2}]" }; }
+    out += "\n  \"rest\": [{rs}],";
   }
   if len(lf.level.bars) > 0 {
     out += "\n  \"bars\": [";

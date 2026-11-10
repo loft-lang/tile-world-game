@@ -35,7 +35,7 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 7 | crafting | 84, 85: the lit forge |
 | 8 | the hero | 96: its back |
 | 9–10 | water | 108–120: deep water's shore |
-| 11– | later additions (monsters, …) | |
+| 11– | later additions (monsters, …) | 132: the founder's urn |
 
 ### The tiles
 
@@ -61,6 +61,7 @@ as more monsters; the horse is its first addition beyond light.  The rules its t
 | 63, 64, 65 | blast: flash, fireball, smoke | the three frames of a blast, spread over its 300 ms flash on the cell it went off in; the flash also lights the room (a light that fades three shades) |
 | 66 | bow | drawn shooting up, as everything carried is drawn pointing up: lying across, its curve up, the string below, the grip in the middle (held by its grip, 7, 6) |
 | 108–120 | deep water's shore | Tiny Battle's shore (battle 18–20, 36–38, 54–56, 90–93) in `theme.json`'s PIECES order (nw n ne w c e sw s se, the inner corners nw ne sw se), the water a step darker from the palette's own blues (75e3ff → 44c6e4, 9febff → 75e3ff, 46c4e4 → 0099db), the grass and the foam as they are (owner, 2026-11-08: deep water a slightly darker blue; the shallows keep Tiny Battle's own) |
+| 132 | the founder's urn | a lidded urn of grey pewter, closed over his ashes (STORY.md @ST-Urn); also the urn afloat on deep water |
 | 96 | the hero's back | Kenney's knight (dungeon:97) seen from behind (owner, 2026-11-07): the visor and face painted over as the back of the helmet, a ridge down its middle, the neck guard in shadow; drawn when the hero faces north |
 | 67 | arrow | flying up: an iron head, a wooden shaft, red and white fletching; turned the way it flies |
 | 72 | loaded cart | Kenney's cart (town:57) with the rock (farm:89) heaped in it, reduced: a cart full of rubble |

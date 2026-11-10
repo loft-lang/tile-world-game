@@ -18,6 +18,7 @@ use ui;
 use intent;
 use stamp;
 use deal;
+use urn;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
 /// editor gives a row of the level to its palette.
@@ -263,7 +264,10 @@ pub struct Game {
   /// (TW_SEED, else the clock), the templates (levels/templates/, read once), and the last deal.
   pub seed: integer = 0,
   templates: vector<levels::LevelFile> = [],
-  pub dealt: deal::Deal = deal::no_deal()
+  pub dealt: deal::Deal = deal::no_deal(),
+  /// The haunted dream's toll (STORY.md @ST-Urn): until this time of the game's clock the day's top
+  /// health is 1 lower; 0, none.
+  pub haunted_until: integer = 0
 }
 
 /// How long a spark shows, small (a block) and big (a parry), and its size against a tile
@@ -716,7 +720,7 @@ pub fn save_files(g: Game) -> vector<(text, text)> {
     moved += if moved == "" { one } else { ", {one}" };
   }
   w = g.world;
-  out += [("save.json", "{{\n  \"clock\": {g.clock},\n  \"place\": {levels::quoted(g.place)},\n  \"hero\": [{w.hero_x}, {w.hero_y}, {w.hero_z}],\n  \"carried\": {c:j},\n  \"solved\": [{solved}],\n  \"moved\": [{moved}],\n  \"places\": [{names}]\n}}\n")];
+  out += [("save.json", "{{\n  \"clock\": {g.clock},\n  \"haunted_until\": {g.haunted_until},\n  \"place\": {levels::quoted(g.place)},\n  \"hero\": [{w.hero_x}, {w.hero_y}, {w.hero_z}],\n  \"carried\": {c:j},\n  \"solved\": [{solved}],\n  \"moved\": [{moved}],\n  \"places\": [{names}]\n}}\n")];
   out
 }
 
@@ -770,6 +774,7 @@ pub fn load_files(g: Game, files: const vector<(text, text)>) -> boolean {
   j = visited(g, place);
   g.world = if j >= 0 { g.places[j]!.level } else { g.file.level };
   g.clock = levels::num(v.field("clock"), 0);
+  g.haunted_until = levels::num(v.field("haunted_until"), 0);
   hero = v.field("hero");
   rules::put_hero(g.world, levels::num(hero.item(0), 0), levels::num(hero.item(1), 0), levels::num(hero.item(2), 0));
   c = rules::Carried.parse(v.field("carried"));
@@ -1275,6 +1280,7 @@ fn clock_text(g: const Game) -> text {
 fn keep_time(g: Game) {
   move_people(g, false);
   g.world.night = is_night(g);
+  haunt(g);
   day = g.clock / DAY_MS ?? 0;
   if day > g.world.day {
     rules::refill(g.world, day - g.world.day);
@@ -1283,16 +1289,46 @@ fn keep_time(g: Game) {
 }
 
 /// The hero sleeps (C1): the clock moves on to the next change of light — by day to 20:00, by night
-/// to 07:00 — and the world runs on through it.
+/// to 07:00 — and the world runs on through it.  A night slept heals a wounded hero (owner,
+/// 2026-11-10: sleep gives the points back; a nap by day does not); with the founder's urn left
+/// behind it is a haunted dream (STORY.md @ST-Urn), and he wakes with a top health 1 lower for the
+/// day.  A night awake has no dream: no toll, and no health back.
 pub fn sleep(g: Game) {
+  night = is_night(g);
+  haunted = night && urn_left(g);
   m = minute_of_day(g);
-  to = if is_night(g) { 7 * 60 } else { 20 * 60 };
+  to = if night { 7 * 60 } else { 20 * 60 };
   gap = if to > m { to - m } else { to + 1440 - m };
   ms = gap * DAY_MS / 1440 ?? 0;
   rules::tick(g.world, ms);
   g.clock += ms;
+  if night { g.haunted_until = if haunted { g.clock + DAY_MS } else { 0 }; }
   keep_time(g);
-  g.note = "SLEPT TILL {clock_text(g)}";
+  if night && rules::alive(g.world) { g.world.health = rules::top_health(g.world); }
+  g.note = if haunted { "A HAUNTED DREAM. SLEPT TILL {clock_text(g)}" } else { "SLEPT TILL {clock_text(g)}" };
+  if haunted { g.log += ["clock {g.world.now}  a haunted dream: top health {rules::top_health(g.world)} for the day"]; }
+}
+
+// Is the founder's urn left behind (urn.loft): judged where the ghost lives — this place, or the
+// place he was left in.  No ghost anywhere the hero has been: not yet.
+fn urn_left(g: const Game) -> boolean {
+  for e in g.world.enemies { if e.kind == "ghost" { return urn::left_behind(g.world, g.world); } }
+  for v in g.places {
+    for e in v.level.enemies { if e.kind == "ghost" { return urn::left_behind(g.world, v.level); } }
+  }
+  false
+}
+
+// The haunting as the world reads it (STORY.md @ST-Urn): by night with the urn left behind, the
+// ghost keeps beside the hero (rules: `haunts`) and his barks say so (the fact `haunting`); and the
+// haunted dream's toll on the day's top health, until it is over.
+fn haunt(g: Game) {
+  on = g.world.night && urn_left(g);
+  g.world.haunting = on;
+  if on { rules::learn(g.world, urn::HAUNTING); } else { rules::forget(g.world, urn::HAUNTING); }
+  g.world.top_less = if g.clock < g.haunted_until { 1 } else { 0 };
+  top = rules::top_health(g.world);
+  if g.world.health > top { g.world.health = top; }
 }
 
 // The sound a move makes, from what stood where the hero went before it moved.
@@ -1399,6 +1435,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
   }
   // With no health left, the hero is back at the last well — when it drank from one.
   if !rules::alive(g.world) && g.has_save { return_to_save(g); }
+  _ = rest_urn(g);
   _ = step_talks(g);
   // A step onto a door takes the hero through it, to the place it leads to.
   moved = g.world.hero_x != ox || g.world.hero_y != oy || g.world.hero_z != oz;
@@ -1851,6 +1888,7 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   rules::tick(g.world, ms);
   g.clock += ms;
   keep_time(g);
+  if rest_urn(g) { changed = true; }
   if step_talks(g) { changed = true; }
   // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
   // is a swish.  While any enemy winds up, the picture moves.
@@ -2131,6 +2169,26 @@ fn talk_to(g: Game, id: integer) {
       if o >= 0 { talk::bump(t, g.world, o, e); }
     }
   }
+}
+
+// The urn brought into Sibil's cellar (STORY.md @ST-Urn, urn.loft): the ghost comes to it and is at
+// rest there, and his talk comes with him — kept as a talk moved, so a saved game keeps it.
+// Answers whether it happened.
+fn rest_urn(g: Game) -> boolean {
+  if !urn::brought(g.world) { return false; }
+  m = urn::lay_to_rest(g.world);
+  was = m.0;
+  now = m.1;
+  if was.0 < 0 || (was.0 == now.0 && was.1 == now.1 && was.2 == now.2) { return true; }
+  kept: vector<talk::Talk> = [];
+  moving: vector<talk::Talk> = [];
+  for t in g.file.talks {
+    if t.x == was.0 && t.y == was.1 && t.z == was.2 { moving += [t]; } else { kept += [t]; }
+  }
+  g.file.talks = kept;
+  for t in moving { bring_talk(g, g.place, t, now.0, now.1, now.2); }
+  g.log += ["clock {g.world.now}  the urn at rest in ({now.0}, {now.1}, {now.2})"];
+  true
 }
 
 // Every talk of the place at its clock and the hero's place: answers whether what is said changed.

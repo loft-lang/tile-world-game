@@ -243,6 +243,9 @@ struct EnemyProps {
   sideways: boolean = false,
   swallows: boolean = false,
   passes_walls: boolean = false,
+  /// It haunts the hero (the founder's ghost, STORY.md @ST-Urn): by night, while the level's
+  /// `haunting` holds, it keeps beside the hero wherever the hero goes in its place.
+  haunts: boolean = false,
   /// What it leaves for food when it is ended (B7: meat from what is hunted; owner: the hero can
   /// forage meat for the villagers).
   meat: text = "",
@@ -339,6 +342,9 @@ struct ThingProps {
   /// `fastens` them.
   floats_to: text = "",
   afloat: boolean = false,
+  /// What a thing afloat is once taken out of the water (the urn, STORY.md @ST-Urn: it floats, and
+  /// is never lost).
+  lands_to: text = "",
   raft_to: text = "",
   raft: boolean = false,
   fastens: boolean = false,
@@ -511,7 +517,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       bombs: num(e, "bombs", 3), pulls: flag(e, "pulls"), shoots: flag(e, "shoots"), talks: flag(e, "talks"),
       windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
       out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
-      sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"),
+      sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"), haunts: flag(e, "haunts"),
       meat: word(e, "meat", ""), templates: word(e, "templates", "")
     }];
   }
@@ -551,7 +557,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       holder: word(e, "holder", ""), crystal: word(e, "crystal", ""), charge: num(e, "charge", 0),
       charged_to: word(e, "charged_to", ""), spent_to: word(e, "spent_to", ""), drains: flag(e, "drains"),
       well: flag(e, "well"), calls_lift: flag(e, "calls_lift"),
-      floats_to: word(e, "floats_to", ""), afloat: flag(e, "afloat"), raft_to: word(e, "raft_to", ""),
+      floats_to: word(e, "floats_to", ""), afloat: flag(e, "afloat"), lands_to: word(e, "lands_to", ""),
+      raft_to: word(e, "raft_to", ""),
       raft: flag(e, "raft"), fastens: flag(e, "fastens"), sleeps: flag(e, "sleeps"),
       workbench: flag(e, "workbench"), heats: flag(e, "heats"), forged_to: word(e, "forged_to", ""),
       essence: flag(e, "essence"), pieces: num(e, "pieces", 0),
@@ -917,6 +924,14 @@ pub struct Level {
   pub falls: vector<Fall> = [],
   /// The doors held shut by a beam, and the side each beam is on.
   pub bars: vector<Bar> = [],
+  /// Where the urn's ghost finds his rest (STORY.md @ST-Urn): the floor cells of Sibil's cellar,
+  /// laid by the deal (HOUSES.md § The deal).
+  pub rest: vector<(integer, integer, integer)> = [],
+  /// The haunting (STORY.md @ST-Urn), as the game sets it: the urn left behind, by night — a
+  /// figure that `haunts` keeps beside the hero.  And how far the day's top health is lower than
+  /// the kinds' `health`: 1 after a haunted dream, for the next day.
+  pub haunting: boolean = false,
+  pub top_less: integer = 0,
   /// The barricades being built (C5) and the groups acting together (C4).
   pub works: vector<Work> = [],
   pub tribes: vector<Tribe> = [],
@@ -2222,6 +2237,9 @@ pub fn take(l: Level) -> Step {
   held = l.hero_item;
   held_until = l.hero_until;
   _ = tile_world::take(l.w, x, y, z);
+  // Taken out of the water, a thing afloat is itself again (a floating urn, the urn).
+  tp = l.k.things[t];
+  if tp && tp.lands_to != "" { t = thing_id(l.k, tp.lands_to); }
   l.hero_item = t;
   took(l, t, x, y, z);
   if held != 0 {
@@ -2390,6 +2408,17 @@ fn unsupported_at(l: const Level, x: integer, y: integer, z: integer) -> boolean
 pub fn knows(l: const Level, f: text) -> boolean {
   for k in l.facts { if k == f { return true; } }
   false
+}
+
+/// How far from its home a figure of `kind` roams (kinds.json `roam`).
+pub fn roam_of(l: const Level, kind: text) -> integer {
+  enemy_props(l, kind).roam
+}
+
+/// The hero's top health today: the kinds' `health`, less a haunted dream's toll (`top_less`).
+pub fn top_health(l: const Level) -> integer {
+  t = l.k.health - l.top_less;
+  if t < 1 { 1 } else { t }
 }
 
 /// Fact `f` becomes known (once).
@@ -2686,7 +2715,7 @@ fn heal_due(l: Level) {
     }
     if l.heal_left > 0 {
       l.heal_left -= 1;
-      if l.health < l.k.health { l.health += 1; }
+      if l.health < top_health(l) { l.health += 1; }
     }
     if l.spirit_left > 0 {
       l.spirit_left -= 1;
@@ -6336,6 +6365,17 @@ fn enemy_act(l: Level, i: integer) {
     guard_act(l, i, e, p);
     return;
   }
+  // Haunting (STORY.md @ST-Urn): by night, the urn left behind, it keeps beside the hero — through
+  // walls, as a ghost goes — and says its barks there.
+  if p.haunts && l.haunting && l.night && e.talk_line < 0 && e.z == l.hero_z {
+    if steps_apart(e.x, e.y, l.hero_x, l.hero_y) > 1 {
+      hw = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, l.hero_z, false, no_shades());
+      if hw.2 > 1 { enemy_step(l, i, hw.0, hw.1, p.move_ms); return; }
+    }
+    l.enemies[i].away = false;
+    l.enemies[i].due = e.due + p.move_ms;
+    return;
+  }
   // Talking, it stands where it is until the line is said.
   if e.talk_line >= 0 {
     l.enemies[i].due = (if e.talk_until > e.due { e.talk_until } else { e.due }) + p.move_ms;
@@ -6343,6 +6383,17 @@ fn enemy_act(l: Level, i: integer) {
   }
   if l.held_by == e.id {
     pull_hero(l, i, e, p);
+    return;
+  }
+  // A creature at rest (the founder's ghost, STORY.md @ST-Urn: `ghost_at_rest`) keeps no hours and
+  // stays at its home: there it is, by day and by night, to be spoken to.
+  if knows(l, "{e.kind}_at_rest") {
+    l.enemies[i].away = false;
+    if e.x != e.nest_x || e.y != e.nest_y || e.z != e.nest_z {
+      hr = enemy_way(l, p, e.x, e.y, e.z, e.nest_x, e.nest_y, e.nest_z, false, no_shades());
+      if hr.2 > 0 { enemy_step(l, i, hr.0, hr.1, p.move_ms); return; }
+    }
+    l.enemies[i].due = e.due + p.move_ms;
     return;
   }
   // Out of its time (B8): home it goes, and rests there — one out only by night is away while at

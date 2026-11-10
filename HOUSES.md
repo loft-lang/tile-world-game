@@ -143,8 +143,11 @@ the tunnels, a second way that the deal does not lay yet.
 cellar and every template where it lies, turned and mirrored.  `TW_SEED=7 loft --lib libs
 tools/map.loft orbury OUT.png` pictures that deal whole.
 
-**Still to come**: the urn's own check for Sibil's house (the same walk with the urn in the hands,
-once the urn is a thing); tunnels and the cellars that need them; the finds laid in the cellar
+**Sibil's cellar** is laid as the level's `rest` (its floor cells, saved with the place): the urn
+brought there brings the ghost to rest (STORY.md § 6, `urn.loft`).
+
+**Still to come**: the urn's own check for Sibil's house (the same walk with the urn in the hands:
+the urn is a thing now, and the check does not carry it yet); tunnels and the cellars that need them; the finds laid in the cellar
 rather than on the ground floor; two-floor houses.
 
 ## What the town gives to work with

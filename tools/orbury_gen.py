@@ -270,10 +270,35 @@ for x in range(W):
 # The terraces' fronts slope: the hero walks up and down them anywhere (owner, 2026-11-09).  Cliffs
 # only round the big house on the top terrace: its front row over the market and the hill behind it.
 cliffs = [{"at": [20, 8], "size": [20, 14]}]
+# The founder's ghost in the cemetery, by night (STORY.md @ST-Founder), and his quest (@ST-Urn):
+# the urn given to find Sibil's house by its cellar; brought back, kept a while; at rest in her
+# cellar, where he says where his good pick lies.  The lines are drafts, the owner's to rewrite.
+GHOST = ["ghost", 57, 50, 0]
+GHOST_TALK = {"at": [57, 50, 0], "name": "ghost",
+  "barks": [{"ghost": "NO REST HERE.", "when": "!haunting"}, {"ghost": "SO COLD, THIS GROUND.", "when": "!haunting"},
+            {"ghost": "MY URN... YOU LEFT MY URN.", "when": "haunting"}, {"ghost": "BRING IT HOME, OR TO HER.", "when": "haunting"}],
+  "gifts": {"urn": "back"},
+  "facts": {"pick_told": "rested", "ghost_at_rest": "rest"},
+  "lines": [
+    "THIS GRAVE GIVES ME NO REST.",
+    {"hero": "WHO ARE YOU?"},
+    {"ghost": "I DUG THE FIRST SHAFT. THE LAKE TOOK ME."},
+    {"ghost": "MY LOVE, SIBIL, LIVED IN THE TOWN."},
+    {"ghost": "WHICH HOUSE? TIME TOOK THAT FROM ME."},
+    {"id": "ask", "ghost": "TAKE MY URN TO THE CELLARS. IN HERS I WILL KNOW.", "give": "urn", "sets": "urn_given", "then": "seek", "end": True},
+    {"id": "seek", "ghost": "IN HER CELLAR I WILL KNOW. SEEK ON.", "end": True},
+    {"id": "back", "ghost": "BACK WITH ME A WHILE. ASK, AND IT IS YOURS AGAIN.", "take": True, "then": "ask", "end": True},
+    {"id": "rest", "ghost": "SIBIL... THIS WAS HER HOUSE.", "take": True},
+    {"ghost": "HERE I CAN REST. THANK YOU."},
+    {"ghost": "MY GOOD PICK, I LEFT IT IN THE MINE.", "sets": "pick_told", "end": True},
+    {"id": "rested", "ghost": "AT REST, AT LAST.", "end": True}]}
+# Where the hero sleeps until Thornfield's barn is built (@ST-Farm, @ST-Hero): a bed at the dock,
+# where he arrives.
+items.append({"at": [24, 60], "z": 0, "stack": ["bed"]})
 intent = {"seed": 1, "rooms": rooms, "corridors": [], "edges": edges, "grounds": grounds, "trails": trails, "blobs": blobs,
           "houses": houses, "slopes": slopes, "items": items, "fronts": "slope", "cliffs": cliffs}
 level = {"name": "Orbury", "camera": "follow", "legend": {}, "ground": [], "chunks": [], "things": [],
          "tiles": [], "edges": [], "rises": [], "intent": intent, "adjusted": [],
          "serves": ["@ST-Setting"], "start": [30, 60, 0], "goal": {"type": ""},
-         "bars": [[14, 29, 2, "N"]], "enemies": [["grey_rat", 17, 25, 1]]}
+         "bars": [[14, 29, 2, "N"]], "enemies": [["grey_rat", 17, 25, 1], GHOST], "talks": [GHOST_TALK]}
 json.dump(level, open(sys.argv[1], "w"), indent=1)

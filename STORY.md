@@ -629,6 +629,26 @@ the cost of a choice is known when it is made; none proposes story content.
   every player, so it needs no fact or unlock — only the rule in the blast (DESIGN.md § Bombs) and
   Wick's lines explaining it.  **Where bombs lie**, told, is a hint (@ST-Hints): lines naming the
   places, or marks on the map when there is one.
+- **The urn and the quest are built** (2026-11-10, `urn.loft`, `tests/urn.loft`): the urn is a
+  thing (kinds.json `urn`, the game's own tile 132), held in the hands; dropped in deep water it is
+  `floating_urn`, and Q takes it out again as the urn (`lands_to`).  The ghost stands in Orbury's
+  cemetery by night with the quest's talk (`tools/orbury_gen.py`; the lines are drafts, the owner's
+  to rewrite): his story, the urn given, `then` seek on; the urn brought back is kept a while and
+  given again.  The deal lays Sibil's cellar as the level's `rest`; the urn held or set down there
+  brings the ghost to it, beside the hero, at rest (`ghost_at_rest`: a creature at rest keeps no
+  hours), and his talk starts there (`facts`): the urn taken, `pick_told`.  The talk goes with him
+  as a talk moved, so a saved game keeps it.  At rest he stays in her cellar, by day and by night.
+- **The haunting and the haunted dream are built** (2026-11-10, `urn.loft`, `game.loft`'s `haunt`
+  and `sleep`, `tests/urn.loft`, `checks/game.loft`): once he has given the urn (`urn_given`), it
+  is left behind wherever it is but in his hands, within his roam of his home (his graveyard), or
+  at rest.  By night, left behind, the ghost leaves the graveyard and keeps beside the hero, through
+  walls (kinds.json `haunts`), saying his haunting barks (`when: haunting`).  A night slept heals the
+  wounded hero to his top health; a haunted one (the urn left behind) wakes him with that top 1
+  lower for a day (`top_less`; a potion heals up to it), and the status line says A HAUNTED DREAM.
+  A night awake: no dream, no toll, no health back; a nap by day heals nothing (◇, a reading of
+  "sleep gives the points back").  The hero's bed is at the dock until Thornfield's barn is built.
+  Not yet: the urn's own walk in the deal's check; the dream's pictures (an image or two, as the
+  witch's dream will have).
 - **The urn asks for a carried thing that answers to a place** (@ST-Urn).  The urn is given by a
   talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`) and held in the hands
   like any item (owner, 2026-11-10), so the rules' `hands_busy` already makes its puzzle: no push,

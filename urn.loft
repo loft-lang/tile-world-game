@@ -1,0 +1,89 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The founder's urn (STORY.md @ST-Urn).  The ghost in the graveyard gives it (his talk's `give`);
+// it is a real carried thing, taking the hands; it cannot break, and on deep water it floats, to be
+// taken out again (kinds.json: `floats_to`, `lands_to`).  Taken into the cellars of the houses, it
+// tells the right one: brought into Sibil's — the cells the deal laid as the level's `rest` — held
+// or set down there, the ghost comes to it, beside the hero, and is at rest (`ghost_at_rest`): he
+// keeps no hours any more, and his talk starts at what he has to say there.  In a wrong cellar
+// nothing happens.
+use tile_world;
+use rules;
+
+/// Known once the ghost is at rest; his talk's `facts` starts there with it.
+pub const AT_REST = "ghost_at_rest";
+/// Known once he has given the urn (his talk's `sets`): from then on it can be left behind.
+pub const GIVEN = "urn_given";
+/// Known while the haunting holds (the game keeps it): his barks say so.
+pub const HAUNTING = "haunting";
+
+/// Is the urn left behind (STORY.md @ST-Urn: the ghost haunts the hero every night while it is
+/// neither in the graveyard nor in the correct spot)?  `known` is the level whose facts the hero
+/// carries; `home` the level the ghost lives in — the same one, or the place he was left in.  The
+/// urn is home when he holds it, or when it lies within his roam of his home: his graveyard.
+pub fn left_behind(known: const rules::Level, home: const rules::Level) -> boolean {
+  if !rules::knows(known, GIVEN) || rules::knows(known, AT_REST) { return false; }
+  urn = rules::th(home, "urn");
+  for e in home.enemies {
+    if e.kind != "ghost" { continue; }
+    if e.item == urn { return false; }
+    r = rules::roam_of(home, e.kind);
+    for y in e.nest_y - r..=e.nest_y + r {
+      for x in e.nest_x - r..=e.nest_x + r {
+        for t in tile_world::things(home.w, x, y, e.nest_z) { if t == urn { return false; } }
+      }
+    }
+  }
+  true
+}
+
+/// The cell (x, y, z) a figure or thing is on, as the level's `rest` holds it.
+fn rests(l: const rules::Level, x: integer, y: integer, z: integer) -> boolean {
+  for c in l.rest { if c.0 == x && c.1 == y && c.2 == z { return true; } }
+  false
+}
+
+/// Is the urn brought to its rest now: the ghost not at rest yet, and the urn in Sibil's cellar —
+/// held by the hero there, or set down there.
+pub fn brought(l: const rules::Level) -> boolean {
+  if len(l.rest) == 0 || rules::knows(l, AT_REST) { return false; }
+  urn = rules::th(l, "urn");
+  if l.hero_item == urn && rests(l, l.hero_x, l.hero_y, l.hero_z) { return true; }
+  for c in l.rest {
+    for t in tile_world::things(l.w, c.0, c.1, c.2) { if t == urn { return true; } }
+  }
+  false
+}
+
+/// Lay the ghost to rest: it is known (`AT_REST`), and the ghost of this place comes to the
+/// cellar, on a free cell of it beside the hero (else any free one), and makes it his home.
+/// Answers his home before and after; (-1, -1, -1) twice when the place has no ghost.
+pub fn lay_to_rest(l: rules::Level) -> ((integer, integer, integer), (integer, integer, integer)) {
+  rules::learn(l, AT_REST);
+  none = (-1, -1, -1);
+  gi = -1;
+  for i in 0..len(l.enemies) { if (l.enemies[i]!.kind) == "ghost" { gi = i; } }
+  if gi < 0 { return (none, none); }
+  g = l.enemies[gi]!;
+  was = (g.nest_x, g.nest_y, g.nest_z);
+  spot = none;
+  for c in l.rest {
+    free = tile_world::top(l.w, c.0, c.1, c.2) == 0 && rules::enemy_at(l, c.0, c.1, c.2) < 0
+           && (c.0 != l.hero_x || c.1 != l.hero_y || c.2 != l.hero_z)
+           && rules::terrain_name(l.k, tile_world::terrain(l.w, c.0, c.1, c.2)) != "stairs_up";
+    if !free { continue; }
+    beside = c.2 == l.hero_z && (c.0 - l.hero_x) * (c.0 - l.hero_x) + (c.1 - l.hero_y) * (c.1 - l.hero_y) == 1;
+    if beside || spot.0 == -1 { spot = c; }
+    if beside { break; }
+  }
+  if spot.0 == -1 { return (was, was); }
+  l.enemies[gi].x = spot.0;
+  l.enemies[gi].y = spot.1;
+  l.enemies[gi].z = spot.2;
+  l.enemies[gi].nest_x = spot.0;
+  l.enemies[gi].nest_y = spot.1;
+  l.enemies[gi].nest_z = spot.2;
+  l.enemies[gi].away = false;
+  (was, spot)
+}

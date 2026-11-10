@@ -108,7 +108,7 @@
     "mushroom": "town:29",
     "pump": "dungeon:41",
     "bed": "farm:96",
-    "meat": "dungeon:66",
+    "meat": "dungeon:66", "urn": "world:132", "floating_urn": "world:132",
     "forge": "dungeon:28",
     "hot_forge": { "frames": ["world:84", "world:85"] },
     "blunt_sword": "dungeon:103",

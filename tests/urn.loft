@@ -1,0 +1,220 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The founder's urn and his quest (STORY.md @ST-Urn, urn.loft): the ghost in Orbury's cemetery
+// gives the urn by night; it takes the hands; it floats on deep water and is taken out again; it
+// can be given back to him a while; brought into Sibil's cellar he comes to it, at rest — by day
+// too — and his talk starts at what he has to say there: the urn taken, where his good pick lies.
+// In a wrong cellar nothing happens.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use talk;
+use stamp;
+use deal;
+use urn;
+
+fn kit() -> (rules::Kinds, materials::Materials) {
+  k = rules::kinds();
+  (k, materials::load(file("../theme.json").content() ?? "", k))
+}
+
+fn orbury() -> levels::LevelFile {
+  km = kit();
+  m = levels::load_with(file("../levels/orbury.json").content() ?? "", km.0, km.1);
+  if !m { assert(false, "orbury loads"); }
+  m ?? levels::LevelFile { name: "", level: rules::level(km.0), start_x: 0, start_y: 0, start_z: 0,
+                           goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } }
+}
+
+fn at(l: const rules::Level) -> text { "({l.hero_x}, {l.hero_y}, {l.hero_z}) holding {rules::thing_name(l.k, l.hero_item)}" }
+
+fn ghost_of(l: const rules::Level) -> integer {
+  for i in 0..len(l.enemies) { if (l.enemies[i]!.kind) == "ghost" { return i; } }
+  -1
+}
+
+fn ghost_talk(lf: const levels::LevelFile) -> talk::Talk {
+  for t in lf.talks { if t.x == 57 && t.y == 50 && t.z == 0 { return t; } }
+  assert(false, "the ghost's talk at the cemetery");
+  talk::Talk { x: 0, y: 0, z: 0, lines: [], gifts: [] }
+}
+
+// The talk of `t` played on with the hero standing still, from `from` for `ms`.
+fn listen(t: const talk::Talk, l: rules::Level, i: integer, from: integer, ms: integer) {
+  now = from;
+  while now < from + ms {
+    l.now = now;
+    _ = talk::step(t, l, i);
+    now += 250;
+  }
+}
+
+fn line_id(t: const talk::Talk, l: const rules::Level, i: integer) -> text {
+  n = talk::current(l, i);
+  if n < 0 { return "(none)"; }
+  t.lines[n].id ?? "?"
+}
+
+fn test_the_urn_takes_the_hands_and_floats() {
+  km = kit();
+  l = rules::level(km.0);
+  fl = rules::tr(l, "floor");
+  for y in 0..5 { for x in 0..8 { tile_world::set_terrain(l.w, x, y, 0, if x == 6 { rules::tr(l, "water") } else { fl }); } }
+  tile_world::place(l.w, 3, 2, 0, rules::th(l, "urn"));
+  tile_world::place(l.w, 2, 3, 0, rules::th(l, "chair"));
+  rules::put_hero(l, 2, 2, 0);
+  rules::play(l, "qd");
+  assert(rules::thing_name(l.k, l.hero_item) == "urn", "taken: {at(l)}");
+  rules::put_hero(l, 2, 2, 0);
+  rules::play(l, "s");
+  assert(rules::thing_name(l.k, tile_world::top(l.w, 2, 3, 0)) == "chair", "with the urn held, the chair does not move");
+  // Into deep water it goes afloat, and is taken out again, the urn.
+  rules::put_hero(l, 5, 2, 0);
+  rules::play(l, "d");
+  assert(l.hero_item == 0 && rules::thing_name(l.k, tile_world::top(l.w, 6, 2, 0)) == "floating_urn", "afloat: {at(l)}");
+  // Facing the water (the step into it turned the hero), Q takes it out.
+  rules::play(l, "q");
+  assert(rules::thing_name(l.k, l.hero_item) == "urn" && tile_world::top(l.w, 6, 2, 0) == 0, "taken out again: {at(l)}");
+}
+
+// By night the ghost tells his story and gives the urn; brought back, he keeps it a while, and
+// gives it again.
+fn test_the_ghost_gives_the_urn_by_night() {
+  lf = orbury();
+  l = lf.level;
+  t = ghost_talk(lf);
+  gi = ghost_of(l);
+  assert(gi >= 0, "a ghost in Orbury");
+  l.night = true;
+  rules::put_hero(l, 57, 51, 0);
+  listen(t, l, gi, 0, 40000);
+  assert(rules::thing_name(l.k, l.hero_item) == "urn", "the urn given: {at(l)}");
+  // Bumped with the urn held: back with him.
+  talk::bump(t, l, gi, gi);
+  listen(t, l, gi, 40000, 10000);
+  assert(l.hero_item == 0, "the urn back with him: {at(l)}");
+  // Walked off and come back beside him: the talk starts where it stands, the urn again.
+  rules::put_hero(l, 57, 60, 0);
+  listen(t, l, gi, 50000, 1000);
+  rules::put_hero(l, 57, 51, 0);
+  listen(t, l, gi, 51000, 10000);
+  assert(rules::thing_name(l.k, l.hero_item) == "urn", "given again: {at(l)}");
+}
+
+// Brought into Sibil's cellar, the ghost comes to it, is at rest there by day, and his talk starts
+// at it: the urn taken, the pick told.  Anywhere else nothing happens.
+fn test_the_urn_brings_him_to_rest_in_sibils_cellar() {
+  km = kit();
+  lf = orbury();
+  l = lf.level;
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  town = deal::town(l, lf.start_x, lf.start_y, lf.start_z);
+  d = deal::deal(l, lf.intent, ts, 7, town, km.1);
+  assert(len(l.rest) > 0, "Sibil's cellar laid: {deal::describe(d)}");
+  h = lf.intent.houses[d.sibil]!;
+  for c in l.rest {
+    assert(c.2 == h.z - 1 && c.0 >= h.x && c.0 < h.x + h.w && c.1 >= h.y && c.1 < h.y + h.h, "the rest under Sibil's house");
+  }
+  l.hero_item = rules::th(l, "urn");
+  // A wrong cellar: another house's, or the street.
+  rules::put_hero(l, 30, 60, 0);
+  assert(!urn::brought(l), "not on the street");
+  spot = l.rest[0]!;
+  rules::put_hero(l, spot.0, spot.1, spot.2);
+  assert(urn::brought(l), "in Sibil's cellar with the urn: {at(l)}");
+  m = urn::lay_to_rest(l);
+  assert(m.0.0 == 57 && m.0.1 == 50, "he was at the cemetery");
+  gi = ghost_of(l);
+  g = l.enemies[gi]!;
+  assert(g.nest_x == m.1.0 && g.nest_y == m.1.1 && g.nest_z == h.z - 1, "his home now the cellar");
+  assert(!urn::brought(l), "once at rest, once");
+  // By day he stays.
+  l.night = false;
+  rules::tick(l, 5000);
+  g2 = l.enemies[gi]!;
+  assert(!g2.away && g2.x == m.1.0 && g2.y == m.1.1, "at rest he keeps no hours, and stays: ({g2.x}, {g2.y})");
+  // His talk, come with him, starts at the rest: the urn taken, the pick told.
+  t = ghost_talk(lf);
+  t.x = m.1.0;
+  t.y = m.1.1;
+  t.z = m.1.2;
+  // The hero off a moment, then beside him: a cell of the cellar next to where he came (a talk
+  // starts on coming beside).
+  rules::put_hero(l, 30, 60, 0);
+  l.now = 99000;
+  _ = talk::step(t, l, gi);
+  for c in l.rest {
+    if (c.0 - m.1.0) * (c.0 - m.1.0) + (c.1 - m.1.1) * (c.1 - m.1.1) == 1 && tile_world::top(l.w, c.0, c.1, c.2) == 0 {
+      rules::put_hero(l, c.0, c.1, c.2);
+    }
+  }
+  l.now = 100000;
+  _ = talk::step(t, l, gi);
+  rs = "";
+  for c in l.rest { rs += " ({c.0},{c.1},{c.2}) top {tile_world::top(l.w, c.0, c.1, c.2)}"; }
+  gh = l.enemies[gi]!;
+  assert(line_id(t, l, gi) == "rest", "he begins at the rest: {line_id(t, l, gi)}; ghost ({gh.x},{gh.y},{gh.z}) away {gh.away} nest ({gh.nest_x},{gh.nest_y}); hero {at(l)}; talk at ({t.x},{t.y},{t.z}); rest{rs}");
+  listen(t, l, gi, 100000, 30000);
+  assert(l.hero_item == 0, "the urn taken: {at(l)}");
+  assert(rules::knows(l, "pick_told"), "where the pick lies, told");
+}
+
+// Left behind (the haunting's ground): not before he gave it; then held or left anywhere but his
+// graveyard (within his roam of his home) or his own hands; never once he is at rest.
+fn test_the_urn_left_behind() {
+  lf = orbury();
+  l = lf.level;
+  urn_id = rules::th(l, "urn");
+  assert(!urn::left_behind(l, l), "not before it is given");
+  rules::learn(l, urn::GIVEN);
+  l.hero_item = urn_id;
+  assert(urn::left_behind(l, l), "held by the hero: left behind");
+  l.hero_item = 0;
+  tile_world::place(l.w, 58, 51, 0, urn_id);
+  assert(!urn::left_behind(l, l), "set down in the graveyard: home");
+  _ = tile_world::take(l.w, 58, 51, 0);
+  tile_world::place(l.w, 40, 52, 0, urn_id);
+  assert(urn::left_behind(l, l), "set down in the town: left behind");
+  _ = tile_world::take(l.w, 40, 52, 0);
+  gi = ghost_of(l);
+  l.enemies[gi].item = urn_id;
+  assert(!urn::left_behind(l, l), "in his hands: home");
+  l.enemies[gi].item = 0;
+  rules::learn(l, urn::AT_REST);
+  assert(!urn::left_behind(l, l), "at rest: never");
+}
+
+// The haunting: by night, the urn left behind, the ghost leaves his graveyard and keeps beside
+// the hero; without it he stays round his home.
+fn test_the_ghost_haunts_by_night() {
+  lf = orbury();
+  l = lf.level;
+  gi = ghost_of(l);
+  l.night = true;
+  rules::put_hero(l, 50, 50, 0);
+  l.haunting = true;
+  rules::tick(l, 20000);
+  g = l.enemies[gi]!;
+  d = (g.x - 50) * (g.x - 50) + (g.y - 50) * (g.y - 50);
+  assert(d <= 2 && !g.away, "beside the hero: ({g.x}, {g.y})");
+  l.haunting = false;
+  rules::tick(l, 30000);
+  g2 = l.enemies[gi]!;
+  assert((g2.x - 57) * (g2.x - 57) + (g2.y - 50) * (g2.y - 50) <= 8, "back round his home: ({g2.x}, {g2.y})");
+}
+
+// The haunted dream's toll: a top health 1 lower, which a potion heals up to and no further.
+fn test_a_lower_top_health() {
+  lf = orbury();
+  l = lf.level;
+  assert(rules::top_health(l) == 6, "the start's 6");
+  l.top_less = 1;
+  assert(rules::top_health(l) == 5, "a haunted day's 5");
+  l.health = 2;
+  l.hero_item = rules::th(l, "health_potion");
+  rules::play(l, "f");
+  rules::tick(l, 10000);
+  assert(l.health == 5, "a health potion heals up to 5: {l.health}");
+}
