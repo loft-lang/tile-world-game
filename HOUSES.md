@@ -19,7 +19,8 @@ rulings it follows are the owner's:
   2026-11-10);
 - never unsolvable: hard, hidden and not straightforward are fine (owner, 2026-11-10);
 - the ways in include climbing from another house, from up the hill, and an underground tunnel
-  (owner, 2026-11-10);
+  (owner, 2026-11-10); a bomb blast too, used sparingly: it may blow open an entrance the hero
+  needs to go through (owner, 2026-11-10);
 - the urn is a real carried item, taking the hands: the hero may get in more easily without it,
   and may need another route with it to get it there (owner, 2026-11-10);
 - the town's layout and every house's shell are fixed; what is dealt is the state and the inside
@@ -93,13 +94,16 @@ in.
 | **the roof hatch** | stairs down from the roof to the top floor; a weight on them from above, or none | a way onto the roof | built |
 | **the boarded door** | the barricade taken apart with a pick (two beams, kept: the flotilla and the village's barricade want them) or burnt by a lit barrel | a pick, or a tar barrel and a flame | built |
 | **up from the cellar** | in by a tunnel (§ 4) to the cellar, up its stairs into the house | the tunnel's way | built |
-| **the blast** | a directed blast cracks a wall or blows out the barred door: always there, never quiet | a bomb | built |
+| **the blast** | a directed blast cracks a wall or blows out the barred door: always there, never quiet; used sparingly (owner, 2026-11-10), and in a house or two the entrance the hero needs is one only a blast opens | a bomb | built |
 
 **What makes it interesting** (◇): the way in is often seen before it is reached (the hole in the
 roof from the market, the upper window from the street), and the tool it asks for is often not yet
 the hero's.  So a house is left and come back to: with the axe for the bushes, the pick for the
-boards, a bomb for the stubborn ones.  The blast always works, and always costs: it is heard, and a
-villager's opinion of the hero follows (`snooped`, and what the blast's noise brings).
+boards, a bomb for the stubborn ones.  **The blast is used sparingly** (owner, 2026-11-10): it may
+be what blows open an entrance the hero needs to go through, but only in a house or two, so a bomb
+brought up from the mine is a key for those and not the town's answer.  It always works where it
+is used, and always costs: it is heard, and a villager's opinion of the hero follows (`snooped`,
+and what the blast's noise brings).
 
 ## 2. How the owners left its inside
 
@@ -262,7 +266,5 @@ The templates ask little that is not built:
 - whether the urn can be lost: a blast within 2 breaks what is fragile, a thing in deep water is
   lost.  Never unsolvable asks either an urn that does not break, or one that goes back to the
   ghost to be fetched again;
-- whether the blast belongs in the town at all, with bombs belonging to the mine, or stays the
-  persistent experimenter's way round (DESIGN.md § Bombs);
 - whether Sibil's house is dealt with the rest, or fixed, so the trial digging can lead to it;
 - whether the beams from a boarded door are the hero's to take (PUZZLES.md § Houses, open).
