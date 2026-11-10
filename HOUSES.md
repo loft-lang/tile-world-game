@@ -277,7 +277,10 @@ same miner's cottage, to show the spread:
 
 The templates ask little that is not built:
 
-- **the urn's sign** in a cellar (STORY.md § 6): the only piece of the search that needs a rule;
+- **the urn's sign** in a cellar (STORY.md § 6), the one piece of the search itself that needs a
+  rule; around it, the urn as a thing (unbreakable, floating on deep water), the ghost haunting
+  the hero's nights while it is left elsewhere, and sleep that heals, a haunted dream taking 1
+  off the next day's maximum;
 - **doors on more than one level** of a house against the slope (BUILD.md D1c, open);
 - **the deal**: the templates as data, a house's three drawn by the seed and fitted into its
   shell, and the check that every house dealt is solvable (BUILD.md D1b, D1d, D1e; PUZZLES.md
@@ -287,3 +290,4 @@ The templates ask little that is not built:
 
 ## Open, for the owner
 
+Nothing is open in the urn's search; every row marked ◇ above is still for the owner to rule.
