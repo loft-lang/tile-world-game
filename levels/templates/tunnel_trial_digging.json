@@ -4,19 +4,20 @@
     "kind": "tunnel",
     "turns": true,
     "flips": true,
-    "about": "the founder's trial digging from the hillside: its mouth behind a bush, stairs down, beams standing in its walls, a loose stone",
-    "at": ""
+    "about": "the founder's trial digging under the town: a level passage, beams standing in its walls, out at the terrace's front or the stream's bank",
+    "at": "exit",
+    "weight": 3,
+    "entry": [
+      1,
+      0,
+      0
+    ],
+    "stretch": 1
   },
   "camera": "follow",
   "legend": {
     ".": "floor",
     "#": "wall",
-    ">": "stairs_down",
-    "<": "stairs_up",
-    "_": "void",
-    "E": "house_door",
-    "[": "bush",
-    "G": "garden_fence",
     "I": "prop"
   },
   "ground": [],
@@ -26,42 +27,17 @@
       "cy": 0,
       "z": 0,
       "rows": [
-        " [ ",
-        " > "
-      ]
-    },
-    {
-      "cx": 0,
-      "cy": 0,
-      "z": -1,
-      "rows": [
-        "###",
-        "#<#",
-        "I.I",
         "#.#",
-        "I.I",
-        "#.#",
-        "#.#"
+        "I.I"
       ]
     }
   ],
-  "things": [
-    {
-      "at": [
-        1,
-        5,
-        -1
-      ],
-      "stack": [
-        "rock"
-      ]
-    }
-  ],
+  "things": [],
   "tiles": [],
   "edges": [],
   "rises": [],
   "start": [
-    0,
+    1,
     0,
     0
   ],

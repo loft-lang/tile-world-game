@@ -131,13 +131,14 @@ appears in no house.
 | `weight` | how often it is drawn (1 when not said) |
 | `needs` | what the hands hold for its solution (`pick`, `axe`) |
 | `solution` | the moves as drawn, from the file's `start` cell (`rules::play`'s words; `~700` waits) |
+| `exit`, `tunnel` | a cellar's gap a tunnel joins, `[x, y, z, side]`, and the tunnel it wants (§ 4) |
+| `entry`, `stretch` | a tunnel's cell that joins the gap, and the row repeated to lengthen it (§ 4) |
 | `floors` | the house it is drawn for: its layer 1 is a one-floor house's roof (`way_roof_hole`) or a two-floor house's upper floor (`inside_bats_upstairs`); 0 any |
 
 **Not dealt yet** (`at` none), each for a reason: `way_window_step` and `way_upper_door` want a
 house of two floors (the ordinary ones have one); `way_shuttered`, windows the ordinary houses do
 not have; `way_walled_up`, a directed blast in its solution; `cellar_in_barred_room`, a house
-bigger than the cottages; `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only` and
-the tunnels, a second way that the deal does not lay yet.
+bigger than the cottages; `tunnel_neighbours` and `tunnel_vault_onwards` (§ 4).
 
 **The play log** gets the deal: `DEAL seed 7 sibil 5`, then a line per house with its draw, its
 cellar and every template where it lies, turned and mirrored.  `TW_SEED=7 loft --lib libs
@@ -155,7 +156,7 @@ urn can always be brought to.  A draw that fails is drawn again; a house no draw
 is dealt as an ordinary one, and she moves on to the next.  With the urn's walk broken on purpose,
 no house is Sibil's, and every house is still dealt.
 
-**Still to come**: tunnels and the cellars that need them; the finds laid in the cellar
+**Still to come**: the finds laid in the cellar
 rather than on the ground floor; two-floor houses.
 
 ## What the town gives to work with
@@ -317,6 +318,31 @@ cellar it opens into.  The town is a mining town, so the people dug.
 | **the neighbours' passage** | another cellar in the row | two families who knocked through, or a row whose cellars run as one under the joined roofs | built |
 | **the old trial digging** | the hillside or the terrace behind, up the hill | the founder's first tries for ore under the town (@ST-Founder), found again: its mouth behind bushes, its beams standing | built |
 | **the vault onwards** | the inn's vault under the market | the inn's cellar ran on under the market (LOCATIONS.md § 1); onwards to a well-off house's cellar beside it | built |
+
+**Built** (2026-11-10, `deal.loft`'s `lay_tunnel`, `stamp::stretched`).  A cellar a tunnel reaches
+says where its gap is (`exit`: `[x, y, z, side]`, the side the gap faces) and may name its tunnel
+(`tunnel`); a tunnel is laid `at: "exit"`, drawn running south from its `entry` cell, with a
+`stretch` row the deal repeats to make it as long as it has to be.  The deal lays it from the gap,
+turned to run out the way the gap faces, through earth only (never under a house, never over
+another template; what it puts above its own layer, on grass only), the stretch repeated until it
+reaches the town: its mouth's start among the town's cells, or a cell of its passage beside one.
+Where it meets the town its mouth is opened: the edge between its passage and the town's cell
+beside it is taken away (the stream's bank is a sloping front, which turns a walker up onto the
+lane instead of into the drain).  Then it is played: the mouth opened by its `solution` (the cellar
+steps' bushes felled with an axe), the hero walked from the town along it into the cellar — and
+for Sibil's, the urn too; the walk goes as if the figures in it (the drain's rat) step aside.  A
+tunnel is two rows at its shortest, its entry and its stretch row, for the miners' rows stand two
+rows of earth from the bed: there the trial digging and the drain come out in the bed, on the middle
+terrace at the street below its front.
+
+| Cellar | Its tunnel |
+|---|---|
+| `cellar_tunnel_only` | any: the drain to the stream's bed, the trial digging out at the terrace's front |
+| `cellar_under_fall` | any: its hatch is under the stones, its gap in the south wall |
+| `cellar_outside_door` | `tunnel_cellar_steps`: a passage, stairs up into the yard behind the house, bushes round them |
+
+Not laid yet: `tunnel_neighbours` (two cellars joined, so two houses dealt together) and
+`tunnel_vault_onwards` (the inn's vault, a house of its own design).
 
 **What lies in a tunnel** (◇): a standing beam that holds it up (taken out with a pick, it
 collapses the tunnel beyond: so the beam is wanted, and the way is lost for it), a barricade a

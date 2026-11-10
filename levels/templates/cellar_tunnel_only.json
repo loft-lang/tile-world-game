@@ -5,7 +5,14 @@
     "turns": true,
     "flips": true,
     "about": "a cellar with no stairs from the house: its way is a passage out of its south wall, to a tunnel",
-    "at": ""
+    "at": "under",
+    "weight": 2,
+    "exit": [
+      2,
+      4,
+      -1,
+      "S"
+    ]
   },
   "camera": "follow",
   "legend": {

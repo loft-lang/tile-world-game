@@ -256,6 +256,80 @@ pub fn turned_moves(moves: text, turn: integer, flip: boolean) -> text {
   out
 }
 
+/// Template `t` with its `stretch` row repeated `k` more times (HOUSES.md § Tunnels): the rows
+/// below it moved down by `k`, with everything on them — cells, edges, things, figures, a door's
+/// beam, the start cell.  A template that does not stretch comes back as it is.
+pub fn stretched(t: const levels::LevelFile, k: integer) -> levels::LevelFile {
+  sr = t.template.stretch;
+  if sr < 0 || k <= 0 { return t; }
+  out = t;
+  tw = t.level.w;
+  nw = tile_world::copy(tw, 0, 0, -1, -1, 0, -1);
+  for lz in tile_world::layers(tw) {
+    for c in tile_world::chunks(tw, lz) {
+      for j in 0..CHUNK {
+        for i in 0..CHUNK {
+          sx = c.0 * CHUNK + i;
+          sy = c.1 * CHUNK + j;
+          copies = if sy == sr { k + 1 } else { 1 };
+          for n in 0..copies {
+            ty = if sy < sr { sy } else if sy == sr { sy + n } else { sy + k };
+            for side in [tile_world::NORTH, tile_world::WEST] {
+              e = tile_world::edge(tw, sx, sy, lz, side);
+              if e != 0 { tile_world::set_edge(nw, sx, ty, lz, side, e); }
+            }
+            if tile_world::is_set(tw, sx, sy, lz) {
+              tile_world::set_terrain(nw, sx, ty, lz, tile_world::terrain(tw, sx, sy, lz), tile_world::tile(tw, sx, sy, lz));
+              tile_world::set_rise(nw, sx, ty, lz, tile_world::rise(tw, sx, sy, lz));
+              tile_world::set_slant(nw, sx, ty, lz, tile_world::slant(tw, sx, sy, lz));
+              tile_world::set_ceiling(nw, sx, ty, lz, tile_world::ceiling(tw, sx, sy, lz));
+            }
+          }
+        }
+      }
+    }
+  }
+  for st in tile_world::stacks(tw) {
+    copies = if st.1 == sr { k + 1 } else { 1 };
+    for n in 0..copies {
+      ty = if st.1 < sr { st.1 } else if st.1 == sr { st.1 + n } else { st.1 + k };
+      for th in tile_world::things(tw, st.0, st.1, st.2) { tile_world::place(nw, st.0, ty, st.2, th); }
+    }
+  }
+  out.level.w = nw;
+  for i in 0..len(out.level.enemies) {
+    if (out.level.enemies[i]!.y) > sr {
+      out.level.enemies[i].y += k;
+      out.level.enemies[i].nest_y += k;
+    }
+  }
+  for i in 0..len(out.level.bars) { if (out.level.bars[i]!.y) > sr { out.level.bars[i].y += k; } }
+  if out.start_y > sr { out.start_y += k; }
+  out
+}
+
+/// The cells of `t` laid at (x, y, z), turned and mirrored, that it sets to ground a walker stands
+/// on (a tunnel's passage, its stairs).
+pub fn walkable_cells(t: const levels::LevelFile, x: integer, y: integer, z: integer, turn: integer,
+                      flip: boolean) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  tw = t.level.w;
+  for lz in tile_world::layers(tw) {
+    for c in tile_world::chunks(tw, lz) {
+      for j in 0..CHUNK {
+        for i in 0..CHUNK {
+          sx = c.0 * CHUNK + i;
+          sy = c.1 * CHUNK + j;
+          if tile_world::is_set(tw, sx, sy, lz) && tile_world::walkable_kind(tw, tile_world::terrain(tw, sx, sy, lz)) {
+            out += [landing(t, x, y, z, turn, flip, sx, sy, lz)];
+          }
+        }
+      }
+    }
+  }
+  out
+}
+
 /// Every template under `dir` (levels/templates/): each `.json` that loads and has a `template`
 /// block, by its file's order.
 pub fn all(dir: text, k: const rules::Kinds, mats: const materials::Materials) -> vector<levels::LevelFile> {

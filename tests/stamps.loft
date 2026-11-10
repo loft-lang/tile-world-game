@@ -350,3 +350,23 @@ fn test_the_rotted_cellar_stair_in_every_way_it_lies() {
     }
   }
 }
+
+// A tunnel stretched (HOUSES.md § Tunnels): its stretch row repeated, the rows below it moved down
+// with what is on them; what is on the stretch row itself repeated with it, what is above kept once.
+fn test_a_tunnel_stretches() {
+  t = template("tunnel_drain");
+  b0 = stamp::box_of(t);
+  st = stamp::stretched(t, 3);
+  b = stamp::box_of(st);
+  assert(b.y1 - b.y0 == (b0.y1 - b0.y0) + 3 && b.x1 - b.x0 == b0.x1 - b0.x0, "three rows longer: {b.y0}..{b.y1}");
+  for y in b.y0..=b.y1 {
+    assert(rules::terrain_name(st.level.k, tile_world::terrain(st.level.w, 1, y, 0)) == "floor", "the passage on row {y}");
+    assert(rules::terrain_name(st.level.k, tile_world::terrain(st.level.w, 0, y, 0)) == "wall", "its wall on row {y}");
+  }
+  assert(rules::thing_name(st.level.k, tile_world::top(st.level.w, 0, 0, 0)) == "socket", "the socket on the entry row, once");
+  sockets = 0;
+  for y in b.y0..=b.y1 { if rules::thing_name(st.level.k, tile_world::top(st.level.w, 0, y, 0)) == "socket" { sockets += 1; } }
+  assert(sockets == 1, "one socket: {sockets}");
+  assert(len(st.level.enemies) == 1, "one rat");
+  assert(stamp::stretched(t, 0).name == t.name && stamp::box_of(stamp::stretched(t, 0)).y1 == b0.y1, "stretched none: as it is");
+}

@@ -113,7 +113,20 @@ pub struct TemplateInfo {
   pub solution: text = "",
   /// The floors of the house it is drawn for (0: any): its layer 1 is the roof of a house of one
   /// floor, the upper floor of a house of two.
-  pub floors: integer = 0
+  pub floors: integer = 0,
+  /// A cellar reached by a tunnel (HOUSES.md § Tunnels): the gap in its wall a tunnel joins
+  /// (`exit_side` the way out of it, "" none), and the tunnel it wants ("" any).
+  pub exit_x: integer = 0,
+  pub exit_y: integer = 0,
+  pub exit_z: integer = 0,
+  pub exit_side: text = "",
+  pub tunnel: text = "",
+  /// A tunnel (laid `at` "exit"), drawn running south: its cell that joins a cellar's gap, and the
+  /// row that is repeated to make it as long as it has to be (-1: it does not stretch).
+  pub entry_x: integer = 0,
+  pub entry_y: integer = 0,
+  pub entry_z: integer = 0,
+  pub stretch: integer = -1
 }
 
 /// No template: an ordinary place.
@@ -408,12 +421,18 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
 fn template_of(v: const JsonValue) -> TemplateInfo {
   if v.kind() != "JObject" { return no_template(); }
   wv = v.field("wall");
+  xv = v.field("exit");
+  ev = v.field("entry");
   TemplateInfo { kind: str(v.field("kind"), ""), turns: v.field("turns").as_bool() ?? true,
                  flips: v.field("flips").as_bool() ?? true, about: str(v.field("about"), ""),
                  at: str(v.field("at"), ""), wall_x: num(wv.item(0), 0), wall_y: num(wv.item(1), 0),
                  closes: v.field("closes").as_bool() ?? false, gives: v.field("gives").as_bool() ?? false,
                  weight: num(v.field("weight"), 1), needs: str(v.field("needs"), ""),
-                 solution: str(v.field("solution"), ""), floors: num(v.field("floors"), 0) }
+                 solution: str(v.field("solution"), ""), floors: num(v.field("floors"), 0),
+                 exit_x: num(xv.item(0), 0), exit_y: num(xv.item(1), 0), exit_z: num(xv.item(2), 0),
+                 exit_side: str(xv.item(3), ""), tunnel: str(v.field("tunnel"), ""),
+                 entry_x: num(ev.item(0), 0), entry_y: num(ev.item(1), 0), entry_z: num(ev.item(2), 0),
+                 stretch: num(v.field("stretch"), -1) }
 }
 
 // A place file's `serves`: the tags it lists.
@@ -607,6 +626,10 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     if tp.needs != "" { out += ", \"needs\": {quoted(tp.needs)}"; }
     if tp.solution != "" { out += ", \"solution\": {quoted(tp.solution)}"; }
     if tp.floors != 0 { out += ", \"floors\": {tp.floors}"; }
+    if tp.exit_side != "" { out += ", \"exit\": [{tp.exit_x}, {tp.exit_y}, {tp.exit_z}, {quoted(tp.exit_side)}]"; }
+    if tp.tunnel != "" { out += ", \"tunnel\": {quoted(tp.tunnel)}"; }
+    if tp.at == "exit" { out += ", \"entry\": [{tp.entry_x}, {tp.entry_y}, {tp.entry_z}]"; }
+    if tp.stretch >= 0 { out += ", \"stretch\": {tp.stretch}"; }
     out += " }},";
   }
   if len(lf.serves) > 0 {

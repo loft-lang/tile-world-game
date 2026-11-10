@@ -4,9 +4,16 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the roof came down on the hatch: stones on the stairs and round them, touching, which no push moves",
-    "at": "",
-    "floors": 1
+    "about": "the roof came down on the hatch: stones on the stairs and round them, touching, which no push moves; the cellar is reached by a tunnel to the gap in its south wall",
+    "at": "under",
+    "floors": 1,
+    "weight": 2,
+    "exit": [
+      2,
+      4,
+      -1,
+      "S"
+    ]
   },
   "camera": "follow",
   "legend": {
@@ -31,7 +38,7 @@
         "#<..#",
         "#...#",
         "#...#",
-        "#####"
+        "##.##"
       ]
     },
     {

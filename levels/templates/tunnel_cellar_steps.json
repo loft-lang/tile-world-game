@@ -1,0 +1,61 @@
+{
+  "name": "tunnel_cellar_steps",
+  "template": {
+    "kind": "tunnel",
+    "turns": true,
+    "flips": true,
+    "about": "a cellar's own door outside: a passage from its gap, stairs up into the yard behind the house, bushes grown round them: in with an axe",
+    "at": "exit",
+    "weight": 0,
+    "needs": "axe",
+    "entry": [
+      1,
+      0,
+      0
+    ],
+    "stretch": 0,
+    "solution": "w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w w"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    "<": "stairs_up",
+    ">": "stairs_down",
+    "[": "bush"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "#.#",
+        "#<#"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        " [ ",
+        "[>[",
+        " [ "
+      ]
+    }
+  ],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    1,
+    3,
+    1
+  ],
+  "goal": {
+    "type": ""
+  }
+}

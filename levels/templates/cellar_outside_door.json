@@ -4,16 +4,21 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the cellar's door outside, at the back, behind bushes: in with an axe; its passage runs on under the house (north)",
-    "at": ""
+    "about": "no hatch inside: the cellar's way is its own door outside, at the back behind bushes (tunnel_cellar_steps), through the gap in its south wall",
+    "at": "under",
+    "weight": 2,
+    "exit": [
+      2,
+      4,
+      -1,
+      "S"
+    ],
+    "tunnel": "tunnel_cellar_steps"
   },
   "camera": "follow",
   "legend": {
     ".": "floor",
-    "#": "wall",
-    ">": "stairs_down",
-    "<": "stairs_up",
-    "[": "bush"
+    "#": "wall"
   },
   "ground": [],
   "chunks": [
@@ -22,21 +27,11 @@
       "cy": 0,
       "z": -1,
       "rows": [
-        "#.#",
-        "#.#",
-        "#<#",
-        "###"
-      ]
-    },
-    {
-      "cx": 0,
-      "cy": 0,
-      "z": 0,
-      "rows": [
-        "",
-        "",
-        "[>[",
-        " [ "
+        "#####",
+        "#...#",
+        "#...#",
+        "#...#",
+        "##.##"
       ]
     }
   ],

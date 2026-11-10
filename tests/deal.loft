@@ -69,3 +69,21 @@ fn test_upper_floor_templates_stay_off_the_cottages_roofs() {
     }
   }
 }
+
+// Tunnels (HOUSES.md § Tunnels): over a few seeds, cellars reached only by a tunnel are dealt, each
+// with its tunnel laid from its gap, and played (every house dealt passed its draw).
+fn test_tunnels_are_laid_to_the_cellars_that_need_them() {
+  tunnels = 0;
+  for seed in [7, 8, 10, 12] {
+    d = dealt(seed).1;
+    for h in d.houses {
+      assert(h.draw >= 0, "seed {seed}: house {h.house} dealt");
+      needs = h.cellar == "cellar_tunnel_only" || h.cellar == "cellar_under_fall" || h.cellar == "cellar_outside_door";
+      has = false;
+      for p in h.laid { if p.name.starts_with("tunnel_") { has = true; } }
+      assert(needs == has, "seed {seed}: house {h.house}'s {h.cellar} and its tunnel: {has}");
+      if has { tunnels += 1; }
+    }
+  }
+  assert(tunnels >= 3, "tunnels laid: {tunnels}");
+}

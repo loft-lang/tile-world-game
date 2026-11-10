@@ -35,7 +35,9 @@ pub struct Laid {
   pub y: integer,
   pub z: integer,
   pub turn: integer,
-  pub flip: boolean
+  pub flip: boolean,
+  /// A tunnel's stretch row repeated this many more times (`stamp::stretched`).
+  pub stretch: integer = 0
 }
 
 /// One house dealt: its index among the intent's houses, the templates laid on it in order, whether
@@ -64,6 +66,58 @@ pub const DRAWS = 40;
 
 /// How far round a house the check walks, in cells.
 const MARGIN = 4;
+
+/// How many times a tunnel's stretch row may be repeated to reach the town.
+const MAX_STRETCH = 16;
+
+// The cells a check walks: a box on layers z0..z1.
+struct Area {
+  x0: integer,
+  y0: integer,
+  x1: integer,
+  y1: integer,
+  z0: integer,
+  z1: integer
+}
+
+fn area_of(s: const Shell) -> Area {
+  Area { x0: s.x - MARGIN, y0: s.y - MARGIN, x1: s.x + s.w - 1 + MARGIN, y1: s.y + s.h - 1 + MARGIN,
+         z0: s.z - 1, z1: s.z + s.floors }
+}
+
+// `a` grown to take in `cells`, with a margin.
+fn widened(a: const Area, cells: const vector<(integer, integer, integer)>) -> Area {
+  out = Area { x0: a.x0, y0: a.y0, x1: a.x1, y1: a.y1, z0: a.z0, z1: a.z1 };
+  for c in cells {
+    if c.0 - MARGIN < out.x0 { out.x0 = c.0 - MARGIN; }
+    if c.0 + MARGIN > out.x1 { out.x1 = c.0 + MARGIN; }
+    if c.1 - MARGIN < out.y0 { out.y0 = c.1 - MARGIN; }
+    if c.1 + MARGIN > out.y1 { out.y1 = c.1 + MARGIN; }
+  }
+  out
+}
+
+// The template laid as `p`, from `ts`: stretched as it was laid.
+fn template_of(ts: const vector<levels::LevelFile>, p: const Laid) -> levels::LevelFile? {
+  t = stamp::named(ts, p.name) ?? return null;
+  stamp::stretched(t, p.stretch)
+}
+
+// Lay `p` into `l`.  A tunnel opens where it meets the town: the edge between its passage and the
+// town's cell beside it taken away (a bank's sloping front, which would turn a walker up onto the
+// lane instead of into the drain).
+fn lay(l: rules::Level, ts: const vector<levels::LevelFile>, p: const Laid, mats: const materials::Materials,
+       town: const hash<Key[k]>) {
+  t = template_of(ts, p) ?? return;
+  stamp::apply(l, t, p.x, p.y, p.z, p.turn, p.flip, mats);
+  if t.template.kind != "tunnel" { return; }
+  for c in stamp::walkable_cells(t, p.x, p.y, p.z, p.turn, p.flip) {
+    for side in [tile_world::NORTH, tile_world::EAST, tile_world::SOUTH, tile_world::WEST] {
+      d = way_out(side);
+      if town[intent::key_of(c.0 + d.0, c.1 + d.1, c.2)] { tile_world::set_edge(l.w, c.0, c.1, c.2, side, 0); }
+    }
+  }
+}
 
 struct Key {
   const k: integer
@@ -145,7 +199,7 @@ fn of_kind(ts: const vector<levels::LevelFile>, kind: text, at: text, closes: in
 
 // Where template `t` lies on house `s`: drawn, and checked to fit and to stay clear of the cells
 // already taken (`used`); null when this draw finds no place for it.
-fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Key[k]>) -> Laid? {
+fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Key[k]>, turn_to: integer = -1) -> Laid? {
   if t.template.floors != 0 && t.template.floors != s.floors { return null; }
   flip = t.template.flips && next(r, 2) == 1;
   at = t.template.at;
@@ -180,7 +234,7 @@ fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Ke
     ox = wx - sp.0;
     oy = wy - sp.1;
   } else {
-    turn = next(r, 4);
+    turn = if turn_to >= 0 { turn_to } else { next(r, 4) };
     sz = stamp::size(t, stamp::way_of(t, turn, flip).0);
     // Within the floor ("inside"), or the footprint ("under").
     lo_x = if at == "under" { s.x } else { s.x + 1 };
@@ -256,11 +310,10 @@ fn reach(l: rules::Level, seeds: const vector<integer>, x0: integer, y0: integer
 // Walk the hero to the start of template `t` laid as `p` (reached from `seeds` round house `s`),
 // play its solution turned as it lies, with what it needs in the hands: false when the start is
 // not reached.
-fn solve(l: rules::Level, s: const Shell, seeds: const vector<integer>, t: const levels::LevelFile,
+fn solve(l: rules::Level, a: const Area, seeds: const vector<integer>, t: const levels::LevelFile,
          p: const Laid) -> boolean {
   st = stamp::landing(t, p.x, p.y, p.z, p.turn, p.flip, t.start_x, t.start_y, t.start_z);
-  near = reach(l, seeds, s.x - MARGIN, s.y - MARGIN, s.x + s.w - 1 + MARGIN, s.y + s.h - 1 + MARGIN,
-               s.z - 1, s.z + s.floors);
+  near = reach(l, seeds, a.x0, a.y0, a.x1, a.y1, a.z0, a.z1);
   if !near[intent::key_of(st.0, st.1, st.2)] { return false; }
   rules::put_hero(l, st.0, st.1, st.2);
   l.health = 99;
@@ -289,19 +342,120 @@ fn cellar_floor(l: const rules::Level, s: const Shell, cellar: const levels::Lev
 // opened the way, from the town again with the urn in the hands — which push, pull and lift
 // nothing — on to the cellar's floor.  The urn's way may be another than the hero's (over the
 // roof, through the hole the hero climbed out of); any that walks is enough.
-fn passes(l: rules::Level, s: const Shell, town: const vector<integer>, way: const levels::LevelFile,
-          way_p: const Laid, cellar: const levels::LevelFile, cellar_p: const Laid, with_urn: boolean) -> boolean {
-  if !solve(l, s, town, way, way_p) { return false; }
+//
+// A cellar a tunnel reaches (HOUSES.md § Tunnels) is played from outside instead: the tunnel's
+// mouth opened by its solution (bushes felled), then walked from the town along the tunnel to the
+// cellar's floor — and with the urn the same.  `a` is where the walks go: round the house, and
+// along the tunnel.
+fn passes(l: rules::Level, s: const Shell, a: const Area, town: const vector<integer>, way: const levels::LevelFile,
+          way_p: const Laid, cellar: const levels::LevelFile, cellar_p: const Laid, tunnel: const levels::LevelFile,
+          tunnel_p: const Laid, with_urn: boolean) -> boolean {
+  // Figures move in play (a rat in the drain, a villager in the street): the walks go as if they
+  // stepped aside.
+  l.enemies = [];
+  if !solve(l, a, town, way, way_p) { return false; }
   inside = in_floor(s, l.hero_x, l.hero_y) && l.hero_z >= s.z && l.hero_z < s.z + s.floors;
   if !inside { return false; }
-  if cellar.template.solution == "" { return !with_urn; }
-  if !solve(l, s, [intent::key_of(l.hero_x, l.hero_y, l.hero_z)], cellar, cellar_p) { return false; }
-  if l.hero_z != s.z - 1 || !in_footprint(s, l.hero_x, l.hero_y) { return false; }
+  floor = cellar_floor(l, s, cellar, cellar_p);
+  if tunnel_p.name != "" {
+    if tunnel.template.solution != "" && !solve(l, a, town, tunnel, tunnel_p) { return false; }
+    walked = reach(l, town, a.x0, a.y0, a.x1, a.y1, a.z0, a.z1);
+    found = false;
+    for c in floor { if walked[intent::key_of(c.0, c.1, c.2)] { found = true; } }
+    if !found { return false; }
+  } else {
+    if cellar.template.solution == "" { return !with_urn; }
+    if !solve(l, a, [intent::key_of(l.hero_x, l.hero_y, l.hero_z)], cellar, cellar_p) { return false; }
+    if l.hero_z != s.z - 1 || !in_footprint(s, l.hero_x, l.hero_y) { return false; }
+  }
   if !with_urn { return true; }
-  carried = reach(l, town, s.x - MARGIN, s.y - MARGIN, s.x + s.w - 1 + MARGIN, s.y + s.h - 1 + MARGIN,
-                  s.z - 1, s.z + s.floors, rules::th(l, "urn"));
-  for c in cellar_floor(l, s, cellar, cellar_p) { if carried[intent::key_of(c.0, c.1, c.2)] { return true; } }
+  carried = reach(l, town, a.x0, a.y0, a.x1, a.y1, a.z0, a.z1, rules::th(l, "urn"));
+  for c in floor { if carried[intent::key_of(c.0, c.1, c.2)] { return true; } }
   false
+}
+
+fn side_code(name: text) -> integer {
+  if name == "E" { tile_world::EAST } else if name == "S" { tile_world::SOUTH }
+  else if name == "W" { tile_world::WEST } else { tile_world::NORTH }
+}
+
+fn way_out(side: integer) -> (integer, integer) {
+  if side == tile_world::NORTH { (0, -1) } else if side == tile_world::EAST { (1, 0) }
+  else if side == tile_world::SOUTH { (0, 1) } else { (-1, 0) }
+}
+
+// Is (x, y) within a house's footprint on layer z — the house itself, or its cellar below it?
+fn under_a_house(it: const intent::Intent, x: integer, y: integer, z: integer) -> boolean {
+  for h in it.houses {
+    fl = if h.floors > 0 { h.floors } else { 1 };
+    if x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h && z >= h.z - 1 && z <= h.z + fl { return true; }
+  }
+  false
+}
+
+// A tunnel for cellar `cellar` laid as `cp` (HOUSES.md § Tunnels): from the gap in its wall,
+// turned to run out the way the gap faces, through earth only — never under a house, never over
+// another template — its stretch row repeated until it reaches the town: its mouth's start among
+// the town's cells (a tunnel with a solution), else a cell of its passage beside one.  What it
+// lays above its own layer (the cellar steps' bushes) goes on grass only, never on a path.  The
+// cellar's own tunnel (`tunnel`) or one drawn by weight, then the others; null when none fits.
+fn lay_tunnel(r: Rng, l: const rules::Level, it: const intent::Intent, cellar: const levels::LevelFile,
+              cp: const Laid, tunnels: const vector<levels::LevelFile>, used: const hash<Key[k]>,
+              town: const hash<Key[k]>, mats: const materials::Materials) -> Laid? {
+  ctf = stamp::way_of(cellar, cp.turn, cp.flip);
+  ct = cellar.template;
+  e = stamp::landing(cellar, cp.x, cp.y, cp.z, cp.turn, cp.flip, ct.exit_x, ct.exit_y, ct.exit_z);
+  side = stamp::side_to(side_code(ct.exit_side), ctf.0, ctf.1);
+  d = way_out(side);
+  order: vector<levels::LevelFile> = [];
+  if ct.tunnel != "" {
+    one = stamp::named(tunnels, ct.tunnel) ?? return null;
+    order += [one];
+  } else {
+    first = pick(r, tunnels);
+    if first >= 0 { order += [tunnels[first]!]; }
+    for t in tunnels { if t.template.weight > 0 && (first < 0 || t.name != (tunnels[first]!.name)) { order += [t]; } }
+  }
+  grass = materials::named(mats, "grass");
+  q = (side - tile_world::SOUTH + 4) % 4;
+  for tt in order {
+    if q != 0 && !tt.template.turns { continue; }
+    flip = tt.template.flips && next(r, 2) == 1;
+    for k in 0..=MAX_STRETCH {
+      st = stamp::stretched(tt, k);
+      tf = stamp::way_of(st, q, flip);
+      sp = stamp::spot(stamp::box_of(st), tf.0, tf.1, st.template.entry_x, st.template.entry_y);
+      ox = e.0 + d.0 - sp.0;
+      oy = e.1 + d.1 - sp.1;
+      oz = e.2 - st.template.entry_z;
+      cells = stamp::cells(st, ox, oy, oz, q, flip);
+      fits = true;
+      for c in cells {
+        if used[intent::key_of(c.0, c.1, c.2)] || under_a_house(it, c.0, c.1, c.2) { fits = false; break; }
+        if c.2 == e.2 {
+          if tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) { fits = false; break; }
+        } else if materials::at(mats, l.w, c.0, c.1, c.2) != grass {
+          fits = false;
+          break;
+        }
+      }
+      if !fits { continue; }
+      reaches = false;
+      if st.template.solution != "" {
+        s0 = stamp::landing(st, ox, oy, oz, q, flip, st.start_x, st.start_y, st.start_z);
+        reaches = town[intent::key_of(s0.0, s0.1, s0.2)] != null;
+      } else {
+        for c in stamp::walkable_cells(st, ox, oy, oz, q, flip) {
+          for dd in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            n = (c.0 + dd.0, c.1 + dd.1, c.2);
+            if town[intent::key_of(n.0, n.1, n.2)] { reaches = true; }
+          }
+        }
+      }
+      if reaches { return Laid { name: tt.name, x: ox, y: oy, z: oz, turn: q, flip: flip, stretch: k }; }
+    }
+  }
+  null
 }
 
 /// The cells of `l` reached from (x, y, z) by plain walking (`reach`), over the whole place: the
@@ -347,8 +501,11 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
   insides = of_kind(ts, "inside", "inside", -1, -1);
   finds = of_kind(ts, "find", "inside", -1, -1);
   cellars = of_kind(ts, "cellar", "under", -1, -1);
+  tunnels = of_kind(ts, "tunnel", "exit", -1, -1);
   with_cellar: vector<levels::LevelFile> = [];
-  for c in cellars { if c.template.solution != "" { with_cellar += [c]; } }
+  for c in cellars { if c.template.solution != "" || c.template.exit_side != "" { with_cellar += [c]; } }
+  town: hash<Key[k]> = [];
+  for tk in town_cells { if !town[tk] { town += [Key { k: tk }]; } }
   none = stamp::named(cellars, "cellar_none");
   // Sibil's: one of the ordinary houses, by the seed; moved on to the next when no draw gives it a
   // cellar the rules reach.
@@ -404,18 +561,41 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
         cellar = none ?? closing;
         cellar_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
         kk = pick(r, pool);
+        // A cellar with a gap for a tunnel tries every turn, so the gap can face where a tunnel
+        // finds the town.
+        tunnel = cellar;
+        tunnel_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
         if kk >= 0 {
           cand = pool[kk]!;
-          cpl = place(r, cand, s, used);
-          if cpl {
-            cellar = cand;
-            cellar_p = cpl ?? cellar_p;
+          if cand.template.exit_side == "" {
+            cpl = place(r, cand, s, used);
+            if cpl {
+              cellar = cand;
+              cellar_p = cpl ?? cellar_p;
+            }
+          } else {
+            t0 = next(r, 4);
+            for ti in 0..4 {
+              cpl = place(r, cand, s, used, (t0 + ti) % 4) ?? continue;
+              tp = lay_tunnel(r, l, it, cand, cpl, tunnels, used, town, mats) ?? continue;
+              cellar = cand;
+              cellar_p = cpl;
+              tunnel = template_of(ts, tp) ?? continue;
+              tunnel_p = tp;
+              break;
+            }
+            if tunnel_p.name == "" { continue; }
           }
         }
-        if is_sibil && cellar.template.solution == "" { continue; }
+        if is_sibil && cellar.template.solution == "" && cellar.template.exit_side == "" { continue; }
         if cellar_p.name != "" {
           take_cells(used, cellar, cellar_p);
           laid += [cellar_p];
+        }
+        // A cellar reached by a tunnel has it, from the gap in its wall to the town.
+        if tunnel_p.name != "" {
+          take_cells(used, tunnel, tunnel_p);
+          laid += [tunnel_p];
         }
         if next(r, 3) == 0 {
           fi = pick(r, finds);
@@ -429,11 +609,22 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
             }
           }
         }
-        // Played on a copy: in by the way, down to the cellar.
+        // Played on a copy: in by the way, down to the cellar — round the house, and along its tunnel.
+        a = area_of(s);
+        if tunnel_p.name != "" { a = widened(a, stamp::cells(tunnel, tunnel_p.x, tunnel_p.y, tunnel_p.z, tunnel_p.turn, tunnel_p.flip)); }
+        seeds = town_here;
+        if tunnel_p.name != "" {
+          seeds = [];
+          for tk in town_cells {
+            tx = intent::x_of(tk);
+            ty = intent::y_of(tk);
+            if tx >= a.x0 && tx <= a.x1 && ty >= a.y0 && ty <= a.y1 && !in_footprint(s, tx, ty) { seeds += [tk]; }
+          }
+        }
         trial = l;
-        for p in laid { stamp::apply(trial, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
-        if !passes(trial, s, town_here, way, way_p, cellar, cellar_p, is_sibil) { continue; }
-        for p in laid { stamp::apply(l, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+        for p in laid { lay(trial, ts, p, mats, town); }
+        if !passes(trial, s, a, seeds, way, way_p, cellar, cellar_p, tunnel, tunnel_p, is_sibil) { continue; }
+        for p in laid { lay(l, ts, p, mats, town); }
         // Sibil's cellar is where the urn's ghost finds his rest: its floor, a layer down.
         if is_sibil { l.rest = cellar_floor(l, s, cellar, cellar_p); }
         dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
@@ -453,7 +644,7 @@ pub fn describe(d: const Deal) -> vector<text> {
   for h in d.houses {
     line = "HOUSE {h.house} draw {h.draw} cellar {h.cellar}";
     if h.sibil { line += " SIBIL"; }
-    for p in h.laid { line += " | {p.name} at {p.x},{p.y},{p.z} turn {p.turn}{if p.flip { " flip" } else { "" }}"; }
+    for p in h.laid { line += " | {p.name} at {p.x},{p.y},{p.z} turn {p.turn}{if p.flip { " flip" } else { "" }}{if p.stretch > 0 { " stretch {p.stretch}" } else { "" }}"; }
     out += [line];
   }
   out

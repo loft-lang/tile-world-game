@@ -378,6 +378,8 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     `stamp.loft`; Orbury's eleven ordinary houses dealt from them by the game's seed, each played by
     the rules before it is kept, Sibil's always with a cellar (`deal.loft`, HOUSES.md § The deal;
     `tests/stamps.loft`, `tests/deal.loft`).  The deal goes to the play log (D1e's first half).
+    Tunnels (2026-11-10): the cellars reached only by one get it, laid from the gap in their wall
+    and stretched to the town, and are played along it (HOUSES.md § 4).
   - **D1c. The town's fixed layout** (`levels/orbury.json`): the hill in terraces, the main road
     of slopes, the stair roads, the market, the houses' shells, the dried stream a layer down with
     its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with
