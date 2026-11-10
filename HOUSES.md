@@ -240,7 +240,7 @@ same miner's cottage, to show the spread:
   the roofs, down onto the table under the hole; a chair fallen, sticks by the hearth; the stairs
   down under the fallen rocks, so the cellar is reached by the drain from the stream bed.  The
   drain is dark and a rat's run: a torch held gets the hero through, not the urn, so the torch goes
-  into the cellar's socket first, and the urn comes after along the lit drain.
+  into a socket halfway along first, and the urn comes after through the light it keeps.
 - **no cellar at all**: shuttered, boarded at the front, the back door overgrown; in with an axe;
   inside, stacked; a health potion upstairs, reached by the stacked chair moved under the rotted
   stair; and no cellar.  The wrong house, and still worth it.
