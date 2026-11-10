@@ -232,8 +232,10 @@ The patterns that come of it ◇:
 
 **Left behind** (owner, 2026-11-10): the urn cannot break, and it can be left in a house, but then
 the ghost haunts the hero every night, until the urn is back in the graveyard or in the correct
-spot.  So setting it down to do the hands' work is free by day, and a house left unfinished at
-dusk has a price: the search can be paused, by taking the urn back to the graveyard.
+spot; and waking from a haunted dream, the hero has 1 health less for the next day (owner,
+2026-11-10).  So setting it down to do the hands' work is free by day, and a house left unfinished
+at dusk has a price, paid in the next day's falls and fights: the search can be paused, by taking
+the urn back to the graveyard.
 
 The template's check is run twice for it: the house solved by the hero alone, and the urn brought
 from the street into the cellar (PUZZLES.md § Solvable, the urn a role that takes the hands).
@@ -287,5 +289,6 @@ The templates ask little that is not built:
 - the urn cannot break (owner, 2026-11-10), but a thing in deep water is lost by today's rules:
   is the urn the one thing deep water gives back (it floats, as a beam does), or does it go back
   to the graveyard, so the haunting is never forever;
-- what the haunting does to the hero's night: only there, or in his way (seen by the villagers
-  he sneaks past, waking the house he is in);
+- the haunted dream's 1 health less: the day's top health 5 instead of 6 (potions heal up to 5),
+  or the day begun at 5 and healed back as ever; and whether a night not slept, the hero awake,
+  is haunted too;
