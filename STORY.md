@@ -445,7 +445,10 @@ part of these puzzles: the hero may get into a house more easily without it, and
 another route with it to get it there (HOUSES.md § Carrying the urn).  The urn cannot break
 (owner, 2026-11-10).  It can be left in a house, but then the ghost haunts the hero every night,
 for as long as the urn is neither in the graveyard nor in the correct spot.  Waking from a haunted
-dream, the hero has 1 health less for the next day (owner, 2026-11-10).
+dream, the hero has 1 health less for the next day (owner, 2026-11-10): a lower maximum.  Sleep
+gives a wounded hero his points back, and he can ignore it if the player wants to (owner).  On
+deep water the urn floats: it is closed, holding ashes that cannot spill, so water cannot enter
+(owner, 2026-11-10).
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
@@ -632,8 +635,10 @@ the cost of a choice is known when it is made; none proposes story content.
   (`out_by: night`, `passes_walls`) bound to the hero instead of the graveyard while a fact
   holds — the urn neither in the graveyard nor in Sibil's cellar — the way a talk's `follows`
   binds a person.  The haunted dream is the bed's sleep (BUILD.md C1: slept in, the clock moves on
-  to 07:00) with a cost: a reading ◇ is the day's top health 5 instead of 6, a health potion
-  healing up to it, until a night slept without the haunting.  "Knowing it is the
+  to 07:00) with a cost: the day's top health 5 instead of 6 (owner), a health potion healing up
+  to it, until a night slept without the haunting.  A reading ◇: a night not slept has no dream,
+  so no lower maximum, and no points back either.  The urn floating is the beam's `floats_to`
+  (a floating urn, drifting as a floating beam does).  "Knowing it is the
   place" is new: a cell set (a house's cellar) and a sign
   shown when the urn enters it — the right one, or not this one.  Cellars are the other cost:
   a cellar is a template's option, and no cellar marks a wrong house; a cellar can be hidden

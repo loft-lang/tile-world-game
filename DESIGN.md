@@ -68,7 +68,9 @@ This is what the game built on tile_world should be.
   Special potions, and later stat growth, give the hero temporary hitpoints (owner): health above
   the start's 6, to survive more hazardous situations — never needed (growth is never necessary).
   They are lost first when the hero is hit, and do not fade with time (owner).  Later, sleep and a
-  day-night cycle clear them, and lingering ailments with them (owner, planned).  **Built**
+  day-night cycle clear them, and lingering ailments with them (owner, planned).  **Sleep heals**
+  (owner, 2026-11-10): a wounded hero gets his points back by sleeping, and the player can ignore
+  it; a haunted dream (STORY.md @ST-Urn) wakes him with a maximum 1 lower for the next day.  **Built**
   (`tests/potions.loft`): the red health potion (Kenney's 115) restores 3 up to the start's 6; the
   blue spirit potion (116) gives 2 temporary health — every hurt (a bite, a blast, a fall, a cart)
   takes it first (`rules::harm`), and it never fades.  The status line shows `6+2`.
