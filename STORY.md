@@ -438,6 +438,9 @@ At rest, he tells the hero where in the mine a mining pick of better quality lie
 2026-11-10; @ST-Mine).  It is not on the main quest line, and this is a puzzle
 game (owner, 2026-11-10): it need not be straightforward at all, and a player giving up after the
 first house is fine.  What carries the search is the houses themselves (PUZZLES.md § Houses).
+The urn is a real carried item, taking the hands (owner, 2026-11-10), and that is an important
+part of these puzzles: the hero may get into a house more easily without it, and may need to take
+another route with it to get it there (HOUSES.md § Carrying the urn).
 
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
@@ -618,9 +621,9 @@ the cost of a choice is known when it is made; none proposes story content.
   Wick's lines explaining it.  **Where bombs lie**, told, is a hint (@ST-Hints): lines naming the
   places, or marks on the map when there is one.
 - **The urn asks for a carried thing that answers to a place** (@ST-Urn).  The urn is given by a
-  talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`), held in the hands like
-  any item, so it competes with a torch or an axe for the one held item — or it is carried apart,
-  as the heart is.  "Knowing it is the place" is new: a cell set (a house's cellar) and a sign
+  talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`) and held in the hands
+  like any item (owner, 2026-11-10), so the rules' `hands_busy` already makes its puzzle: no push,
+  pull or lift, no torch, axe or pick while it is held.  "Knowing it is the place" is new: a cell set (a house's cellar) and a sign
   shown when the urn enters it — the right one, or not this one.  Cellars are the other cost:
   a cellar is a template's option, and no cellar marks a wrong house; a cellar can be hidden
   (owner, 2026-11-10; PUZZLES.md § Houses: three templates).  Orbury today has four basements (`tools/orbury_gen.py`: the lord's house, the inn, the

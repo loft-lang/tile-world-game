@@ -20,6 +20,8 @@ rulings it follows are the owner's:
 - never unsolvable: hard, hidden and not straightforward are fine (owner, 2026-11-10);
 - the ways in include climbing from another house, from up the hill, and an underground tunnel
   (owner, 2026-11-10);
+- the urn is a real carried item, taking the hands: the hero may get in more easily without it,
+  and may need another route with it to get it there (owner, 2026-11-10);
 - the town's layout and every house's shell are fixed; what is dealt is the state and the inside
   (owner, 2026-11-08).
 
@@ -56,9 +58,9 @@ What a house's templates are made of, from `kinds.json` and the rules as they st
 | a rat, a bat, a spider | a rat keeps out of light; a bat drifts to it; a spider climbs walls and flees to another layer | built |
 
 Two limits shape every template.  The hero steps up 1 and cannot climb up through a ceiling, so
-the way up is a step of 3 against a wall or stairs.  And the hero's hands, holding anything, cannot
-push or pull: whatever is carried (a torch, an axe, the urn if it is held) is put down to move a
-rock off a hatch.
+the way up is a step of 3 against a wall or stairs.  And the hero's hands hold one thing, and
+holding anything they cannot push, pull or lift (`hands_busy`): the urn above all (§ Carrying the
+urn).
 
 ## 1. How it was locked, with the way in
 
@@ -189,6 +191,41 @@ family put across its end (taken apart, or burnt), loose rocks to push, a rat ru
 trial digging ties the urn's search to the founder himself: a tunnel he dug leads to the house of
 his love.
 
+## Carrying the urn
+
+The urn takes the hands (owner, 2026-11-10).  What the rules let a hero do with it held, and what
+not:
+
+| With the urn held | Not with the urn held |
+|---|---|
+| walking, opening a door, stairs up and down | pushing or pulling anything: a chair, a rock, a barrel, a cart |
+| a step up of 1: a chair, a table, a stack climbed | lifting a chair onto a table: building the stack |
+| over a fence edge, a low sill | felling a bush with the axe, a barricade with the pick |
+| along the roofs, down through a hole (the fall's cost as ever) | a torch held: the dark is the urn's, unlit |
+| wading a flooded cellar | taking another thing: a find waits |
+| lifting a door's beam: it falls at the hero's feet | a bomb thrown |
+
+So every way in has **two costs, without the urn and with it**, and the deal can make them differ.
+The patterns that come of it ◇:
+
+- **Open the way, then fetch it.**  The hands' work done first and left done: the stack built
+  under the window, the rock pushed off the hatch, the bushes felled, the torch set in the
+  cellar's socket (a socket holds it; rats keep out of its light).  Then back for the urn, along a
+  way that asks nothing of the hands.
+- **Put it down on the way.**  Q puts the urn down before the hero: carried as far as the hands
+  allow, set down, the hands' work done, taken up again.  Where it can be set down is the puzzle:
+  not in the doorway the rock has to be pushed through, not on the cell a push needs free.
+- **Another route for it.**  The hero's own way in needs the hands all through: a tunnel's rat run
+  passed only with a torch held, a passage where a chair is pushed ahead the whole way, a way
+  that a rock blocks behind the hero again.  So the urn goes in by another way, over the roofs or
+  down the hole, the one that is longer but asks nothing.
+- **The urn goes down first** ◇ verify: set down beside a roof's hole or a rotted stair, it falls
+  to the floor below, and the hero follows by the way that needs both hands (or none).  Whether a
+  thing put down over a void falls, and whether the urn survives it, is the rules' to say.
+
+The template's check is run twice for it: the house solved by the hero alone, and the urn brought
+from the street into the cellar (PUZZLES.md § Solvable, the urn a role that takes the hands).
+
 ## 5. A house dealt
 
 A house is its shell (fixed), one closing with its ways in (§ 1), one arrangement and its neglects
@@ -197,10 +234,13 @@ same miner's cottage, to show the spread:
 
 - **closed with care, recently**: barred from inside, left by the back; the back door behind the
   garden fence; inside, pushed to the walls; the hidden hatch among three barrels; no find.  A
-  short way in, a puzzle of which barrel.
+  short way in, a puzzle of which barrel, and with the urn a puzzle of where to set it down while
+  the barrels are pushed.
 - **closed in haste, long ago**: the roof come down over the kitchen; from the house beside along
   the roofs, down onto the table under the hole; a chair fallen, sticks by the hearth; the stairs
-  down under the fallen rocks, so the cellar is reached by the drain from the stream bed.
+  down under the fallen rocks, so the cellar is reached by the drain from the stream bed.  The
+  drain is dark and a rat's run: a torch held gets the hero through, not the urn, so the torch goes
+  into the cellar's socket first, and the urn comes after along the lit drain.
 - **no cellar at all**: shuttered, boarded at the front, the back door overgrown; in with an axe;
   inside, stacked; a health potion upstairs, reached by the stacked chair moved under the rotted
   stair; and no cellar.  The wrong house, and still worth it.
@@ -219,9 +259,9 @@ The templates ask little that is not built:
 
 ## Open, for the owner
 
-- whether the urn is held in the hands (so the hero puts it down to push, and cannot carry a torch
-  with it: the dark cellar becomes a puzzle of a torch set in a socket first) or carried apart, as
-  the heart and the rope are;
+- whether the urn can be lost: a blast within 2 breaks what is fragile, a thing in deep water is
+  lost.  Never unsolvable asks either an urn that does not break, or one that goes back to the
+  ghost to be fetched again;
 - whether the blast belongs in the town at all, with bombs belonging to the mine, or stays the
   persistent experimenter's way round (DESIGN.md § Bombs);
 - whether Sibil's house is dealt with the rest, or fixed, so the trial digging can lead to it;
