@@ -4,7 +4,10 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "stairs down into a cellar with shallow water on its floor"
+    "about": "stairs down into a cellar with shallow water on its floor",
+    "at": "under",
+    "weight": 2,
+    "solution": "w"
   },
   "camera": "follow",
   "legend": {
@@ -43,8 +46,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    1,
+    2,
     0
   ],
   "goal": {

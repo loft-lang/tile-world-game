@@ -4,7 +4,8 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "a grey rat lives here: out by day, it carries forage left lying home to its nest"
+    "about": "a grey rat lives here: out by day, it carries forage left lying home to its nest",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

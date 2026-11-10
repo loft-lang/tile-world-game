@@ -4,7 +4,14 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the door held shut by a beam on the inside (north): it gives only from in there"
+    "about": "the door held shut by a beam on the inside (north): it gives only from in there",
+    "at": "door",
+    "wall": [
+      0,
+      0
+    ],
+    "closes": true,
+    "weight": 4
   },
   "camera": "follow",
   "legend": {

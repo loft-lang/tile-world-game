@@ -4,7 +4,8 @@
     "kind": "tunnel",
     "turns": true,
     "flips": true,
-    "about": "the inn's vault running on under the market, boarded at its far end (a barricade)"
+    "about": "the inn's vault running on under the market, boarded at its far end (a barricade)",
+    "at": ""
   },
   "camera": "follow",
   "legend": {

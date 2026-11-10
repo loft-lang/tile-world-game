@@ -4,7 +4,9 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "a hole in the upper floor (layer 1): a way down, a fall, a place to look down through"
+    "about": "a hole in the upper floor (layer 1): a way down, a fall, a place to look down through",
+    "at": "inside",
+    "floors": 2
   },
   "camera": "follow",
   "legend": {

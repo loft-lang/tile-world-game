@@ -4,7 +4,8 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the stairs down in a room barred from inside: past its door (north) a rock with a table behind it"
+    "about": "the stairs down in a room barred from inside: past its door (north) a rock with a table behind it",
+    "at": ""
   },
   "camera": "follow",
   "legend": {

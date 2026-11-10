@@ -4,7 +4,9 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "bats under the roof, on the upper floor (layer 1): drawn to a torch"
+    "about": "bats under the roof, on the upper floor (layer 1): drawn to a torch",
+    "at": "inside",
+    "floors": 2
   },
   "camera": "follow",
   "legend": {},

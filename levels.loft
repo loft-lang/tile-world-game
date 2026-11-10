@@ -86,14 +86,34 @@ pub struct Label {
 }
 
 /// What makes a place file a template (HOUSES.md § Templates as files): the template's kind
-/// ("way_in", "inside", "cellar", "tunnel"; "" for an ordinary place), whether it may be turned and
-/// mirrored where it is applied, and a line on what it is.  Its name is the file's `name`, its map
-/// part the file's cells and things.
+/// ("way_in", "inside", "find", "cellar", "tunnel"; "" for an ordinary place), whether it may be
+/// turned and mirrored where it is applied, and a line on what it is.  Its name is the file's
+/// `name`, its map part the file's cells and things.
+///
+/// How the deal lays it (HOUSES.md § The deal): `at` — "door" (on a house's front door), "wall"
+/// (on an outer wall, its inside turned into the house), "inside" (within the house's floor),
+/// "under" (a cellar: its part within the house's footprint), "" not dealt; `wall_x`, `wall_y` the
+/// template's cell that lies on the wall or the door; `closes` (a way in that shuts the front
+/// door) and `gives` (a way in the hero gets in by); `weight`, how often it is drawn.  And how it
+/// is solved, played by the rules when it is dealt: `solution`, the moves (as drawn) from the
+/// file's `start` cell, with `needs` in the hands (a thing's name, "" none); `floors`, the house it
+/// is drawn for.
 pub struct TemplateInfo {
   pub kind: text,
   pub turns: boolean,
   pub flips: boolean,
-  pub about: text
+  pub about: text,
+  pub at: text = "",
+  pub wall_x: integer = 0,
+  pub wall_y: integer = 0,
+  pub closes: boolean = false,
+  pub gives: boolean = false,
+  pub weight: integer = 1,
+  pub needs: text = "",
+  pub solution: text = "",
+  /// The floors of the house it is drawn for (0: any): its layer 1 is the roof of a house of one
+  /// floor, the upper floor of a house of two.
+  pub floors: integer = 0
 }
 
 /// No template: an ordinary place.
@@ -377,8 +397,13 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
 // A place file's `template`: { "kind": .., "turns": .., "flips": .., "about": .. }; none when absent.
 fn template_of(v: const JsonValue) -> TemplateInfo {
   if v.kind() != "JObject" { return no_template(); }
+  wv = v.field("wall");
   TemplateInfo { kind: str(v.field("kind"), ""), turns: v.field("turns").as_bool() ?? true,
-                 flips: v.field("flips").as_bool() ?? true, about: str(v.field("about"), "") }
+                 flips: v.field("flips").as_bool() ?? true, about: str(v.field("about"), ""),
+                 at: str(v.field("at"), ""), wall_x: num(wv.item(0), 0), wall_y: num(wv.item(1), 0),
+                 closes: v.field("closes").as_bool() ?? false, gives: v.field("gives").as_bool() ?? false,
+                 weight: num(v.field("weight"), 1), needs: str(v.field("needs"), ""),
+                 solution: str(v.field("solution"), ""), floors: num(v.field("floors"), 0) }
 }
 
 // A place file's `serves`: the tags it lists.
@@ -563,7 +588,16 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
   out = "{{\n  \"name\": {quoted(lf.name)},";
   tp = lf.template;
   if tp.kind != "" {
-    out += "\n  \"template\": {{ \"kind\": {quoted(tp.kind)}, \"turns\": {tp.turns}, \"flips\": {tp.flips}, \"about\": {quoted(tp.about)} }},";
+    out += "\n  \"template\": {{ \"kind\": {quoted(tp.kind)}, \"turns\": {tp.turns}, \"flips\": {tp.flips}, \"about\": {quoted(tp.about)}";
+    if tp.at != "" { out += ",\n    \"at\": {quoted(tp.at)}"; }
+    if tp.at == "door" || tp.at == "wall" { out += ", \"wall\": [{tp.wall_x}, {tp.wall_y}]"; }
+    if tp.closes { out += ", \"closes\": true"; }
+    if tp.gives { out += ", \"gives\": true"; }
+    if tp.weight != 1 { out += ", \"weight\": {tp.weight}"; }
+    if tp.needs != "" { out += ", \"needs\": {quoted(tp.needs)}"; }
+    if tp.solution != "" { out += ", \"solution\": {quoted(tp.solution)}"; }
+    if tp.floors != 0 { out += ", \"floors\": {tp.floors}"; }
+    out += " }},";
   }
   if len(lf.serves) > 0 {
     out += "\n  \"serves\": [";

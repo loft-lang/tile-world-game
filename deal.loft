@@ -1,0 +1,427 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The deal (HOUSES.md § The deal; BUILD.md D1b, D1e): when a game starts, every ordinary house of a
+// place (its intent's houses marked `dealt`) is dealt from the templates under levels/templates/,
+// by a seed:
+//   - a closing on its front door (a template that `closes`: barred, boarded, a chair against it);
+//   - a way in (one that `gives`), unless the closing is one: a back door, a broken sill, a
+//     slumped wall, a hole or a hatch in the roof — on an outer wall, turned so its inside faces
+//     into the house, or within the house;
+//   - none to two of the inside as left (the arrangement, neglect, a lair);
+//   - its cellar (one laid `under`; `cellar_none` among them, never for Sibil's);
+//   - sometimes a find.
+// One ordinary house is Sibil's (STORY.md @ST-Urn: any house could be hers), always dealt a cellar.
+//
+// Never unsolvable (PUZZLES.md): a house is dealt only once its deal has been PLAYED by the rules —
+// the hero walked from the town (the cells reached before the deal) to the way in's start, its
+// solution played turned as the template lies, the hero then inside the house; walked on to the
+// cellar's start and its solution played, the hero then in the cellar.  A draw that fails is drawn
+// again; a house no draw passes stays as the layout has it.  The same seed deals the same town.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use stamp;
+
+/// One template laid: its name, its turned box's north-west corner, the layer its layer 0 lies on,
+/// and how it is turned and mirrored.
+pub struct Laid {
+  pub name: text,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub turn: integer,
+  pub flip: boolean
+}
+
+/// One house dealt: its index among the intent's houses, the templates laid on it in order, whether
+/// it is Sibil's, its cellar, and the draw that passed (-1: none did, the house left as it was).
+pub struct Dealt {
+  pub house: integer,
+  pub laid: vector<Laid>,
+  pub sibil: boolean,
+  pub cellar: text,
+  pub draw: integer
+}
+
+/// A place dealt: the seed, each ordinary house, and which of them is Sibil's (its index among the
+/// intent's houses, -1 when the place has none).
+pub struct Deal {
+  pub seed: integer,
+  pub houses: vector<Dealt>,
+  pub sibil: integer
+}
+
+/// No deal: a place with no ordinary houses.
+pub fn no_deal() -> Deal { Deal { seed: 0, houses: [], sibil: -1 } }
+
+/// How many draws a house gets before it is left as the layout has it.
+pub const DRAWS = 40;
+
+/// How far round a house the check walks, in cells.
+const MARGIN = 4;
+
+struct Key {
+  const k: integer
+}
+
+// A house's shell, from its intent: its box, its layer, its floors, its front door.
+struct Shell {
+  x: integer,
+  y: integer,
+  w: integer,
+  h: integer,
+  z: integer,
+  floors: integer,
+  door_x: integer,
+  door_y: integer
+}
+
+fn shell_of(h: const intent::House) -> Shell {
+  d = if h.door_at >= 0 { h.door_at } else { h.w / 2 };
+  Shell { x: h.x, y: h.y, w: h.w, h: h.h, z: h.z, floors: if h.floors > 0 { h.floors } else { 1 },
+          door_x: h.x + d, door_y: h.y + h.h - 1 }
+}
+
+fn in_floor(s: const Shell, x: integer, y: integer) -> boolean {
+  x > s.x && x < s.x + s.w - 1 && y > s.y && y < s.y + s.h - 1
+}
+
+fn in_footprint(s: const Shell, x: integer, y: integer) -> boolean {
+  x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h
+}
+
+// --- The draw ---
+
+// A small generator of draws: the same seed, the same draws.
+struct Rng {
+  s: integer
+}
+
+fn rng(seed: integer, house: integer, draw: integer) -> Rng {
+  r = Rng { s: ((seed % 2147483648 + 2147483648) % 2147483648 * 7919 + house * 104729 + draw * 1299709 + 17) % 2147483648 };
+  for _ in 0..3 { _ = next(r, 2); }
+  r
+}
+
+// A draw of 0..n-1.
+fn next(r: Rng, n: integer) -> integer {
+  r.s = (r.s * 1103515245 + 12345) % 2147483648;
+  if n <= 1 { 0 } else { (r.s / 65536) % n }
+}
+
+// One of `ts` by their weights; -1 when there is none.
+fn pick(r: Rng, ts: const vector<levels::LevelFile>) -> integer {
+  total = 0;
+  for t in ts { total += if t.template.weight > 0 { t.template.weight } else { 0 }; }
+  if total <= 0 { return -1; }
+  n = next(r, total);
+  for i in 0..len(ts) {
+    wt = ts[i]!.template.weight;
+    if wt <= 0 { continue; }
+    if n < wt { return i; }
+    n -= wt;
+  }
+  -1
+}
+
+// The templates of `kind` laid `at` (any `at` but "" when `at` is ""), with `closes` and `gives`
+// as asked (-1 any, 0 not, 1 so).
+fn of_kind(ts: const vector<levels::LevelFile>, kind: text, at: text, closes: integer, gives: integer) -> vector<levels::LevelFile> {
+  out: vector<levels::LevelFile> = [];
+  for t in ts {
+    tp = t.template;
+    if tp.kind != kind || tp.at == "" || (at != "" && tp.at != at) { continue; }
+    if closes >= 0 && tp.closes != (closes == 1) { continue; }
+    if gives >= 0 && tp.gives != (gives == 1) { continue; }
+    out += [t];
+  }
+  out
+}
+
+// Where template `t` lies on house `s`: drawn, and checked to fit and to stay clear of the cells
+// already taken (`used`); null when this draw finds no place for it.
+fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Key[k]>) -> Laid? {
+  if t.template.floors != 0 && t.template.floors != s.floors { return null; }
+  flip = t.template.flips && next(r, 2) == 1;
+  at = t.template.at;
+  turn = 0;
+  ox = 0;
+  oy = 0;
+  if at == "door" || at == "wall" {
+    wx = s.door_x;
+    wy = s.door_y;
+    if at == "wall" {
+      // An outer wall's cell, not a corner, not the front door: the back and the sides first.
+      side = next(r, 4);
+      turn = side;
+      if side == 0 {
+        if s.w < 3 { return null; }
+        wx = s.x + 1 + next(r, s.w - 2);
+        wy = s.y + s.h - 1;
+        if wx == s.door_x { return null; }
+      } else if side == 1 {
+        wx = s.x;
+        wy = s.y + 1 + next(r, s.h - 2);
+      } else if side == 2 {
+        wx = s.x + 1 + next(r, s.w - 2);
+        wy = s.y;
+      } else {
+        wx = s.x + s.w - 1;
+        wy = s.y + 1 + next(r, s.h - 2);
+      }
+    }
+    tf = stamp::way_of(t, turn, flip);
+    sp = stamp::spot(stamp::box_of(t), tf.0, tf.1, t.template.wall_x, t.template.wall_y);
+    ox = wx - sp.0;
+    oy = wy - sp.1;
+  } else {
+    turn = next(r, 4);
+    sz = stamp::size(t, stamp::way_of(t, turn, flip).0);
+    // Within the floor ("inside"), or the footprint ("under").
+    lo_x = if at == "under" { s.x } else { s.x + 1 };
+    lo_y = if at == "under" { s.y } else { s.y + 1 };
+    room_w = (if at == "under" { s.w } else { s.w - 2 }) - sz.0;
+    room_h = (if at == "under" { s.h } else { s.h - 2 }) - sz.1;
+    if room_w < 0 || room_h < 0 { return null; }
+    ox = lo_x + next(r, room_w + 1);
+    oy = lo_y + next(r, room_h + 1);
+  }
+  for c in stamp::cells(t, ox, oy, s.z, turn, flip) {
+    if used[intent::key_of(c.0, c.1, c.2)] { return null; }
+    if at == "inside" || at == "under" {
+      // On the house's floor only floor cells; above and below, within its footprint.
+      if c.2 == s.z && !in_floor(s, c.0, c.1) { return null; }
+      if !in_footprint(s, c.0, c.1) { return null; }
+    }
+  }
+  Laid { name: t.name, x: ox, y: oy, z: s.z, turn: turn, flip: flip }
+}
+
+fn take_cells(used: hash<Key[k]>, t: const levels::LevelFile, p: const Laid) {
+  for c in stamp::cells(t, p.x, p.y, p.z, p.turn, p.flip) {
+    k = intent::key_of(c.0, c.1, c.2);
+    if !used[k] { used += [Key { k: k }]; }
+  }
+}
+
+// --- The check, played by the rules ---
+
+// The cells reached from `seeds` by plain walking — steps, stairs, slopes, climbs and falls, doors
+// opened — never pushing, pulling or drinking, within the box x0..x1, y0..y1 on layers z0..z1.
+// The hero is moved about in `l`; what walking changes there (a door opened) stays.
+fn reach(l: rules::Level, seeds: const vector<integer>, x0: integer, y0: integer, x1: integer, y1: integer,
+         z0: integer, z1: integer) -> hash<Key[k]> {
+  seen: hash<Key[k]> = [];
+  queue: vector<integer> = [];
+  for sk in seeds {
+    if !seen[sk] { seen += [Key { k: sk }]; queue += [sk]; }
+  }
+  at = 0;
+  while at < len(queue) {
+    c = queue[at] ?? 0;
+    at += 1;
+    cx = intent::x_of(c);
+    cy = intent::y_of(c);
+    cz = intent::z_of(c);
+    for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+      tx = cx + d.0;
+      ty = cy + d.1;
+      if tx < x0 || tx > x1 || ty < y0 || ty > y1 { continue; }
+      th = tile_world::top(l.w, tx, ty, cz);
+      if th != 0 && (rules::movable(l, th) || rules::is_potion(l, th)) { continue; }
+      if rules::enemy_at(l, tx, ty, cz) >= 0 { continue; }
+      rules::put_hero(l, cx, cy, cz);
+      l.hero_item = 0;
+      l.health = 99;
+      st = rules::walk(l, d.0, d.1);
+      if st == rules::Step.Opened { st = rules::walk(l, d.0, d.1); }
+      if st != rules::Step.Walked && st != rules::Step.Climbed && st != rules::Step.Fell { continue; }
+      if l.hero_z < z0 || l.hero_z > z1 { continue; }
+      nk = intent::key_of(l.hero_x, l.hero_y, l.hero_z);
+      if !seen[nk] {
+        seen += [Key { k: nk }];
+        queue += [nk];
+      }
+    }
+  }
+  seen
+}
+
+// Walk the hero to the start of template `t` laid as `p` (reached from `seeds` round house `s`),
+// play its solution turned as it lies, with what it needs in the hands: false when the start is
+// not reached.
+fn solve(l: rules::Level, s: const Shell, seeds: const vector<integer>, t: const levels::LevelFile,
+         p: const Laid) -> boolean {
+  st = stamp::landing(t, p.x, p.y, p.z, p.turn, p.flip, t.start_x, t.start_y, t.start_z);
+  near = reach(l, seeds, s.x - MARGIN, s.y - MARGIN, s.x + s.w - 1 + MARGIN, s.y + s.h - 1 + MARGIN,
+               s.z - 1, s.z + s.floors);
+  if !near[intent::key_of(st.0, st.1, st.2)] { return false; }
+  rules::put_hero(l, st.0, st.1, st.2);
+  l.health = 99;
+  l.hero_item = if t.template.needs == "" { 0 } else { rules::th(l, t.template.needs) };
+  tf = stamp::way_of(t, p.turn, p.flip);
+  _ = rules::play(l, stamp::turned_moves(t.template.solution, tf.0, tf.1));
+  l.hero_item = 0;
+  true
+}
+
+// Is house `s`, dealt in `l`, solved by the rules: in by its way, and down into its cellar?
+fn passes(l: rules::Level, s: const Shell, town: const vector<integer>, way: const levels::LevelFile,
+          way_p: const Laid, cellar: const levels::LevelFile, cellar_p: const Laid) -> boolean {
+  if !solve(l, s, town, way, way_p) { return false; }
+  inside = in_floor(s, l.hero_x, l.hero_y) && l.hero_z >= s.z && l.hero_z < s.z + s.floors;
+  if !inside { return false; }
+  if cellar.template.solution == "" { return true; }
+  if !solve(l, s, [intent::key_of(l.hero_x, l.hero_y, l.hero_z)], cellar, cellar_p) { return false; }
+  l.hero_z == s.z - 1 && in_footprint(s, l.hero_x, l.hero_y)
+}
+
+/// The cells of `l` reached from (x, y, z) by plain walking (`reach`), over the whole place: the
+/// town before any house is dealt, from which each house's check starts.
+pub fn town(l: const rules::Level, x: integer, y: integer, z: integer) -> vector<integer> {
+  scratch = l;
+  lo_x = 0;
+  lo_y = 0;
+  hi_x = 0;
+  hi_y = 0;
+  lo_z = 0;
+  hi_z = 0;
+  first = true;
+  for lz in tile_world::layers(l.w) {
+    for c in tile_world::chunks(l.w, lz) {
+      cx0 = c.0 * 32;
+      cy0 = c.1 * 32;
+      if first || cx0 < lo_x { lo_x = cx0; }
+      if first || cy0 < lo_y { lo_y = cy0; }
+      if first || cx0 + 31 > hi_x { hi_x = cx0 + 31; }
+      if first || cy0 + 31 > hi_y { hi_y = cy0 + 31; }
+      if first || lz < lo_z { lo_z = lz; }
+      if first || lz > hi_z { hi_z = lz; }
+      first = false;
+    }
+  }
+  seen = reach(scratch, [intent::key_of(x, y, z)], lo_x, lo_y, hi_x, hi_y, lo_z, hi_z);
+  out: vector<integer> = [];
+  for sk in seen { out += [sk.k]; }
+  out
+}
+
+/// Deal every house of `it` marked `dealt` into `l` from the templates `ts`, by `seed`; `town` the
+/// cells reached before the deal (`town`).  Answers what was dealt.
+pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::LevelFile>, seed: integer,
+            town_cells: const vector<integer>, mats: const materials::Materials) -> Deal {
+  out = Deal { seed: seed, houses: [], sibil: -1 };
+  ordinary: vector<integer> = [];
+  for i in 0..len(it.houses) { if it.houses[i]!.dealt { ordinary += [i]; } }
+  if len(ordinary) == 0 { return out; }
+  closings = of_kind(ts, "way_in", "door", 1, -1);
+  ways = of_kind(ts, "way_in", "", 0, 1);
+  insides = of_kind(ts, "inside", "inside", -1, -1);
+  finds = of_kind(ts, "find", "inside", -1, -1);
+  cellars = of_kind(ts, "cellar", "under", -1, -1);
+  with_cellar: vector<levels::LevelFile> = [];
+  for c in cellars { if c.template.solution != "" { with_cellar += [c]; } }
+  none = stamp::named(cellars, "cellar_none");
+  // Sibil's: one of the ordinary houses, by the seed; moved on to the next when no draw gives it a
+  // cellar the rules reach.
+  sr = rng(seed, 1000, 0);
+  first_sibil = next(sr, len(ordinary));
+  for oi in 0..len(ordinary) {
+    hi = ordinary[oi]!;
+    s = shell_of(it.houses[hi]!);
+    town_here: vector<integer> = [];
+    for tk in town_cells {
+      tx = intent::x_of(tk);
+      ty = intent::y_of(tk);
+      if tx >= s.x - MARGIN && tx < s.x + s.w + MARGIN && ty >= s.y - MARGIN && ty < s.y + s.h + MARGIN
+         && !in_footprint(s, tx, ty) {
+        town_here += [tk];
+      }
+    }
+    is_sibil = out.sibil < 0 && oi >= first_sibil;
+    dealt = Dealt { house: hi, laid: [], sibil: false, cellar: "", draw: -1 };
+    for dr in 0..DRAWS {
+      r = rng(seed, hi, dr);
+      used: hash<Key[k]> = [];
+      laid: vector<Laid> = [];
+      ci = pick(r, closings);
+      if ci < 0 { break; }
+      closing = closings[ci]!;
+      cp = place(r, closing, s, used) ?? continue;
+      take_cells(used, closing, cp);
+      laid += [cp];
+      way = closing;
+      way_p = cp;
+      if !closing.template.gives || next(r, 3) != 0 {
+        wi = pick(r, ways);
+        if wi < 0 { continue; }
+        way = ways[wi]!;
+        way_p = place(r, way, s, used) ?? continue;
+        take_cells(used, way, way_p);
+        laid += [way_p];
+      }
+      for _ in 0..next(r, 3) {
+        ii = pick(r, insides);
+        if ii < 0 { break; }
+        ins = insides[ii]!;
+        ip = place(r, ins, s, used) ?? continue;
+        take_cells(used, ins, ip);
+        laid += [ip];
+      }
+      pool = if is_sibil { with_cellar } else { cellars };
+      cellar = none ?? closing;
+      cellar_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
+      kk = pick(r, pool);
+      if kk >= 0 {
+        cand = pool[kk]!;
+        cpl = place(r, cand, s, used);
+        if cpl {
+          cellar = cand;
+          cellar_p = cpl ?? cellar_p;
+        }
+      }
+      if is_sibil && cellar.template.solution == "" { continue; }
+      if cellar_p.name != "" {
+        take_cells(used, cellar, cellar_p);
+        laid += [cellar_p];
+      }
+      if next(r, 3) == 0 {
+        fi = pick(r, finds);
+        if fi >= 0 {
+          fd = finds[fi]!;
+          fp = place(r, fd, s, used);
+          if fp {
+            found = fp ?? cellar_p;
+            take_cells(used, fd, found);
+            laid += [found];
+          }
+        }
+      }
+      // Played on a copy: in by the way, down to the cellar.
+      trial = l;
+      for p in laid { stamp::apply(trial, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+      if !passes(trial, s, town_here, way, way_p, cellar, cellar_p) { continue; }
+      for p in laid { stamp::apply(l, stamp::named(ts, p.name) ?? closing, p.x, p.y, p.z, p.turn, p.flip, mats); }
+      dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
+      break;
+    }
+    if dealt.sibil { out.sibil = hi; }
+    out.houses += [dealt];
+  }
+  out
+}
+
+/// The deal as lines for the play log: the seed, and per house its templates where they lie.
+pub fn describe(d: const Deal) -> vector<text> {
+  out: vector<text> = ["DEAL seed {d.seed} sibil {d.sibil}"];
+  for h in d.houses {
+    line = "HOUSE {h.house} draw {h.draw} cellar {h.cellar}";
+    if h.sibil { line += " SIBIL"; }
+    for p in h.laid { line += " | {p.name} at {p.x},{p.y},{p.z} turn {p.turn}{if p.flip { " flip" } else { "" }}"; }
+    out += [line];
+  }
+  out
+}

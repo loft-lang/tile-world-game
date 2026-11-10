@@ -369,6 +369,11 @@ serves (@ST-…, @GM-…), and carries a walk-through test.  LOCATIONS.md is eac
     how it was locked, with a way in; how its owners left its inside; its cellar and the way into
     it.  No cellar is one of the third's options, the sign of a wrong house, and a cellar can be
     hidden (STORY.md @ST-Urn); D1d's closing is the first of the three.
+    **The templates as files and the deal built (2026-11-10)**: 45 templates under
+    `levels/templates/` (HOUSES.md § Templates as files), applied turned and mirrored by
+    `stamp.loft`; Orbury's eleven ordinary houses dealt from them by the game's seed, each played by
+    the rules before it is kept, Sibil's always with a cellar (`deal.loft`, HOUSES.md § The deal;
+    `tests/stamps.loft`, `tests/deal.loft`).  The deal goes to the play log (D1e's first half).
   - **D1c. The town's fixed layout** (`levels/orbury.json`): the hill in terraces, the main road
     of slopes, the stair roads, the market, the houses' shells, the dried stream a layer down with
     its bridges, the loading dock across it, the farms and the cemetery.  Pictured whole with

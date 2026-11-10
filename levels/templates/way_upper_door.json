@@ -4,7 +4,9 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "a door on the upper floor (layer 1) onto the street above, for a house against the slope"
+    "about": "a door on the upper floor (layer 1) onto the street above, for a house against the slope",
+    "at": "",
+    "floors": 2
   },
   "camera": "follow",
   "legend": {

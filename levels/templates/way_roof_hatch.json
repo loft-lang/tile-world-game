@@ -4,7 +4,12 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "a hatch in the roof (layer 1): stairs down from the roof to the floor below"
+    "about": "a hatch in the roof (layer 1): stairs down from the roof to the floor below",
+    "at": "inside",
+    "gives": true,
+    "weight": 2,
+    "solution": "w",
+    "floors": 1
   },
   "camera": "follow",
   "legend": {
@@ -43,8 +48,8 @@
   "rises": [],
   "start": [
     0,
-    0,
-    0
+    1,
+    1
   ],
   "goal": {
     "type": ""

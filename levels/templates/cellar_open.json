@@ -4,7 +4,10 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "stairs down from the room into a small cellar"
+    "about": "stairs down from the room into a small cellar",
+    "at": "under",
+    "weight": 3,
+    "solution": "w"
   },
   "camera": "follow",
   "legend": {
@@ -42,8 +45,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    1,
+    2,
     0
   ],
   "goal": {

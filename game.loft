@@ -16,6 +16,8 @@ use talk;
 use motion;
 use ui;
 use intent;
+use stamp;
+use deal;
 
 /// The frame: 13 x 9 cells of 16 pixels for the level, and one row for the status line.  The
 /// editor gives a row of the level to its palette.
@@ -256,7 +258,12 @@ pub struct Game {
   pub tag_field: text = "",
   /// Where weapons met lately, and when the hero last struck a riposte (its stagger is doubled).
   pub sparks: vector<Spark> = [],
-  riposted_at: integer = -1000000
+  riposted_at: integer = -1000000,
+  /// The deal (HOUSES.md § The deal): the seed a new game deals its places' ordinary houses by
+  /// (TW_SEED, else the clock), the templates (levels/templates/, read once), and the last deal.
+  pub seed: integer = 0,
+  templates: vector<levels::LevelFile> = [],
+  pub dealt: deal::Deal = deal::no_deal()
 }
 
 /// How long a spark shows, small (a block) and big (a parry), and its size against a tile
@@ -511,10 +518,24 @@ pub fn start_world(g: Game, place: text) -> boolean {
   g.entered_by = "";
   g.has_arrived = false;
   restart(g);
+  if g.seed == 0 { g.seed = (env_variable("TW_SEED") ?? "") as integer ?? (ticks() % 999983 + 1); }
+  deal_here(g);
   move_people(g, true);
   g.arrived = g.world;
   g.has_arrived = true;
   true
+}
+
+// A place entered for the first time in a game has its ordinary houses dealt (HOUSES.md § The
+// deal), by the game's seed, and the deal goes to the play log.  A place with none is left as it is.
+fn deal_here(g: Game) {
+  any = false;
+  for h in g.file.intent.houses { if h.dealt { any = true; } }
+  if !any { return; }
+  if len(g.templates) == 0 { g.templates = stamp::all("{g.dir}/levels/{TEMPLATES}", g.kinds, g.mats); }
+  town = deal::town(g.world, g.file.start_x, g.file.start_y, g.file.start_z);
+  g.dealt = deal::deal(g.world, g.file.intent, g.templates, g.seed, town, g.mats);
+  for line in deal::describe(g.dealt) { g.log += ["clock {g.world.now}  {g.place}: {line}"]; }
 }
 
 /// The hero steps through door `i` of the place it is in: into the place the door leads to, as
@@ -551,6 +572,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
     for v in g.places { if v.place == to { g.world = v.level; } }
   } else {
     g.world = g.file.level;
+    deal_here(g);
   }
   rules::carry_in(g.world, c);
   keep_time(g);

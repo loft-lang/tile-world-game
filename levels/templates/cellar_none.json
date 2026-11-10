@@ -4,7 +4,9 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "no cellar at all: the wrong house"
+    "about": "no cellar at all: the wrong house",
+    "at": "under",
+    "weight": 4
   },
   "camera": "follow",
   "legend": {},

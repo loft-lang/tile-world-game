@@ -4,7 +4,10 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the stairs down rotted to a hole: a drop onto a table below; back up by the chair pulled onto it, to the wall's top"
+    "about": "the stairs down rotted to a hole: a drop onto a table below; back up by the chair pulled onto it, to the wall's top",
+    "at": "under",
+    "weight": 2,
+    "solution": "a"
   },
   "camera": "follow",
   "legend": {
@@ -79,8 +82,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    2,
+    2,
     0
   ],
   "goal": {

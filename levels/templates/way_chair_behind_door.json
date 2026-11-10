@@ -4,7 +4,16 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the door with a chair pushed against it inside (north): it gives as the hero steps in"
+    "about": "the door with a chair pushed against it inside (north): it gives as the hero steps in",
+    "at": "door",
+    "wall": [
+      0,
+      1
+    ],
+    "closes": true,
+    "gives": true,
+    "weight": 2,
+    "solution": "w w"
   },
   "camera": "follow",
   "legend": {
@@ -47,7 +56,7 @@
   "rises": [],
   "start": [
     0,
-    0,
+    2,
     0
   ],
   "goal": {

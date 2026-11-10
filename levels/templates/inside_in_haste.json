@@ -4,7 +4,8 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "left in haste: a socket on the north wall with the torch burnt down to a stick, a chair left in the way"
+    "about": "left in haste: a socket on the north wall with the torch burnt down to a stick, a chair left in the way",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

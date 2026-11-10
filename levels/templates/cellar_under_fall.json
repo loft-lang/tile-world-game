@@ -4,7 +4,9 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the roof came down on the hatch: stones on the stairs and round them, touching, which no push moves"
+    "about": "the roof came down on the hatch: stones on the stairs and round them, touching, which no push moves",
+    "at": "",
+    "floors": 1
   },
   "camera": "follow",
   "legend": {

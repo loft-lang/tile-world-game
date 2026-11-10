@@ -4,7 +4,8 @@
     "kind": "find",
     "turns": true,
     "flips": true,
-    "about": "a health potion and a spirit potion on the cellar's shelf"
+    "about": "a health potion and a spirit potion on the cellar's shelf",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

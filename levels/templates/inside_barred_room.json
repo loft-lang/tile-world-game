@@ -4,7 +4,8 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "a room barred from inside: past its door (an edge, north) a rock with a table behind it, which no push moves"
+    "about": "a room barred from inside: past its door (an edge, north) a rock with a table behind it, which no push moves",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

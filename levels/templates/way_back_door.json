@@ -4,7 +4,15 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the back door the family only closed, a garden fence across the yard behind it (climbed over)"
+    "about": "the back door the family only closed, a garden fence across the yard behind it (climbed over)",
+    "at": "wall",
+    "wall": [
+      0,
+      0
+    ],
+    "gives": true,
+    "weight": 3,
+    "solution": "w w w w w"
   },
   "camera": "follow",
   "legend": {
@@ -37,7 +45,7 @@
   "rises": [],
   "start": [
     0,
-    0,
+    3,
     0
   ],
   "goal": {

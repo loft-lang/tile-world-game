@@ -4,7 +4,12 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the roof came down over a table (layer 1 the roof): down through the hole onto it, a fallen stone beside"
+    "about": "the roof came down over a table (layer 1 the roof): down through the hole onto it, a fallen stone beside",
+    "at": "inside",
+    "gives": true,
+    "weight": 3,
+    "solution": "d",
+    "floors": 1
   },
   "camera": "follow",
   "legend": {
@@ -49,8 +54,8 @@
   "rises": [],
   "start": [
     0,
-    0,
-    0
+    1,
+    1
   ],
   "goal": {
     "type": ""

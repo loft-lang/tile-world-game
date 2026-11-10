@@ -98,6 +98,55 @@ hatch under the fall (their stones give to no push), the weighted roof hatch, th
 door, and the rotted cellar stair: a drop onto the table below costs nothing, and the way back up
 is the chair pulled onto that table and the wall's top beside the hole.
 
+## The deal
+
+Built (2026-11-10, `deal.loft`, `tests/deal.loft`).  When a game starts, and when the hero first
+enters a place, every house its intent marks `"dealt": true` is dealt from the templates by the
+game's seed (`TW_SEED`, else the clock).  In Orbury those are the eleven ordinary houses: the
+middle terrace's four cottages and the seven miners' rows (`tools/orbury_gen.py`, `dealt=True`).
+The lord's house, the inn, Agnes's, the well-off house, Hollis's and the smithy keep their own.
+
+**Per house, in one draw**: a closing on its front door (a template that `closes`); a way in (one
+that `gives`) unless the closing is one, laid on an outer wall turned so its inside faces into the
+house, or within the house; none to two of the inside as left; a cellar (`cellar_none` among them);
+and one time in three a find.  One ordinary house is Sibil's, by the seed, and is never dealt
+`cellar_none`.
+
+**Played before it is kept** (never unsolvable): on a copy of the place, the hero walks from the
+town (the cells reached from the place's start before the deal) to the way in's start, plays its
+solution as the template lies, with what it `needs` in the hands, and must then stand inside the
+house; then walks on to the cellar's start and plays its solution, and must stand in the cellar.  A
+draw that fails is drawn again, up to 40 times; a house no draw passes stays as the layout has it.
+The walk never pushes, pulls or drinks, so a template's things that block the way fail the draw.
+A template whose solution is broken is never dealt: `way_broken_sill` with its moves reversed
+appears in no house.
+
+**What a template tells the deal**, in its `template` block (editable like the rest):
+
+| Field | Means |
+|---|---|
+| `at` | `door` (on the front door), `wall` (on an outer wall, not a corner or the door), `inside` (within the floor), `under` (a cellar, within the footprint); none: not dealt |
+| `wall` | `[x, y]`: the template's cell that lies on the wall or the door |
+| `closes`, `gives` | it shuts the front door; the hero gets in by it |
+| `weight` | how often it is drawn (1 when not said) |
+| `needs` | what the hands hold for its solution (`pick`, `axe`) |
+| `solution` | the moves as drawn, from the file's `start` cell (`rules::play`'s words; `~700` waits) |
+| `floors` | the house it is drawn for: its layer 1 is a one-floor house's roof (`way_roof_hole`) or a two-floor house's upper floor (`inside_bats_upstairs`); 0 any |
+
+**Not dealt yet** (`at` none), each for a reason: `way_window_step` and `way_upper_door` want a
+house of two floors (the ordinary ones have one); `way_shuttered`, windows the ordinary houses do
+not have; `way_walled_up`, a directed blast in its solution; `cellar_in_barred_room`, a house
+bigger than the cottages; `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only` and
+the tunnels, a second way that the deal does not lay yet.
+
+**The play log** gets the deal: `DEAL seed 7 sibil 5`, then a line per house with its draw, its
+cellar and every template where it lies, turned and mirrored.  `TW_SEED=7 loft --lib libs
+tools/map.loft orbury OUT.png` pictures that deal whole.
+
+**Still to come**: the urn's own check for Sibil's house (the same walk with the urn in the hands,
+once the urn is a thing); tunnels and the cellars that need them; the finds laid in the cellar
+rather than on the ground floor; two-floor houses.
+
 ## What the town gives to work with
 
 What a house's templates are made of, from `kinds.json` and the rules as they stand:

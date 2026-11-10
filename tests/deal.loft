@@ -1,0 +1,71 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The deal (HOUSES.md § The deal): Orbury's ordinary houses dealt from the templates by a seed —
+// each one played by the rules before it is dealt, Sibil's always with a cellar, the same seed the
+// same town and another seed another.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use intent;
+use stamp;
+use deal;
+
+fn kit() -> (rules::Kinds, materials::Materials) {
+  k = rules::kinds();
+  (k, materials::load(file("../theme.json").content() ?? "", k))
+}
+
+fn orbury() -> levels::LevelFile {
+  km = kit();
+  m = levels::load_with(file("../levels/orbury.json").content() ?? "", km.0, km.1);
+  if !m { assert(false, "orbury loads"); }
+  m ?? levels::LevelFile { name: "", level: rules::level(km.0), start_x: 0, start_y: 0, start_z: 0,
+                           goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } }
+}
+
+fn dealt(seed: integer) -> (levels::LevelFile, deal::Deal) {
+  km = kit();
+  lf = orbury();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  town = deal::town(lf.level, lf.start_x, lf.start_y, lf.start_z);
+  assert(len(town) > 500, "the town is walked: {len(town)} cells");
+  d = deal::deal(lf.level, lf.intent, ts, seed, town, km.1);
+  (lf, d)
+}
+
+fn test_every_ordinary_house_is_dealt_and_played() {
+  r = dealt(7);
+  d = r.1;
+  assert(len(d.houses) == 11, "the ordinary houses: {len(d.houses)}");
+  passed = 0;
+  for h in d.houses { if h.draw >= 0 { passed += 1; } }
+  assert(passed == 11, "every house passed a draw: {passed}; {deal::describe(d)}");
+  assert(d.sibil >= 0, "one is Sibil's: {deal::describe(d)}");
+  for h in d.houses {
+    if h.sibil { assert(h.cellar != "cellar_none" && h.cellar != "", "Sibil's has a cellar: {h.cellar}"); }
+  }
+}
+
+fn test_the_same_seed_deals_the_same_town() {
+  a = deal::describe(dealt(7).1);
+  b = deal::describe(dealt(7).1);
+  c = deal::describe(dealt(8).1);
+  assert(a == b, "seed 7 twice");
+  assert(a != c, "seed 8 another");
+}
+
+// A template drawn for the upper floor of a house of two floors is never laid on a cottage of one,
+// where its layer 1 would be the roof: no bats on the roofs.
+fn test_upper_floor_templates_stay_off_the_cottages_roofs() {
+  for seed in [7, 8, 9] {
+    d = dealt(seed).1;
+    for h in d.houses {
+      for p in h.laid {
+        assert(p.name != "inside_bats_upstairs" && p.name != "inside_spider_upstairs" && p.name != "inside_floor_hole"
+               && p.name != "inside_stair_rotted", "seed {seed}: {p.name} on house {h.house}, of one floor");
+      }
+    }
+  }
+}

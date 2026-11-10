@@ -4,7 +4,10 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "an open cellar, dark, a rat in it; a socket on its wall for a torch"
+    "about": "an open cellar, dark, a rat in it; a socket on its wall for a torch",
+    "at": "under",
+    "weight": 2,
+    "solution": "w"
   },
   "camera": "follow",
   "legend": {
@@ -61,8 +64,8 @@
     ]
   ],
   "start": [
-    0,
-    0,
+    1,
+    2,
     0
   ],
   "goal": {

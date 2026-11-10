@@ -4,7 +4,8 @@
     "kind": "find",
     "turns": true,
     "flips": true,
-    "about": "a boost potion, kept for the long shift"
+    "about": "a boost potion, kept for the long shift",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

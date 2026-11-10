@@ -4,7 +4,15 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "a ground-floor window gone: the wall's cell open, a low sill (a fence edge) on its outside (south)"
+    "about": "a ground-floor window gone: the wall's cell open, a low sill (a fence edge) on its outside (south)",
+    "at": "wall",
+    "wall": [
+      0,
+      0
+    ],
+    "gives": true,
+    "weight": 3,
+    "solution": "w w"
   },
   "camera": "follow",
   "legend": {
@@ -35,7 +43,7 @@
   "rises": [],
   "start": [
     0,
-    0,
+    1,
     0
   ],
   "goal": {

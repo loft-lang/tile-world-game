@@ -134,7 +134,10 @@ pub struct House {
   /// window, a door held shut).
   pub openings: vector<Opening> = [],
   /// Where its roof came down (PUZZLES.md § Houses: neglect): the roof's cells gone, open to the sky.
-  pub holes: vector<Point> = []
+  pub holes: vector<Point> = [],
+  /// An ordinary house, dealt from the templates when a game starts (HOUSES.md § The deal): how it
+  /// was locked and the way in, its inside as left, its cellar.
+  pub dealt: boolean = false
 }
 
 
@@ -365,7 +368,8 @@ pub fn intent_from(v: const JsonValue) -> Intent {
                           door_at: int_of(e.field("door_at"), -1), floors: fl,
                           basement: e.field("basement").as_bool() ?? false,
                           front: e.field("front").as_bool() ?? true,
-                          openings: openings_of(e.field("openings")), holes: points_of(e.field("holes")) }];
+                          openings: openings_of(e.field("openings")), holes: points_of(e.field("holes")),
+                          dealt: e.field("dealt").as_bool() ?? false }];
   }
   ss = v.field("slopes");
   for i in 0..ss.len() {
@@ -509,6 +513,7 @@ pub fn intent_json(it: const Intent) -> text {
       if h.floors > 0 { out += ", \"floors\": {h.floors}"; }
       if h.basement { out += ", \"basement\": true"; }
       if !h.front { out += ", \"front\": false"; }
+      if h.dealt { out += ", \"dealt\": true"; }
       if len(h.openings) > 0 {
         os = "";
         for o in h.openings {

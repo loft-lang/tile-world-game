@@ -4,7 +4,8 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the windows shuttered: the wall's outer side shut along three cells (wall edges), where a window was"
+    "about": "the windows shuttered: the wall's outer side shut along three cells (wall edges), where a window was",
+    "at": ""
   },
   "camera": "follow",
   "legend": {},

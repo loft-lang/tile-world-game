@@ -4,7 +4,8 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "a cellar with no stairs from the house: its way is a passage out of its south wall, to a tunnel"
+    "about": "a cellar with no stairs from the house: its way is a passage out of its south wall, to a tunnel",
+    "at": ""
   },
   "camera": "follow",
   "legend": {

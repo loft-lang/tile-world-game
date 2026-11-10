@@ -4,7 +4,8 @@
     "kind": "tunnel",
     "turns": true,
     "flips": true,
-    "about": "two cellars knocked through: a short passage, west to east, a layer down"
+    "about": "two cellars knocked through: a short passage, west to east, a layer down",
+    "at": ""
   },
   "camera": "follow",
   "legend": {

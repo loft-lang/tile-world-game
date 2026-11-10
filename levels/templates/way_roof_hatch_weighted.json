@@ -4,7 +4,12 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the roof hatch with a barrel on it, left by the family on their way out: pushed off on the roof"
+    "about": "the roof hatch with a barrel on it, left by the family on their way out: pushed off on the roof",
+    "at": "inside",
+    "gives": true,
+    "weight": 2,
+    "solution": "w s w",
+    "floors": 1
   },
   "camera": "follow",
   "legend": {
@@ -56,8 +61,8 @@
   "rises": [],
   "start": [
     0,
-    0,
-    0
+    2,
+    1
   ],
   "goal": {
     "type": ""

@@ -4,7 +4,8 @@
     "kind": "inside",
     "turns": true,
     "flips": true,
-    "about": "the chairs pushed to the north wall, the table left in the middle: the room's middle clear"
+    "about": "the chairs pushed to the north wall, the table left in the middle: the room's middle clear",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

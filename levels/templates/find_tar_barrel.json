@@ -4,7 +4,8 @@
     "kind": "find",
     "turns": true,
     "flips": true,
-    "about": "a tar barrel in the cellar or the yard's shed"
+    "about": "a tar barrel in the cellar or the yard's shed",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

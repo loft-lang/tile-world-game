@@ -4,7 +4,8 @@
     "kind": "find",
     "turns": true,
     "flips": true,
-    "about": "sticks and a torch beside the hearth"
+    "about": "sticks and a torch beside the hearth",
+    "at": "inside"
   },
   "camera": "follow",
   "legend": {},

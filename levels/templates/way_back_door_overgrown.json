@@ -4,7 +4,16 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "the back door closed, bushes grown up in front of it: in with an axe"
+    "about": "the back door closed, bushes grown up in front of it: in with an axe",
+    "at": "wall",
+    "wall": [
+      1,
+      0
+    ],
+    "gives": true,
+    "weight": 2,
+    "needs": "axe",
+    "solution": "w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w ~700 w w w"
   },
   "camera": "follow",
   "legend": {
@@ -36,8 +45,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    1,
+    3,
     0
   ],
   "goal": {

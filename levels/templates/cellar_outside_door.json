@@ -4,7 +4,8 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "the cellar's door outside, at the back, behind bushes: in with an axe; its passage runs on under the house (north)"
+    "about": "the cellar's door outside, at the back, behind bushes: in with an axe; its passage runs on under the house (north)",
+    "at": ""
   },
   "camera": "follow",
   "legend": {

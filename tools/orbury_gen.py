@@ -13,10 +13,11 @@ def earth(x, y, w, h, top):  # solid hill under a terrace on layer `top`
     for z in range(0, top): ground(x, y, w, h, z, "wall")
 def terrace(x, y, w, h, z, what="grass"):
     earth(x, y, w, h, z); ground(x, y, w, h, z, what)
-def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof"):
+def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False):
     e = {"at": [x, y], "size": [w, h], "z": z, "floors": floors, "wall": wall, "roof": roof, "door": "house_door" if wall == "wood_wall" else "stone_door"}
     if basement: e["basement"] = True
     if door_at >= 0: e["door_at"] = door_at
+    if dealt: e["dealt"] = True   # an ordinary house, dealt from the templates (HOUSES.md § The deal)
     houses.append(e)
 def trail(points, z, what="path", width=1):
     t = {"points": points, "z": z, "as": what}
@@ -76,11 +77,11 @@ def trail(points, z, what="path", width=1):
 def ground(x, y, w, h, z, what):
     if what not in ("grass", "wall", "void"): keep(x, y, z, w, h)
     _ground(x, y, w, h, z, what)
-def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof"):
+def house(x, y, w, h, z, floors, basement=False, door_at=-1, wall="wood_wall", roof="house_roof", dealt=False):
     keep(x, y, z, w, h, 1)
     d = door_at if door_at >= 0 else w // 2
     keep(x + d, y + h, z, 1, 2)
-    _house(x, y, w, h, z, floors, basement, door_at, wall, roof)
+    _house(x, y, w, h, z, floors, basement, door_at, wall, roof, dealt)
 # The terraces' fronts slope (owner, 2026-11-09), so a ramp is the front itself: its cells are kept
 # clear as before, but they no longer rise (three rising cells beside a sloping front would only
 # stop the hero walking onto them from the side).
@@ -222,11 +223,11 @@ house(52, 24, 8, 7, 2, 2, True, door_at=4, wall="stone_wall", roof="house_slate"
 behind1 = lambda c: at(MARKET, c)
 before1 = lambda c: first_row(STREET1, c)
 placed(6, 8, 7, 1, behind1, before1, 0, 1, floors=2, basement=True, door_at=4)          # Hollis's
-placed(15, 5, 5, 1, behind1, before1, 2, 1)
-placed(26, 5, 5, 1, behind1, before1, 3, 1)
-placed(37, 5, 5, 1, lambda c: at(MARKET, c) + 2, before1, 1, 1)                      # clear of the road's slope
+placed(15, 5, 5, 1, behind1, before1, 2, 1, dealt=True)
+placed(26, 5, 5, 1, behind1, before1, 3, 1, dealt=True)
+placed(37, 5, 5, 1, lambda c: at(MARKET, c) + 2, before1, 1, 1, dealt=True)                      # clear of the road's slope
 placed(46, 8, 6, 1, behind1, before1, 0, 1, door_at=3, wall="stone_wall")              # the smithy
-placed(54, 6, 5, 1, behind1, before1, 2, 1)
+placed(54, 6, 5, 1, behind1, before1, 2, 1, dealt=True)
 # The foot: the miners' rows, Thornfield's farmhouse and barn, the cemetery's fence and trees.
 # The miners' rows face the lane along the bank, so they stand where the bank lets them — set back
 # where the stream swings south, pressed against the street where it swings north — and each a
@@ -234,7 +235,7 @@ placed(54, 6, 5, 1, behind1, before1, 2, 1)
 behind0 = lambda c: row_of(STREET0, c) + 1
 before0 = lambda c: first_row(LANE, c)
 for x, w, h, back in ((1, 7, 5, 1), (9, 6, 4, 0), (19, 5, 5, 0), (25, 4, 4, 2), (33, 5, 5, 0), (39, 5, 4, 0), (45, 5, 5, 0)):
-    placed(x, w, h, 0, behind0, before0, back, 0, front=True)
+    placed(x, w, h, 0, behind0, before0, back, 0, front=True, dealt=True)
 ground(53, 48, 9, 1, 0, "garden_fence"); ground(53, 53, 9, 1, 0, "garden_fence")
 ground(53, 48, 1, 6, 0, "garden_fence"); ground(61, 48, 1, 6, 0, "garden_fence")
 ground(57, 53, 1, 1, 0, "grass")

@@ -4,7 +4,10 @@
     "kind": "cellar",
     "turns": true,
     "flips": true,
-    "about": "three chairs along the wall; the stairs down are under the middle one"
+    "about": "three chairs along the wall; the stairs down are under the middle one",
+    "at": "under",
+    "weight": 3,
+    "solution": "ps a w d w"
   },
   "camera": "follow",
   "legend": {
@@ -73,8 +76,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    2,
+    2,
     0
   ],
   "goal": {
