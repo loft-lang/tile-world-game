@@ -2,10 +2,11 @@
   "name": "find_boost_potion",
   "template": {
     "kind": "find",
-    "turns": true,
-    "flips": true,
+    "turns": false,
+    "flips": false,
     "about": "a boost potion, kept for the long shift",
-    "at": "inside"
+    "at": "spot",
+    "weight": 2
   },
   "camera": "follow",
   "legend": {},

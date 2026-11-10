@@ -210,21 +210,34 @@ pub fn cells(t: const levels::LevelFile, x: integer, y: integer, z: integer, tur
              flip: boolean) -> vector<(integer, integer, integer)> {
   out: vector<(integer, integer, integer)> = [];
   tw = t.level.w;
+  if len(tile_world::layers(tw)) == 0 && len(tile_world::stacks(tw)) == 0 && len(t.level.enemies) == 0 { return out; }
+  // The box once, not for every cell (`landing` would find it again each time).
+  b = box_of(t);
+  tf = way_of(t, turn, flip);
   for lz in tile_world::layers(tw) {
     for c in tile_world::chunks(tw, lz) {
       for j in 0..CHUNK {
         for i in 0..CHUNK {
           sx = c.0 * CHUNK + i;
           sy = c.1 * CHUNK + j;
-          if tile_world::is_set(tw, sx, sy, lz) { out += [landing(t, x, y, z, turn, flip, sx, sy, lz)]; }
+          if tile_world::is_set(tw, sx, sy, lz) {
+            at_cell = spot(b, tf.0, tf.1, sx, sy);
+            out += [(x + at_cell.0, y + at_cell.1, z + lz)];
+          }
         }
       }
     }
   }
   for s in tile_world::stacks(tw) {
-    if !tile_world::is_set(tw, s.0, s.1, s.2) { out += [landing(t, x, y, z, turn, flip, s.0, s.1, s.2)]; }
+    if !tile_world::is_set(tw, s.0, s.1, s.2) {
+      at_stack = spot(b, tf.0, tf.1, s.0, s.1);
+      out += [(x + at_stack.0, y + at_stack.1, z + s.2)];
+    }
   }
-  for e in t.level.enemies { out += [landing(t, x, y, z, turn, flip, e.x, e.y, e.z)]; }
+  for e in t.level.enemies {
+    at_figure = spot(b, tf.0, tf.1, e.x, e.y);
+    out += [(x + at_figure.0, y + at_figure.1, z + e.z)];
+  }
   out
 }
 
@@ -304,6 +317,10 @@ pub fn stretched(t: const levels::LevelFile, k: integer) -> levels::LevelFile {
     }
   }
   for i in 0..len(out.level.bars) { if (out.level.bars[i]!.y) > sr { out.level.bars[i].y += k; } }
+  for i in 0..len(out.template.finds) {
+    c = out.template.finds[i]!;
+    if c.1 > sr { out.template.finds[i] = (c.0, c.1 + k, c.2); }
+  }
   if out.start_y > sr { out.start_y += k; }
   out
 }
@@ -314,6 +331,8 @@ pub fn walkable_cells(t: const levels::LevelFile, x: integer, y: integer, z: int
                       flip: boolean) -> vector<(integer, integer, integer)> {
   out: vector<(integer, integer, integer)> = [];
   tw = t.level.w;
+  b = box_of(t);
+  tf = way_of(t, turn, flip);
   for lz in tile_world::layers(tw) {
     for c in tile_world::chunks(tw, lz) {
       for j in 0..CHUNK {
@@ -321,7 +340,8 @@ pub fn walkable_cells(t: const levels::LevelFile, x: integer, y: integer, z: int
           sx = c.0 * CHUNK + i;
           sy = c.1 * CHUNK + j;
           if tile_world::is_set(tw, sx, sy, lz) && tile_world::walkable_kind(tw, tile_world::terrain(tw, sx, sy, lz)) {
-            out += [landing(t, x, y, z, turn, flip, sx, sy, lz)];
+            at_walk = spot(b, tf.0, tf.1, sx, sy);
+            out += [(x + at_walk.0, y + at_walk.1, z + lz)];
           }
         }
       }

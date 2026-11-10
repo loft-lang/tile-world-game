@@ -210,6 +210,13 @@ fn of_kind(ts: const vector<levels::LevelFile>, kind: text, at: text, closes: in
   out
 }
 
+// The templates of `ts` drawn for a house of `floors` floors, or for any.
+fn for_floors(ts: const vector<levels::LevelFile>, floors: integer) -> vector<levels::LevelFile> {
+  out: vector<levels::LevelFile> = [];
+  for t in ts { if t.template.floors == 0 || t.template.floors == floors { out += [t]; } }
+  out
+}
+
 // Where template `t` lies on house `s`: drawn, and checked to fit and to stay clear of the cells
 // already taken (`used`); null when this draw finds no place for it.
 fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Key[k]>, turn_to: integer = -1) -> Laid? {
@@ -223,8 +230,10 @@ fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Ke
     wx = s.door_x;
     wy = s.door_y;
     if at == "wall" {
-      // An outer wall's cell, not a corner, not the front door: the back and the sides first.
-      side = next(r, 4);
+      // An outer wall's cell, not a corner, not the front door; on the wall the template says
+      // (`side`), else any.  0 the front (south), 1 west, 2 the back (north, uphill), 3 east.
+      ws = t.template.side;
+      side = if ws == "S" { 0 } else if ws == "W" { 1 } else if ws == "N" { 2 } else if ws == "E" { 3 } else { next(r, 4) };
       turn = side;
       if side == 0 {
         if s.w < 3 { return null; }
@@ -261,12 +270,20 @@ fn place(r: Rng, t: const levels::LevelFile, s: const Shell, used: const hash<Ke
   for c in stamp::cells(t, ox, oy, s.z, turn, flip) {
     if used[intent::key_of(c.0, c.1, c.2)] { return null; }
     if at == "inside" || at == "under" {
-      // On the house's floor only floor cells; above and below, within its footprint.
-      if c.2 == s.z && !in_floor(s, c.0, c.1) { return null; }
+      // On the house's floors only floor cells (its ground floor, an upper one), never its walls;
+      // below (the cellar) and the roof, within its footprint.
+      if c.2 >= s.z && c.2 < s.z + s.floors && !in_floor(s, c.0, c.1) { return null; }
       if !in_footprint(s, c.0, c.1) { return null; }
     }
   }
   Laid { name: t.name, x: ox, y: oy, z: s.z, turn: turn, flip: flip }
+}
+
+// A placement as a record of its own: what `place` answers is copied, field by field, before any
+// other call — bound as it comes (`x = place(..) ?? ..`), it is a view on a value that the next
+// call may write over (seen: a cellar's x and y read back as garbage after the next `take_cells`).
+fn own(p: const Laid) -> Laid {
+  Laid { name: "{p.name}", x: p.x + 0, y: p.y + 0, z: p.z + 0, turn: p.turn + 0, flip: p.flip, stretch: p.stretch + 0 }
 }
 
 fn take_cells(used: hash<Key[k]>, t: const levels::LevelFile, p: const Laid) {
@@ -512,7 +529,7 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
   closings = of_kind(ts, "way_in", "door", 1, -1);
   ways = of_kind(ts, "way_in", "", 0, 1);
   insides = of_kind(ts, "inside", "inside", -1, -1);
-  finds = of_kind(ts, "find", "inside", -1, -1);
+  finds = of_kind(ts, "find", "spot", -1, -1);
   cellars = of_kind(ts, "cellar", "under", -1, -1);
   tunnels = of_kind(ts, "tunnel", "exit", -1, -1);
   with_cellar: vector<levels::LevelFile> = [];
@@ -524,9 +541,32 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
   // cellar the rules reach.
   sr = rng(seed, 1000, 0);
   first_sibil = next(sr, len(ordinary));
+  all_closings = closings;
+  all_ways = ways;
+  all_insides = insides;
+  all_finds = finds;
+  all_cellars = cellars;
+  all_with_cellar = with_cellar;
+  // Which houses have a cellar, and the cellars a neighbour's connecting cellar created for a house
+  // not dealt yet (HOUSES.md § Tunnels): by the intent's house index.
+  has_cellar: vector<boolean> = [];
+  preset: vector<Laid> = [];
+  at_deal: vector<integer> = [];
+  for _ in 0..len(it.houses) {
+    has_cellar += [false];
+    preset += [Laid { name: "", x: 0, y: 0, z: 0, turn: 0, flip: false }];
+    at_deal += [-1];
+  }
   for oi in 0..len(ordinary) {
     hi = ordinary[oi]!;
     s = shell_of(it.houses[hi]!);
+    // Only what is drawn for a house of its floors (`floors`), so no draw goes to waste on it.
+    closings = for_floors(all_closings, s.floors);
+    ways = for_floors(all_ways, s.floors);
+    insides = for_floors(all_insides, s.floors);
+    finds = for_floors(all_finds, s.floors);
+    cellars = for_floors(all_cellars, s.floors);
+    with_cellar = for_floors(all_with_cellar, s.floors);
     town_here: vector<integer> = [];
     for tk in town_cells {
       tx = intent::x_of(tk);
@@ -546,10 +586,14 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
         r = rng(seed, hi, dr + round * DRAWS);
         used: hash<Key[k]> = [];
         laid: vector<Laid> = [];
+        // A cellar a neighbour's connecting cellar created here: fixed, its cells kept clear.
+        fixed = preset[hi]!;
+        fixed_t = template_of(ts, fixed);
+        if fixed.name != "" { take_cells(used, fixed_t ?? closings[0]!, fixed); }
         ci = pick(r, closings);
         if ci < 0 { break; }
         closing = closings[ci]!;
-        cp = place(r, closing, s, used) ?? continue;
+        cp = own(place(r, closing, s, used) ?? continue);
         take_cells(used, closing, cp);
         laid += [cp];
         way = closing;
@@ -558,7 +602,7 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
           wi = pick(r, ways);
           if wi < 0 { continue; }
           way = ways[wi]!;
-          way_p = place(r, way, s, used) ?? continue;
+          way_p = own(place(r, way, s, used) ?? continue);
           take_cells(used, way, way_p);
           laid += [way_p];
         }
@@ -566,7 +610,7 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
           ii = pick(r, insides);
           if ii < 0 { break; }
           ins = insides[ii]!;
-          ip = place(r, ins, s, used) ?? continue;
+          ip = own(place(r, ins, s, used) ?? continue);
           take_cells(used, ins, ip);
           laid += [ip];
         }
@@ -578,19 +622,29 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
         // finds the town.
         tunnel = cellar;
         tunnel_p = Laid { name: "", x: 0, y: 0, z: s.z, turn: 0, flip: false };
-        if kk >= 0 {
+        link: Link? = null;
+        if fixed.name != "" {
+          cellar = fixed_t ?? cellar;
+          cellar_p = fixed;
+        } else if kk >= 0 && pool[kk]!.template.other != "" {
+          cand = pool[kk]!;
+          link = connect(r, l, it, ts, cand, s, hi, ordinary, has_cellar, used, mats);
+          if !link { continue; }
+          cellar = cand;
+          cellar_p = own((link ?? no_link()).cellar);
+        } else if kk >= 0 {
           cand = pool[kk]!;
           if cand.template.exit_side == "" {
             cpl = place(r, cand, s, used);
             if cpl {
               cellar = cand;
-              cellar_p = cpl ?? cellar_p;
+              cellar_p = own(cpl ?? cellar_p);
             }
           } else {
             t0 = next(r, 4);
             for ti in 0..4 {
-              cpl = place(r, cand, s, used, (t0 + ti) % 4) ?? continue;
-              tp = lay_tunnel(r, l, it, cand, cpl, tunnels, used, town, mats) ?? continue;
+              cpl = own(place(r, cand, s, used, (t0 + ti) % 4) ?? continue);
+              tp = own(lay_tunnel(r, l, it, cand, cpl, tunnels, used, town, mats) ?? continue);
               cellar = cand;
               cellar_p = cpl;
               tunnel = template_of(ts, tp) ?? continue;
@@ -605,21 +659,30 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
           take_cells(used, cellar, cellar_p);
           laid += [cellar_p];
         }
+        // A connecting cellar's passage to the neighbour's.
+        lk = link ?? no_link();
+        if lk.passage.name != "" {
+          pt = template_of(ts, lk.passage) ?? continue;
+          take_cells(used, pt, lk.passage);
+          laid += [lk.passage];
+        }
         // A cellar reached by a tunnel has it, from the gap in its wall to the town.
         if tunnel_p.name != "" {
           take_cells(used, tunnel, tunnel_p);
           laid += [tunnel_p];
         }
-        if next(r, 3) == 0 {
+        // Sometimes a find, in one of the spots the house's templates offer (`finds`): the cellar's
+        // corner, the upper floor, under the fallen roof — never just anywhere on the floor.
+        if next(r, 3) == 0 && len(finds) > 0 {
+          spots: vector<(integer, integer, integer)> = [];
+          for p in laid {
+            ht = template_of(ts, p) ?? continue;
+            for c in ht.template.finds { spots += [stamp::landing(ht, p.x, p.y, p.z, p.turn, p.flip, c.0, c.1, c.2)]; }
+          }
           fi = pick(r, finds);
-          if fi >= 0 {
-            fd = finds[fi]!;
-            fp = place(r, fd, s, used);
-            if fp {
-              found = fp ?? cellar_p;
-              take_cells(used, fd, found);
-              laid += [found];
-            }
+          if len(spots) > 0 && fi >= 0 {
+            sp = spots[next(r, len(spots))]!;
+            laid += [Laid { name: finds[fi]!.name, x: sp.0, y: sp.1, z: sp.2, turn: 0, flip: false }];
           }
         }
         // Played on a copy: in by the way, down to the cellar — round the house, and along its tunnel.
@@ -640,92 +703,133 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
         for p in laid { lay(l, ts, p, mats, town); }
         // Sibil's cellar is where the urn's ghost finds his rest: its floor, a layer down.
         if is_sibil { l.rest = cellar_floor(l, s, cellar, cellar_p); }
+        // The neighbour's cellar the connecting one created: laid now under a house dealt before
+        // (it had none), else kept for its own deal.
+        if lk.b >= 0 {
+          has_cellar[lk.b] = true;
+          if at_deal[lk.b]! >= 0 {
+            lay(l, ts, lk.other, mats, town);
+            // The house's record made anew (a write into a record inside the list reads back wrong).
+            nh: vector<Dealt> = [];
+            for di in 0..len(out.houses) {
+              od = out.houses[di]!;
+              if di == at_deal[lk.b]! {
+                nl: vector<Laid> = [];
+                for q in od.laid { nl += [q]; }
+                nl += [lk.other];
+                nh += [Dealt { house: od.house, laid: nl, sibil: od.sibil, cellar: lk.other.name, draw: od.draw }];
+              } else {
+                nh += [od];
+              }
+            }
+            out.houses = nh;
+          } else {
+            preset[lk.b] = lk.other;
+          }
+          out.joined += [lk.joined];
+        }
         dealt = Dealt { house: hi, laid: laid, sibil: is_sibil, cellar: if cellar_p.name == "" { "cellar_none" } else { cellar.name }, draw: dr };
         break;
       }
       if dealt.draw >= 0 { break; }
     }
     if dealt.sibil { out.sibil = hi; }
+    if dealt.cellar != "" && dealt.cellar != "cellar_none" { has_cellar[hi] = true; }
+    at_deal[hi] = len(out.houses);
+    // A cellar a neighbour created here, when no draw of this house passed: laid all the same, so
+    // the neighbour's passage leads into it.
+    if dealt.draw < 0 && preset[hi]!.name != "" {
+      lay(l, ts, preset[hi]!, mats, town);
+      dealt.laid += [preset[hi]!];
+      dealt.cellar = preset[hi]!.name;
+      has_cellar[hi] = true;
+    }
     out.houses += [dealt];
   }
-  join_neighbours(l, it, out, ts, mats);
   out
 }
 
-// The floor of house `h`'s cellar as dealt, a layer down; none when it was dealt none.
-fn dealt_floor(l: const rules::Level, it: const intent::Intent, ts: const vector<levels::LevelFile>,
-               h: const Dealt) -> vector<(integer, integer, integer)> {
-  s = shell_of(it.houses[h.house]!);
-  for p in h.laid {
-    t = template_of(ts, p) ?? continue;
-    if t.template.kind == "cellar" && t.name != "cellar_none" { return cellar_floor(l, s, t, p); }
-  }
-  []
+// A connecting cellar laid (HOUSES.md § Tunnels): it, the cellar it creates under neighbour `b`, the
+// passage between their gaps (none when the two walls meet), and the record of it.
+struct Link {
+  cellar: Laid,
+  other: Laid,
+  passage: Laid,
+  b: integer,
+  joined: Joined
 }
 
-// Two neighbours knocked through (HOUSES.md § Tunnels, `tunnel_neighbours`): after every house is
-// dealt, each pair of ordinary houses side by side on one layer, both with a cellar whose floors
-// share a row and only earth between them, is joined by the seed one time in two — the passage
-// laid along that row from the one cellar's wall to the other's, stretched to the gap.  A passage
-// only adds a way, so neither house's play can fail for it; it never crosses another template.
-fn join_neighbours(l: rules::Level, it: const intent::Intent, d: Deal, ts: const vector<levels::LevelFile>,
-                   mats: const materials::Materials) {
-  pass = stamp::named(ts, "tunnel_neighbours") ?? return;
-  if pass.template.at != "between" { return; }
-  used: hash<Key[k]> = [];
-  floors: vector<vector<(integer, integer, integer)>> = [];
-  for h in d.houses {
-    for p in h.laid {
-      t = template_of(ts, p) ?? continue;
-      take_cells(used, t, p);
-    }
-    floors += [if h.draw >= 0 { dealt_floor(l, it, ts, h) } else { [] }];
-  }
-  joined_with: vector<integer> = [];
-  for ai in 0..len(d.houses) {
-    for bi in 0..len(d.houses) {
-      fa = floors[ai] ?? [];
-      fb = floors[bi] ?? [];
-      if ai == bi || len(fa) == 0 || len(fb) == 0 { continue; }
-      ha = it.houses[d.houses[ai]!.house]!;
-      hb = it.houses[d.houses[bi]!.house]!;
-      gap = hb.x - (ha.x + ha.w);
-      if ha.z != hb.z || gap < 0 || gap > 6 { continue; }
-      if joined_with.contains(ai) || joined_with.contains(bi) { continue; }
-      r = rng(d.seed, 2000 + d.houses[ai]!.house * 31 + d.houses[bi]!.house, 0);
-      if next(r, 2) != 0 { continue; }
-      z = (fa[0] ?? (0, 0, 0)).2;
-      ys: vector<integer> = [];
-      for c in fa { if !ys.contains(c.1) { ys += [c.1]; } }
-      if len(ys) == 0 { continue; }
-      first = next(r, len(ys));
-      for yi in 0..len(ys) {
-        y = ys[(first + yi) % len(ys)] ?? 0;
-        xa = -1000000;
-        xb = 1000000;
-        for c in fa { if c.1 == y && c.0 > xa { xa = c.0; } }
-        for c in fb { if c.1 == y && c.0 < xb { xb = c.0; } }
-        if xb == 1000000 || xb - xa - 1 < 2 { continue; }
-        fits = true;
-        for x in xa + 1..xb {
-          for dy in -1..=1 {
-            c = (x, y + dy, z);
-            if tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) { fits = false; }
-            // Between the two cellars' walls: earth only, under no house, over no template.
-            if x > xa + 1 && x < xb - 1 && (used[intent::key_of(c.0, c.1, c.2)] || under_a_house(it, c.0, c.1, c.2)) { fits = false; }
+fn no_link() -> Link {
+  none = Laid { name: "", x: 0, y: 0, z: 0, turn: 0, flip: false };
+  Link { cellar: none, other: none, passage: none, b: -1, joined: Joined { a: -1, b: -1, x0: 0, x1: 0, y: 0, z: 0 } }
+}
+
+// The connecting cellar `cand` under house `s` (intent index `hi`): turned so its gap faces east or
+// west, toward an ordinary neighbour on the same layer with no cellar yet, at most six cells off,
+// whose rows take the gap's row.  Under that neighbour the cellar `cand` names (`other`) is laid,
+// turned so its gap faces back on the same row, within its footprint and its stairs on its floor;
+// between the two gaps only earth (under no house, over no template), where the passage (`tunnel`)
+// is laid, stretched to the gap.  Null when no turn, neighbour and place fit.
+fn connect(r: Rng, l: const rules::Level, it: const intent::Intent, ts: const vector<levels::LevelFile>,
+           cand: const levels::LevelFile, s: const Shell, hi: integer, ordinary: const vector<integer>,
+           has_cellar: const vector<boolean>, used: const hash<Key[k]>, mats: const materials::Materials) -> Link? {
+  ot = stamp::named(ts, cand.template.other) ?? return null;
+  pass = stamp::named(ts, cand.template.tunnel) ?? return null;
+  t0 = next(r, 2) * 2;
+  for ti in 0..2 {
+    q = (t0 + ti * 2) % 4;
+    cp = own(place(r, cand, s, used, q) ?? continue);
+    ctf = stamp::way_of(cand, cp.turn, cp.flip);
+    e = stamp::landing(cand, cp.x, cp.y, cp.z, cp.turn, cp.flip, cand.template.exit_x, cand.template.exit_y, cand.template.exit_z);
+    side = stamp::side_to(side_code(cand.template.exit_side), ctf.0, ctf.1);
+    d = way_out(side);
+    if d.1 != 0 { continue; }
+    back = (side + 2) % 4;
+    for bj in ordinary {
+      if bj == hi || has_cellar[bj] ?? true { continue; }
+      sb = shell_of(it.houses[bj]!);
+      if sb.z != s.z { continue; }
+      gap = if d.0 > 0 { sb.x - (s.x + s.w) } else { s.x - (sb.x + sb.w) };
+      if gap < 0 || gap > 6 { continue; }
+      // The neighbour's cellar: its gap facing back, on the same row.
+      q2 = (back - side_code(ot.template.exit_side) + 4) % 4;
+      if q2 != 0 && !ot.template.turns { continue; }
+      sz = stamp::size(ot, q2);
+      for oy in sb.y..=sb.y + sb.h - sz.1 {
+        for ox in sb.x..=sb.x + sb.w - sz.0 {
+          g = stamp::landing(ot, ox, oy, sb.z, q2, false, ot.template.exit_x, ot.template.exit_y, ot.template.exit_z);
+          if g.1 != e.1 || g.2 != e.2 { continue; }
+          fits = true;
+          for c in stamp::cells(ot, ox, oy, sb.z, q2, false) {
+            if used[intent::key_of(c.0, c.1, c.2)] || !in_footprint(sb, c.0, c.1) { fits = false; }
+            if c.2 >= sb.z && c.2 < sb.z + sb.floors && !in_floor(sb, c.0, c.1) { fits = false; }
           }
+          if !fits { continue; }
+          // Between the gaps, earth only.
+          n = (if g.0 > e.0 { g.0 - e.0 } else { e.0 - g.0 }) - 1;
+          for k in 1..=n {
+            for dy in -1..=1 {
+              c = (e.0 + d.0 * k, e.1 + dy, e.2);
+              if tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) || used[intent::key_of(c.0, c.1, c.2)]
+                 || under_a_house(it, c.0, c.1, c.2) { fits = false; }
+            }
+          }
+          if !fits { continue; }
+          none = Laid { name: "", x: 0, y: 0, z: 0, turn: 0, flip: false };
+          pp = none;
+          if n > 0 {
+            st = stamp::stretched(pass, n - 1);
+            pq = (side - tile_world::SOUTH + 4) % 4;
+            sp = stamp::spot(stamp::box_of(st), pq, false, st.template.entry_x, st.template.entry_y);
+            pp = Laid { name: pass.name, x: e.0 + d.0 - sp.0, y: e.1 - sp.1, z: e.2 - st.template.entry_z, turn: pq, flip: false, stretch: n - 1 };
+          }
+          return Link { cellar: cp, other: Laid { name: ot.name, x: ox, y: oy, z: sb.z, turn: q2, flip: false }, passage: pp, b: bj,
+                        joined: Joined { a: hi, b: bj, x0: e.0 - d.0, x1: g.0 + d.0, y: e.1, z: e.2 } };
         }
-        if !fits { continue; }
-        st = stamp::stretched(pass, xb - xa - 2);
-        q = 3;
-        sp = stamp::spot(stamp::box_of(st), q, false, st.template.entry_x, st.template.entry_y);
-        stamp::apply(l, st, xa + 1 - sp.0, y - sp.1, z - st.template.entry_z, q, false, mats);
-        d.joined += [Joined { a: d.houses[ai]!.house, b: d.houses[bi]!.house, x0: xa, x1: xb, y: y, z: z }];
-        joined_with += [ai, bi];
-        break;
       }
     }
   }
+  null
 }
 
 /// The deal as lines for the play log: the seed, and per house its templates where they lie.

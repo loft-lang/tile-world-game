@@ -5,7 +5,14 @@
     "turns": true,
     "flips": true,
     "about": "left in haste: a socket on the north wall with the torch burnt down to a stick, a chair left in the way",
-    "at": "inside"
+    "at": "inside",
+    "finds": [
+      [
+        1,
+        1,
+        0
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {},

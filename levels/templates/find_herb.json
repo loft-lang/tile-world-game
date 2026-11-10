@@ -1,11 +1,12 @@
 {
-  "name": "find_hearth",
+  "name": "find_herb",
   "template": {
     "kind": "find",
-    "turns": true,
-    "flips": true,
-    "about": "sticks and a torch beside the hearth",
-    "at": "inside"
+    "turns": false,
+    "flips": false,
+    "about": "herbs, dried, from the larder",
+    "at": "spot",
+    "weight": 2
   },
   "camera": "follow",
   "legend": {},
@@ -19,17 +20,7 @@
         0
       ],
       "stack": [
-        "stick"
-      ]
-    },
-    {
-      "at": [
-        1,
-        0,
-        0
-      ],
-      "stack": [
-        "torch"
+        "herb"
       ]
     }
   ],

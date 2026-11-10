@@ -4,21 +4,21 @@
     "kind": "way_in",
     "turns": true,
     "flips": true,
-    "about": "a door on the upper floor (layer 1) onto the street above, for a house against the slope",
-    "at": "",
-    "floors": 2
+    "about": "a house against the slope: its upper floor's door (layer 1) onto the street or terrace above, the family having shut only the lower",
+    "at": "wall",
+    "floors": 2,
+    "wall": [
+      0,
+      0
+    ],
+    "gives": true,
+    "weight": 6,
+    "solution": "w w w",
+    "side": "N"
   },
   "camera": "follow",
   "legend": {
-    ".": "floor",
-    "#": "wall",
-    ">": "stairs_down",
-    "<": "stairs_up",
-    "_": "void",
-    "E": "house_door",
-    "[": "bush",
-    "G": "garden_fence",
-    "I": "prop"
+    "E": "house_door"
   },
   "ground": [],
   "chunks": [
@@ -27,8 +27,7 @@
       "cy": 0,
       "z": 1,
       "rows": [
-        "E",
-        "."
+        "E"
       ]
     }
   ],
@@ -38,8 +37,8 @@
   "rises": [],
   "start": [
     0,
-    0,
-    0
+    2,
+    1
   ],
   "goal": {
     "type": ""

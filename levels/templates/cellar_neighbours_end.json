@@ -1,0 +1,67 @@
+{
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up"
+  },
+  "ground": [],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "goal": {
+    "type": ""
+  },
+  "name": "cellar_neighbours_end",
+  "start": [
+    1,
+    2,
+    0
+  ],
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "the neighbour's side of a cellar knocked through: a small cellar, stairs down, a gap in its west wall \u2014 never drawn alone, created by cellar_neighbours",
+    "at": "under",
+    "weight": 0,
+    "solution": "w",
+    "exit": [
+      0,
+      2,
+      -1,
+      "W"
+    ],
+    "finds": [
+      [
+        2,
+        2,
+        -1
+      ]
+    ]
+  },
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "####",
+        "#<.#",
+        "...#",
+        "####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        " >"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,14 @@
     "about": "the stairs down weighted with a rock: pushed off, hands empty",
     "at": "under",
     "weight": 3,
-    "solution": "w s w"
+    "solution": "w s w",
+    "finds": [
+      [
+        3,
+        3,
+        -1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {

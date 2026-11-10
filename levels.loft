@@ -126,7 +126,17 @@ pub struct TemplateInfo {
   pub entry_x: integer = 0,
   pub entry_y: integer = 0,
   pub entry_z: integer = 0,
-  pub stretch: integer = -1
+  pub stretch: integer = -1,
+  /// A way in laid on one wall only ("N", "E", "S", "W"; "" any): the upper door on the uphill
+  /// side, where the street above is.
+  pub side: text = "",
+  /// Where something may be found (HOUSES.md § The finds): cells of its map a find can lie on —
+  /// the cellar's back corner, behind the barred room's rock, the upper floor.  The deal puts a find
+  /// (a `find` template) in one of the spots its house's templates offer, sometimes.
+  pub finds: vector<(integer, integer, integer)> = [],
+  /// A cellar that connects (HOUSES.md § Tunnels): the cellar it creates under the neighbour its
+  /// gap faces, joined to it by its `tunnel` ("" none).
+  pub other: text = ""
 }
 
 /// No template: an ordinary place.
@@ -417,6 +427,16 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
   }
 }
 
+// A template's `finds`: [[x, y, z], ...].
+fn spots_of(v: const JsonValue) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  for i in 0..v.len() {
+    c = v.item(i);
+    out += [(num(c.item(0), 0), num(c.item(1), 0), num(c.item(2), 0))];
+  }
+  out
+}
+
 // A place file's `template`: { "kind": .., "turns": .., "flips": .., "about": .. }; none when absent.
 fn template_of(v: const JsonValue) -> TemplateInfo {
   if v.kind() != "JObject" { return no_template(); }
@@ -432,7 +452,8 @@ fn template_of(v: const JsonValue) -> TemplateInfo {
                  exit_x: num(xv.item(0), 0), exit_y: num(xv.item(1), 0), exit_z: num(xv.item(2), 0),
                  exit_side: str(xv.item(3), ""), tunnel: str(v.field("tunnel"), ""),
                  entry_x: num(ev.item(0), 0), entry_y: num(ev.item(1), 0), entry_z: num(ev.item(2), 0),
-                 stretch: num(v.field("stretch"), -1) }
+                 stretch: num(v.field("stretch"), -1), side: str(v.field("side"), ""), finds: spots_of(v.field("finds")),
+                 other: str(v.field("other"), "") }
 }
 
 // A place file's `serves`: the tags it lists.
@@ -630,6 +651,13 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     if tp.tunnel != "" { out += ", \"tunnel\": {quoted(tp.tunnel)}"; }
     if tp.at == "exit" { out += ", \"entry\": [{tp.entry_x}, {tp.entry_y}, {tp.entry_z}]"; }
     if tp.stretch >= 0 { out += ", \"stretch\": {tp.stretch}"; }
+    if tp.side != "" { out += ", \"side\": {quoted(tp.side)}"; }
+    if tp.other != "" { out += ", \"other\": {quoted(tp.other)}"; }
+    if len(tp.finds) > 0 {
+      fs = "";
+      for c in tp.finds { fs += if fs == "" { "[{c.0}, {c.1}, {c.2}]" } else { ", [{c.0}, {c.1}, {c.2}]" }; }
+      out += ", \"finds\": [{fs}]";
+    }
     out += " }},";
   }
   if len(lf.serves) > 0 {

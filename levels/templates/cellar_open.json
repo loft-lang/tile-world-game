@@ -7,7 +7,14 @@
     "about": "stairs down from the room into a small cellar",
     "at": "under",
     "weight": 3,
-    "solution": "w"
+    "solution": "w",
+    "finds": [
+      [
+        3,
+        3,
+        -1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {

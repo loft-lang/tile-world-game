@@ -225,10 +225,10 @@ behind1 = lambda c: at(MARKET, c)
 before1 = lambda c: first_row(STREET1, c)
 placed(6, 8, 7, 1, behind1, before1, 0, 1, floors=2, basement=True, door_at=4)          # Hollis's
 placed(15, 5, 5, 1, behind1, before1, 2, 1, dealt=True)
-placed(26, 5, 5, 1, behind1, before1, 3, 1, dealt=True)
+placed(26, 5, 5, 1, behind1, before1, 0, 1, floors=2, dealt=True)   # two floors against the market's front: its upper floor opens on the market
 placed(37, 5, 5, 1, lambda c: at(MARKET, c) + 2, before1, 1, 1, dealt=True)                      # clear of the road's slope
 placed(46, 8, 6, 1, behind1, before1, 0, 1, door_at=3, wall="stone_wall")              # the smithy
-placed(54, 6, 5, 1, behind1, before1, 2, 1, dealt=True)
+placed(54, 6, 5, 1, behind1, before1, 0, 1, floors=2, dealt=True)   # the same
 # The foot: the miners' rows, Thornfield's farmhouse and barn, the cemetery's fence and trees.
 # The miners' rows face the lane along the bank, so they stand where the bank lets them — set back
 # where the stream swings south, pressed against the street where it swings north — and each a
@@ -236,7 +236,7 @@ placed(54, 6, 5, 1, behind1, before1, 2, 1, dealt=True)
 behind0 = lambda c: row_of(STREET0, c) + 1
 before0 = lambda c: first_row(LANE, c)
 for x, w, h, back in ((1, 7, 5, 1), (9, 6, 4, 0), (19, 5, 5, 0), (25, 4, 4, 2), (33, 5, 5, 0), (39, 5, 4, 0), (45, 5, 5, 0)):
-    placed(x, w, h, 0, behind0, before0, back, 0, front=True, dealt=True)
+    placed(x, w, h, 0, behind0, before0, back, 0, floors=2 if x == 1 else 1, front=True, dealt=True)   # the widest of the row has two floors
 ground(53, 48, 9, 1, 0, "garden_fence"); ground(53, 53, 9, 1, 0, "garden_fence")
 ground(53, 48, 1, 6, 0, "garden_fence"); ground(61, 48, 1, 6, 0, "garden_fence")
 ground(57, 53, 1, 1, 0, "grass")

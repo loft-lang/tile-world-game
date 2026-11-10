@@ -13,7 +13,14 @@
       -1,
       "S"
     ],
-    "tunnel": "tunnel_cellar_steps"
+    "tunnel": "tunnel_cellar_steps",
+    "finds": [
+      [
+        1,
+        1,
+        -1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {

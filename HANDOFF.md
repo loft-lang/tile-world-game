@@ -1,5 +1,38 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
+## State on 2026-11-10 (night)
+
+Everything is committed and pushed (`main` @ the commit adding this section); the tests, the game
+checks and the native deal run pass (the counts are in that commit's message).  Still unseen: the
+3D view of the new east end, and nothing played in the browser.  Builds on the evening section
+below.
+
+**Built since the evening, in the owner's order** (all in HOUSES.md):
+- **Tunnels** (§ 4): a cellar with a gap (`exit`) gets a tunnel laid from it through earth to the
+  town, its `stretch` row repeated to fit, its mouth opened where it meets the town, played from
+  outside (the walk goes as if figures step aside).  `cellar_tunnel_only`, `cellar_under_fall`,
+  `cellar_outside_door` with `tunnel_drain`, `tunnel_trial_digging`, `tunnel_cellar_steps`.
+- **The neighbours' passage**, as the owner ruled it: having a cellar depends on the template, and
+  the connecting `cellar_neighbours` creates the neighbour's cellar (`other`:
+  `cellar_neighbours_end`) and the passage (`tunnel_neighbours`) between the gaps.  The earlier
+  after-the-deal joining is gone.
+- **Two-floor houses**: houses 6 and 9 (middle terrace, set against the market's front) and 10 (the
+  widest of the miners' rows) have an upper floor; `way_window_step` and `way_upper_door` (`side:
+  "N"`, onto the market) are dealt there, and the upper-floor insides; a house draws only from what
+  is drawn for its floors.
+- **Finds as part of the templates** (§ 2): templates offer `finds` spots; the `find_*` templates
+  are one thing each, laid `at: "spot"` on one of the house's spots, one time in three.
+
+**Template fields now** (all editable JSON): `kind`, `turns`, `flips`, `about`, `at` (`door`,
+`wall`, `inside`, `under`, `exit`, `spot`), `wall`, `closes`, `gives`, `weight`, `needs`,
+`solution` (with the file's `start`), `floors`, `side`, `exit`, `tunnel`, `entry`, `stretch`,
+`finds`, `other`.  52 files under `levels/templates/`.
+
+**Open next**: the inn's vault running on (the inn keeps its own design); finds laid behind the
+hardest step on purpose (today: any spot of the house); the walled-up door (a directed blast in its
+solution); windows to shutter.
+
+
 ## State on 2026-11-10 (evening)
 
 Everything is committed and pushed (`main` @ the commit adding this section).  455+ tests

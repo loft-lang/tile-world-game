@@ -7,7 +7,14 @@
     "about": "the stairs down rotted to a hole: a drop onto a table below; back up by the chair pulled onto it, to the wall's top",
     "at": "under",
     "weight": 2,
-    "solution": "a"
+    "solution": "a",
+    "finds": [
+      [
+        2,
+        3,
+        -1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {

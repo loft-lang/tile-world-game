@@ -1,0 +1,38 @@
+{
+  "name": "find_torch",
+  "template": {
+    "kind": "find",
+    "turns": false,
+    "flips": false,
+    "about": "a torch, tarred and ready",
+    "at": "spot",
+    "weight": 2
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "torch"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up"
+  },
+  "ground": [],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "goal": {
+    "type": ""
+  },
+  "name": "cellar_neighbours",
+  "start": [
+    1,
+    2,
+    0
+  ],
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "a cellar knocked through to the neighbour's: stairs down, a gap in its east wall; choosing it creates the neighbour's cellar (cellar_neighbours_end) and the passage between (tunnel_neighbours)",
+    "at": "under",
+    "weight": 3,
+    "solution": "w",
+    "exit": [
+      4,
+      2,
+      -1,
+      "E"
+    ],
+    "tunnel": "tunnel_neighbours",
+    "other": "cellar_neighbours_end",
+    "finds": [
+      [
+        3,
+        3,
+        -1
+      ]
+    ]
+  },
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#####",
+        "#<..#",
+        "#....",
+        "#...#",
+        "#####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        " >"
+      ]
+    }
+  ]
+}

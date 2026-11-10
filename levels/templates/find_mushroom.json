@@ -1,11 +1,12 @@
 {
-  "name": "find_larder",
+  "name": "find_mushroom",
   "template": {
     "kind": "find",
-    "turns": true,
-    "flips": true,
-    "about": "the larder: herbs, a mushroom and a sack",
-    "at": "inside"
+    "turns": false,
+    "flips": false,
+    "about": "a mushroom from the larder",
+    "at": "spot",
+    "weight": 2
   },
   "camera": "follow",
   "legend": {},
@@ -19,27 +20,7 @@
         0
       ],
       "stack": [
-        "herb"
-      ]
-    },
-    {
-      "at": [
-        1,
-        0,
-        0
-      ],
-      "stack": [
         "mushroom"
-      ]
-    },
-    {
-      "at": [
-        2,
-        0,
-        0
-      ],
-      "stack": [
-        "sack"
       ]
     }
   ],

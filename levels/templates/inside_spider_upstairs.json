@@ -6,7 +6,14 @@
     "flips": true,
     "about": "a spider on the walls of the upper floor (layer 1)",
     "at": "inside",
-    "floors": 2
+    "floors": 2,
+    "finds": [
+      [
+        0,
+        0,
+        1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {},

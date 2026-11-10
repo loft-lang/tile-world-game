@@ -73,14 +73,14 @@ in the JSON.  **Applied** by `stamp.loft` (`stamp::apply`: at a cell, turned, mi
 `tests/stamps.loft` checks every file loads with its kind and survives a save unchanged, and plays
 the window's step, the weighted hatch and the barred door in every way they can lie.
 
-**The files**, the whole catalogue below (45):
+**The files**, the whole catalogue below (52):
 
 | Kind | Templates |
 |---|---|
 | way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door` |
 | inside | `inside_pushed_to_walls`, `inside_stacked`, `inside_barred_room`, `inside_in_haste`, `inside_roof_fall`, `inside_stair_rotted`, `inside_floor_hole`, `inside_rat_nest`, `inside_grey_rat`, `inside_bats_upstairs`, `inside_spider_upstairs` |
-| find | `find_potions`, `find_boost_potion`, `find_hearth`, `find_larder`, `find_tar_barrel` |
-| cellar | `cellar_none`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
+| find | `find_health_potion`, `find_spirit_potion`, `find_boost_potion`, `find_sticks`, `find_torch`, `find_herb`, `find_mushroom`, `find_sack`, `find_tar_barrel` |
+| cellar | `cellar_none`, `cellar_neighbours`, `cellar_neighbours_end`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
 | tunnel | `tunnel_drain`, `tunnel_neighbours`, `tunnel_trial_digging`, `tunnel_vault_onwards` |
 
 Not files, and why: **from the house beside** and **from up the hill** are where a house stands
@@ -125,7 +125,9 @@ appears in no house.
 
 | Field | Means |
 |---|---|
-| `at` | `door` (on the front door), `wall` (on an outer wall, not a corner or the door), `inside` (within the floor), `under` (a cellar, within the footprint), `exit` (a tunnel from a cellar's gap), `between` (two cellars joined); none: not dealt |
+| `at` | `door` (on the front door), `wall` (on an outer wall, not a corner or the door), `inside` (within the floor), `under` (a cellar, within the footprint), `exit` (a tunnel from a cellar's gap), `spot` (a find, on a template's spot); none: not dealt (or laid by name: `tunnel_neighbours`) |
+| `finds` | `[[x, y, z], ...]`: where in it a find may lie |
+| `other` | a connecting cellar's cellar for the neighbour (`cellar_neighbours_end`) |
 | `wall` | `[x, y]`: the template's cell that lies on the wall or the door |
 | `closes`, `gives` | it shuts the front door; the hero gets in by it |
 | `weight` | how often it is drawn (1 when not said) |
@@ -133,10 +135,19 @@ appears in no house.
 | `solution` | the moves as drawn, from the file's `start` cell (`rules::play`'s words; `~700` waits) |
 | `exit`, `tunnel` | a cellar's gap a tunnel joins, `[x, y, z, side]`, and the tunnel it wants (§ 4) |
 | `entry`, `stretch` | a tunnel's cell that joins the gap, and the row repeated to lengthen it (§ 4) |
+| `side` | a way in laid on one wall only (`N`, `E`, `S`, `W`): the upper door on the uphill side (`N`), where the street above is |
 | `floors` | the house it is drawn for: its layer 1 is a one-floor house's roof (`way_roof_hole`) or a two-floor house's upper floor (`inside_bats_upstairs`); 0 any |
 
-**Not dealt yet** (`at` none), each for a reason: `way_window_step` and `way_upper_door` want a
-house of two floors (the ordinary ones have one); `way_shuttered`, windows the ordinary houses do
+**Houses of two floors** (2026-11-10): three of the ordinary houses have an upper floor — two
+cottages of the middle terrace set against the market's front, so their upper floor is level with
+the market behind them (a house against the slope, PUZZLES.md § Houses), and the widest of the
+miners' rows.  Their ways in add `way_window_step` (an upper window reached by the chair pulled
+onto a table) and `way_upper_door` (the upper floor's door onto the street above: the market), and
+their insides the upper-floor templates (`floors: 2`: bats and a spider upstairs, a hole in the
+upper floor, a rotted stair), laid on the upper floor's own cells, never its walls.  A house is
+drawn only from what is drawn for its floors, so no draw is wasted on what cannot lie there.
+
+**Not dealt yet** (`at` none), each for a reason: `way_shuttered`, windows the ordinary houses do
 not have; `way_walled_up`, a directed blast in its solution; `cellar_in_barred_room`, a house
 bigger than the cottages; `tunnel_vault_onwards` (§ 4).
 
@@ -156,8 +167,7 @@ urn can always be brought to.  A draw that fails is drawn again; a house no draw
 is dealt as an ordinary one, and she moves on to the next.  With the urn's walk broken on purpose,
 no house is Sibil's, and every house is still dealt.
 
-**Still to come**: the finds laid in the cellar
-rather than on the ground floor; two-floor houses.
+**Still to come**: the finds laid in the cellar rather than on the ground floor.
 
 ## What the town gives to work with
 
@@ -263,9 +273,16 @@ neglect follows from how long the family has been gone.
 | **overgrown** | bushes against the back door and the yard; a tree where the path was | built |
 | **moved in** | a lair: a rat's nest in the kitchen, bats under the roof (drawn to a torch), a spider on the walls of the upper floor | built (the lairs' rules) |
 
-**The finds** (owner, 2026-11-10: useful, not critical, not always there, never super easy) ◇:
-dealt in some houses only, and put where the family would have put them, which is never the
-open floor:
+**The finds are part of the templates** (owner, 2026-11-10).  A template says where something may
+be found in it (`finds`: spots of its map — every cellar's corner, the upper floor by the bats and
+the spider, under the fallen roof, by the burnt-out torch), and the find templates (`find_*`, laid
+`at: "spot"`) are the catalogue of what: one thing each.  One time in three the deal puts a find in
+one of the spots its house's templates offer; a house whose templates offer none has none.  The
+catalogue, by weight: a health potion (3), sticks (3), a spirit potion, a boost potion, a torch,
+herbs, a mushroom (2 each), a sack, a tar barrel (1 each).
+
+Where they would be, as the owner's ruling on finds asked (useful, not critical, not always there,
+never super easy) ◇:
 
 | Find | Where it would be | Why it helps |
 |---|---|---|
@@ -341,12 +358,15 @@ terrace at the street below its front.
 | `cellar_under_fall` | any: its hatch is under the stones, its gap in the south wall |
 | `cellar_outside_door` | `tunnel_cellar_steps`: a passage, stairs up into the yard behind the house, bushes round them |
 
-**The neighbours' passage** (`tunnel_neighbours`, laid `at: "between"`): once every house is dealt,
-each pair of ordinary houses side by side on one layer, both with a cellar whose floors share a row
-and only earth between them (under no house, over no template), is knocked through one time in two
-by the seed: the passage laid along that row from the one cellar's wall to the other's, stretched to
-the gap.  It only adds a way, so it is not played again: a house hard to get into may be reached
-through its neighbour's cellar, up its stairs.  The play log says `JOINED houses a and b`.
+**The neighbours' passage** (owner, 2026-11-10: having a cellar depends on the template, and
+choosing a connecting one creates the other cellar).  `cellar_neighbours` is drawn like any cellar:
+a cellar with stairs and a gap in its wall.  Turned so the gap faces east or west, it looks for an
+ordinary neighbour on that side, on the same layer, at most six cells off, that has no cellar yet;
+under it the deal creates the cellar the template names (`other`: `cellar_neighbours_end`, small,
+with stairs and a gap facing back on the same row), and lays the passage (`tunnel`:
+`tunnel_neighbours`, stretched) between the two gaps, through earth only.  A neighbour dealt later
+keeps that cellar as its own (its draw takes the rest round it); one dealt before, with none, has it
+laid under it.  The play log says `JOINED houses a and b`.
 
 Not laid yet: `tunnel_vault_onwards` (the inn's vault, a house of its own design).
 

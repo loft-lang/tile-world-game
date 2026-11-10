@@ -5,8 +5,15 @@
     "turns": true,
     "flips": true,
     "about": "an upper window gone (layer 1, the wall's cell open), two tables left out under it and a chair: the chair pulled onto a table, a step of 3",
-    "at": "",
-    "floors": 2
+    "at": "wall",
+    "floors": 2,
+    "wall": [
+      1,
+      0
+    ],
+    "gives": true,
+    "weight": 5,
+    "solution": "a a pa d w w"
   },
   "camera": "follow",
   "legend": {
@@ -59,8 +66,8 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
-    0,
+    3,
+    1,
     0
   ],
   "goal": {

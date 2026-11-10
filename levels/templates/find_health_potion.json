@@ -1,0 +1,38 @@
+{
+  "name": "find_health_potion",
+  "template": {
+    "kind": "find",
+    "turns": false,
+    "flips": false,
+    "about": "a health potion on the cellar's shelf, or put by upstairs",
+    "at": "spot",
+    "weight": 3
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "health_potion"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

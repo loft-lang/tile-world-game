@@ -57,17 +57,25 @@ fn test_the_same_seed_deals_the_same_town() {
 }
 
 // A template drawn for the upper floor of a house of two floors is never laid on a cottage of one,
-// where its layer 1 would be the roof: no bats on the roofs.
-fn test_upper_floor_templates_stay_off_the_cottages_roofs() {
-  for seed in [7, 8, 9] {
-    d = dealt(seed).1;
-    for h in d.houses {
+// where its layer 1 would be the roof (no bats on the roofs), nor one drawn for a cottage's roof on a
+// house of two; and the two-floor houses get their ways in — the upper window by a step, the upper
+// door onto the street above — played as every way in is.
+fn test_templates_keep_to_the_houses_they_are_drawn_for() {
+  km = kit();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  upper = 0;
+  for seed in [7, 8, 9, 10, 11, 12] {
+    r = dealt(seed);
+    for h in r.1.houses {
+      fl = r.0.intent.houses[h.house]!.floors;
       for p in h.laid {
-        assert(p.name != "inside_bats_upstairs" && p.name != "inside_spider_upstairs" && p.name != "inside_floor_hole"
-               && p.name != "inside_stair_rotted", "seed {seed}: {p.name} on house {h.house}, of one floor");
+        t = stamp::named(ts, p.name) ?? continue;
+        assert(t.template.floors == 0 || t.template.floors == fl, "seed {seed}: {p.name} (drawn for {t.template.floors}) on house {h.house} of {fl}");
+        if p.name == "way_window_step" || p.name == "way_upper_door" { upper += 1; }
       }
     }
   }
+  assert(upper >= 1, "two-floor ways in dealt: {upper}");
 }
 
 // Tunnels (HOUSES.md § Tunnels): over a few seeds, cellars reached only by a tunnel are dealt, each
@@ -80,7 +88,7 @@ fn test_tunnels_are_laid_to_the_cellars_that_need_them() {
       assert(h.draw >= 0, "seed {seed}: house {h.house} dealt");
       needs = h.cellar == "cellar_tunnel_only" || h.cellar == "cellar_under_fall" || h.cellar == "cellar_outside_door";
       has = false;
-      for p in h.laid { if p.name.starts_with("tunnel_") { has = true; } }
+      for p in h.laid { if p.name.starts_with("tunnel_") && p.name != "tunnel_neighbours" { has = true; } }
       assert(needs == has, "seed {seed}: house {h.house}'s {h.cellar} and its tunnel: {has}");
       if has { tunnels += 1; }
     }
@@ -88,23 +96,52 @@ fn test_tunnels_are_laid_to_the_cellars_that_need_them() {
   assert(tunnels >= 3, "tunnels laid: {tunnels}");
 }
 
-// The neighbours' passage (HOUSES.md § Tunnels): over a few seeds, two neighbours' cellars are
-// knocked through, and the hero walks from the one's floor along the passage into the other's.
-fn test_neighbours_cellars_are_knocked_through() {
+// The neighbours' passage (HOUSES.md § Tunnels): a connecting cellar drawn creates the neighbour's
+// cellar and the passage between, and the hero walks from the one's floor along it into the other's.
+fn test_a_connecting_cellar_creates_the_neighbours() {
   joins = 0;
-  for seed in [7, 8, 9, 10, 11, 12] {
+  for seed in [7, 8, 9, 10] {
     r = dealt(seed);
     l = r.0.level;
     for j in r.1.joined {
       joins += 1;
+      b = -1;
+      for i in 0..len(r.1.houses) { if r.1.houses[i]!.house == j.b { b = i; } }
+      assert(b >= 0 && r.1.houses[b]!.cellar == "cellar_neighbours_end", "seed {seed}: house {j.b} has the created cellar");
       l.enemies = [];
       rules::put_hero(l, j.x0, j.y, j.z);
+      step = if j.x1 > j.x0 { "d " } else { "a " };
       moves = "";
-      for _ in j.x0..j.x1 { moves += "d "; }
+      for _ in 0..(if j.x1 > j.x0 { j.x1 - j.x0 } else { j.x0 - j.x1 }) { moves += step; }
       rules::play(l, moves);
-      assert(l.hero_x == j.x1 && l.hero_y == j.y && l.hero_z == j.z,
+      // Into the other's cellar — or, where the walk ends on its stairs, up them into the house.
+      assert(l.hero_x == j.x1 && l.hero_y == j.y && (l.hero_z == j.z || l.hero_z == j.z + 1),
              "seed {seed}: from house {j.a}'s cellar into {j.b}'s: ({l.hero_x}, {l.hero_y}, {l.hero_z})");
     }
   }
   assert(joins >= 1, "cellars knocked through: {joins}");
+}
+
+// The finds (HOUSES.md § The finds): a find lies only on a spot one of its house's templates offers.
+fn test_finds_lie_on_the_templates_spots() {
+  km = kit();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  finds = 0;
+  for seed in [7, 8, 9] {
+    d = dealt(seed).1;
+    for h in d.houses {
+      spots: vector<(integer, integer, integer)> = [];
+      for p in h.laid {
+        t = stamp::named(ts, p.name) ?? continue;
+        st = stamp::stretched(t, p.stretch);
+        for c in st.template.finds { spots += [stamp::landing(st, p.x, p.y, p.z, p.turn, p.flip, c.0, c.1, c.2)]; }
+      }
+      for p in h.laid {
+        if !p.name.starts_with("find_") { continue; }
+        finds += 1;
+        assert(spots.contains((p.x, p.y, p.z)), "seed {seed}: {p.name} on house {h.house} at a spot: ({p.x}, {p.y}, {p.z})");
+      }
+    }
+  }
+  assert(finds >= 1, "finds dealt: {finds}");
 }

@@ -7,7 +7,14 @@
     "about": "three chairs along the wall; the stairs down are under the middle one",
     "at": "under",
     "weight": 3,
-    "solution": "ps a w d w"
+    "solution": "ps a w d w",
+    "finds": [
+      [
+        3,
+        3,
+        -1
+      ]
+    ]
   },
   "camera": "follow",
   "legend": {
