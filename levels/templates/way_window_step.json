@@ -1,0 +1,67 @@
+{
+  "name": "way_window_step",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "an upper window gone (layer 1, the wall's cell open), two tables left out under it and a chair: the chair pulled onto a table, a step of 3"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        " ."
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        1,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        1,
+        1,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        2,
+        1,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

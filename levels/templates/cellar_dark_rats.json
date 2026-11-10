@@ -1,0 +1,71 @@
+{
+  "name": "cellar_dark_rats",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "an open cellar, dark, a rat in it; a socket on its wall for a torch"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#####",
+        "#<..#",
+        "#...#",
+        "#...#",
+        "#####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        " >"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        2,
+        -1
+      ],
+      "stack": [
+        "socket"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "enemies": [
+    [
+      "rat",
+      3,
+      3,
+      -1
+    ]
+  ],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

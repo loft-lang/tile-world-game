@@ -401,6 +401,9 @@ fn level_order(dir: text) -> vector<text> {
   out
 }
 
+/// The folder under levels/ the templates are kept in (HOUSES.md § Templates as files).
+pub const TEMPLATES = "templates/";
+
 // The file of level number `level` of the order.
 fn level_path(g: const Game, level: integer) -> text {
   "{g.dir}/levels/{g.order[level] ?? ""}.json"
@@ -916,8 +919,13 @@ fn bring_talk(g: Game, from: text, t: const talk::Talk, x: integer, y: integer, 
 }
 
 // A level's file name from what was typed: lower-case letters, digits, `_` and `-`; spaces as
-// `_`; anything else left out.
+// `_`; anything else left out.  A name typed under `templates/` keeps that folder: a template
+// (HOUSES.md § Templates as files, levels/templates/).
 fn file_name(typed: text) -> text {
+  if typed.starts_with(TEMPLATES) {
+    rest = file_name(typed[len(TEMPLATES)..]);
+    return if rest == "" { "" } else { "{TEMPLATES}{rest}" };
+  }
   out = "";
   for c in typed {
     n = c as integer;
@@ -929,11 +937,19 @@ fn file_name(typed: text) -> text {
 }
 
 /// Write the level being edited as `levels/<name>.json`, and add the name to `order.json` when it
-/// is new; the level is then that one.  False for a name with nothing left in it, or a file that
+/// is new; the level is then that one.  A template (`templates/<name>`) is written beside the
+/// others and never added to the order.  False for a name with nothing left in it, or a file that
 /// could not be written.
 pub fn save_as(g: Game, typed: text) -> boolean {
   name = file_name(typed);
   if name == "" { return false; }
+  if name.starts_with(TEMPLATES) {
+    g.place = name;
+    g.level = -1;
+    g.name_field = name;
+    g.file.adjusted = editor::adjusted(g.ed, g.file);
+    return file("{g.dir}/levels/{name}.json").write(levels::save_with(g.file, g.mats)).ok();
+  }
   at = -1;
   for i in 0..len(g.order) { if g.order[i] == name { at = i; } }
   if at < 0 {
@@ -1066,6 +1082,12 @@ pub fn editor_panel(g: Game, u: ui::Ui, width: float) -> boolean {
   ui::label(u, x + 4.0, y + 4.0, "LEVEL");
   if ui::button(u, "new", x + 76.0, y + 2.0, 40.0, 11.0, "NEW") {
     new_place(g);
+    return true;
+  }
+  // The name typed opened: a place, or a template (`templates/<name>`).
+  if ui::button(u, "open", x + 34.0, y + 2.0, 40.0, 11.0, "OPEN") {
+    nm = file_name(g.name_field);
+    g.note = if nm != "" && open_place(g, nm) { aim_editor(g); nm } else { "NO SUCH PLACE" };
     return true;
   }
   entered = ui::field(u, "name", x + 4.0, y + 14.0, 112.0, 12.0, g.name_field);
@@ -1631,7 +1653,8 @@ fn pick_figure(g: Game, kind: text) {
 /// Write the level being edited to its file.  False when it could not be written.
 pub fn save(g: Game) -> boolean {
   g.file.adjusted = editor::adjusted(g.ed, g.file);
-  file(level_path(g, g.level)).write(levels::save_with(g.file, g.mats)).ok()
+  path = if g.place.starts_with(TEMPLATES) { "{g.dir}/levels/{g.place}.json" } else { level_path(g, g.level) };
+  file(path).write(levels::save_with(g.file, g.mats)).ok()
 }
 
 // The palette category key pressed this tick (`1`..`9`), 0 for none.

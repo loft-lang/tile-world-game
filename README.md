@@ -90,6 +90,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `materials.loft` | materials: a kind with a look; tile numbers, variants by position, nine-slice autotiling |
 | `rules.loft` | the rules over those properties: the hero, push, pull, climb, trains, boost, the staff, combat, enemies and their habits, crafting, followers, tribes |
 | `talk.loft` | what people say: lines and barks, the choices while a line is said (stay, bump, walk away), gifts, recipes, and what a line sets, needs or starts (following, staying, guiding) |
+| `levels/templates/`, `stamp.loft` | the house templates (HOUSES.md § Templates as files): a name, a kind and a map part each, in the place format, edited in the editor (OPEN `templates/<name>`) or by hand; applied turned and mirrored |
 | `levels/` | the places, one JSON file each (EDITOR.md § 2) — with their doors to other places and the text on their ground — and `order.json`: the start place and the editor's list; `people.json`, the people who keep to points across places; `epilogue.json`, the stills the ending chooses from |
 | `levels.loft` | reads and writes level files; a level's goal decides when it is solved |
 | `theme.loft` | reads theme.json and draws a kind, a stack, the hero and text |

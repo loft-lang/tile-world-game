@@ -1,0 +1,215 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Templates applied (HOUSES.md § Templates as files).  A template is a place file under
+// levels/templates/ with a `template` block: its name, its kind, whether it may be turned and
+// mirrored, and as its map a PART of a house — a few cells, not a whole floor — on as many layers
+// as it needs (0 the layer it is applied to, -1 the cellar below).  The owner edits it as any
+// place: in the editor (F2, open `templates/<name>`) or as JSON.
+//
+// Applying it writes its part into a level at (x, y, z), mirrored east to west first when asked,
+// then turned clockwise a quarter at a time.  Only what the template holds is written:
+//   - a cell it SET (to anything, void included) replaces the cell there: terrain, rise, slant
+//     (turned with it), ceiling, and the stack (none when the template's cell has none);
+//   - a cell it left UNSET (a space in a row) leaves the level's cell as it is, so a template
+//     takes the house's shape it is laid on;
+//   - an edge it holds is written on the turned side; an edge it does not hold is left alone, so
+//     a template adds and changes edges, never removes one;
+//   - a stack on a cell it left unset still replaces the stack there;
+//   - a door held shut (`bars`) keeps its beam's side turned with it, and its figures (`enemies`)
+//     come along to their turned cells.
+// The part's box — the cells it set or put things on, over every layer — is what turns: its
+// north-west corner stays at (x, y) whatever the turn.
+use tile_world;
+use rules;
+use materials;
+use levels;
+
+/// The box of a template's part: the cells it set or put things on, over every layer.
+pub struct Box {
+  pub x0: integer,
+  pub y0: integer,
+  pub x1: integer,
+  pub y1: integer
+}
+
+const CHUNK = 32;
+
+/// The box of `t`'s part; an empty template's is the single cell (0, 0).
+pub fn box_of(t: const levels::LevelFile) -> Box {
+  w = t.level.w;
+  b = Box { x0: 0, y0: 0, x1: -1, y1: -1 };
+  for z in tile_world::layers(w) {
+    for c in tile_world::chunks(w, z) {
+      for j in 0..CHUNK {
+        for i in 0..CHUNK {
+          cx = c.0 * CHUNK + i;
+          cy = c.1 * CHUNK + j;
+          if tile_world::is_set(w, cx, cy, z) { grow(b, cx, cy); }
+        }
+      }
+    }
+  }
+  for s in tile_world::stacks(w) { grow(b, s.0, s.1); }
+  if b.x1 < b.x0 { return Box { x0: 0, y0: 0, x1: 0, y1: 0 }; }
+  b
+}
+
+fn grow(b: Box, x: integer, y: integer) {
+  if b.x1 < b.x0 {
+    b.x0 = x; b.x1 = x; b.y0 = y; b.y1 = y;
+    return;
+  }
+  if x < b.x0 { b.x0 = x; }
+  if x > b.x1 { b.x1 = x; }
+  if y < b.y0 { b.y0 = y; }
+  if y > b.y1 { b.y1 = y; }
+}
+
+/// The size of `t`'s part, (width, height), once turned `turn` quarters.
+pub fn size(t: const levels::LevelFile, turn: integer) -> (integer, integer) {
+  b = box_of(t);
+  w = b.x1 - b.x0 + 1;
+  h = b.y1 - b.y0 + 1;
+  if quarter(turn) % 2 == 1 { (h, w) } else { (w, h) }
+}
+
+fn quarter(turn: integer) -> integer { ((turn % 4) + 4) % 4 }
+
+/// Where cell (x, y) of the template lands, relative to the turned box's north-west corner:
+/// mirrored east to west first (`flip`), then turned clockwise `turn` quarters.
+pub fn spot(b: const Box, turn: integer, flip: boolean, x: integer, y: integer) -> (integer, integer) {
+  u = x - b.x0;
+  v = y - b.y0;
+  w = b.x1 - b.x0 + 1;
+  h = b.y1 - b.y0 + 1;
+  if flip { u = w - 1 - u; }
+  for _ in 0..quarter(turn) {
+    nu = h - 1 - v;
+    v = u;
+    u = nu;
+    hw = w;
+    w = h;
+    h = hw;
+  }
+  (u, v)
+}
+
+/// The side (tile_world's NORTH, EAST, SOUTH, WEST) `side` becomes: mirrored, then turned.
+pub fn side_to(side: integer, turn: integer, flip: boolean) -> integer {
+  s = side;
+  if flip && (s == tile_world::EAST || s == tile_world::WEST) { s = 4 - s; }
+  (s + quarter(turn)) % 4
+}
+
+/// The way a slant looks (tile_world's NORTH_EAST .. NORTH_WEST, 0 none) once mirrored and turned.
+pub fn slant_to(way: integer, turn: integer, flip: boolean) -> integer {
+  if way == 0 { return 0; }
+  s = if flip { 5 - way } else { way };
+  for _ in 0..quarter(turn) { s = s % 4 + 1; }
+  s
+}
+
+fn side_of(name: text) -> integer {
+  if name == "E" { tile_world::EAST } else if name == "S" { tile_world::SOUTH }
+  else if name == "W" { tile_world::WEST } else { tile_world::NORTH }
+}
+
+fn side_name(side: integer) -> text {
+  if side == tile_world::EAST { "E" } else if side == tile_world::SOUTH { "S" }
+  else if side == tile_world::WEST { "W" } else { "N" }
+}
+
+/// Apply template `t` to level `l` with its turned box's north-west corner at (x, y) and its
+/// layer 0 on layer z, mirrored (`flip`) and turned clockwise `turn` quarters — a template that
+/// says it does not turn or mirror is laid as it is drawn.  The cells it writes are tiled again by
+/// `mats` (theme.json's materials), as a paste in the editor is.
+pub fn apply(l: rules::Level, t: const levels::LevelFile, x: integer, y: integer, z: integer,
+             turn: integer, flip: boolean, mats: const materials::Materials) {
+  tq = if t.template.turns { quarter(turn) } else { 0 };
+  tf = flip && t.template.flips;
+  tw = t.level.w;
+  b = box_of(t);
+  touched: vector<(integer, integer, integer)> = [];
+  for lz in tile_world::layers(tw) {
+    for c in tile_world::chunks(tw, lz) {
+      for j in 0..CHUNK {
+        for i in 0..CHUNK {
+          sx = c.0 * CHUNK + i;
+          sy = c.1 * CHUNK + j;
+          at = spot(b, tq, tf, sx, sy);
+          ax = x + at.0;
+          ay = y + at.1;
+          az = z + lz;
+          // The edges this cell holds (its north and west), on their turned sides.
+          for side in [tile_world::NORTH, tile_world::WEST] {
+            e = tile_world::edge(tw, sx, sy, lz, side);
+            if e != 0 { tile_world::set_edge(l.w, ax, ay, az, side_to(side, tq, tf), e); }
+          }
+          if !tile_world::is_set(tw, sx, sy, lz) { continue; }
+          tile_world::set_terrain(l.w, ax, ay, az, tile_world::terrain(tw, sx, sy, lz), tile_world::tile(tw, sx, sy, lz));
+          tile_world::set_rise(l.w, ax, ay, az, tile_world::rise(tw, sx, sy, lz));
+          tile_world::set_slant(l.w, ax, ay, az, slant_to(tile_world::slant(tw, sx, sy, lz), tq, tf));
+          tile_world::set_ceiling(l.w, ax, ay, az, tile_world::ceiling(tw, sx, sy, lz));
+          restack(l, t, sx, sy, lz, ax, ay, az);
+          touched += [(ax, ay, az)];
+        }
+      }
+    }
+  }
+  // Things on cells the template left unset replace the stack there too.
+  for s in tile_world::stacks(tw) {
+    if tile_world::is_set(tw, s.0, s.1, s.2) { continue; }
+    at = spot(b, tq, tf, s.0, s.1);
+    restack(l, t, s.0, s.1, s.2, x + at.0, y + at.1, z + s.2);
+  }
+  for bar in t.level.bars {
+    at = spot(b, tq, tf, bar.x, bar.y);
+    bx = x + at.0;
+    by = y + at.1;
+    bz = z + bar.z;
+    kept: vector<rules::Bar> = [];
+    for old in l.bars { if old.x != bx || old.y != by || old.z != bz { kept += [old]; } }
+    kept += [rules::Bar { x: bx, y: by, z: bz, side: side_name(side_to(side_of(bar.side), tq, tf)) }];
+    l.bars = kept;
+  }
+  for e in t.level.enemies {
+    at = spot(b, tq, tf, e.x, e.y);
+    _ = rules::add_enemy(l, e.kind, x + at.0, y + at.1, z + e.z);
+    l.enemies[len(l.enemies) - 1].item = e.item;
+    l.enemies[len(l.enemies) - 1].bombs = e.bombs;
+  }
+  rules::order_enemies(l);
+  for p in touched { materials::retile(mats, l.w, p.0, p.1, p.2); }
+}
+
+// The stack of (ax, ay, az) in `l` made the template's stack of (sx, sy, sz).
+fn restack(l: rules::Level, t: const levels::LevelFile, sx: integer, sy: integer, sz: integer,
+           ax: integer, ay: integer, az: integer) {
+  while tile_world::take(l.w, ax, ay, az) != 0 {}
+  for th in tile_world::things(t.level.w, sx, sy, sz) { tile_world::place(l.w, ax, ay, az, th); }
+}
+
+/// Every template under `dir` (levels/templates/): each `.json` that loads and has a `template`
+/// block, by its file's order.
+pub fn all(dir: text, k: const rules::Kinds, mats: const materials::Materials) -> vector<levels::LevelFile> {
+  out: vector<levels::LevelFile> = [];
+  names: vector<text> = [];
+  for f in file(dir).files() {
+    n = f.path;
+    if len(n) > 5 && n.ends_with(".json") { names += [n]; }
+  }
+  names.sort();
+  for n in names {
+    m = levels::load_with(file(n).content() ?? "", k, mats);
+    if !m { continue; }
+    if m.template.kind != "" { out += [m]; }
+  }
+  out
+}
+
+/// The template named `name` among `ts`, null when there is none.
+pub fn named(ts: const vector<levels::LevelFile>, name: text) -> levels::LevelFile? {
+  for t in ts { if t.name == name { return t; } }
+  null
+}

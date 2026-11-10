@@ -1,0 +1,62 @@
+{
+  "name": "tunnel_drain",
+  "template": {
+    "kind": "tunnel",
+    "turns": true,
+    "flips": true,
+    "about": "the dry drain from the stream's bed to a cellar, a layer down: dark, a socket halfway, a rat's run"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        3,
+        -1
+      ],
+      "stack": [
+        "socket"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "enemies": [
+    [
+      "rat",
+      1,
+      5,
+      -1
+    ]
+  ],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "cellar_weighted_hatch",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "the stairs down weighted with a rock: pushed off, hands empty"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#####",
+        "#<..#",
+        "#...#",
+        "#...#",
+        "#####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        " >"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "name": "way_roof_hole",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "the roof came down over a table (layer 1 the roof): down through the hole onto it, a fallen stone beside"
+  },
+  "camera": "follow",
+  "legend": {
+    "_": "void"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        "",
+        " _"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        1,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        2,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

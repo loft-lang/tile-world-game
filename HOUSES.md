@@ -31,6 +31,52 @@ rulings it follows are the owner's:
 **Built** marks a template whose every move the rules already make; **new** names what it would
 need first; **verify** marks a move the rules probably make that no test shows yet.
 
+## Templates as files
+
+Every template in use is a file the owner can edit (owner, 2026-11-10): a name and a map part,
+not necessarily a whole floor or house, so it can be applied freely, turned and mirrored.  Each
+is a place file under `levels/templates/` (JSON, EDITOR.md § 2) with a `template` block:
+
+```json
+{
+  "name": "cellar_weighted_hatch",
+  "template": { "kind": "cellar", "turns": true, "flips": true,
+                "about": "the stairs down weighted with a rock: pushed off, hands empty" },
+  "legend": { ".": "floor", "#": "wall", ">": "stairs_down", "<": "stairs_up" },
+  "ground": [],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": -1, "rows": [ "#####", "#<..#", "#...#", "#...#", "#####" ] },
+    { "cx": 0, "cy": 0, "z": 0, "rows": [ "", " >" ] }
+  ],
+  "things": [ { "at": [1, 1, 0], "stack": ["rock"] } ]
+}
+```
+
+- **`kind`**: `way_in`, `inside`, `cellar` or `tunnel` (§ 1–4).  **`turns`**, **`flips`**: whether
+  it may be laid turned by quarters and mirrored east to west; **`about`**: a line on what it is.
+- **The map part** is the place file's own: rows through the legend, `things`, `edges`, `bars` (a
+  door's beam side), `enemies`, `rises`, `slants`.  Layer 0 is the layer it is laid on, −1 the
+  cellar below, 1 the floor or roof above.
+- **A space is the house's**: a cell left unset (a space in a row) keeps whatever the house has
+  there, so a template is only the cells it changes and takes the house's shape it is laid on.
+  A thing on an unset cell still replaces what stands there.  Edges are added or changed, never
+  taken away.
+- **Drawn facing one way**: a way in is drawn with the house's inside to the north and the outside
+  to the south (`way_window_step`: the wall's row 0, the yard's row 1); the deal turns it to the
+  wall it is laid on.  Turned, everything turns with it: cells, edges, slants, the beam's side,
+  the things and the figures.
+
+**Edited** in the editor: type `templates/<name>` in the panel's name field and press OPEN, edit,
+and SAVE writes it back to `levels/templates/<name>.json` (never into the play order); or by hand
+in the JSON.  **Applied** by `stamp.loft` (`stamp::apply`: at a cell, turned, mirrored);
+`tests/stamps.loft` checks every file loads with its kind and survives a save unchanged, and plays
+the window's step, the weighted hatch and the barred door in every way they can lie.
+
+**The first files** (from the catalogue below; the rest is still to draw): `way_barred_front`,
+`way_broken_sill`, `way_roof_hole`, `way_window_step`; `inside_stacked`; `cellar_open`,
+`cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_dark_rats`, `cellar_flooded`,
+`cellar_outside_door`; `tunnel_drain`.
+
 ## What the town gives to work with
 
 What a house's templates are made of, from `kinds.json` and the rules as they stand:
@@ -282,8 +328,8 @@ The templates ask little that is not built:
   the hero's nights while it is left elsewhere, and sleep that heals, a haunted dream taking 1
   off the next day's maximum;
 - **doors on more than one level** of a house against the slope (BUILD.md D1c, open);
-- **the deal**: the templates as data, a house's three drawn by the seed and fitted into its
-  shell, and the check that every house dealt is solvable (BUILD.md D1b, D1d, D1e; PUZZLES.md
+- **the deal**: the templates' files (§ Templates as files, built) drawn by the seed for each
+  house and fitted into its shell, and the check that every house dealt is solvable (BUILD.md D1b, D1d, D1e; PUZZLES.md
   § Solvable);
 - the **verify** rows above: a chair lifted onto a barrel, a step of 3 up through a hole beside a
   ceiling, and each house's roof against the terrace behind it.

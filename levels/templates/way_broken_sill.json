@@ -1,0 +1,44 @@
+{
+  "name": "way_broken_sill",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "a ground-floor window gone: the wall's cell open, a low sill (a fence edge) on its outside (south)"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "."
+      ]
+    }
+  ],
+  "things": [],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      1,
+      0,
+      "N",
+      "fence"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

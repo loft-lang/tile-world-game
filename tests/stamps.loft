@@ -1,0 +1,208 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Templates as files (HOUSES.md § Templates as files): each one under levels/templates/ loads with
+// its name and kind and keeps them through the editor's save; applied, it is turned and mirrored
+// as a whole — cells, edges, slants, the side of a door's beam, things and figures — and what it
+// lets the hero do is the same in all eight ways it can lie.  Played by the rules.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use stamp;
+
+fn kit() -> (rules::Kinds, materials::Materials) {
+  k = rules::kinds();
+  (k, materials::load(file("../theme.json").content() ?? "", k))
+}
+
+fn template(name: text) -> levels::LevelFile {
+  km = kit();
+  m = levels::load_with(file("../levels/templates/{name}.json").content() ?? "", km.0, km.1);
+  if !m { assert(false, "template {name} loads"); }
+  m ?? levels::LevelFile { name: "", level: rules::level(km.0), start_x: 0, start_y: 0, start_z: 0,
+                           goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } }
+}
+
+fn at(w: const rules::Level) -> text { "({w.hero_x}, {w.hero_y}, {w.hero_z}) height {w.hero_h}" }
+
+// A move (w, a, s, d, or p and one of them: a pull) as the template's turn and mirror make it.
+fn turned_moves(moves: text, turn: integer, flip: boolean) -> text {
+  out = "";
+  for word in moves.split(' ') {
+    if word == "" { continue; }
+    pull = word.starts_with("p");
+    key = if pull { word[1..] } else { word };
+    d = if key == "w" { (0, -1) } else if key == "s" { (0, 1) } else if key == "a" { (-1, 0) } else { (1, 0) };
+    dx = if flip { -d.0 } else { d.0 };
+    dy = d.1;
+    for _ in 0..turn {
+      ndx = -dy;
+      dy = dx;
+      dx = ndx;
+    }
+    nk = if dy < 0 { "w" } else if dy > 0 { "s" } else if dx < 0 { "a" } else { "d" };
+    out += if out == "" { "" } else { " " };
+    out += if pull { "p{nk}" } else { nk };
+  }
+  out
+}
+
+fn test_four_turns_and_two_mirrors_are_none() {
+  b = stamp::Box { x0: 2, y0: 3, x1: 6, y1: 4 };
+  for p in [(2, 3), (6, 3), (4, 4), (6, 4)] {
+    once = stamp::spot(b, 1, false, p.0, p.1);
+    assert(once.0 >= 0 && once.0 < 2 && once.1 >= 0 && once.1 < 5, "a quarter turn keeps ({p.0}, {p.1}) in the turned box: {once.0}, {once.1}");
+    m = stamp::spot(b, 0, true, p.0, p.1);
+    assert(m.0 == 6 - p.0 && m.1 == p.1 - 3, "mirrored east to west: {m.0}, {m.1}");
+  }
+  for s in [tile_world::NORTH, tile_world::EAST, tile_world::SOUTH, tile_world::WEST] {
+    assert(stamp::side_to(s, 4, false) == s, "four quarters turn a side back");
+    assert(stamp::side_to(stamp::side_to(s, 0, true), 0, true) == s, "two mirrors put a side back");
+  }
+  assert(stamp::side_to(tile_world::NORTH, 1, false) == tile_world::EAST, "north turns to east");
+  assert(stamp::side_to(tile_world::EAST, 0, true) == tile_world::WEST, "a mirror swaps east and west");
+  assert(stamp::side_to(tile_world::NORTH, 0, true) == tile_world::NORTH, "and keeps north");
+  assert(stamp::slant_to(tile_world::NORTH_EAST, 1, false) == tile_world::SOUTH_EAST, "a slant turns with it");
+  assert(stamp::slant_to(tile_world::NORTH_EAST, 0, true) == tile_world::NORTH_WEST, "and mirrors");
+  for s in 1..=4 { assert(stamp::slant_to(s, 4, false) == s, "four quarters turn a slant back"); }
+}
+
+// Every template file loads with a kind, and the editor's save keeps it: saved, loaded and saved
+// again, it is the same text, its template block in it.
+fn test_every_template_keeps_its_name_and_kind() {
+  km = kit();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  assert(len(ts) >= 10, "the templates load: {len(ts)}");
+  for t in ts {
+    assert(t.name != "", "a template has a name");
+    assert(t.template.kind == "way_in" || t.template.kind == "inside" || t.template.kind == "cellar" || t.template.kind == "tunnel",
+           "{t.name}'s kind: {t.template.kind}");
+    once = levels::save_with(t, km.1);
+    again = levels::load_with(once, km.0, km.1);
+    if !again { assert(false, "{t.name} loads again"); continue; }
+    a = again ?? t;
+    assert(a.template.kind == t.template.kind && a.template.about == t.template.about, "{t.name} keeps its template block");
+    assert(levels::save_with(a, km.1) == once, "{t.name} saves the same twice");
+  }
+}
+
+// A house's corner to lay a template on: a solid block of wall 9 by 9 from (0, 0) on layer 0, an
+// upper floor over it (a ring of wall round floor) on layer 1, open ground round it, solid
+// rock under it on layer -1, and open ground beside it.
+fn block() -> rules::Level {
+  km = kit();
+  l = rules::level(km.0);
+  fl = rules::terrain_id(km.0, "floor");
+  wl = rules::terrain_id(km.0, "wall");
+  tile_world::set_ground(l.w, 0, fl);
+  for y in -6..15 {
+    for x in -6..15 {
+      tile_world::set_terrain(l.w, x, y, -1, wl);
+      if x >= 0 && x <= 8 && y >= 0 && y <= 8 {
+        tile_world::set_terrain(l.w, x, y, 0, wl);
+        tile_world::set_terrain(l.w, x, y, 1, if x == 0 || x == 8 || y == 0 || y == 8 { wl } else { fl });
+      }
+    }
+  }
+  l
+}
+
+// Where a template drawn with its inside to the north is laid, turned `turn` quarters, against the
+// block's wall facing that way: its row 0 on the wall, its row 1 outside.  The box `h` deep as
+// drawn; the answer is the turned box's north-west corner.
+fn against_wall(turn: integer, h: integer) -> (integer, integer) {
+  if turn == 0 { (3, 8) } else if turn == 1 { (1 - h, 3) } else if turn == 2 { (3, 1 - h) } else { (8, 3) }
+}
+
+// An upper window gone, two tables and a chair left under it: the chair pulled up onto a table,
+// and the hero in at the window from it — the same moves, turned, in each of the eight ways.
+fn test_the_window_step_in_every_way_it_lies() {
+  km = kit();
+  t = template("way_window_step");
+  b = stamp::box_of(t);
+  assert(b.x1 - b.x0 == 2 && b.y1 - b.y0 == 1, "its box: {b.x0}..{b.x1}, {b.y0}..{b.y1}");
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = block();
+      c = against_wall(turn, 2);
+      stamp::apply(l, t, c.0, c.1, 0, turn, flip, km.1);
+      // The hero stands outside, east of the chair as drawn.
+      st = stamp::spot(b, turn, flip, 3, 1);
+      rules::put_hero(l, c.0 + st.0, c.1 + st.1, 0);
+      rules::play(l, turned_moves("a a pa d", turn, flip));
+      assert(l.hero_h == 3, "turn {turn} flip {flip}: on the chair on the table: {at(l)}");
+      rules::play(l, turned_moves("w", turn, flip));
+      win = stamp::spot(b, turn, flip, 1, 0);
+      assert(l.hero_z == 1 && l.hero_x == c.0 + win.0 && l.hero_y == c.1 + win.1,
+             "turn {turn} flip {flip}: in at the window: {at(l)}");
+    }
+  }
+}
+
+// The weighted hatch: the rock pushed off the stairs, and down them into the cellar — in each of
+// the eight ways; and with something in the hands the rock does not give.
+fn test_the_weighted_hatch_in_every_way_it_lies() {
+  km = kit();
+  t = template("cellar_weighted_hatch");
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = rules::level(km.0);
+      tile_world::set_ground(l.w, 0, rules::terrain_id(km.0, "floor"));
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      hatch = stamp::spot(b, turn, flip, 1, 1);
+      hx = 10 + hatch.0;
+      hy = 10 + hatch.1;
+      assert(rules::thing_name(l.k, tile_world::top(l.w, hx, hy, 0)) == "rock", "turn {turn} flip {flip}: the rock on the hatch");
+      // From the south as drawn, pushed north onto the floor beyond.
+      st = stamp::spot(b, turn, flip, 1, 2);
+      rules::put_hero(l, 10 + st.0, 10 + st.1, 0);
+      l.hero_item = rules::th(l, "stick");
+      rules::play(l, turned_moves("w", turn, flip));
+      assert(rules::thing_name(l.k, tile_world::top(l.w, hx, hy, 0)) == "rock", "turn {turn} flip {flip}: held hands do not push");
+      // Pushed off, the hero stands on the stairs (a push does not take them); off and on again.
+      l.hero_item = 0;
+      rules::play(l, turned_moves("w", turn, flip));
+      assert(rules::thing_name(l.k, tile_world::top(l.w, hx, hy, 0)) != "rock", "turn {turn} flip {flip}: the rock pushed off: {at(l)}");
+      rules::play(l, turned_moves("s w", turn, flip));
+      assert(l.hero_z == -1 && l.hero_x == hx && l.hero_y == hy, "turn {turn} flip {flip}: down into the cellar: {at(l)}");
+    }
+  }
+}
+
+// A door held shut: the beam's side turns with the template, so it lifts from inside whichever
+// way the house faces, and never from outside.
+fn test_the_barred_door_turns_its_beam() {
+  km = kit();
+  t = template("way_barred_front");
+  for turn in 0..4 {
+    l = rules::level(km.0);
+    tile_world::set_ground(l.w, 0, rules::terrain_id(km.0, "floor"));
+    stamp::apply(l, t, 5, 5, 0, turn, false, km.1);
+    // Drawn with the beam north, inside: a quarter turn clockwise puts it east, then south, west.
+    d = if turn == 0 { (0, -1) } else if turn == 1 { (1, 0) } else if turn == 2 { (0, 1) } else { (-1, 0) };
+    rules::put_hero(l, 5 - d.0, 5 - d.1, 0);
+    step_in = if d.1 < 0 { "w" } else if d.1 > 0 { "s" } else if d.0 > 0 { "d" } else { "a" };
+    step_out = if d.1 < 0 { "s" } else if d.1 > 0 { "w" } else if d.0 > 0 { "a" } else { "d" };
+    rules::play(l, step_in);
+    assert(rules::terrain_name(l.k, tile_world::terrain(l.w, 5, 5, 0)) == "barred", "turn {turn}: it holds from outside");
+    rules::put_hero(l, 5 + d.0, 5 + d.1, 0);
+    rules::play(l, step_out);
+    assert(rules::terrain_name(l.k, tile_world::terrain(l.w, 5, 5, 0)) != "barred", "turn {turn}: the beam lifts from inside");
+  }
+}
+
+// What a template leaves unset stays the house's: the cellar template's spaces keep the floor and
+// the things there.
+fn test_unset_cells_keep_the_house() {
+  km = kit();
+  t = template("cellar_open");
+  l = rules::level(km.0);
+  tile_world::set_ground(l.w, 0, rules::terrain_id(km.0, "floor"));
+  tile_world::place(l.w, 12, 10, 0, rules::th(l, "chair"));
+  stamp::apply(l, t, 10, 10, 0, 0, false, km.1);
+  assert(rules::thing_name(l.k, tile_world::top(l.w, 12, 10, 0)) == "chair", "the chair beside the stairs stays");
+  assert(!tile_world::is_set(l.w, 12, 11, 0), "the floor beside the stairs is the house's");
+  assert(rules::terrain_name(l.k, tile_world::terrain(l.w, 11, 11, 0)) == "stairs_down", "the stairs down are there");
+}

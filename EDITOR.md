@@ -170,7 +170,10 @@ takes it off first, and undo brings it back.  It is saved in the place file's `e
 
 **Stamps.**  A stamp is a saved rectangle of cells and things, across layers (a house with its
 roof, a tower with its stairs).  Stamps live in `stamps/<name>.json`, in the level format, so
-building a village is pasting houses.
+building a village is pasting houses.  **Built as templates** (2026-11-10, HOUSES.md § Templates as
+files): a place file under `levels/templates/` with a `template` block, opened with OPEN on a
+typed `templates/<name>` and saved beside the others, never into the order; applied turned and
+mirrored by `stamp.loft`.
 
 **Undo** is a log of edits, each "cell (x, y, z) was A, is B" or "stack was S, is T".  Undo
 walks the log back; a fill or a paste is one entry.

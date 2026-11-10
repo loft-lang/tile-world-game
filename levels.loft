@@ -85,6 +85,22 @@ pub struct Label {
   pub says: text
 }
 
+/// What makes a place file a template (HOUSES.md § Templates as files): the template's kind
+/// ("way_in", "inside", "cellar", "tunnel"; "" for an ordinary place), whether it may be turned and
+/// mirrored where it is applied, and a line on what it is.  Its name is the file's `name`, its map
+/// part the file's cells and things.
+pub struct TemplateInfo {
+  pub kind: text,
+  pub turns: boolean,
+  pub flips: boolean,
+  pub about: text
+}
+
+/// No template: an ordinary place.
+pub fn no_template() -> TemplateInfo {
+  TemplateInfo { kind: "", turns: true, flips: true, about: "" }
+}
+
 /// A level as its file holds it: the level itself, its name, where the hero starts, what solves
 /// it, and how the view follows the hero: "follow" (it scrolls when the hero nears the edge) or
 /// "rooms" (it flips a screen at a time).
@@ -108,7 +124,9 @@ pub struct LevelFile {
   pub talks: vector<talk::Talk> = [],
   /// What the place serves: parts of the story (`@ST-Decree`, STORY.md) and gameplay mechanics
   /// (`@GM-CartLift`, DESIGN.md); checked by `loft tools/tags.loft check`.
-  pub serves: vector<text> = []
+  pub serves: vector<text> = [],
+  /// When the file is a template, what kind and how it may be applied (`no_template()`: none).
+  pub template: TemplateInfo = no_template()
 }
 
 struct LegendChar {
@@ -352,8 +370,15 @@ pub fn load_with(raw: text, k: const rules::Kinds, mats: const materials::Materi
     name: str(v.field("name"), ""), camera: str(v.field("camera"), "follow"), level: l,
     start_x: sx, start_y: sy, start_z: sz, goal: goal, intent: intent::intent_from(v.field("intent")),
     adjusted: adjusted, doors: doors, labels: labels, talks: talk::from_json(v.field("talks")),
-    serves: serves_of(v.field("serves"))
+    serves: serves_of(v.field("serves")), template: template_of(v.field("template"))
   }
+}
+
+// A place file's `template`: { "kind": .., "turns": .., "flips": .., "about": .. }; none when absent.
+fn template_of(v: const JsonValue) -> TemplateInfo {
+  if v.kind() != "JObject" { return no_template(); }
+  TemplateInfo { kind: str(v.field("kind"), ""), turns: v.field("turns").as_bool() ?? true,
+                 flips: v.field("flips").as_bool() ?? true, about: str(v.field("about"), "") }
 }
 
 // A place file's `serves`: the tags it lists.
@@ -536,6 +561,10 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     }
   }
   out = "{{\n  \"name\": {quoted(lf.name)},";
+  tp = lf.template;
+  if tp.kind != "" {
+    out += "\n  \"template\": {{ \"kind\": {quoted(tp.kind)}, \"turns\": {tp.turns}, \"flips\": {tp.flips}, \"about\": {quoted(tp.about)} }},";
+  }
   if len(lf.serves) > 0 {
     out += "\n  \"serves\": [";
     sf = true;
