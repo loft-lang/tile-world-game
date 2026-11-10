@@ -80,6 +80,7 @@ person (`@ST-Wizard`, not his name), so a renamed person keeps every citation.
 | [`@ST-NoKilling`](#st-nokilling) | killing is never the goal; monsters retreat | § 3 |
 | [`@ST-Residents`](#st-residents) | monsters living there; the cyclopes' prey | § 3 |
 | [`@ST-Founder`](#st-founder) | the ghost of the miner who founded the mine, in the cemetery at night | § 3 |
+| [`@ST-Urn`](#st-urn) | the ghost's urn, taken to the cellars to find the house of his love, Sibil: why the hero enters the houses | § 3 |
 | [`@ST-Hunter`](#st-hunter) | Rennick, the outcast returned with a grudge; befriendable, never the village's | § 3 |
 | [`@ST-Cyclopes`](#st-cyclopes) | the Kharn, the tribe in the mine, planning to take the village | § 3 |
 | [`@ST-Debate`](#st-debate) | blow up the mine or abandon the town | § 3 |
@@ -423,6 +424,17 @@ tile 121).  With the help of others he dug the first main shaft, but drowned in 
 they struck its water; his fellow miners retrieved his body (owner, 2026-11-04; the Still Lake,
 @GM-Flotilla).
 
+<a id="st-urn"></a>**The ghost's urn** (owner, 2026-11-10): the hero needs a reason to walk into the different
+ordinary houses, beyond the player wanting to be everywhere and see everything.  Money is not that
+reason: there is none in the game, and the families who went away probably needed theirs with
+them anyway.  So the ghost in the graveyard (@ST-Founder) gives a quest.  He wants a resting
+place, and the graveyard clearly did not do a good job of that, for he is still spooking around.
+There is a house in the town where he would like to be instead: the house of his love, Sibil, who
+lived there.  With time he has forgotten which house it was.  He shows the hero his urn and asks
+him to bring his remains to Sibil's house.  To know it for sure, the hero has to take the urn into
+the cellars of the houses: there he will know whether that is the place where the ghost finds
+his rest.
+
 <a id="st-hunter"></a>**The hunter: Rennick** (owner, 2026-11-04): someone the villagers know, and dislike already.  He was cast
 out of the village in his youth, and has now returned to it.  He has a grudge against the village;
 he is not evil (owner).  He might be befriended, but he will
@@ -601,6 +613,13 @@ the cost of a choice is known when it is made; none proposes story content.
   every player, so it needs no fact or unlock — only the rule in the blast (DESIGN.md § Bombs) and
   Wick's lines explaining it.  **Where bombs lie**, told, is a hint (@ST-Hints): lines naming the
   places, or marks on the map when there is one.
+- **The urn asks for a carried thing that answers to a place** (@ST-Urn).  The urn is given by a
+  talk (`give`, as the ghost talks already: `kinds.json`'s ghost `talks`), held in the hands like
+  any item, so it competes with a torch or an axe for the one held item — or it is carried apart,
+  as the heart is.  "Knowing it is the place" is new: a cell set (a house's cellar) and a sign
+  shown when the urn enters it — the right one, or not this one.  Cellars are the other cost: in
+  Orbury today only four houses have a basement (`tools/orbury_gen.py`: the lord's house, the
+  inn, the well-off house by the market, Hollis's); the cottages and the miners' rows have none.
 - **Hints for a stuck player** need to know the player is stuck (time spent in a place, tries,
   returns) and lines that depend on it: facts and conditions again, the same mechanism as gossip.
 - **Relations that last** (the hunter befriended, a family returning, the village's mood) are facts

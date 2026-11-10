@@ -23,8 +23,9 @@ is not.
 - **Unique:** the people.  Talk, their routines, day and night matter most here.  The village is
   the tutorial, though never presented that way (owner, 2026-11-04): it holds the world's main
   mechanics on a smaller scale, and less interconnected.  It is a sandbox: the hero has only light
-  reasons to snoop around, which will clearly not stop players doing so.  The villagers are grumpy
-  about snooping, but enough aid to the village makes them look past it (owner, 2026-11-04).  Stones to push; a chest, which someone
+  reasons to snoop around, which will clearly not stop players doing so.  The one the story gives
+  (owner, 2026-11-10): the ghost's urn, carried into the houses' cellars to find Sibil's
+  (@ST-Urn).  The villagers are grumpy about snooping, but enough aid to the village makes them look past it (owner, 2026-11-04).  Stones to push; a chest, which someone
   brought down to the inn's basement; a cart to push, on the rails that run from the mine through
   the Wardens' camp all the way to the village (owner, 2026-11-04): to its loading dock, on the
   other side of the stream (owner, 2026-11-08: the town's hill is not joined to the mine's, so the
