@@ -52,10 +52,23 @@ pub struct Dealt {
 
 /// A place dealt: the seed, each ordinary house, and which of them is Sibil's (its index among the
 /// intent's houses, -1 when the place has none).
+/// Two neighbours' cellars knocked through (HOUSES.md § Tunnels): the houses (their indexes among
+/// the intent's houses, `a` west of `b`), and the passage's row on layer z, from the floor's last
+/// cell in `a`'s cellar (x0) to the first in `b`'s (x1).
+pub struct Joined {
+  pub a: integer,
+  pub b: integer,
+  pub x0: integer,
+  pub x1: integer,
+  pub y: integer,
+  pub z: integer
+}
+
 pub struct Deal {
   pub seed: integer,
   pub houses: vector<Dealt>,
-  pub sibil: integer
+  pub sibil: integer,
+  pub joined: vector<Joined> = []
 }
 
 /// No deal: a place with no ordinary houses.
@@ -635,12 +648,90 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
     if dealt.sibil { out.sibil = hi; }
     out.houses += [dealt];
   }
+  join_neighbours(l, it, out, ts, mats);
   out
+}
+
+// The floor of house `h`'s cellar as dealt, a layer down; none when it was dealt none.
+fn dealt_floor(l: const rules::Level, it: const intent::Intent, ts: const vector<levels::LevelFile>,
+               h: const Dealt) -> vector<(integer, integer, integer)> {
+  s = shell_of(it.houses[h.house]!);
+  for p in h.laid {
+    t = template_of(ts, p) ?? continue;
+    if t.template.kind == "cellar" && t.name != "cellar_none" { return cellar_floor(l, s, t, p); }
+  }
+  []
+}
+
+// Two neighbours knocked through (HOUSES.md § Tunnels, `tunnel_neighbours`): after every house is
+// dealt, each pair of ordinary houses side by side on one layer, both with a cellar whose floors
+// share a row and only earth between them, is joined by the seed one time in two — the passage
+// laid along that row from the one cellar's wall to the other's, stretched to the gap.  A passage
+// only adds a way, so neither house's play can fail for it; it never crosses another template.
+fn join_neighbours(l: rules::Level, it: const intent::Intent, d: Deal, ts: const vector<levels::LevelFile>,
+                   mats: const materials::Materials) {
+  pass = stamp::named(ts, "tunnel_neighbours") ?? return;
+  if pass.template.at != "between" { return; }
+  used: hash<Key[k]> = [];
+  floors: vector<vector<(integer, integer, integer)>> = [];
+  for h in d.houses {
+    for p in h.laid {
+      t = template_of(ts, p) ?? continue;
+      take_cells(used, t, p);
+    }
+    floors += [if h.draw >= 0 { dealt_floor(l, it, ts, h) } else { [] }];
+  }
+  joined_with: vector<integer> = [];
+  for ai in 0..len(d.houses) {
+    for bi in 0..len(d.houses) {
+      fa = floors[ai] ?? [];
+      fb = floors[bi] ?? [];
+      if ai == bi || len(fa) == 0 || len(fb) == 0 { continue; }
+      ha = it.houses[d.houses[ai]!.house]!;
+      hb = it.houses[d.houses[bi]!.house]!;
+      gap = hb.x - (ha.x + ha.w);
+      if ha.z != hb.z || gap < 0 || gap > 6 { continue; }
+      if joined_with.contains(ai) || joined_with.contains(bi) { continue; }
+      r = rng(d.seed, 2000 + d.houses[ai]!.house * 31 + d.houses[bi]!.house, 0);
+      if next(r, 2) != 0 { continue; }
+      z = (fa[0] ?? (0, 0, 0)).2;
+      ys: vector<integer> = [];
+      for c in fa { if !ys.contains(c.1) { ys += [c.1]; } }
+      if len(ys) == 0 { continue; }
+      first = next(r, len(ys));
+      for yi in 0..len(ys) {
+        y = ys[(first + yi) % len(ys)] ?? 0;
+        xa = -1000000;
+        xb = 1000000;
+        for c in fa { if c.1 == y && c.0 > xa { xa = c.0; } }
+        for c in fb { if c.1 == y && c.0 < xb { xb = c.0; } }
+        if xb == 1000000 || xb - xa - 1 < 2 { continue; }
+        fits = true;
+        for x in xa + 1..xb {
+          for dy in -1..=1 {
+            c = (x, y + dy, z);
+            if tile_world::walkable_kind(l.w, tile_world::terrain(l.w, c.0, c.1, c.2)) { fits = false; }
+            // Between the two cellars' walls: earth only, under no house, over no template.
+            if x > xa + 1 && x < xb - 1 && (used[intent::key_of(c.0, c.1, c.2)] || under_a_house(it, c.0, c.1, c.2)) { fits = false; }
+          }
+        }
+        if !fits { continue; }
+        st = stamp::stretched(pass, xb - xa - 2);
+        q = 3;
+        sp = stamp::spot(stamp::box_of(st), q, false, st.template.entry_x, st.template.entry_y);
+        stamp::apply(l, st, xa + 1 - sp.0, y - sp.1, z - st.template.entry_z, q, false, mats);
+        d.joined += [Joined { a: d.houses[ai]!.house, b: d.houses[bi]!.house, x0: xa, x1: xb, y: y, z: z }];
+        joined_with += [ai, bi];
+        break;
+      }
+    }
+  }
 }
 
 /// The deal as lines for the play log: the seed, and per house its templates where they lie.
 pub fn describe(d: const Deal) -> vector<text> {
   out: vector<text> = ["DEAL seed {d.seed} sibil {d.sibil}"];
+  for j in d.joined { out += ["JOINED houses {j.a} and {j.b}: cellars through on row {j.y}, layer {j.z}, x {j.x0}..{j.x1}"]; }
   for h in d.houses {
     line = "HOUSE {h.house} draw {h.draw} cellar {h.cellar}";
     if h.sibil { line += " SIBIL"; }

@@ -87,3 +87,24 @@ fn test_tunnels_are_laid_to_the_cellars_that_need_them() {
   }
   assert(tunnels >= 3, "tunnels laid: {tunnels}");
 }
+
+// The neighbours' passage (HOUSES.md § Tunnels): over a few seeds, two neighbours' cellars are
+// knocked through, and the hero walks from the one's floor along the passage into the other's.
+fn test_neighbours_cellars_are_knocked_through() {
+  joins = 0;
+  for seed in [7, 8, 9, 10, 11, 12] {
+    r = dealt(seed);
+    l = r.0.level;
+    for j in r.1.joined {
+      joins += 1;
+      l.enemies = [];
+      rules::put_hero(l, j.x0, j.y, j.z);
+      moves = "";
+      for _ in j.x0..j.x1 { moves += "d "; }
+      rules::play(l, moves);
+      assert(l.hero_x == j.x1 && l.hero_y == j.y && l.hero_z == j.z,
+             "seed {seed}: from house {j.a}'s cellar into {j.b}'s: ({l.hero_x}, {l.hero_y}, {l.hero_z})");
+    }
+  }
+  assert(joins >= 1, "cellars knocked through: {joins}");
+}

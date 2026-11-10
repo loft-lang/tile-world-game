@@ -125,7 +125,7 @@ appears in no house.
 
 | Field | Means |
 |---|---|
-| `at` | `door` (on the front door), `wall` (on an outer wall, not a corner or the door), `inside` (within the floor), `under` (a cellar, within the footprint); none: not dealt |
+| `at` | `door` (on the front door), `wall` (on an outer wall, not a corner or the door), `inside` (within the floor), `under` (a cellar, within the footprint), `exit` (a tunnel from a cellar's gap), `between` (two cellars joined); none: not dealt |
 | `wall` | `[x, y]`: the template's cell that lies on the wall or the door |
 | `closes`, `gives` | it shuts the front door; the hero gets in by it |
 | `weight` | how often it is drawn (1 when not said) |
@@ -138,7 +138,7 @@ appears in no house.
 **Not dealt yet** (`at` none), each for a reason: `way_window_step` and `way_upper_door` want a
 house of two floors (the ordinary ones have one); `way_shuttered`, windows the ordinary houses do
 not have; `way_walled_up`, a directed blast in its solution; `cellar_in_barred_room`, a house
-bigger than the cottages; `tunnel_neighbours` and `tunnel_vault_onwards` (§ 4).
+bigger than the cottages; `tunnel_vault_onwards` (§ 4).
 
 **The play log** gets the deal: `DEAL seed 7 sibil 5`, then a line per house with its draw, its
 cellar and every template where it lies, turned and mirrored.  `TW_SEED=7 loft --lib libs
@@ -341,8 +341,14 @@ terrace at the street below its front.
 | `cellar_under_fall` | any: its hatch is under the stones, its gap in the south wall |
 | `cellar_outside_door` | `tunnel_cellar_steps`: a passage, stairs up into the yard behind the house, bushes round them |
 
-Not laid yet: `tunnel_neighbours` (two cellars joined, so two houses dealt together) and
-`tunnel_vault_onwards` (the inn's vault, a house of its own design).
+**The neighbours' passage** (`tunnel_neighbours`, laid `at: "between"`): once every house is dealt,
+each pair of ordinary houses side by side on one layer, both with a cellar whose floors share a row
+and only earth between them (under no house, over no template), is knocked through one time in two
+by the seed: the passage laid along that row from the one cellar's wall to the other's, stretched to
+the gap.  It only adds a way, so it is not played again: a house hard to get into may be reached
+through its neighbour's cellar, up its stairs.  The play log says `JOINED houses a and b`.
+
+Not laid yet: `tunnel_vault_onwards` (the inn's vault, a house of its own design).
 
 **What lies in a tunnel** (◇): a standing beam that holds it up (taken out with a pick, it
 collapses the tunnel beyond: so the beam is wanted, and the way is lost for it), a barricade a

@@ -4,31 +4,29 @@
     "kind": "tunnel",
     "turns": true,
     "flips": true,
-    "about": "two cellars knocked through: a short passage, west to east, a layer down",
-    "at": ""
+    "about": "two neighbours' cellars knocked through: a passage from the one's wall to the other's, drawn running south and laid between them, as long as the gap",
+    "at": "between",
+    "weight": 1,
+    "entry": [
+      1,
+      0,
+      0
+    ],
+    "stretch": 0
   },
   "camera": "follow",
   "legend": {
     ".": "floor",
-    "#": "wall",
-    ">": "stairs_down",
-    "<": "stairs_up",
-    "_": "void",
-    "E": "house_door",
-    "[": "bush",
-    "G": "garden_fence",
-    "I": "prop"
+    "#": "wall"
   },
   "ground": [],
   "chunks": [
     {
       "cx": 0,
       "cy": 0,
-      "z": -1,
+      "z": 0,
       "rows": [
-        "#####",
-        ".....",
-        "#####"
+        "#.#"
       ]
     }
   ],
@@ -37,7 +35,7 @@
   "edges": [],
   "rises": [],
   "start": [
-    0,
+    1,
     0,
     0
   ],
