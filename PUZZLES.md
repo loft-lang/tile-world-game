@@ -306,6 +306,12 @@ useful objects that are not critical: not in every house every game, and never s
 find, just a reason to keep puzzling into them.  They are dealt, unlike the progression items,
 which keep their place (§ Chests and progression items have their place).
 
+**Never unsolvable** (owner, 2026-11-10): an unfair puzzle is an unsolvable one, and the game has
+none.  Hard, hidden and not straightforward are fine; a way in that cannot be found or taken is
+not.  So a hidden cellar can always be found and entered by the hero's own means, and a house
+dealt shut has a way in; the deal is checked as every scene is (§ Solvable), with the house, its
+cellar and the cellar's way in as the parts.
+
 The closing variants and neglect below are
 the material of the first two; a hatch shut and weighted with stones, a hatch hidden, or a cellar
 flooded by the brook, the material of the third.
