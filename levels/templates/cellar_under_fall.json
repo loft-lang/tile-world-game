@@ -1,0 +1,97 @@
+{
+  "name": "cellar_under_fall",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "the roof came down on the hatch: stones on the stairs and round them, touching, which no push moves"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#####",
+        "#<..#",
+        "#...#",
+        "#...#",
+        "#####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        " >"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        "",
+        " _"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        2,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        1,
+        2,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

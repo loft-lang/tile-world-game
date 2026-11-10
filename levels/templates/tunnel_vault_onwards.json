@@ -1,0 +1,59 @@
+{
+  "name": "tunnel_vault_onwards",
+  "template": {
+    "kind": "tunnel",
+    "turns": true,
+    "flips": true,
+    "about": "the inn's vault running on under the market, boarded at its far end (a barricade)"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#",
+        "#.#"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        4,
+        -1
+      ],
+      "stack": [
+        "barricade"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

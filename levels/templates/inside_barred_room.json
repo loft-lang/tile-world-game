@@ -1,0 +1,54 @@
+{
+  "name": "inside_barred_room",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "a room barred from inside: past its door (an edge, north) a rock with a table behind it, which no push moves"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        0,
+        2,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      1,
+      0,
+      "N",
+      "door"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

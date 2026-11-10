@@ -1,0 +1,47 @@
+{
+  "name": "way_shuttered",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "the windows shuttered: the wall's outer side shut along three cells (wall edges), where a window was"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      1,
+      0,
+      "N",
+      "wall"
+    ],
+    [
+      1,
+      1,
+      0,
+      "N",
+      "wall"
+    ],
+    [
+      2,
+      1,
+      0,
+      "N",
+      "wall"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "find_boost_potion",
+  "template": {
+    "kind": "find",
+    "turns": true,
+    "flips": true,
+    "about": "a boost potion, kept for the long shift"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "potion"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

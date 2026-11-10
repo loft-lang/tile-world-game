@@ -73,10 +73,11 @@ fn test_four_turns_and_two_mirrors_are_none() {
 fn test_every_template_keeps_its_name_and_kind() {
   km = kit();
   ts = stamp::all("../levels/templates", km.0, km.1);
-  assert(len(ts) >= 10, "the templates load: {len(ts)}");
+  assert(len(ts) >= 45, "the templates load: {len(ts)}");
   for t in ts {
     assert(t.name != "", "a template has a name");
-    assert(t.template.kind == "way_in" || t.template.kind == "inside" || t.template.kind == "cellar" || t.template.kind == "tunnel",
+    assert(t.template.kind == "way_in" || t.template.kind == "inside" || t.template.kind == "cellar" || t.template.kind == "tunnel"
+           || t.template.kind == "find",
            "{t.name}'s kind: {t.template.kind}");
     once = levels::save_with(t, km.1);
     again = levels::load_with(once, km.0, km.1);
@@ -205,4 +206,147 @@ fn test_unset_cells_keep_the_house() {
   assert(rules::thing_name(l.k, tile_world::top(l.w, 12, 10, 0)) == "chair", "the chair beside the stairs stays");
   assert(!tile_world::is_set(l.w, 12, 11, 0), "the floor beside the stairs is the house's");
   assert(rules::terrain_name(l.k, tile_world::terrain(l.w, 11, 11, 0)) == "stairs_down", "the stairs down are there");
+}
+
+// Open ground of floor on each of `layers`, to lay a template on.
+fn grounds(layers: vector<integer>) -> rules::Level {
+  km = kit();
+  l = rules::level(km.0);
+  for z in layers { tile_world::set_ground(l.w, z, rules::terrain_id(km.0, "floor")); }
+  l
+}
+
+fn top_name(l: const rules::Level, x: integer, y: integer, z: integer) -> text {
+  rules::thing_name(l.k, tile_world::top(l.w, x, y, z))
+}
+
+// The hidden hatch: the middle chair pulled away from the wall and pushed aside, and down the
+// stairs under it.
+fn test_the_hidden_hatch_in_every_way_it_lies() {
+  km = kit();
+  t = template("cellar_hidden_hatch");
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = grounds([0]);
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      st = stamp::spot(b, turn, flip, 2, 2);
+      rules::put_hero(l, 10 + st.0, 10 + st.1, 0);
+      // Pulled out, round it, and pushed aside (walked into, a chair is pushed: back onto the hatch).
+      rules::play(l, turned_moves("ps a w d w", turn, flip));
+      hatch = stamp::spot(b, turn, flip, 2, 1);
+      assert(l.hero_z == -1 && l.hero_x == 10 + hatch.0 && l.hero_y == 10 + hatch.1,
+             "turn {turn} flip {flip}: down under the middle chair: {at(l)}");
+    }
+  }
+}
+
+// The boarded door: with a pick, taken apart into two beams, and walked through; without, it holds.
+fn test_the_boarded_door_in_every_way_it_lies() {
+  km = kit();
+  t = template("way_boarded_door");
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = grounds([0]);
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      rules::put_hero(l, 10, 11, 0);
+      rules::play(l, "w");
+      assert(top_name(l, 10, 10, 0) == "barricade", "turn {turn} flip {flip}: bare hands do not take it apart");
+      l.hero_item = rules::th(l, "pick");
+      rules::play(l, "w");
+      assert(top_name(l, 10, 10, 0) != "barricade", "turn {turn} flip {flip}: the pick takes it apart: {top_name(l, 10, 10, 0)}");
+    }
+  }
+}
+
+// The barred room: the rock past its door gives to no push, the table behind it.
+fn test_the_barred_room_holds_in_every_way_it_lies() {
+  km = kit();
+  t = template("inside_barred_room");
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = grounds([0]);
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      st = stamp::spot(b, turn, flip, 0, 0);
+      rock = stamp::spot(b, turn, flip, 0, 1);
+      rules::put_hero(l, 10 + st.0, 10 + st.1, 0);
+      rules::play(l, turned_moves("s s", turn, flip));
+      assert(top_name(l, 10 + rock.0, 10 + rock.1, 0) == "rock" && l.hero_x == 10 + st.0 && l.hero_y == 10 + st.1,
+             "turn {turn} flip {flip}: the rock holds: {at(l)}");
+    }
+  }
+}
+
+// The hatch under the fall: the stones on and round the stairs give to no push from any side.
+fn test_the_hatch_under_the_fall_holds() {
+  km = kit();
+  t = template("cellar_under_fall");
+  l = grounds([0, 1]);
+  stamp::apply(l, t, 10, 10, 0, 0, false, km.1);
+  for p in [((11, 13), "w"), ((10, 11), "d"), ((13, 11), "a")] {
+    rules::put_hero(l, p.0.0, p.0.1, 0);
+    rules::play(l, p.1);
+  }
+  assert(top_name(l, 11, 11, 0) == "rock" && top_name(l, 12, 11, 0) == "rock" && top_name(l, 11, 12, 0) == "rock",
+         "the stones stay where they fell");
+  assert(tile_world::open_sky(l.w, 11, 11, 0), "the roof is open over the stairs");
+}
+
+// The roof hatch weighted with a barrel: the barrel pushed off it along the roof, and down the
+// stairs to the floor below — in each of the eight ways.
+fn test_the_roof_hatch_in_every_way_it_lies() {
+  km = kit();
+  t = template("way_roof_hatch_weighted");
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = grounds([0, 1]);
+      // Laid on the house's floor (layer 0), its layer 1 the roof.
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      hatch = stamp::spot(b, turn, flip, 0, 1);
+      assert(top_name(l, 10 + hatch.0, 10 + hatch.1, 1) == "tar_barrel", "turn {turn} flip {flip}: the barrel weighs the hatch");
+      st = stamp::spot(b, turn, flip, 0, 2);
+      rules::put_hero(l, 10 + st.0, 10 + st.1, 1);
+      rules::play(l, turned_moves("w", turn, flip));
+      assert(top_name(l, 10 + hatch.0, 10 + hatch.1, 1) != "tar_barrel", "turn {turn} flip {flip}: the barrel pushed off: {at(l)}");
+      rules::play(l, turned_moves("s w", turn, flip));
+      assert(l.hero_z == 0, "turn {turn} flip {flip}: down through the hatch: {at(l)}");
+    }
+  }
+}
+
+// The chair against the door: the door opens, the chair is pushed in, and the hero steps in.
+fn test_the_chair_behind_the_door_gives() {
+  km = kit();
+  t = template("way_chair_behind_door");
+  l = grounds([0]);
+  stamp::apply(l, t, 10, 10, 0, 0, false, km.1);
+  rules::put_hero(l, 10, 12, 0);
+  rules::play(l, "w w");
+  assert(l.hero_y == 10 && top_name(l, 10, 9, 0) == "chair", "in at the door, the chair pushed back: {at(l)}");
+}
+
+// The rotted cellar stair: a drop onto the table below costs nothing, and the way back up is the
+// chair pulled onto that table and the wall's top beside it — in each of the eight ways.
+fn test_the_rotted_cellar_stair_in_every_way_it_lies() {
+  km = kit();
+  t = template("cellar_stair_rotted");
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = grounds([0]);
+      stamp::apply(l, t, 10, 10, 0, turn, flip, km.1);
+      st = stamp::spot(b, turn, flip, 2, 2);
+      rules::put_hero(l, 10 + st.0, 10 + st.1, 0);
+      health = l.health;
+      rules::play(l, turned_moves("a", turn, flip));
+      assert(l.hero_z == -1 && l.hero_h == 2 && l.health == health, "turn {turn} flip {flip}: down onto the table: {at(l)}");
+      rules::play(l, turned_moves("pw s", turn, flip));
+      assert(l.hero_h == 3, "turn {turn} flip {flip}: on the chair on the table: {at(l)}");
+      rules::play(l, turned_moves("a", turn, flip));
+      out = stamp::spot(b, turn, flip, 0, 2);
+      assert(l.hero_z == 0 && l.hero_x == 10 + out.0 && l.hero_y == 10 + out.1, "turn {turn} flip {flip}: back up: {at(l)}");
+    }
+  }
 }

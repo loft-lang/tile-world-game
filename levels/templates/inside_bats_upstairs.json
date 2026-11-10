@@ -1,0 +1,39 @@
+{
+  "name": "inside_bats_upstairs",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "bats under the roof, on the upper floor (layer 1): drawn to a torch"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "enemies": [
+    [
+      "bat",
+      0,
+      0,
+      1
+    ],
+    [
+      "bat",
+      2,
+      1,
+      1
+    ]
+  ],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

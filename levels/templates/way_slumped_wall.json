@@ -1,0 +1,66 @@
+{
+  "name": "way_slumped_wall",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "a wall slumped at a corner: its cell open, its stones lying outside"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        ".",
+        " "
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        1,
+        2,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

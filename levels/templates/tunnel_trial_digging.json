@@ -1,0 +1,70 @@
+{
+  "name": "tunnel_trial_digging",
+  "template": {
+    "kind": "tunnel",
+    "turns": true,
+    "flips": true,
+    "about": "the founder's trial digging from the hillside: its mouth behind a bush, stairs down, beams standing in its walls, a loose stone"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        " [ ",
+        " > "
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "###",
+        "#<#",
+        "I.I",
+        "#.#",
+        "I.I",
+        "#.#",
+        "#.#"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        5,
+        -1
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

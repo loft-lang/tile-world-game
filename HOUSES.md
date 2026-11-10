@@ -52,7 +52,8 @@ is a place file under `levels/templates/` (JSON, EDITOR.md § 2) with a `templat
 }
 ```
 
-- **`kind`**: `way_in`, `inside`, `cellar` or `tunnel` (§ 1–4).  **`turns`**, **`flips`**: whether
+- **`kind`**: `way_in`, `inside`, `cellar` or `tunnel` (§ 1–4), or `find` (§ 2's finds, laid where
+  the deal puts them).  **`turns`**, **`flips`**: whether
   it may be laid turned by quarters and mirrored east to west; **`about`**: a line on what it is.
 - **The map part** is the place file's own: rows through the legend, `things`, `edges`, `bars` (a
   door's beam side), `enemies`, `rises`, `slants`.  Layer 0 is the layer it is laid on, −1 the
@@ -72,10 +73,30 @@ in the JSON.  **Applied** by `stamp.loft` (`stamp::apply`: at a cell, turned, mi
 `tests/stamps.loft` checks every file loads with its kind and survives a save unchanged, and plays
 the window's step, the weighted hatch and the barred door in every way they can lie.
 
-**The first files** (from the catalogue below; the rest is still to draw): `way_barred_front`,
-`way_broken_sill`, `way_roof_hole`, `way_window_step`; `inside_stacked`; `cellar_open`,
-`cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_dark_rats`, `cellar_flooded`,
-`cellar_outside_door`; `tunnel_drain`.
+**The files**, the whole catalogue below (45):
+
+| Kind | Templates |
+|---|---|
+| way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door` |
+| inside | `inside_pushed_to_walls`, `inside_stacked`, `inside_barred_room`, `inside_in_haste`, `inside_roof_fall`, `inside_stair_rotted`, `inside_floor_hole`, `inside_rat_nest`, `inside_grey_rat`, `inside_bats_upstairs`, `inside_spider_upstairs` |
+| find | `find_potions`, `find_boost_potion`, `find_hearth`, `find_larder`, `find_tar_barrel` |
+| cellar | `cellar_none`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
+| tunnel | `tunnel_drain`, `tunnel_neighbours`, `tunnel_trial_digging`, `tunnel_vault_onwards` |
+
+Not files, and why: **from the house beside** and **from up the hill** are where a house stands
+in the town (its roof against the next one's, or the terrace behind), so their templates are the
+roof's (`way_roof_hole`, `way_roof_hatch`); **both doors barred** is `way_barred_front` laid on both
+doors with a roof hatch; **put away** is where the deal lays the finds; **lived in** is a house's
+people, not a map; **the blast** works on any wall, and `way_walled_up` is the house where nothing
+else does.  **The barrel and a chair** as a step is out: a chair lifts only onto a table (`surface`),
+not onto a barrel.
+
+Played by `tests/stamps.loft` in every way they lie: the window's step, the weighted and the hidden
+hatch (a chair walked into is pushed, so the middle one is pulled out and pushed aside), the
+barred door, the boarded door (a pick takes it apart, bare hands do not), the barred room and the
+hatch under the fall (their stones give to no push), the weighted roof hatch, the chair behind the
+door, and the rotted cellar stair: a drop onto the table below costs nothing, and the way back up
+is the chair pulled onto that table and the wall's top beside the hole.
 
 ## What the town gives to work with
 
@@ -134,7 +155,7 @@ in.
 | **the back door** | round the house to a door the family only closed | getting round: a garden fence climbed, bushes felled with an axe, a rock pushed off the path | built |
 | **the beam from the right side** | in by another way, the front door's beam lifted from inside: the house opened for good | another way in first | built |
 | **a broken window** | a window whose sill is low (a fence edge), climbed through on the ground floor | — | built |
-| **the upper window, by a step** | a window opening on the upper floor, reached by a step of 3 against the wall below it: a chair on a table brought out of a neighbour's yard, or a barrel and a chair | the step's things, found nearby | verify (a chair onto a barrel) |
+| **the upper window, by a step** | a window opening on the upper floor, reached by a step of 3 against the wall below it: a chair pulled onto a table (not a barrel: a chair lifts only onto a table) | the step's things, found nearby | built (`way_window_step`) |
 | **the fallen roof** | onto the roof, and down through the hole into the room below: onto the table under it for free, onto the floor for 1 health | a way onto the roof (below) | built |
 | **from the house beside** | along the row's joined roofs to a hole or a roof hatch in another; the house beside is the way in | the neighbour's way up | built |
 | **from up the hill** | from the street or terrace above, onto the roof that lies at its layer: a house against the slope is walked onto from behind | — | verify (each house's roof layer against the terrace behind, `tools/map.loft`) |
@@ -215,7 +236,7 @@ coming back for.  A house is dealt one.
 | **the hatch under the fall** | the roof came down on it: rocks on the stairs, touching, which pushing cannot move | from below, by the cellar's other way; or a blast | built |
 | **the outside door** | no hatch inside at all: the cellar's door is outside, at the back, under the bushes or behind the yard's fence | an axe for the bushes, or a fence climbed | built |
 | **by the tunnel only** | no stairs from the house: the cellar was joined to another's, or to the stream bed (§ 4) | the tunnel | built |
-| **the stair rotted** | the stairs down gone, a hole: a fall of a layer (1 health) into it | down, the cost paid; up again by the cellar's other way, or a step of 3 built below the hole | verify (the way up), new if neither |
+| **the stair rotted** | the stairs down gone, a hole: a fall of a layer (1 health) into it, or a drop onto a table below for nothing | down; up again by the cellar's other way, or the chair pulled onto the table under the hole and the wall's top beside it | built (`cellar_stair_rotted`) |
 | **flooded** | shallow water on the floor (the houses near the stream): walked through, a beam floating | wading | built |
 | **dark, and lived in** | no light, and rats: they keep out of light, so a torch, held or in the cellar's socket, keeps them off | a light | built |
 
@@ -331,8 +352,9 @@ The templates ask little that is not built:
 - **the deal**: the templates' files (§ Templates as files, built) drawn by the seed for each
   house and fitted into its shell, and the check that every house dealt is solvable (BUILD.md D1b, D1d, D1e; PUZZLES.md
   § Solvable);
-- the **verify** rows above: a chair lifted onto a barrel, a step of 3 up through a hole beside a
-  ceiling, and each house's roof against the terrace behind it.
+- the **verify** rows above: a step of 3 up through the rotted stair's hole into the upper floor
+  (`inside_stair_rotted`; the cellar's way up is played), and each house's roof against the
+  terrace behind it.
 
 ## Open, for the owner
 

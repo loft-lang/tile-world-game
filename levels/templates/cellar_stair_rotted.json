@@ -1,0 +1,89 @@
+{
+  "name": "cellar_stair_rotted",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "the stairs down rotted to a hole: a drop onto a table below; back up by the chair pulled onto it, to the wall's top"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "####",
+        "#..#",
+        "#..#",
+        "#..#",
+        "####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        "",
+        " _"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        1,
+        -1
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        1,
+        2,
+        -1
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        1,
+        3,
+        -1
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

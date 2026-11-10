@@ -1,0 +1,56 @@
+{
+  "name": "find_larder",
+  "template": {
+    "kind": "find",
+    "turns": true,
+    "flips": true,
+    "about": "the larder: herbs, a mushroom and a sack"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "herb"
+      ]
+    },
+    {
+      "at": [
+        1,
+        0,
+        0
+      ],
+      "stack": [
+        "mushroom"
+      ]
+    },
+    {
+      "at": [
+        2,
+        0,
+        0
+      ],
+      "stack": [
+        "sack"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

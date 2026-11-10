@@ -1,0 +1,66 @@
+{
+  "name": "inside_pushed_to_walls",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "the chairs pushed to the north wall, the table left in the middle: the room's middle clear"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    },
+    {
+      "at": [
+        2,
+        0,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    },
+    {
+      "at": [
+        4,
+        0,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    },
+    {
+      "at": [
+        2,
+        2,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

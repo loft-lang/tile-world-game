@@ -1,0 +1,48 @@
+{
+  "name": "cellar_tunnel_only",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "a cellar with no stairs from the house: its way is a passage out of its south wall, to a tunnel"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "#####",
+        "#...#",
+        "#...#",
+        "#...#",
+        "##.##"
+      ]
+    }
+  ],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

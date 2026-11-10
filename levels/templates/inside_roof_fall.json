@@ -1,0 +1,75 @@
+{
+  "name": "inside_roof_fall",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "the roof came down (layer 1, two cells open to the sky): two stones touching below, which no push moves, and a loose one"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        "__"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        1,
+        0,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        2,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

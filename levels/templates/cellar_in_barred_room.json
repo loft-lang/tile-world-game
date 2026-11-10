@@ -1,0 +1,91 @@
+{
+  "name": "cellar_in_barred_room",
+  "template": {
+    "kind": "cellar",
+    "turns": true,
+    "flips": true,
+    "about": "the stairs down in a room barred from inside: past its door (north) a rock with a table behind it"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": -1,
+      "rows": [
+        "",
+        "",
+        "",
+        "#####",
+        "#<..#",
+        "#...#",
+        "#####"
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        "",
+        "",
+        "",
+        "",
+        " >"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        1,
+        0
+      ],
+      "stack": [
+        "rock"
+      ]
+    },
+    {
+      "at": [
+        0,
+        2,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      1,
+      0,
+      "N",
+      "door"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

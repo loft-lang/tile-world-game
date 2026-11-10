@@ -1,0 +1,47 @@
+{
+  "name": "inside_in_haste",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "left in haste: a socket on the north wall with the torch burnt down to a stick, a chair left in the way"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        1,
+        0,
+        0
+      ],
+      "stack": [
+        "socket",
+        "stick"
+      ]
+    },
+    {
+      "at": [
+        1,
+        2,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "inside_grey_rat",
+  "template": {
+    "kind": "inside",
+    "turns": true,
+    "flips": true,
+    "about": "a grey rat lives here: out by day, it carries forage left lying home to its nest"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "enemies": [
+    [
+      "grey_rat",
+      0,
+      0,
+      0
+    ]
+  ],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

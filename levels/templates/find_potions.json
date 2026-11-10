@@ -1,0 +1,46 @@
+{
+  "name": "find_potions",
+  "template": {
+    "kind": "find",
+    "turns": true,
+    "flips": true,
+    "about": "a health potion and a spirit potion on the cellar's shelf"
+  },
+  "camera": "follow",
+  "legend": {},
+  "ground": [],
+  "chunks": [],
+  "things": [
+    {
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "stack": [
+        "health_potion"
+      ]
+    },
+    {
+      "at": [
+        1,
+        0,
+        0
+      ],
+      "stack": [
+        "spirit_potion"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [],
+  "rises": [],
+  "start": [
+    0,
+    0,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}
