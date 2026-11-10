@@ -94,7 +94,7 @@ in.
 | **from up the hill** | from the street or terrace above, onto the roof that lies at its layer: a house against the slope is walked onto from behind | — | verify (each house's roof layer against the terrace behind, `tools/map.loft`) |
 | **the upper door on the street above** | a house against the slope with its upper floor's door on the street behind, the family having barred only the lower | — | new (a house's doors on more than one level, BUILD.md D1c open) |
 | **the roof hatch** | stairs down from the roof to the top floor; a weight on them from above, or none | a way onto the roof | built |
-| **the boarded door** | the barricade taken apart with a pick (two beams, kept: the flotilla and the village's barricade want them) or burnt by a lit barrel | a pick, or a tar barrel and a flame | built |
+| **the boarded door** | the barricade taken apart with a pick (two beams, the hero's to keep, owner 2026-11-10) or burnt by a lit barrel | a pick, or a tar barrel and a flame | built |
 | **up from the cellar** | in by a tunnel (§ 4) to the cellar, up its stairs into the house | the tunnel's way | built |
 | **the blast** | a directed blast cracks a wall or blows out the barred door: always there, never quiet; used sparingly (owner, 2026-11-10), and in a house or two the entrance the hero needs is one only a blast opens | a bomb | built |
 
@@ -238,6 +238,12 @@ brought into; every other house is dealt as ever, cellar or not.  Nothing on the
 player who knows the town still has to search it in every game.  The urn check above runs on
 Sibil's house; the others need only the hero's.
 
+**The beams are the hero's** (owner, 2026-11-10): a beam from a boarded door or a fallen roof can be
+kept.  It should surely not be simple to take one into the mine, and a player probably will not
+if it means leaving behind something more useful, a weapon: a beam takes the hands as the urn
+does, all the long way to the mine and through its fights.  So the town's beams are there for the
+one who wants them, and the mine's own (LOCATIONS.md § 6) stay the ones the flotilla is built of.
+
 ## 5. A house dealt
 
 A house is its shell (fixed), one closing with its ways in (§ 1), one arrangement and its neglects
@@ -274,4 +280,3 @@ The templates ask little that is not built:
 - whether the urn can be lost: a blast within 2 breaks what is fragile, a thing in deep water is
   lost.  Never unsolvable asks either an urn that does not break, or one that goes back to the
   ghost to be fetched again;
-- whether the beams from a boarded door are the hero's to take (PUZZLES.md § Houses, open).
