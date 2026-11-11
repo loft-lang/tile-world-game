@@ -23,6 +23,16 @@ below.
 - **Finds as part of the templates** (§ 2): templates offer `finds` spots; the `find_*` templates
   are one thing each, laid `at: "spot"` on one of the house's spots, one time in three.
 
+**The deal made faster (2026-11-11)**, the same seed dealing the same town byte for byte (seeds
+7–22 checked): each template's shape — box, cells, edges, things, figures — is listed once per deal
+(`stamp::shape_of`) instead of from its 32×32 chunks at every place tried; a tunnel's length is
+tried on its shape (`stretched_shape`), and given up as soon as a cell above its stretch row does
+not fit; the deal holds templates by their index, not by copies.  16 seeds on the interpreter:
+26 s → 4.4 s.  Code outside the deal keeps `stamp::cells`, `apply`, `walkable_cells` (now thin
+wrappers).  Also seen: the installed loft runs tile_world's library interpreted (its cdylib names
+`?16383`; `make rebuild-native-cdylibs` in loft), and the release loft fails to build it (no `sha2`
+crate) — the cell readers would be faster compiled.
+
 **Template fields now** (all editable JSON): `kind`, `turns`, `flips`, `about`, `at` (`door`,
 `wall`, `inside`, `under`, `exit`, `spot`), `wall`, `closes`, `gives`, `weight`, `needs`,
 `solution` (with the file's `start`), `floors`, `side`, `exit`, `tunnel`, `entry`, `stretch`,

@@ -370,3 +370,33 @@ fn test_a_tunnel_stretches() {
   assert(len(st.level.enemies) == 1, "one rat");
   assert(stamp::stretched(t, 0).name == t.name && stamp::box_of(stamp::stretched(t, 0)).y1 == b0.y1, "stretched none: as it is");
 }
+
+// A template's shape (stamp::shape_of), worked out once for the deal: stretched, it has the box and
+// the cells of the template stretched, and laid it writes the same — in every turn and mirror.
+fn test_a_stretched_shape_lays_as_the_stretched_template() {
+  km = kit();
+  for name in ["tunnel_drain", "tunnel_cellar_steps", "tunnel_neighbours", "tunnel_trial_digging"] {
+    t = template(name);
+    for k in [0, 1, 4] {
+      st = stamp::stretched(t, k);
+      sh = stamp::stretched_shape(stamp::shape_of(t), k);
+      b = stamp::box_of(st);
+      assert(sh.box.x0 == b.x0 && sh.box.y0 == b.y0 && sh.box.x1 == b.x1 && sh.box.y1 == b.y1, "{name} {k}: the box");
+      for turn in 0..4 {
+        for flip in [false, true] {
+          want = stamp::cells(st, 10, 10, 0, turn, flip);
+          got = stamp::cells_of(sh, 10, 10, 0, turn, flip);
+          assert(len(want) == len(got), "{name} {k} {turn} {flip}: {len(got)} cells, not {len(want)}");
+          for c in want { assert(got.contains(c), "{name} {k} {turn} {flip}: cell ({c.0}, {c.1}, {c.2})"); }
+          a = rules::level(km.0);
+          stamp::apply(a, st, 10, 10, 0, turn, flip, km.1);
+          s = rules::level(km.0);
+          stamp::apply_shape(s, t, sh, 10, 10, 0, turn, flip, km.1);
+          la = levels::LevelFile { name: "", level: a, start_x: 0, start_y: 0, start_z: 0, goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } };
+          ls = levels::LevelFile { name: "", level: s, start_x: 0, start_y: 0, start_z: 0, goal: levels::Goal { kind: "", x: 0, y: 0, z: 0 } };
+          assert(levels::save(la) == levels::save(ls), "{name} {k} {turn} {flip}: laid the same");
+        }
+      }
+    }
+  }
+}

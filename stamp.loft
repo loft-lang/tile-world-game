@@ -126,55 +126,54 @@ fn side_name(side: integer) -> text {
 /// `mats` (theme.json's materials), as a paste in the editor is.
 pub fn apply(l: rules::Level, t: const levels::LevelFile, x: integer, y: integer, z: integer,
              turn: integer, flip: boolean, mats: const materials::Materials) {
-  tq = if t.template.turns { quarter(turn) } else { 0 };
-  tf = flip && t.template.flips;
+  apply_shape(l, t, shape_of(t), x, y, z, turn, flip, mats);
+}
+
+/// `apply`, with `t`'s shape worked out before (`shape_of`) — or stretched (`stretched_shape`):
+/// the rows it repeats read from `t` as drawn.
+pub fn apply_shape(l: rules::Level, t: const levels::LevelFile, sh: const Shape, x: integer, y: integer,
+                   z: integer, turn: integer, flip: boolean, mats: const materials::Materials) {
+  tf = turned(sh, turn, flip);
+  tq = tf.0;
+  fl = tf.1;
   tw = t.level.w;
-  b = box_of(t);
+  b = sh.box;
   touched: vector<(integer, integer, integer)> = [];
-  for lz in tile_world::layers(tw) {
-    for c in tile_world::chunks(tw, lz) {
-      for j in 0..CHUNK {
-        for i in 0..CHUNK {
-          sx = c.0 * CHUNK + i;
-          sy = c.1 * CHUNK + j;
-          at = spot(b, tq, tf, sx, sy);
-          ax = x + at.0;
-          ay = y + at.1;
-          az = z + lz;
-          // The edges this cell holds (its north and west), on their turned sides.
-          for side in [tile_world::NORTH, tile_world::WEST] {
-            e = tile_world::edge(tw, sx, sy, lz, side);
-            if e != 0 { tile_world::set_edge(l.w, ax, ay, az, side_to(side, tq, tf), e); }
-          }
-          if !tile_world::is_set(tw, sx, sy, lz) { continue; }
-          tile_world::set_terrain(l.w, ax, ay, az, tile_world::terrain(tw, sx, sy, lz), tile_world::tile(tw, sx, sy, lz));
-          tile_world::set_rise(l.w, ax, ay, az, tile_world::rise(tw, sx, sy, lz));
-          tile_world::set_slant(l.w, ax, ay, az, slant_to(tile_world::slant(tw, sx, sy, lz), tq, tf));
-          tile_world::set_ceiling(l.w, ax, ay, az, tile_world::ceiling(tw, sx, sy, lz));
-          restack(l, t, sx, sy, lz, ax, ay, az);
-          touched += [(ax, ay, az)];
-        }
-      }
-    }
+  for p in sh.parts {
+    at = spot(b, tq, fl, p.x, p.y);
+    ax = x + at.0;
+    ay = y + at.1;
+    az = z + p.z;
+    // The edges this cell holds (its north and west), on their turned sides.
+    if p.north != 0 { tile_world::set_edge(l.w, ax, ay, az, side_to(tile_world::NORTH, tq, fl), p.north); }
+    if p.west != 0 { tile_world::set_edge(l.w, ax, ay, az, side_to(tile_world::WEST, tq, fl), p.west); }
+    if !p.set { continue; }
+    fy = p.from_y;
+    tile_world::set_terrain(l.w, ax, ay, az, tile_world::terrain(tw, p.x, fy, p.z), tile_world::tile(tw, p.x, fy, p.z));
+    tile_world::set_rise(l.w, ax, ay, az, tile_world::rise(tw, p.x, fy, p.z));
+    tile_world::set_slant(l.w, ax, ay, az, slant_to(tile_world::slant(tw, p.x, fy, p.z), tq, fl));
+    tile_world::set_ceiling(l.w, ax, ay, az, tile_world::ceiling(tw, p.x, fy, p.z));
+    restack(l, t, p.x, fy, p.z, ax, ay, az);
+    touched += [(ax, ay, az)];
   }
   // Things on cells the template left unset replace the stack there too.
-  for s in tile_world::stacks(tw) {
-    if tile_world::is_set(tw, s.0, s.1, s.2) { continue; }
-    at = spot(b, tq, tf, s.0, s.1);
-    restack(l, t, s.0, s.1, s.2, x + at.0, y + at.1, z + s.2);
+  for s in sh.piles {
+    if s.on_set { continue; }
+    at = spot(b, tq, fl, s.x, s.y);
+    restack(l, t, s.x, s.from_y, s.z, x + at.0, y + at.1, z + s.z);
   }
   for bar in t.level.bars {
-    at = spot(b, tq, tf, bar.x, bar.y);
+    at = spot(b, tq, fl, bar.x, moved_y(sh, bar.y));
     bx = x + at.0;
     by = y + at.1;
     bz = z + bar.z;
     kept: vector<rules::Bar> = [];
     for old in l.bars { if old.x != bx || old.y != by || old.z != bz { kept += [old]; } }
-    kept += [rules::Bar { x: bx, y: by, z: bz, side: side_name(side_to(side_of(bar.side), tq, tf)) }];
+    kept += [rules::Bar { x: bx, y: by, z: bz, side: side_name(side_to(side_of(bar.side), tq, fl)) }];
     l.bars = kept;
   }
   for e in t.level.enemies {
-    at = spot(b, tq, tf, e.x, e.y);
+    at = spot(b, tq, fl, e.x, moved_y(sh, e.y));
     _ = rules::add_enemy(l, e.kind, x + at.0, y + at.1, z + e.z);
     l.enemies[len(l.enemies) - 1].item = e.item;
     l.enemies[len(l.enemies) - 1].bombs = e.bombs;
@@ -208,35 +207,173 @@ pub fn landing(t: const levels::LevelFile, x: integer, y: integer, z: integer, t
 /// things or figures on, over every layer.
 pub fn cells(t: const levels::LevelFile, x: integer, y: integer, z: integer, turn: integer,
              flip: boolean) -> vector<(integer, integer, integer)> {
-  out: vector<(integer, integer, integer)> = [];
+  cells_of(shape_of(t), x, y, z, turn, flip)
+}
+
+// --- A template's shape ---
+//
+// What a template lays, listed once (`shape_of`): the deal tries a template in many places and
+// turns, and finding its cells in its map again each time — every cell of its chunks, on every
+// layer — was most of the deal's time.
+
+/// A cell of a template's part that holds something: it is set, or holds an edge (its north or
+/// west).  `y` is where it lies in the part as laid, `from_y` its row in the map as drawn — the
+/// same, but for a stretched tunnel (`stretched_shape`).
+pub struct Part {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub from_y: integer,
+  pub set: boolean,
+  pub walk: boolean,
+  pub north: integer,
+  pub west: integer
+}
+
+/// A cell of a template's part with things on it; `on_set` when the cell is set too.
+pub struct Pile {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub from_y: integer,
+  pub on_set: boolean
+}
+
+/// A template's part as it lays: its box, its cells by its map's order, its things, its figures;
+/// whether it turns and mirrors; and its stretch row repeated `k` more times.
+pub struct Shape {
+  pub turns: boolean,
+  pub flips: boolean,
+  pub stretch: integer,
+  pub k: integer,
+  pub box: Box,
+  pub parts: vector<Part>,
+  pub piles: vector<Pile>,
+  pub figures: vector<(integer, integer, integer)>
+}
+
+/// The shape of `t` as drawn.
+pub fn shape_of(t: const levels::LevelFile) -> Shape {
   tw = t.level.w;
-  if len(tile_world::layers(tw)) == 0 && len(tile_world::stacks(tw)) == 0 && len(t.level.enemies) == 0 { return out; }
-  // The box once, not for every cell (`landing` would find it again each time).
-  b = box_of(t);
-  tf = way_of(t, turn, flip);
+  out = Shape { turns: t.template.turns, flips: t.template.flips, stretch: t.template.stretch, k: 0,
+                box: Box { x0: 0, y0: 0, x1: 0, y1: 0 }, parts: [], piles: [], figures: [] };
   for lz in tile_world::layers(tw) {
     for c in tile_world::chunks(tw, lz) {
       for j in 0..CHUNK {
         for i in 0..CHUNK {
           sx = c.0 * CHUNK + i;
           sy = c.1 * CHUNK + j;
-          if tile_world::is_set(tw, sx, sy, lz) {
-            at_cell = spot(b, tf.0, tf.1, sx, sy);
-            out += [(x + at_cell.0, y + at_cell.1, z + lz)];
-          }
+          set = tile_world::is_set(tw, sx, sy, lz);
+          en = tile_world::edge(tw, sx, sy, lz, tile_world::NORTH);
+          ew = tile_world::edge(tw, sx, sy, lz, tile_world::WEST);
+          if !set && en == 0 && ew == 0 { continue; }
+          walk = set && tile_world::walkable_kind(tw, tile_world::terrain(tw, sx, sy, lz));
+          out.parts += [Part { x: sx, y: sy, z: lz, from_y: sy, set: set, walk: walk, north: en, west: ew }];
         }
       }
     }
   }
-  for s in tile_world::stacks(tw) {
-    if !tile_world::is_set(tw, s.0, s.1, s.2) {
-      at_stack = spot(b, tf.0, tf.1, s.0, s.1);
-      out += [(x + at_stack.0, y + at_stack.1, z + s.2)];
+  for st in tile_world::stacks(tw) {
+    out.piles += [Pile { x: st.0, y: st.1, z: st.2, from_y: st.1, on_set: tile_world::is_set(tw, st.0, st.1, st.2) }];
+  }
+  for e in t.level.enemies { out.figures += [(e.x, e.y, e.z)]; }
+  out.box = box_from(out);
+  out
+}
+
+// The box of a shape's set cells and its things (as `box_of`).
+fn box_from(sh: const Shape) -> Box {
+  b = Box { x0: 0, y0: 0, x1: -1, y1: -1 };
+  for p in sh.parts { if p.set { grow(b, p.x, p.y); } }
+  for s in sh.piles { grow(b, s.x, s.y); }
+  if b.x1 < b.x0 { return Box { x0: 0, y0: 0, x1: 0, y1: 0 }; }
+  b
+}
+
+/// Shape `sh` (as drawn) with its stretch row repeated `k` more times, as `stretched` makes the
+/// template: the rows below it moved down by `k`, with their things and figures.
+pub fn stretched_shape(sh: const Shape, k: integer) -> Shape {
+  sr = sh.stretch;
+  if sr < 0 || k <= 0 { return sh; }
+  out = Shape { turns: sh.turns, flips: sh.flips, stretch: sr, k: k, box: sh.box, parts: [], piles: [], figures: [] };
+  for p in sh.parts {
+    copies = if p.y == sr { k + 1 } else { 1 };
+    for n in 0..copies {
+      out.parts += [Part { x: p.x, y: if p.y < sr { p.y } else if p.y == sr { p.y + n } else { p.y + k }, z: p.z,
+                           from_y: p.from_y, set: p.set, walk: p.walk, north: p.north, west: p.west }];
     }
   }
-  for e in t.level.enemies {
-    at_figure = spot(b, tf.0, tf.1, e.x, e.y);
-    out += [(x + at_figure.0, y + at_figure.1, z + e.z)];
+  for s in sh.piles {
+    copies = if s.y == sr { k + 1 } else { 1 };
+    for n in 0..copies {
+      out.piles += [Pile { x: s.x, y: if s.y < sr { s.y } else if s.y == sr { s.y + n } else { s.y + k }, z: s.z,
+                           from_y: s.from_y, on_set: s.on_set }];
+    }
+  }
+  for f in sh.figures { out.figures += [(f.0, if f.1 > sr { f.1 + k } else { f.1 }, f.2)]; }
+  out.box = box_from(out);
+  out
+}
+
+/// Row `y` of the template as drawn, where it lies in shape `sh` (moved down when it is below the
+/// stretch row): its start, its finds, its figures.
+pub fn moved_y(sh: const Shape, y: integer) -> integer {
+  if sh.stretch >= 0 && y > sh.stretch { y + sh.k } else { y }
+}
+
+/// The turn and mirror a shape is laid with when asked for `turn` and `flip` (as `way_of`).
+pub fn turned(sh: const Shape, turn: integer, flip: boolean) -> (integer, boolean) {
+  (if sh.turns { quarter(turn) } else { 0 }, flip && sh.flips)
+}
+
+/// The size of a shape, (width, height), once turned `turn` quarters (as `size`).
+pub fn size_of(sh: const Shape, turn: integer) -> (integer, integer) {
+  w = sh.box.x1 - sh.box.x0 + 1;
+  h = sh.box.y1 - sh.box.y0 + 1;
+  if quarter(turn) % 2 == 1 { (h, w) } else { (w, h) }
+}
+
+/// Where cell (cx, cy) on layer cz of the shape lands when laid at (x, y, z) (as `landing`).
+pub fn landing_of(sh: const Shape, x: integer, y: integer, z: integer, turn: integer, flip: boolean,
+                  cx: integer, cy: integer, cz: integer) -> (integer, integer, integer) {
+  tf = turned(sh, turn, flip);
+  at = spot(sh.box, tf.0, tf.1, cx, cy);
+  (x + at.0, y + at.1, z + cz)
+}
+
+/// The cells the shape writes when laid at (x, y, z) (as `cells`): those it sets, then those it
+/// puts things on, then its figures'.  With `upto` (0 or more) only those on its rows up to it.
+pub fn cells_of(sh: const Shape, x: integer, y: integer, z: integer, turn: integer, flip: boolean,
+                upto: integer = -1) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  tf = turned(sh, turn, flip);
+  for p in sh.parts {
+    if !p.set || (upto >= 0 && p.y > upto) { continue; }
+    at = spot(sh.box, tf.0, tf.1, p.x, p.y);
+    out += [(x + at.0, y + at.1, z + p.z)];
+  }
+  for s in sh.piles {
+    if s.on_set || (upto >= 0 && s.y > upto) { continue; }
+    at = spot(sh.box, tf.0, tf.1, s.x, s.y);
+    out += [(x + at.0, y + at.1, z + s.z)];
+  }
+  for f in sh.figures {
+    if upto >= 0 && f.1 > upto { continue; }
+    at = spot(sh.box, tf.0, tf.1, f.0, f.1);
+    out += [(x + at.0, y + at.1, z + f.2)];
+  }
+  out
+}
+
+/// The cells the shape sets to ground a walker stands on (as `walkable_cells`).
+pub fn walkable_of(sh: const Shape, x: integer, y: integer, z: integer, turn: integer,
+                   flip: boolean) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  tf = turned(sh, turn, flip);
+  for p in sh.parts {
+    if !p.walk { continue; }
+    at = spot(sh.box, tf.0, tf.1, p.x, p.y);
+    out += [(x + at.0, y + at.1, z + p.z)];
   }
   out
 }
@@ -329,25 +466,7 @@ pub fn stretched(t: const levels::LevelFile, k: integer) -> levels::LevelFile {
 /// on (a tunnel's passage, its stairs).
 pub fn walkable_cells(t: const levels::LevelFile, x: integer, y: integer, z: integer, turn: integer,
                       flip: boolean) -> vector<(integer, integer, integer)> {
-  out: vector<(integer, integer, integer)> = [];
-  tw = t.level.w;
-  b = box_of(t);
-  tf = way_of(t, turn, flip);
-  for lz in tile_world::layers(tw) {
-    for c in tile_world::chunks(tw, lz) {
-      for j in 0..CHUNK {
-        for i in 0..CHUNK {
-          sx = c.0 * CHUNK + i;
-          sy = c.1 * CHUNK + j;
-          if tile_world::is_set(tw, sx, sy, lz) && tile_world::walkable_kind(tw, tile_world::terrain(tw, sx, sy, lz)) {
-            at_walk = spot(b, tf.0, tf.1, sx, sy);
-            out += [(x + at_walk.0, y + at_walk.1, z + lz)];
-          }
-        }
-      }
-    }
-  }
-  out
+  walkable_of(shape_of(t), x, y, z, turn, flip)
 }
 
 /// Every template under `dir` (levels/templates/): each `.json` that loads and has a `template`
