@@ -368,8 +368,9 @@ HW-Clear is not claimed for it — the hex version is drawn, not played (the pla
 game's).  When a place is modelled in hex, a yard becomes a structure of cells like a road
 (HR-Sides), its sides walls with a height.
 
-Orbury (2026-11-14): 19 houses and two out-houses; two houses with a wing, two attics with three
-dormers on each slope between them, one flat roof, one terrace; five at an angle (the second well-off house and the farmhouse at
+Orbury (2026-11-14): 19 houses and two out-houses; three houses with a wing, four attics with
+five dormers on each slope between them, one flat roof, one terrace; inner walls in five houses;
+five at an angle of the seven the place asks to turn (the second well-off house and the farmhouse at
 30°, a cottage, a miner's house and the barn at 330°); one court, one roof garden, two bays, one
 gazebo; the yards' sides in stretches of all four kinds.
 
@@ -456,12 +457,13 @@ fails nothing, and should not: it changes no cell (HT-Turn30).
   kept them.  Until the runs are read better, HX-Size's "big enough" means walls of three steps.
 
 - a courtyard as cells (a structure with a hole: a court is drawn as a second outline, HY-Court),
-  inner walls, and walls not at a right angle;
+  inner walls as edges between hex cells (they are drawn from the square house's, HY-Inner), and
+  walls not at a right angle;
 - HY-Parts is guarded by `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (the square
   side: `tests/intent.loft` `test_a_wing_joins_its_house_and_carries_a_roof_terrace`,
   `test_an_attic_a_flat_roof_and_an_out_house`; `tests/worlds.loft`
   `test_orburys_houses_of_more_kinds`); a wing's free walls must be three hex steps or more, or
-  they may be lost (below);
+  they may be lost (above);
 - HY-Inner: `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (each inner wall within
   its house); the rooms themselves `tests/intent.loft` `test_rooms_are_laid_out_from_the_planned_corridors`,
   `test_corridors_that_end_and_cross` and `tests/worlds.loft`

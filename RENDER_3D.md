@@ -3,12 +3,16 @@ Copyright (c) 2026 Jurjen Stellingwerff
 SPDX-License-Identifier: LGPL-3.0-or-later
 -->
 
-# The game in 3D: an experiment
+# The game in 3D
 
 The same game drawn as a 3D place: the environment built as geometry with the current pictures as
 its textures, and everything else — things, the hero, the enemies, the people, what they hold —
-as cardboard cut-outs standing in it.  An experiment (owner, 2026-11-05): a design to try, not a
-plan the game depends on.
+as cardboard cut-outs standing in it.  It began as an experiment (owner, 2026-11-05: a design to
+try, not a plan the game depends on) and is the game's presentation since 2026-11-14 (below).
+Parts of this file still describe the experiment's first design — the fixed camera of § Decided
+and § The camera, the constants of § Defaults — where what is built is the first-person view of
+§ The first-person view; those sections are kept as the record of what was decided then, and the
+camera is open for the owner (BUILD.md Phase E).
 
 It runs where OpenGL does: the desktop (OpenGL 3.3) and the browser (WebGL2).  The Tanmatsu keeps
 the 2D renderer; it would need real work to allow anything close to 3D (owner) — and is where an
@@ -278,7 +282,7 @@ place, and it does not turn: the pictures are drawn to be seen from the south.
 
 ## The editor
 
-The editor stays 2D: it edits a grid, and its cursor, palette and rectangles are 2D tools.  E
+The editor stays 2D: it edits a grid, and its cursor, palette and rectangles are 2D tools.  F2
 switches to it from the 3D view, and play-testing (P) returns to 3D.  A 3D look at the place
 being edited (a key, proposed) is a later step.
 

@@ -6,8 +6,9 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # House templates: the way in, the inside as left, the cellar
 
 The catalogue of templates an ordinary house of Orbury is dealt from, made of what the game
-already has.  **Everything here is proposed** (◇), for the owner to rule template by template; the
-rulings it follows are the owner's:
+already has.  **The catalogue is proposed** (◇), for the owner to rule template by template —
+which templates there are, their weights, where each lies; what a row marks **built** is in the
+game and dealt (§ The deal).  The rulings it follows are the owner's:
 
 - every ordinary house is dealt from three templates: **how it was locked, with a possibility to
   get inside**; **how its owners left its inside**; **its cellar, including the way to get into
@@ -81,7 +82,7 @@ the window's step, the weighted hatch and the barred door in every way they can 
 | inside | `inside_pushed_to_walls`, `inside_stacked`, `inside_barred_room`, `inside_in_haste`, `inside_roof_fall`, `inside_stair_rotted`, `inside_floor_hole`, `inside_rat_nest`, `inside_grey_rat`, `inside_bats_upstairs`, `inside_spider_upstairs` |
 | find | `find_health_potion`, `find_spirit_potion`, `find_boost_potion`, `find_sticks`, `find_torch`, `find_herb`, `find_mushroom`, `find_sack`, `find_tar_barrel` |
 | cellar | `cellar_none`, `cellar_neighbours`, `cellar_neighbours_end`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
-| tunnel | `tunnel_drain`, `tunnel_neighbours`, `tunnel_trial_digging`, `tunnel_vault_onwards` |
+| tunnel | `tunnel_drain`, `tunnel_neighbours`, `tunnel_trial_digging`, `tunnel_cellar_steps`, `tunnel_vault_onwards` |
 
 Not files, and why: **from the house beside** and **from up the hill** are where a house stands
 in the town (its roof against the next one's, or the terrace behind), so their templates are the
@@ -196,7 +197,7 @@ urn can always be brought to.  A draw that fails is drawn again; a house no draw
 is dealt as an ordinary one, and she moves on to the next.  With the urn's walk broken on purpose,
 no house is Sibil's, and every house is still dealt.
 
-**Still to come**: the finds laid in the cellar rather than on the ground floor.
+The finds lie on the spots the templates offer, the cellars' among them (`finds`, § 2).
 
 ## What the town gives to work with
 
@@ -265,7 +266,7 @@ in.
 | **the fallen roof** | onto the roof, and down through the hole into the room below: onto the table under it for free, onto the floor for 1 health | a way onto the roof (below) | built |
 | **from the house beside** | along the row's joined roofs to a hole or a roof hatch in another; the house beside is the way in | the neighbour's way up | built |
 | **from up the hill** | from the street or terrace above, onto the roof that lies at its layer: a house against the slope is walked onto from behind | — | verify (each house's roof layer against the terrace behind, `tools/map.loft`) |
-| **the upper door on the street above** | a house against the slope with its upper floor's door on the street behind, the family having barred only the lower | — | new (a house's doors on more than one level, BUILD.md D1c open) |
+| **the upper door on the street above** | a house against the slope with its upper floor's door on the street behind, the family having barred only the lower | — | built (`way_upper_door`, laid on the uphill wall of a two-floor house) |
 | **the roof hatch** | stairs down from the roof to the top floor; a weight on them from above, or none | a way onto the roof | built |
 | **the boarded door** | the barricade taken apart with a pick (two beams, the hero's to keep, owner 2026-11-10) or burnt by a lit barrel | a pick, or a tar barrel and a flame | built |
 | **up from the cellar** | in by a tunnel (§ 4) to the cellar, up its stairs into the house | the tunnel's way | built |
@@ -495,10 +496,9 @@ The templates ask little that is not built:
   rule; around it, the urn as a thing (unbreakable, floating on deep water), the ghost haunting
   the hero's nights while it is left elsewhere, and sleep that heals, a haunted dream taking 1
   off the next day's maximum;
-- **doors on more than one level** of a house against the slope (BUILD.md D1c, open);
-- **the deal**: the templates' files (§ Templates as files, built) drawn by the seed for each
-  house and fitted into its shell, and the check that every house dealt is solvable (BUILD.md D1b, D1d, D1e; PUZZLES.md
-  § Solvable);
+- **doors on more than one level** of a house against the slope: built as `way_upper_door`;
+- **the deal**: built (§ The deal) — the templates' files drawn by the seed for each house and
+  fitted into its shell, and every house dealt played by the rules before it is kept;
 - the **verify** rows above: a step of 3 up through the rotted stair's hole into the upper floor
   (`inside_stair_rotted`; the cellar's way up is played), and each house's roof against the
   terrace behind it.

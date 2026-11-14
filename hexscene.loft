@@ -131,6 +131,8 @@ pub struct Scene {
   pub kinds: vector<integer>,
   pub storey: float,
   pub wall: float,
+  /// How thick a wall between a house's rooms is drawn (hexsizes.json's inner wall).
+  pub inner_wall: float = 0.45,
   pub houses: vector<House>,
   corners: hash<Corner[key]>,
   pub sides: vector<Side> = [],
@@ -239,6 +241,7 @@ pub fn load(text: text) -> Scene? {
   sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
                w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,
                storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [], levels: ls };
+  if num(v.field("inner")) > 0.0 { sc.inner_wall = num(v.field("inner")); }
   fv = s.field("fences");
   for i in 0..fv.len() {
     f = fv.item(i);

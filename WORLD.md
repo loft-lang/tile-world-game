@@ -362,7 +362,8 @@ hero's steps and facing off the grid; what still asks are the things that move f
 **What each grid is for** ◇
 
 - **The square tile world** is the test bench: where gameplay is evaluated and iterated, with the
-  2D view, the editor and the checks.
+  editor and the checks, and the 2D view as far as it goes (it ends with the shapes of 2026-11-14,
+  DESIGN.md § What the player sees).
 - **The hex world** holds the realistic places — walls at angles, a winding stream, houses at
   their own angles, roofs, roads — built with the `hex_*` packages of loft-libs-world.  A hex step
   is 1.5 m (hexbody's scale), a person's step, so a hex cell plays at a tile's scale.
@@ -430,8 +431,9 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   intent onto the hex grid — its terraces as smooth hills (`hexterrain.loft`), its houses at their
   floors' heights with their doors, its trees, fences, well and bridges — and `hextown.html` shows
   it in 3D beside a hill carrying a house at every angle and four heights.  The square town has no
-  angles to bring: its terraces fall due south at every house, so its houses come over at 0°;
-  angles are the hex town's to give (RENDER_3D.md § Later).  Rules in formal/hex-houses.md.
+  angles to bring: its terraces fall due south at every house, so its houses come over at 0°
+  unless the place gives a house its angle (the intent's `turn`, 2026-11-14: five of Orbury's
+  stand at one); angles are the hex town's to give (RENDER_3D.md § Later).  Rules in formal/hex-houses.md.
 - **The game's 3D view draws the hex version** (owner, 2026-11-09: make it the 3D version of the
   game).  Where a place has one (`levels/<place>.hex.json`, written by `tools/hextown.loft level`),
   F1 shows its smooth ground and its houses, with the theme's pictures, while the hero is out under
@@ -441,7 +443,8 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   as one GPU mesh each, only dirty chunks built again and only their groups uploaded, a group past
   the fog or behind the eye not drawn.  Cellars and the mine keep the square view.
 - **A road's sides are walls with no height** (owner, 2026-11-09): a road is cells inside and out
-  like a house, its sides drawn straight by the same routines; next to build.
+  like a house, its sides drawn straight by the same routines; built (formal/hex-houses.md
+  HR-Sides, `hexscene.loft`).
 - **What matters is that every hex centre is clearly inside or outside** (owner, 2026-11-09).
   Measured over the page's 36 houses (boxes, L's, a T and a U at their angles): no centre is on
   the wrong side of the drawn walls, and none comes nearer a wall's middle than half its
@@ -475,8 +478,10 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
 square), so the 3D routines are ported to the Tanmatsu first (BUILD.md Phase E), and no hex area
 comes into a design before the 3D view plays on the device.  Steps 2 to 4 are that phase's E7.
 
-**Open for the owner: which view ships first** — the 2D or the browser's 3D (RENDER_3D.md § Why
-it matters).  With Phase E both machines can show either.
+**Which view ships first is ruled** (owner, 2026-11-14): the 2D view ends with the shapes the
+basic tiles cannot show, and the 3D view is the game's presentation (DESIGN.md § What the player
+sees).  ◇ Still open against "no backend lost": the Tanmatsu draws 2D until Phase E's 3D plays
+on it, so there the new shapes are plain lines.
 
 ## The two machines
 

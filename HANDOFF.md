@@ -70,6 +70,37 @@ to `contains`, does not compile; `hall_rooms` keeps its door's side as a number 
 run without a flag compiles natively, so such a defect stops `tools/fill.loft` and leaves a place
 unfilled: after `orbury_gen.py`, check fill's last line says "filled in".
 
+**The documentation and Orbury checked against it** (owner, 2026-11-14: are our goals clear,
+does the city adhere to them).  Stale statements with one true answer were corrected the same day
+(RENDER_3D.md's "an experiment", the README's and WORLD.md's view lines, the editor's key,
+HOUSES.md's "new" rows and its table, the hex chapter's counts).  What is left is the owner's:
+- **Orbury against its own goals** (LOCATIONS.md § 1):
+  - *never unsolvable*: over seeds 7–22, 40 of the 176 houses dealt (one of them Sibil's) have no
+    way in but one that needs a pick (32), an axe (6) or both (2), and Orbury holds neither tool;
+    the deal plays those ways with the tool put in the hands.  "There are axes in the closed
+    houses" (owner, 2026-11-04) has no axe placed yet; picks are the mine's.
+  - *the people matter most here*: of the households of "Who lives where" only the Dunns, Lark,
+    the horse and the ghost are in the town — no Agnes, Hollis, Garth or Wick, so nobody watches
+    the market and nobody is grumpy about snooping.
+  - *the world's mechanics on a small scale*: built — stones, the chest, the carts on rails, the
+    inn's pull; not in the town — the rails' switch, the well's pump and its small crystal, a
+    torch or tar, the cemetery's grey rat by day (the one in the inn's cellar is there).
+  - *this side of the stream no lair but the grey rats'* (◇) against the templates that deal a
+    rat's nest, bats and a spider into the houses (◇): two proposals that cannot both hold.
+  - *more buildings at an angle*: only in the hex town, five of the seven asked for; on the
+    squares the rules play, every house is square.
+- **Goals that are unclear or clash** (the docs' own):
+  - the 3D view's camera (RENDER_3D.md § Decided fixes one that does not turn; the first-person
+    view is what is built; BUILD.md Phase E leaves it open) and the Tanmatsu's place now the 2D
+    view has ended;
+  - where the town is modelled: "in hex after the import" and "no hex area before E6" against a
+    hex town regenerated from the square intent every time, with angles in it;
+  - what comes next: BUILD.md's phases, WORLD.md § Order of work and PUZZLES.md's P1–P7 are three
+    orders, and BUILD.md's D1d/D1e carry no built mark though the deal is built;
+  - "the town's layout is fixed" means "not dealt by the seed" and is nowhere said so;
+  - stated nowhere: who the game is for, how long it is, what makes Orbury done, what the 3D view
+    must do before 2D stops getting looks, a first playable.
+
 **Open next** ◇: a find's spot in an attic or a wing; a wing's own rooms and stairs (it is
 one room a floor); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D
 only (BUILD.md phase E) and so shows the new shapes as plain lines; the cemetery's fence still

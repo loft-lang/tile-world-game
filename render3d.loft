@@ -1557,11 +1557,11 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
     uy = (iw.by - iw.ay) / l ?? 0.0;
     up = iw.z0 + s.storey - 0.05;
     if iw.z1 < 0.5 {
-      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.0, l, iw.z0, up, 0.3, night);
+      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.0, l, iw.z0, up, s.inner_wall, night);
     } else {
-      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.0, 0.25, iw.z0, up, 0.3, night);
-      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, l - 0.25, l, iw.z0, up, 0.3, night);
-      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.25, l - 0.25, iw.z0 + 2.1, up, 0.3, night);
+      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.0, 0.25, iw.z0, up, s.inner_wall, night);
+      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, l - 0.25, l, iw.z0, up, s.inner_wall, night);
+      wall_piece(out, walls, iw.ax, iw.ay, ux, uy, 0.25, l - 0.25, iw.z0 + 2.1, up, s.inner_wall, night);
     }
   }
   // the floors between storeys, and the roof

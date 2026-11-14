@@ -126,7 +126,7 @@ nears an edge of a dead zone, and stops at the level's edges; `rooms` flips a sc
 time (a dungeon of puzzle rooms).  Always-centred is not offered: on a puzzle board the moving
 background is noise.
 
-**Toggling.**  `E` switches between playing and editing.  Editing shows the level at full light
+**Toggling.**  `F2` switches between playing and editing (it was `E`, which is "use" since the keys of 2026-11-07).  Editing shows the level at full light
 (lighting off, `L` toggles it back for a check) and a status line naming the cursor's cell,
 layer and material.
 
@@ -178,7 +178,7 @@ mirrored by `stamp.loft`.
 **Undo** is a log of edits, each "cell (x, y, z) was A, is B" or "stack was S, is T".  Undo
 walks the log back; a fill or a paste is one entry.
 
-**Play-test** copies the level, plays the copy, and drops it on `E`; the edited level is never
+**Play-test** copies the level, plays the copy, and drops it on `F2`; the edited level is never
 the played one.
 
 ## 5. Checks the editor shows
@@ -226,7 +226,7 @@ has none.
    join the legend in step 3; until then a legend names terrain kinds.
 2. **The editor's core** — built: `editor.loft` (tested in `tests/editor.loft`), drawn and
    keyed in `game.loft`, the play view's camera in `camera.loft`:
-   - the `E` toggle, cursor and scrolling, layers, the palette;
+   - the `F2` toggle (first `E`), cursor and scrolling, layers, the palette;
    - paint, erase and stack things;
    - the start and goal markers, save and open;
    - undo and play-test.

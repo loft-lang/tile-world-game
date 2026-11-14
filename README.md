@@ -16,7 +16,7 @@ loft --native --lib libs main.loft
 **Two worlds**, never shipped together, so the game itself does not ask which:
 **Orbury** (`levels/orbury.json`), the story's first place being built — the hill town with its
 terraces, the main road and the stair roads, the market, the houses with rooms inside them, the dry
-stream and the loading dock, so far without its people or its story — and **the demo village**,
+stream and the loading dock, so far with few of its people (the Dunns' farm, the founder's ghost and his urn) and little of its story — and **the demo village**,
 the test bench of every mechanic.  Each world is saved apart (`saves/orbury/`, `saves/`).
 `TW_WORLD=orbury` or `TW_WORLD=demo` picks one; without it, order.json's `start`.  In a browser the
 play server is neutral: `/` lists the worlds, `/orbury` and `/demo` start each one (each world in
@@ -112,7 +112,7 @@ ends the game: stills of what follows, chosen by what the hero did (`levels/epil
 | `tools/orbury_gen.py`, `tools/cdp.py` | Orbury's layout as code: `python3 tools/orbury_gen.py levels/orbury.json` writes its intent, then `tools/fill.loft orbury` fills it in; pictures of the browser page (the 3D view) from a headless Chrome |
 | `tools/tags.loft` | the story's parts (`@ST-Decree`, STORY.md) and the gameplay mechanics wanted (`@GM-CartLift`, DESIGN.md) as tags, like loft's formal rules: `list`, `check` (the index, the paragraphs and every citation in step; exit 1 when not), `sites <tag>`; a place file names what it serves in its `serves` list |
 | `EDITOR.md` | the design of the in-game world editor |
-| `RENDER_3D.md` | an experiment: the game in 3D on OpenGL and WebGL — the environment as geometry with the pictures as textures, everything else as cardboard cut-outs; desktop and browser only |
+| `RENDER_3D.md` | the game in 3D, its presentation since 2026-11-14 (the 2D view ends with what the basic tiles cannot show), on OpenGL and WebGL — the environment as geometry with the pictures as textures, everything else as cardboard cut-outs; desktop and browser only |
 | `tests/` | the rules, played out: `loft --lib libs --tests tests` — `combat.loft` each fighting move timed by hand, `fights.loft` the fight rooms played by an attacker, a parrier and a dodger, `places.loft` the demo village's newer houses (fountain, cave-in, herbs, night, Sable, dome, blasting, creatures, raid) played as a player would, `blasting.loft` the directed blast and the cave-in, `creatures.loft` each new creature's habit, `crafting.loft` the forge, the anvil and the artefact, `talk.loft` lines, barks on conditions, hints and broken words, `following.loft` followers through doors, people at their points and a guide, `tribe.loft` the barricade and the Kharn's raid, `houses.loft` a house built from the inside out (floors, stairs, roof, rooms the seed deals) |
 | `checks/` | the game itself (safe points) and the first-person view's faces, as plain programs until `--tests` opens a library's C core (loft#2234): `loft --lib libs checks/game.loft`, `checks/view3d.loft` |
 | `assets/` | Kenney's sheets and sounds, CC0 (each pack's `License.txt` beside it), and the game's own sheet `tile-world.png` (CC0, in Tiny Dungeon's style) |

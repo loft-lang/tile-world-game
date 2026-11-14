@@ -106,7 +106,7 @@ fn main() {
   town = hextown::port(file("../levels/orbury.json").content() ?? "", sz, m, hextown::yards_file("../hexsizes.json"));
   if (arguments()[0] ?? "") == "level" {
     // the place's hex version, for the game's 3D view: levels/orbury.hex.json
-    println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scene\": {scene("Orbury", town)}}}");
+    println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"inner\": {sz.inner / hexwalls::PER_METRE}, \"scene\": {scene("Orbury", town)}}}");
     return;
   }
   hill = hextown::showcase(sz, m);
