@@ -1502,6 +1502,12 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
     sy = ay - uy * t * 0.5;
     len_w = l + t;
     wall_piece(out, stone, sx, sy, ux, uy, 0.0, len_w, h.base, h.floor, t, night);
+    // the eaves of the part this wall belongs to (a wing's are lower), and the low wall it is
+    // carried up as round a roof garden or a terrace
+    eaves = h.tops[i] ?? h.top;
+    wtop = eaves + (h.rims[i] ?? 0.0);
+    wst = round((eaves - h.floor) / s.storey ?? 1.0) as integer;
+    if wst < 1 { wst = 1; }
     // its doors and windows, along it
     // in order along it (a wall has a few: put each in its place)
     spans: vector<(float, float, integer)> = [];
@@ -1516,9 +1522,9 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
     }
     at = 0.0;
     for sp in spans {
-      wall_piece(out, walls, sx, sy, ux, uy, at, sp.0, h.floor, h.top, t, night);
+      wall_piece(out, walls, sx, sy, ux, uy, at, sp.0, h.floor, wtop, t, night);
       z = h.floor;
-      for st in 0..storeys {
+      for st in 0..wst {
         z0 = h.floor + (st as float) * s.storey;
         door = sp.2 == 1 && st == 0;
         lo = if door { z0 } else { z0 + 0.9 };
@@ -1538,10 +1544,10 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
         }
         z = hi;
       }
-      wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, h.top, t, night);
+      wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, wtop, t, night);
       at = sp.1;
     }
-    wall_piece(out, walls, sx, sy, ux, uy, at, len_w, h.floor, h.top, t, night);
+    wall_piece(out, walls, sx, sy, ux, uy, at, len_w, h.floor, wtop, t, night);
   }
   // the floors between storeys, and the roof
   cx = 0.0;
@@ -1572,7 +1578,7 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
       ic += [(h.court_xs[best] ?? 0.0, h.court_ys[best] ?? 0.0)];
     }
   }
-  for st in 1..storeys {
+  for st in 1..(if court || len(h.parts) == 0 { storeys } else { 1 }) {
     z = h.floor + (st as float) * s.storey;
     for i in 0..n {
       a = (h.xs[(i + n - 1) % n ?? 0] ?? 0.0, h.ys[(i + n - 1) % n ?? 0] ?? 0.0, z);
@@ -1585,6 +1591,17 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
         patch(out, planks, (cx, cy, z), a, b, (cx, cy, z), night);
       }
     }
+  }
+  if !court && len(h.parts) > 0 {
+    // in parts: the house and its wings, each with its floors and its own roof; the house's
+    // wall over a lower wing's roof
+    for pt in h.parts { part_faces(out, g, s, h, pt, walls, roof, night); }
+    for rs in h.rises {
+      l = sqrt((rs.bx - rs.ax) * (rs.bx - rs.ax) + (rs.by - rs.ay) * (rs.by - rs.ay));
+      if l < 0.001 { continue; }
+      wall_piece(out, walls, rs.ax, rs.ay, (rs.bx - rs.ax) / l ?? 0.0, (rs.by - rs.ay) / l ?? 0.0, -t * 0.5, l + t * 0.5, rs.z0, rs.z1, t, night);
+    }
+    return;
   }
   if h.roof == 1 {
     // a roof garden: flat, grass on it, a low wall round it
@@ -1668,6 +1685,95 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
   patch(out, roof, c3, c4, r1, r2, night);
   patch(out, roof, c2, c3, r2, r2, night);
   patch(out, roof, c4, c1, r1, r1, night);
+}
+
+/// A part of a house (owner, 2026-11-14): its floors between storeys, and its roof — pitched and
+/// hipped; an attic's, steeper, a gable at each end and dormers on its slopes (upright windows
+/// standing out of the roof); flat; a roof garden's grass; a terrace's paving.
+fn part_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene, h: const hexscene::House,
+              pt: const hexscene::Part, walls: integer, roof: integer, night: boolean) {
+  if len(pt.xs) < 4 { return; }
+  c: vector<(float, float)> = [for i in 0..4 { (pt.xs[i] ?? 0.0, pt.ys[i] ?? 0.0) }];
+  planks = mat_sprite(g, "bridge");
+  st = 1;
+  while h.floor + (st as float) * s.storey < pt.top - 0.1 {
+    z = h.floor + (st as float) * s.storey;
+    patch(out, planks, (c[0]!.0, c[0]!.1, z), (c[1]!.0, c[1]!.1, z), (c[2]!.0, c[2]!.1, z), (c[3]!.0, c[3]!.1, z), night);
+    st += 1;
+  }
+  if pt.roof == 1 || pt.roof == 2 || pt.roof == 4 {
+    sp = mat_sprite(g, if pt.roof == 1 { "grass" } else { "paving" });
+    z = pt.top + (if pt.roof == 4 { 0.05 } else { 0.3 });
+    patch(out, sp, (c[0]!.0, c[0]!.1, z), (c[1]!.0, c[1]!.1, z), (c[2]!.0, c[2]!.1, z), (c[3]!.0, c[3]!.1, z), night);
+    return;
+  }
+  // its long axis and its short one, from its middle
+  cx = (c[0]!.0 + c[1]!.0 + c[2]!.0 + c[3]!.0) * 0.25;
+  cy = (c[0]!.1 + c[1]!.1 + c[2]!.1 + c[3]!.1) * 0.25;
+  e0x = c[1]!.0 - c[0]!.0;
+  e0y = c[1]!.1 - c[0]!.1;
+  e1x = c[2]!.0 - c[1]!.0;
+  e1y = c[2]!.1 - c[1]!.1;
+  l0 = sqrt(e0x * e0x + e0y * e0y);
+  l1 = sqrt(e1x * e1x + e1y * e1y);
+  lx = if l0 >= l1 { (e0x / l0) ?? 1.0 } else { (e1x / l1) ?? 1.0 };
+  ly = if l0 >= l1 { (e0y / l0) ?? 0.0 } else { (e1y / l1) ?? 0.0 };
+  la = if l0 >= l1 { l0 } else { l1 };
+  lb = if l0 >= l1 { l1 } else { l0 };
+  over = 0.4 + s.wall * 0.5;
+  ha = la * 0.5 + over;
+  hb = lb * 0.5 + over;
+  sx = -ly;
+  sy = lx;
+  attic = pt.roof == 3;
+  rise = if attic { 0.9 * hb } else { 0.45 * lb };
+  ridge = if attic { ha } else if ha > hb { ha - hb } else { 0.0 };
+  c1 = (cx - lx * ha - sx * hb, cy - ly * ha - sy * hb, pt.top);
+  c2 = (cx + lx * ha - sx * hb, cy + ly * ha - sy * hb, pt.top);
+  c3 = (cx + lx * ha + sx * hb, cy + ly * ha + sy * hb, pt.top);
+  c4 = (cx - lx * ha + sx * hb, cy - ly * ha + sy * hb, pt.top);
+  r1 = (cx - lx * ridge, cy - ly * ridge, pt.top + rise);
+  r2 = (cx + lx * ridge, cy + ly * ridge, pt.top + rise);
+  patch(out, roof, c1, c2, r2, r1, night);
+  patch(out, roof, c3, c4, r1, r2, night);
+  if !attic {
+    patch(out, roof, c2, c3, r2, r2, night);
+    patch(out, roof, c4, c1, r1, r1, night);
+    return;
+  }
+  // the gables, on the end walls
+  for e in [-1.0, 1.0] {
+    gx = cx + lx * la * 0.5 * e;
+    gy = cy + ly * la * 0.5 * e;
+    peak = pt.top + rise * (lb * 0.5) / hb ?? pt.top;
+    patch(out, walls, (gx - sx * lb * 0.5, gy - sy * lb * 0.5, pt.top), (gx + sx * lb * 0.5, gy + sy * lb * 0.5, pt.top),
+          (gx, gy, peak), (gx, gy, peak), night);
+  }
+  // the dormers: an upright front standing out of each slope, cheeks to the roof, a lid back to it
+  for d in pt.dormers {
+    for e in [-1.0, 1.0] {
+      tf = 0.6 * hb;
+      zb = pt.top + rise * (1.0 - 0.6);
+      zt = zb + 1.0;
+      tb = hb * (1.0 - (zt - pt.top) / rise) ?? 0.0;
+      if tb < 0.0 { tb = 0.0; }
+      fl = (cx + lx * (d - 0.55) + sx * tf * e, cy + ly * (d - 0.55) + sy * tf * e);
+      fr = (cx + lx * (d + 0.55) + sx * tf * e, cy + ly * (d + 0.55) + sy * tf * e);
+      bl = (cx + lx * (d - 0.55) + sx * tb * e, cy + ly * (d - 0.55) + sy * tb * e);
+      br = (cx + lx * (d + 0.55) + sx * tb * e, cy + ly * (d + 0.55) + sy * tb * e);
+      // the front as a frame round its window: a sill, a lintel, two posts
+      patch(out, walls, (fl.0, fl.1, zb), (fr.0, fr.1, zb), (fr.0, fr.1, zb + 0.2), (fl.0, fl.1, zb + 0.2), night);
+      patch(out, walls, (fl.0, fl.1, zt - 0.15), (fr.0, fr.1, zt - 0.15), (fr.0, fr.1, zt), (fl.0, fl.1, zt), night);
+      for q in [(fl, 0.15), (fr, -0.15)] {
+        px = q.0.0 + lx * q.1;
+        py = q.0.1 + ly * q.1;
+        patch(out, walls, (q.0.0, q.0.1, zb), (px, py, zb), (px, py, zt), (q.0.0, q.0.1, zt), night);
+      }
+      patch(out, walls, (fl.0, fl.1, zb), (fl.0, fl.1, zt), (bl.0, bl.1, zt), (bl.0, bl.1, zt), night);
+      patch(out, walls, (fr.0, fr.1, zb), (fr.0, fr.1, zt), (br.0, br.1, zt), (br.0, br.1, zt), night);
+      patch(out, roof, (fl.0, fl.1, zt), (fr.0, fr.1, zt), (br.0, br.1, zt), (bl.0, bl.1, zt), night);
+    }
+  }
 }
 
 /// What stands along a yard's side (owner, 2026-11-14): a low wall of stone, a hedge, a fence of

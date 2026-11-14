@@ -207,3 +207,52 @@ fn test_orburys_yards_stand_outside_its_houses() {
   }
   assert(courts == 1 && gardens == 1 && bays == 2 && len(s.canopies) == 1, "a court, a roof garden, two bays, a gazebo: {courts} {gardens} {bays} {len(s.canopies)}");
 }
+
+// More kinds of houses (owner, 2026-11-14), in Orbury's hex version: every house in parts, a wall's
+// eaves those of its part; a house with a wing and an attic with dormers, one with a lower wing
+// whose roof is a terrace behind a low wall, the house's wall rising over it; a flat roof;
+// out-houses.
+fn test_orburys_houses_come_in_parts() {
+  s = hexscene::load(file("../levels/orbury.hex.json").content() ?? "") ?? return;
+  assert(len(s.houses) == 21, "nineteen houses and two out-houses: {len(s.houses)}");
+  attics = 0;
+  flats = 0;
+  terraces = 0;
+  winged = 0;
+  dormers = 0;
+  for h in s.houses {
+    assert(len(h.parts) >= 1 && len(h.tops) == len(h.xs) && len(h.rims) == len(h.xs), "its parts, and each wall's eaves");
+    if len(h.parts) > 1 { winged += 1; }
+    main = h.parts[0]!;
+    assert(main.top == h.top, "the house itself first: {main.top} {h.top}");
+    for pt in h.parts {
+      if pt.roof == 3 { attics += 1; dormers += len(pt.dormers); }
+      if pt.roof == 2 { flats += 1; }
+      if pt.roof != 4 { continue; }
+      terraces += 1;
+      assert(pt.top < h.top - 1.0 && len(h.rises) == 1, "a terrace lies lower, the house's wall rises over it");
+      r = h.rises[0]!;
+      assert(r.z0 == pt.top && r.z1 == h.top, "from the terrace to the eaves: {r.z0} {r.z1}");
+      low = 0;
+      for i in 0..len(h.tops) {
+        if (h.tops[i] ?? 0.0) == pt.top {
+          low += 1;
+          assert((h.rims[i] ?? 0.0) > 1.0, "the wing's walls carried up as the terrace's low wall");
+        }
+      }
+      assert(low == 3, "the wing's three free walls: {low}");
+    }
+    // every corner of a part lies on the house's outline or inside it: its roof on its walls
+    for pt in h.parts {
+      for j in 0..4 {
+        near = 100.0;
+        for i in 0..len(h.xs) {
+          d = sqrt(((h.xs[i] ?? 0.0) - (pt.xs[j] ?? 0.0)) * ((h.xs[i] ?? 0.0) - (pt.xs[j] ?? 0.0)) + ((h.ys[i] ?? 0.0) - (pt.ys[j] ?? 0.0)) * ((h.ys[i] ?? 0.0) - (pt.ys[j] ?? 0.0)));
+          if d < near { near = d; }
+        }
+        assert(near < 0.01 || len(h.parts) > 1, "a house of one part is its outline: a corner {near} m off");
+      }
+    }
+  }
+  assert(attics == 2 && dormers == 3 && flats == 1 && terraces == 1 && winged == 2, "two attics with three dormers, a flat roof, a terrace, two houses with a wing: {attics} {dormers} {flats} {terraces} {winged}");
+}

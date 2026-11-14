@@ -440,7 +440,7 @@ fn way_out(side: integer) -> (integer, integer) {
 fn under_a_house(it: const intent::Intent, x: integer, y: integer, z: integer) -> boolean {
   for h in it.houses {
     fl = if h.floors > 0 { h.floors } else { 1 };
-    if x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h && z >= h.z - 1 && z <= h.z + fl { return true; }
+    if intent::house_covers(h, x, y) && z >= h.z - 1 && z <= h.z + fl { return true; }
   }
   false
 }

@@ -287,11 +287,16 @@ over.append({"at": [45, 26], "size": [1, 1], "z": 3, "as": "stairs_up"})
 over.append({"at": [45, 26], "size": [1, 1], "z": 4, "as": "stairs_down"})
 for p in ((43, 24), (48, 24), (48, 28), (43, 28)): over.append({"at": list(p), "size": [1, 1], "z": 4, "as": "bush"})
 house(52, 24, 8, 7, 2, 2, True, door_at=4, wall="stone_wall", roof="house_slate")
-houses[-1]["openings"] = [window(52, 27, 2, "W"), window(59, 27, 3, "E")]
+houses[-1]["openings"] = [window(52, 27, 2, "W"), window(59, 28, 3, "E")]
 houses[-1]["turn"] = 1
+# More kinds of houses (owner, 2026-11-14): it has an attic under its roof, with dormers, and a
+# one-floor wing into its garden.
+houses[-1]["top"] = "attic"
+houses[-1]["wings"] = [{"at": [60, 24], "size": [3, 4], "floors": 1}]
+keep(60, 24, 2, 3, 4)
 yard(60, 24, 5, 7, 2, "low_wall", open="W", gates=[(62, 30, "S")])
-ground(60, 24, 5, 3, 2, "paving"); seat(62, 25, 2, [(61, 25), (63, 25)])
-for p in ((61, 28), (63, 28)): ground(p[0], p[1], 1, 1, 2, "oak")
+ground(63, 24, 2, 7, 2, "paving"); seat(64, 26, 2, [(64, 25), (64, 27)])
+for p in ((60, 29), (61, 29)): ground(p[0], p[1], 1, 1, 2, "oak")
 # The market's gazebo: four pillars and a roof, by the well.
 for p in ((34, 26), (36, 26), (34, 28), (36, 28)): ground(p[0], p[1], 1, 1, 2, "pillar")
 ground(34, 26, 3, 3, 3, "house_roof")
@@ -307,13 +312,18 @@ placed(37, 5, 5, 1, lambda c: at(MARKET, c) + 2, before1, 1, 1, dealt=True)     
 placed(46, 8, 6, 1, behind1, before1, 0, 1, door_at=3, wall="stone_wall")              # the smithy
 placed(54, 6, 5, 1, behind1, before1, 0, 1, floors=2, dealt=True)   # the same
 # Their gardens, each behind a low hedge with a gate; Hollis's west of the house, the cottages' east.
-yard(2, 35, 4, 6, 1, "low_hedge", open="E", gates=[(3, 40, "S")])
+yard(2, 35, 4, 6, 1, "low_hedge", open="E", gates=[(2, 40, "S")])
 yard(20, 37, 3, 4, 1, "low_hedge", open="W", gates=[(21, 40, "S")])
 yard(42, 37, 3, 4, 1, "low_hedge", open="W", gates=[(43, 40, "S")])
-yard(60, 35, 3, 5, 1, "low_hedge", open="W", gates=[(62, 37, "E")])
-plot(2, 36, 3, 2, 1); ground(4, 39, 1, 1, 1, "oak")      # Hollis's herbs
-plot(20, 37, 2, 2, 1); plot(43, 37, 2, 2, 1); plot(60, 36, 2, 3, 1)
-ground(22, 39, 1, 1, 1, "autumn_oak"); ground(42, 39, 1, 1, 1, "oak")
+yard(60, 35, 3, 5, 1, "low_hedge", open="W", gates=[(62, 38, "E")])
+plot(2, 36, 3, 2, 1); ground(2, 38, 1, 1, 1, "oak")      # Hollis's herbs
+plot(20, 37, 2, 2, 1); plot(60, 39, 3, 1, 1)
+ground(22, 39, 1, 1, 1, "autumn_oak")
+# Hollis's has a low wing into her garden, its roof a terrace her upper floor opens onto; the
+# smithy a flat roof.
+houses[4]["wings"] = [{"at": [3, 38], "size": [3, 3], "floors": 1, "top": "terrace"}]
+keep(3, 38, 1, 3, 3)
+houses[8]["top"] = "flat"
 houses[4]["openings"] = [window(13, 38, 1, "E")]        # Hollis's
 houses[8]["openings"] = [window(46, 37, 1, "W")]        # the smithy
 houses[7]["turn"] = 11; houses[9]["turn"] = 1           # two cottages at an angle, in the hex town
@@ -349,6 +359,11 @@ yard(80, 49, 3, 5, 0, "fence", gates=[(82, 51, "E")])
 yard(84, 49, 3, 5, 0, "fence", gates=[(84, 51, "W")])
 houses[-2]["openings"] = [window(69, 50, 0, "E")]
 houses[-2]["turn"] = 1; houses[-1]["turn"] = 11
+houses[-2]["top"] = "attic"
+# Out-houses, each in its cottage's garden: a shed three cells square, its door into the garden.
+for x, y in ((42, 37), (60, 35)):
+    house(x, y, 3, 3, 1, 1)
+    houses[-1]["out"] = True
 # Who lives there, and the bargain (@ST-Farm, @ST-Hero; BUILD.md C9, as the demo's farm has it): the
 # hero rides in on his horse (the dock, where he starts) and can lead it here; Dunn lends him the
 # barn for it, and the barn's door stays shut till then; Lark, the Dunns' youngest

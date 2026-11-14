@@ -334,6 +334,25 @@ them (`hextown.loft` `dress`, `hexscene.loft`, `render3d.loft`).  All ◇ but th
   (HY-Roof)     A roof garden is a flat roof at the eaves, grass on it, the house's own walls
                 carried up round it as a low wall; who stands on it stands at its storey's height,
                 not the ground's.
+  (HY-Parts)    A house is drawn in parts, the house itself first and then each wing: a part is a
+                rectangle with its own eaves and its own roof.  The walls stay the one outline
+                read off the cells of all its parts together (an L, a T: HW-Runs); each wall has
+                the eaves of the part it belongs to — the part a point a metre inside its middle
+                lies in, a wing before the house — and where the house stands higher than a
+                wing its wall rises over the wing's roof along where they touch.  Each side of a
+                part is moved onto the drawn wall that runs along it, so a roof sits on its
+                walls (the walls stand up to half a row from the square map's, HT-Near); a side
+                with no wall along it, where a wing meets the house, stays.
+  (HY-Kinds)    A part's roof is one of: pitched and hipped; an attic's — steeper, a gable at
+                each end, and on each slope a dormer where the square attic has one: an upright
+                front with its window standing out of the roof, cheeks down to the slope and a lid
+                back to it (owner: not sloped windows in the sloped roofs); flat, a slab with a
+                rim; a roof garden's grass; a terrace's paving.  A roof garden's and a terrace's
+                walls are carried up past the eaves as their low wall (HY-Roof).
+  (HY-Out)      An out-house is a house of its own, three cells square at the least; in the yard
+                of a house it takes that house's angle, and stands where the square map's place
+                for it lands through that house's turn.  Where it stands on a yard's side the
+                side is left out: its own wall is the boundary there.
   (HY-Bay)      A bay window is an opening like any other to the walls (HO-Point), drawn standing
                 out from its wall on every storey: a sill, a post at each end, a little roof.
   (HY-Canopy)   A roof on pillars (a gazebo) is four slopes to a point over its square, a beam
@@ -345,7 +364,8 @@ HW-Clear is not claimed for it — the hex version is drawn, not played (the pla
 game's).  When a place is modelled in hex, a yard becomes a structure of cells like a road
 (HR-Sides), its sides walls with a height.
 
-Orbury (2026-11-14): 19 houses, five at an angle (the second well-off house and the farmhouse at
+Orbury (2026-11-14): 19 houses and two out-houses; two houses with a wing, two attics with three
+dormers on each slope between them, one flat roof, one terrace; five at an angle (the second well-off house and the farmhouse at
 30°, a cottage, a miner's house and the barn at 330°); one court, one roof garden, two bays, one
 gazebo; the yards' sides in stretches of all four kinds.
 
@@ -433,7 +453,12 @@ fails nothing, and should not: it changes no cell (HT-Turn30).
 
 - a courtyard as cells (a structure with a hole: a court is drawn as a second outline, HY-Court),
   inner walls, and walls not at a right angle;
-- HY-Turn, HY-Angle, HY-Roof, HY-Bay and HY-Canopy have no test of their own: they were checked by
+- HY-Parts is guarded by `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (the square
+  side: `tests/intent.loft` `test_a_wing_joins_its_house_and_carries_a_roof_terrace`,
+  `test_an_attic_a_flat_roof_and_an_out_house`; `tests/worlds.loft`
+  `test_orburys_houses_of_more_kinds`); a wing's free walls must be three hex steps or more, or
+  they may be lost (below);
+- HY-Kinds, HY-Out, HY-Turn, HY-Angle, HY-Roof, HY-Bay and HY-Canopy have no test of their own: they were checked by
   eye on a plan drawn from the port's data, not in the 3D view;
 - mirroring (an exact lattice reflection, ROUNDTRIP X2, not yet a routine of `hexturn`);
 - the count of cells: an odd step keeps the walls near their places (HT-Near), not the count —

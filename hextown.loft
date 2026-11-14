@@ -27,6 +27,27 @@ use intent;
 /// A square tile's side, in metres: one hex step.
 pub const TILE = 1.5;
 
+/// A part of a house: its four corners (metres, anticlockwise from its south-west as drawn), the
+/// height of its eaves, its roof, and where along its length (metres from its middle) its roof
+/// has a dormer on each slope.
+pub struct Block {
+  pub xs: vector<float>,
+  pub ys: vector<float>,
+  pub top: float,
+  pub roof: integer,
+  pub dormers: vector<float> = []
+}
+
+/// A stretch of wall from a to b (metres), from height z0 up to z1.
+pub struct Rise {
+  pub ax: float,
+  pub ay: float,
+  pub bx: float,
+  pub by: float,
+  pub z0: float,
+  pub z1: float
+}
+
 /// A house as placed: its walls and openings, its angle, the height of its floor, of the lowest
 /// ground under it (where its walls start) and of its eaves, in metres.
 pub struct Placed {
@@ -43,11 +64,26 @@ pub struct Placed {
   /// Its inner court's corners (metres), when it has one: open to the sky, pillars round it.
   pub court: vector<(float, float)> = [],
   /// Which of its openings (indices into `built.openings`) are bay windows.
-  pub bays: vector<integer> = []
+  pub bays: vector<integer> = [],
+  /// Its parts, the house itself first and then its wings: each a rectangle with its own eaves
+  /// and its own roof (owner, 2026-11-14: more kinds of houses).
+  pub parts: vector<Block> = [],
+  /// Per wall of its outline (wall i runs from corner i - 1 to corner i): the eaves of the part it
+  /// belongs to, and how far it is carried up past them as a low wall (a roof garden's, a
+  /// terrace's).
+  pub tops: vector<float> = [],
+  pub rims: vector<float> = [],
+  /// The house's wall where it rises over a lower wing's roof.
+  pub rises: vector<Rise> = []
 }
 
+/// The kinds of roof: pitched and hipped; a roof garden, flat behind a low wall, grass on it; a
+/// flat roof; an attic's, steeper, with a gable at each end and dormers; a lower roof terrace.
 pub const ROOF_PITCHED = 0;
 pub const ROOF_GARDEN = 1;
+pub const ROOF_FLAT = 2;
+pub const ROOF_ATTIC = 3;
+pub const ROOF_TERRACE = 4;
 
 /// What stands along a yard's side (owner, 2026-11-14): a low wall, a low hedge, a hedge a storey
 /// high, a fence.
@@ -254,6 +290,14 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
       }
       if k == "shallows" { kind = hexterrain::WATER; }
       if k == "paving" { kind = PAVING; }
+      // a pillar stands on what lies round it: a gazebo's on the market's path
+      if k == "pillar" {
+        for nb in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+          nx = tx + nb.0;
+          ny = ty + nb.1;
+          if nx >= 0 && nx < NX && ny >= 0 && ny < NY && (sf.what[ny * NX + nx] ?? "") == "path" { kind = hexterrain::PATH; }
+        }
+      }
       if k == "field" { kind = FIELD; }
       p = paths[i] ?? -1;
       if p >= 0 { kind = p; }
@@ -298,7 +342,7 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
                          size: (gr.w as float) * TILE }];
     }
   }
-  fences = dress(it, g, houses, things, sz, ys);
+  fences = dress(it, g, houses, things, sz, ys, m.storey);
   Town { ground: g, houses: houses, things: things, levels: levels, cliffs: cliffs, fences: fences }
 }
 
@@ -437,6 +481,17 @@ fn on_a_way(g: hexterrain::Ground, a: hex_field::HexSet) -> boolean {
   n > 3
 }
 
+/// A house's plan: its own rectangle, and one for each wing, in the plan's half hex steps from
+/// the house's middle (u east, v north).
+fn plan_of(h: const intent::House) -> vector<hexhouse::Part> {
+  out = hexhouse::box_plan(h.w, h.h);
+  for wg in h.wings {
+    out += [hexhouse::Part { u0: 2 * (wg.x - h.x) - h.w, v0: h.h - 2 * (wg.y + wg.h - h.y),
+                             u1: 2 * (wg.x + wg.w - h.x) - h.w, v1: h.h - 2 * (wg.y - h.y) }];
+  }
+  out
+}
+
 /// Every house of the intent, placed (see the top of the file).
 fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::Sizes, m: const hexterrain::Measures) -> vector<Placed> {
   taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
@@ -446,8 +501,24 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
     (x, y) = tile_xy((h.x as float) + ((h.w - 1) as float) * 0.5, (h.y as float) + ((h.h - 1) as float) * 0.5);
     (cq, cr) = hexterrain::cell_near(x, y);
     // its angle: the place's own where it gives one, else facing down the hill
-    plan = hexhouse::HexHouse { cq: cq, cr: cr, turn: if h.turn >= 0 { h.turn % 12 ?? 0 } else { facing(g, x, y) },
-                                parts: hexhouse::box_plan(h.w, h.h), openings: openings_of(h) };
+    turn = if h.turn >= 0 { h.turn % 12 ?? 0 } else { facing(g, x, y) };
+    // an out-house stands in its house's yard, and turns with it
+    if h.out {
+      for yd in it.yards {
+        if yd.z != h.z || h.x < yd.x || h.x + h.w > yd.x + yd.w || h.y < yd.y || h.y + h.h > yd.y + yd.h { continue; }
+        hi = yard_house(it, yd, false);
+        if hi < 0 || hi >= len(out) { continue; }
+        main = it.houses[hi]!;
+        mp = out[hi]!;
+        turn = mp.turn;
+        (ox, oy) = with_house(main, mp, drawn_cells(main, mp), (h.x as float) + ((h.w - 1) as float) * 0.5,
+                              (h.y as float) + ((h.h - 1) as float) * 0.5);
+        (oq, orr) = hexterrain::cell_near(ox, oy);
+        cq = oq;
+        cr = orr;
+      }
+    }
+    plan = hexhouse::HexHouse { cq: cq, cr: cr, turn: turn, parts: plan_of(h), openings: openings_of(h) };
     b = hexhouse::build(plan, hexturn::BY_WALLS, sz);
     // @FR-HY-Angle
     // square to the grid where its turn would not fit: on a house already placed, or across a way
@@ -477,7 +548,7 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
 
 /// A house's cells as its plan gives them at 0°: what its turn was made from.
 fn drawn_cells(h: const intent::House, p: const Placed) -> hex_field::HexSet {
-  plan = hexhouse::HexHouse { cq: p.cq, cr: p.cr, turn: 0, parts: hexhouse::box_plan(h.w, h.h) };
+  plan = hexhouse::HexHouse { cq: p.cq, cr: p.cr, turn: 0, parts: plan_of(h) };
   r = hexhouse::reach(plan) + 2;
   cells = hex_field::hexset_chunk(p.cq - r, p.cr - r, 2 * r + 1, 2 * r + 1);
   hexhouse::fill(plan, cells);
@@ -563,7 +634,7 @@ fn yard_house(it: const intent::Intent, yd: const intent::Yard, roof: boolean) -
 /// paved yard's and a court's cells paved; a court's pillars; a roof garden's bushes on its roof.
 // @FR-HY-Side, @FR-HY-Turn, @FR-HY-Court, @FR-HY-Roof, @FR-HY-Bay: the yards and the houses' new parts, from the square map
 fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>, things: vector<Thing>,
-         sz: hexwalls::Sizes, ys: const Yards) -> vector<Fence> {
+         sz: hexwalls::Sizes, ys: const Yards, storey: float) -> vector<Fence> {
   out: vector<Fence> = [];
   _ = sz;
   for i in 0..len(it.houses) {
@@ -694,6 +765,22 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
           pa = if hi >= 0 { with_house(it.houses[hi]!, houses[hi]!, drawn, ta.0, ta.1) } else { tile_xy(ta.0, ta.1) };
           pb = if hi >= 0 { with_house(it.houses[hi]!, houses[hi]!, drawn, tb.0, tb.1) } else { tile_xy(tb.0, tb.1) };
           (ca, cb) = outside(hull, pa, pb);
+          // and what an out-house in the yard stands on: its own wall is the yard's side there
+          for oi in 0..len(it.houses) {
+            oh = it.houses[oi]!;
+            if !oh.out || oh.z != yd.z || oh.x < yd.x || oh.x + oh.w > yd.x + yd.w || oh.y < yd.y || oh.y + oh.h > yd.y + yd.h { continue; }
+            shed: vector<(float, float)> = [];
+            // a little wider than it stands, so a side along its wall goes with it
+            mid = (0.0, 0.0);
+            for sc in houses[oi]!.built.corners { mid = (mid.0 + sc.0 * hexterrain::METRE, mid.1 + sc.1 * hexterrain::METRE); }
+            nsc = len(houses[oi]!.built.corners) as float;
+            mid = (mid.0 / nsc ?? 0.0, mid.1 / nsc ?? 0.0);
+            for sc in houses[oi]!.built.corners {
+              shed += [(mid.0 + (sc.0 * hexterrain::METRE - mid.0) * 1.15, mid.1 + (sc.1 * hexterrain::METRE - mid.1) * 1.15)];
+            }
+            (ca, cb) = outside(shed, ca, cb);
+          }
+          if (cb.0 - ca.0) * (cb.0 - ca.0) + (cb.1 - ca.1) * (cb.1 - ca.1) < 0.09 { from = c + 1; continue; }
           out += [Fence { kind: kind, ax: ca.0, ay: ca.1, bx: cb.0, by: cb.1, height: ys.heights[kind] ?? 1.0,
                           thick: ys.thicks[kind] ?? 0.3 }];
         }
@@ -701,7 +788,164 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
       }
     }
   }
+  // @FR-HY-Parts: every house in parts, the house itself and its wings, each with its roof
+  for i in 0..len(it.houses) {
+    h = it.houses[i]!;
+    p = houses[i]!;
+    drawn = drawn_cells(h, p);
+    roof = if p.roof != ROOF_PITCHED { p.roof } else if h.top == "attic" { ROOF_ATTIC } else if h.top == "flat" { ROOF_FLAT } else { ROOF_PITCHED };
+    main = block_of(h, p, drawn, h.x, h.y, h.w, h.h, p.top, roof);
+    if roof == ROOF_ATTIC {
+      // a dormer where the square attic has one, along the longer side
+      n = (if h.w >= h.h { h.w } else { h.h }) - 2;
+      for c in 0..n {
+        if intent::dormer(c) { main.dormers += [((c as float) + 0.5 - (n as float) * 0.5) * TILE]; }
+      }
+    }
+    p.parts += [main];
+    for wg in h.wings {
+      sd = intent::wing_side(h, wg);
+      if sd == "" { continue; }
+      wtop = p.floor + (wg.floors as float) * storey;
+      wroof = if wg.top == "terrace" { ROOF_TERRACE } else if wg.top == "flat" { ROOF_FLAT } else { ROOF_PITCHED };
+      p.parts += [block_of(h, p, drawn, wg.x, wg.y, wg.w, wg.h, wtop, wroof)];
+      if wtop >= p.top - 0.01 { continue; }
+      // the house's wall over the wing's roof, along where they touch
+      a0 = (if wg.y > h.y { wg.y } else { h.y }) as float - 0.5;
+      a1 = (if wg.y + wg.h < h.y + h.h { wg.y + wg.h } else { h.y + h.h }) as float - 0.5;
+      b0 = (if wg.x > h.x { wg.x } else { h.x }) as float - 0.5;
+      b1 = (if wg.x + wg.w < h.x + h.w { wg.x + wg.w } else { h.x + h.w }) as float - 0.5;
+      line = if sd == "W" { ((wg.x as float) - 0.5, a0, (wg.x as float) - 0.5, a1) }
+             else if sd == "E" { ((h.x as float) - 0.5, a0, (h.x as float) - 0.5, a1) }
+             else if sd == "N" { (b0, (wg.y as float) - 0.5, b1, (wg.y as float) - 0.5) }
+             else { (b0, (h.y as float) - 0.5, b1, (h.y as float) - 0.5) };
+      (rax, ray) = onto(main, with_house(h, p, drawn, line.0, line.1));
+      (rbx, rby) = onto(main, with_house(h, p, drawn, line.2, line.3));
+      p.rises += [Rise { ax: rax, ay: ray, bx: rbx, by: rby, z0: wtop, z1: p.top }];
+    }
+    // each wall of the outline with the part it belongs to: a point just inside its middle
+    nc = len(p.built.corners);
+    for wi in 0..nc {
+      ca = p.built.corners[(wi + nc - 1) % nc ?? 0] ?? (0.0, 0.0);
+      cb = p.built.corners[wi] ?? (0.0, 0.0);
+      wl = sqrt((cb.0 - ca.0) * (cb.0 - ca.0) + (cb.1 - ca.1) * (cb.1 - ca.1));
+      mx = (ca.0 + cb.0) * 0.5 * hexterrain::METRE - ((cb.1 - ca.1) / wl ?? 0.0);
+      my = (ca.1 + cb.1) * 0.5 * hexterrain::METRE + ((cb.0 - ca.0) / wl ?? 0.0);
+      top = p.top;
+      rim = 0.0;
+      // a wing before the house: where both hold the point, the wall is the wing's
+      for bi in 0..len(p.parts) {
+        b = p.parts[len(p.parts) - 1 - bi]!;
+        poly: vector<(float, float)> = [for j in 0..4 { (b.xs[j] ?? 0.0, b.ys[j] ?? 0.0) }];
+        if !inside(poly, mx, my) { continue; }
+        top = b.top;
+        rim = if b.roof == ROOF_GARDEN || b.roof == ROOF_TERRACE { 1.3 } else if b.roof == ROOF_FLAT { 0.4 } else { 0.0 };
+        break;
+      }
+      p.tops += [top];
+      p.rims += [rim];
+    }
+  }
   out
+}
+
+/// A part of house `h` as placed: the square map's rectangle w by h from (x, y), turned with it.
+fn block_of(h: const intent::House, p: const Placed, drawn: hex_field::HexSet, x: integer, y: integer, w: integer, d: integer,
+            top: float, roof: integer) -> Block {
+  x0 = (x as float) - 0.5;
+  y0 = (y as float) - 0.5;
+  x1 = x0 + (w as float);
+  y1 = y0 + (d as float);
+  xs: vector<float> = [];
+  ys: vector<float> = [];
+  for c in [(x0, y1), (x1, y1), (x1, y0), (x0, y0)] {
+    (cx, cy) = with_house(h, p, drawn, c.0, c.1);
+    xs += [cx];
+    ys += [cy];
+  }
+  fitted(Block { xs: xs, ys: ys, top: top, roof: roof }, p)
+}
+
+/// The point `at` taken onto the nearest side of part `b`.
+fn onto(b: const Block, at: (float, float)) -> (float, float) {
+  best = at;
+  best_d = -1.0;
+  for i in 0..4 {
+    ax = b.xs[i] ?? 0.0;
+    ay = b.ys[i] ?? 0.0;
+    bx = b.xs[(i + 1) % 4 ?? 0] ?? 0.0;
+    by = b.ys[(i + 1) % 4 ?? 0] ?? 0.0;
+    l2 = (bx - ax) * (bx - ax) + (by - ay) * (by - ay);
+    t = ((at.0 - ax) * (bx - ax) + (at.1 - ay) * (by - ay)) / l2 ?? 0.0;
+    fx = ax + (bx - ax) * t;
+    fy = ay + (by - ay) * t;
+    d = (at.0 - fx) * (at.0 - fx) + (at.1 - fy) * (at.1 - fy);
+    if best_d < 0.0 || d < best_d {
+      best = (fx, fy);
+      best_d = d;
+    }
+  }
+  best
+}
+
+/// The part with each of its sides moved onto the house's drawn wall along it: the walls stand on
+/// the lines between two rows of hex centres, up to half a row from the square map's (HT-Near), and
+/// a roof belongs on its walls.  A side with no wall along it (where a wing meets the house) stays.
+fn fitted(b: const Block, p: const Placed) -> Block {
+  nc = len(p.built.corners);
+  // each side as a point and a unit direction, moved along its normal
+  px: vector<float> = [];
+  py: vector<float> = [];
+  dx: vector<float> = [];
+  dy: vector<float> = [];
+  for i in 0..4 {
+    ax = b.xs[i] ?? 0.0;
+    ay = b.ys[i] ?? 0.0;
+    bx = b.xs[(i + 1) % 4 ?? 0] ?? 0.0;
+    by = b.ys[(i + 1) % 4 ?? 0] ?? 0.0;
+    l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+    ux = (bx - ax) / l ?? 1.0;
+    uy = (by - ay) / l ?? 0.0;
+    best = 1.2;
+    shift = 0.0;
+    for wi in 0..nc {
+      ca = p.built.corners[(wi + nc - 1) % nc ?? 0] ?? (0.0, 0.0);
+      cb = p.built.corners[wi] ?? (0.0, 0.0);
+      wx = (cb.0 - ca.0) * hexterrain::METRE;
+      wy = (cb.1 - ca.1) * hexterrain::METRE;
+      wl = sqrt(wx * wx + wy * wy);
+      cross = (ux * wy - uy * wx) / wl ?? 1.0;
+      if cross > 0.05 || cross < -0.05 { continue; }
+      mx = ca.0 * hexterrain::METRE - ax;
+      my = ca.1 * hexterrain::METRE - ay;
+      // the wall runs along the side for half a metre or more of it
+      t0 = mx * ux + my * uy;
+      t1 = t0 + wx * ux + wy * uy;
+      lo = if t0 < t1 { t0 } else { t1 };
+      hi = if t0 < t1 { t1 } else { t0 };
+      shared = (if hi < l { hi } else { l }) - (if lo > 0.0 { lo } else { 0.0 });
+      off = -mx * uy + my * ux;
+      d = if off < 0.0 { -off } else { off };
+      if shared < 0.5 || d >= best { continue; }
+      best = d;
+      shift = off;
+    }
+    px += [ax - uy * shift];
+    py += [ay + ux * shift];
+    dx += [ux];
+    dy += [uy];
+  }
+  // corner i is where side i - 1 meets side i
+  xs: vector<float> = [];
+  ys: vector<float> = [];
+  for i in 0..4 {
+    j = (i + 3) % 4 ?? 0;
+    det = (dx[j] ?? 1.0) * (dy[i] ?? 0.0) - (dy[j] ?? 0.0) * (dx[i] ?? 1.0);
+    t = (((px[i] ?? 0.0) - (px[j] ?? 0.0)) * (dy[i] ?? 0.0) - ((py[i] ?? 0.0) - (py[j] ?? 0.0)) * (dx[i] ?? 1.0)) / det ?? 0.0;
+    xs += [(px[j] ?? 0.0) + (dx[j] ?? 1.0) * t];
+    ys += [(py[j] ?? 0.0) + (dy[j] ?? 0.0) * t];
+  }
+  Block { xs: xs, ys: ys, top: b.top, roof: b.roof }
 }
 
 fn open_side(sides: text, side: text) -> boolean {

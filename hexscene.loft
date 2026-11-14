@@ -22,6 +22,28 @@ pub struct Gap {
   pub by: float
 }
 
+/// A part of a house (owner, 2026-11-14: more kinds of houses): the house itself, a wing — its
+/// four corners, the height of its eaves, its roof (0 pitched, 1 a roof garden, 2 flat, 3 an
+/// attic's: gabled, with dormers, 4 a roof terrace), and where along its length its roof has a
+/// dormer on each slope (metres from its middle).
+pub struct Part {
+  pub xs: vector<float>,
+  pub ys: vector<float>,
+  pub top: float,
+  pub roof: integer,
+  pub dormers: vector<float> = []
+}
+
+/// A stretch of wall from a to b, from height z0 up to z1: a house's wall over a lower wing's roof.
+pub struct Rise {
+  pub ax: float,
+  pub ay: float,
+  pub bx: float,
+  pub by: float,
+  pub z0: float,
+  pub z1: float
+}
+
 /// A house: the heights of its walls' foot, its floor and its eaves; its outline, corner by corner
 /// (wall i runs from corner i - 1 to corner i); its doors and windows.
 pub struct House {
@@ -35,7 +57,13 @@ pub struct House {
   pub roof: integer = 0,
   /// Its inner court's corners, when it has one (four): open to the sky.
   pub court_xs: vector<float> = [],
-  pub court_ys: vector<float> = []
+  pub court_ys: vector<float> = [],
+  /// Its parts, the house itself first; per wall of its outline the eaves of the part it belongs
+  /// to and how far it is carried up past them as a low wall; its wall over its lower wings.
+  pub parts: vector<Part> = [],
+  pub tops: vector<float> = [],
+  pub rims: vector<float> = [],
+  pub rises: vector<Rise> = []
 }
 
 /// What stands along a yard's side (owner, 2026-11-14): its kind (1 a low wall, 2 a low hedge, 3 a
@@ -164,8 +192,40 @@ pub fn load(text: text) -> Scene? {
       cxs += [num(ct.item(j).item(0))];
       cys += [num(ct.item(j).item(1))];
     }
+    parts: vector<Part> = [];
+    pv = h.field("parts");
+    for j in 0..pv.len() {
+      pt = pv.item(j);
+      pxs: vector<float> = [];
+      pys: vector<float> = [];
+      pc = pt.field("corners");
+      for c in 0..pc.len() {
+        pxs += [num(pc.item(c).item(0))];
+        pys += [num(pc.item(c).item(1))];
+      }
+      ds: vector<float> = [];
+      dv = pt.field("dormers");
+      for c in 0..dv.len() { ds += [num(dv.item(c))]; }
+      parts += [Part { xs: pxs, ys: pys, top: num(pt.field("top")), roof: num(pt.field("roof")) as integer, dormers: ds }];
+    }
+    tops: vector<float> = [];
+    rims: vector<float> = [];
+    tv2 = h.field("tops");
+    rv2 = h.field("rims");
+    for j in 0..tv2.len() {
+      tops += [num(tv2.item(j))];
+      rims += [num(rv2.item(j))];
+    }
+    rises: vector<Rise> = [];
+    rs = h.field("rises");
+    for j in 0..rs.len() {
+      r = rs.item(j);
+      rises += [Rise { ax: num(r.field("a").item(0)), ay: num(r.field("a").item(1)), bx: num(r.field("b").item(0)),
+                       by: num(r.field("b").item(1)), z0: num(r.field("z0")), z1: num(r.field("z1")) }];
+    }
     houses += [House { base: num(h.field("base")), floor: num(h.field("floor")), top: num(h.field("top")),
-                       xs: xs, ys: ys, gaps: gaps, roof: num(h.field("roof")) as integer, court_xs: cxs, court_ys: cys }];
+                       xs: xs, ys: ys, gaps: gaps, roof: num(h.field("roof")) as integer, court_xs: cxs, court_ys: cys,
+                       parts: parts, tops: tops, rims: rims, rises: rises }];
   }
   sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
                w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,

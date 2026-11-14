@@ -54,7 +54,31 @@ fn scene(name: text, town: hextown::Town) -> text {
       if len(ct) > 0 { ct += ", "; }
       ct += "[{c.0}, {c.1}]";
     }
-    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}]}}";
+    parts = "";
+    for b in p.parts {
+      if len(parts) > 0 { parts += ", "; }
+      bc = "";
+      for j in 0..4 {
+        if j > 0 { bc += ", "; }
+        bc += "[{b.xs[j] ?? 0.0}, {b.ys[j] ?? 0.0}]";
+      }
+      ds = "";
+      for dv in b.dormers { ds += if ds == "" { "{dv}" } else { ", {dv}" }; }
+      parts += "{{\"corners\": [{bc}], \"top\": {b.top}, \"roof\": {b.roof}, \"dormers\": [{ds}]}}";
+    }
+    tops = "";
+    rims = "";
+    for j in 0..len(p.tops) {
+      if j > 0 { tops += ", "; rims += ", "; }
+      tops += "{p.tops[j] ?? p.top}";
+      rims += "{p.rims[j] ?? 0.0}";
+    }
+    rises = "";
+    for rs in p.rises {
+      if len(rises) > 0 { rises += ", "; }
+      rises += "{{\"a\": [{rs.ax}, {rs.ay}], \"b\": [{rs.bx}, {rs.by}], \"z0\": {rs.z0}, \"z1\": {rs.z1}}}";
+    }
+    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}], \"parts\": [{parts}], \"tops\": [{tops}], \"rims\": [{rims}], \"rises\": [{rises}]}}";
   }
   out += "], \"things\": [";
   for i in 0..len(town.things) {

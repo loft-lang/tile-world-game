@@ -31,7 +31,16 @@
   and in the game's 3D view (`hexscene.loft`, `render3d.loft`).  The port now covers the whole
   88 cells (Thornfield was cut off at 64).
 
-**Checked, and not.**  472 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
+- **More kinds of houses** (owner, the same day: attic, flat roof, lower roof terrace, wings,
+  out-houses; not sloped windows in the sloped roofs): a house's `wings` (a `top` of "terrace"
+  for a lower roof terrace), its `top` ("flat", "attic" — with dormers), `out` for an out-house
+  (`intent.loft`); the hex town draws a house in parts, each with its eaves and roof
+  (formal/hex-houses.md HY-Parts, HY-Kinds, HY-Out).  In Orbury: the second well-off house (attic,
+  wing), Hollis's (terrace wing), the farmhouse (attic), the smithy (flat), two out-houses.  The
+  dealt houses keep their boxes: the templates count a house's layers (`floors`), so an attic or
+  a wing on a dealt house wants the deal taught first.
+
+**Checked, and not.**  476 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
 (`loft --native --lib libs checks/view3d.loft`) and the sheet check pass.  **Not seen**: the game's 3D view of any of this (it draws only
 in a browser; no headless browser was run), nor `hextown.html` in a browser — the hex town was
 checked on a plan drawn from the port's data, the square town on `tools/map.loft`'s picture.
@@ -41,8 +50,8 @@ builds of 2026-11-13/14 free a store twice where a local is bound from a field r
 `json_parse(..)` — 49 tests failed on it before a line of today's work.  Reported as loft#2489;
 the game binds the parsed value first at its seven such lines (`*_doc = json_parse(..)`).
 
-**Open next** ◇: houses of other shapes than a box (an L, a wing: the square house is a
-rectangle); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D
+**Open next** ◇: the deal on houses with wings and attics; a wing's own rooms and stairs (it is
+one room a floor); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D
 only (BUILD.md phase E) and so shows the new shapes as plain lines; the cemetery's fence still
 cells (`garden_fence`), not an edge; the urn's route where Sibil's house is dealt a chair's way.
 

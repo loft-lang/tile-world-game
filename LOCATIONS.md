@@ -71,6 +71,12 @@ is not.
     fields** fenced, a gate in each onto the path between them;
   - **windows in the sides** of Hollis's, the smithy, the well-off houses, the farmhouse and the
     lord's;
+  - **more kinds of houses** (owner, 2026-11-14: attic, flat roof, lower roof terrace, wings,
+    out-houses; and not sloped windows in the sloped roofs, so dormers): the second well-off house
+    has an **attic** under its roof, with dormers, and a one-floor **wing** into its garden;
+    Hollis's a low wing whose roof is a **terrace** her upper floor opens onto, a low wall round
+    it; the farmhouse an attic; the smithy a **flat roof**; two cottages an **out-house** in their
+    garden, three cells square;
   - **at an angle in the hex town**: the second well-off house, a cottage, a miner's house, the
     farmhouse and the barn (their gardens turn with them); a house asked to turn stays square
     where it would stand on another or across a road.

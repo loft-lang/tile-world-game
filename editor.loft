@@ -478,7 +478,7 @@ fn front_at(lf: const levels::LevelFile, x: integer, y: integer, dx: integer, dy
   if intent::cliff_front(it, x, y, dx, dy) { return false; }
   for h in it.houses {
     for c in [(x, y), (x + dx, y + dy)] {
-      if c.0 >= h.x && c.0 < h.x + h.w && c.1 >= h.y && c.1 < h.y + h.h { return false; }
+      if intent::house_covers(h, c.0, c.1) { return false; }
     }
   }
   for c in [((x, y), (x + dx, y + dy)), ((x + dx, y + dy), (x, y))] {

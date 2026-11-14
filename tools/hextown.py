@@ -157,16 +157,19 @@ function house(group, h) {
     const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], ext = WALL / 2;
     const a2 = [a[0] - u[0] * ext, a[1] - u[1] * ext], len = L + 2 * ext;
     wallBox(group, a2, u, 0, len, h.base, h.floor, WALL, MAT.plinth);
+    // the eaves of the part this wall belongs to, and the low wall it is carried up as
+    const eaves = (h.tops && h.tops[i]) || h.top, wtop = eaves + ((h.rims && h.rims[i]) || 0);
+    const wst = Math.max(1, Math.round((eaves - h.floor) / STOREY));
     const spans = h.openings.filter(o => o.wall === i).map(o => {
       const s0 = (o.a[0] - a2[0]) * u[0] + (o.a[1] - a2[1]) * u[1], s1 = (o.b[0] - a2[0]) * u[0] + (o.b[1] - a2[1]) * u[1];
       return { s0: Math.min(s0, s1), s1: Math.max(s0, s1), kind: o.kind };
     }).sort((p, q) => p.s0 - q.s0);
     let at = 0;
     for (const sp of spans) {
-      wallBox(group, a2, u, at, sp.s0, h.floor, h.top, WALL, MAT.wall);
+      wallBox(group, a2, u, at, sp.s0, h.floor, wtop, WALL, MAT.wall);
       // the column over the opening: wall round a hole in every storey
       let z = h.floor;
-      for (let st = 0; st < storeys; st++) {
+      for (let st = 0; st < wst; st++) {
         const z0 = h.floor + st * STOREY, door = sp.kind === 1 && st === 0;
         const lo = door ? z0 : z0 + 0.9, hi = z0 + (door ? 2.1 : 2.0);
         wallBox(group, a2, u, sp.s0, sp.s1, z, lo, WALL, MAT.wall);
@@ -181,13 +184,20 @@ function house(group, h) {
         }
         z = hi;
       }
-      wallBox(group, a2, u, sp.s0, sp.s1, z, h.top, WALL, MAT.wall);
+      wallBox(group, a2, u, sp.s0, sp.s1, z, wtop, WALL, MAT.wall);
       at = sp.s1;
     }
-    wallBox(group, a2, u, at, len, h.floor, h.top, WALL, MAT.wall);
+    wallBox(group, a2, u, at, len, h.floor, wtop, WALL, MAT.wall);
   }
   const tiles = storeys > 1 ? MAT.slate : MAT.roof;
-  if (h.roof === 1) {
+  if (h.parts && h.parts.length && !(h.court && h.court.length === 4)) {
+    // in parts: the house and its wings, each with its own roof; the house's wall over a lower wing
+    for (const pt of h.parts) part(group, pt, tiles);
+    for (const r of h.rises || []) {
+      const L = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]), u = [(r.b[0] - r.a[0]) / L, (r.b[1] - r.a[1]) / L];
+      wallBox(group, r.a, u, -WALL / 2, L + WALL / 2, r.z0, r.z1, WALL, MAT.wall);
+    }
+  } else if (h.roof === 1) {
     // a roof garden: flat, grass on it, a low wall round it
     const shape = new THREE.Shape(cs.map(c => new THREE.Vector2(c[0], c[1])));
     const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false }), MAT.lawn);
@@ -201,6 +211,45 @@ function house(group, h) {
   } else {
     group.add(roof(h, tiles));
   }
+}
+
+// A part of a house: pitched and hipped (0); a roof garden's grass (1); flat (2); an attic's (3),
+// steeper, a gable at each end, dormers on its slopes — upright windows standing out of the roof;
+// a terrace's paving (4).
+function part(group, pt, tiles) {
+  const cs = pt.corners;
+  if (pt.roof === 1 || pt.roof === 2 || pt.roof === 4) {
+    const shape = new THREE.Shape(cs.map(c => new THREE.Vector2(c[0], c[1])));
+    const d = pt.roof === 4 ? 0.05 : 0.3;
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false }), pt.roof === 1 ? MAT.lawn : MAT.stone);
+    m.rotation.x = -Math.PI / 2; m.position.y = pt.top; group.add(m);
+    return;
+  }
+  if (pt.roof !== 3) { group.add(roof(pt, tiles)); return; }
+  const over = 0.4 + WALL / 2, cx = cs.reduce((s, c) => s + c[0], 0) / 4, cy = cs.reduce((s, c) => s + c[1], 0) / 4;
+  const e0 = [cs[1][0] - cs[0][0], cs[1][1] - cs[0][1]], e1 = [cs[2][0] - cs[1][0], cs[2][1] - cs[1][1]];
+  const l0 = Math.hypot(...e0), l1 = Math.hypot(...e1);
+  const [la, lb, ua, ub] = l0 >= l1 ? [l0, l1, e0.map(v => v / l0), e1.map(v => v / l1)] : [l1, l0, e1.map(v => v / l1), e0.map(v => v / l0)];
+  const A = la / 2 + over, B = lb / 2 + over, rise = 0.9 * B, top = pt.top;
+  const P = (s, t, z) => [cx + ua[0] * s + ub[0] * t, z, -(cy + ua[1] * s + ub[1] * t)];
+  const mesh = (tri, mat) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(tri.flat(), 3)); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); group.add(m); };
+  const quad = (a, b, c, d) => [a, b, c, a, c, d];
+  const slopes = [...quad(P(-A, -B, top), P(A, -B, top), P(A, 0, top + rise), P(-A, 0, top + rise)),
+                  ...quad(P(A, B, top), P(-A, B, top), P(-A, 0, top + rise), P(A, 0, top + rise))];
+  const peak = top + rise * (lb / 2) / B, side = [], glass = [];
+  for (const e of [-1, 1]) side.push(P(e * la / 2, -lb / 2, top), P(e * la / 2, lb / 2, top), P(e * la / 2, 0, peak));
+  for (const d of pt.dormers || []) for (const e of [-1, 1]) {
+    const tf = 0.6 * B * e, zb = top + rise * 0.4, zt = zb + 1.0, tb = Math.max(0, B * (1 - (zt - top) / rise)) * e;
+    glass.push(...quad(P(d - 0.4, tf, zb + 0.2), P(d + 0.4, tf, zb + 0.2), P(d + 0.4, tf, zt - 0.15), P(d - 0.4, tf, zt - 0.15)));
+    side.push(...quad(P(d - 0.55, tf, zb), P(d + 0.55, tf, zb), P(d + 0.55, tf, zb + 0.2), P(d - 0.55, tf, zb + 0.2)));
+    side.push(...quad(P(d - 0.55, tf, zt - 0.15), P(d + 0.55, tf, zt - 0.15), P(d + 0.55, tf, zt), P(d - 0.55, tf, zt)));
+    for (const q of [[-0.55, -0.4], [0.4, 0.55]]) side.push(...quad(P(d + q[0], tf, zb), P(d + q[1], tf, zb), P(d + q[1], tf, zt), P(d + q[0], tf, zt)));
+    for (const q of [-0.55, 0.55]) side.push(P(d + q, tf, zb), P(d + q, tf, zt), P(d + q, tb, zt));
+    slopes.push(...quad(P(d - 0.6, tf * 1.05, zt), P(d + 0.6, tf * 1.05, zt), P(d + 0.6, tb, zt), P(d - 0.6, tb, zt)));
+  }
+  mesh(slopes, tiles);
+  mesh(side, new THREE.MeshLambertMaterial({ color: 0xe6dcc6, side: THREE.DoubleSide }));
+  if (glass.length) mesh(glass, new THREE.MeshLambertMaterial({ color: 0x7fb8e6, side: THREE.DoubleSide }));
 }
 
 // A house round a court: its roof a ring, rising from the eaves outside to a ridge and down to the

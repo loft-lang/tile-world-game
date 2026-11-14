@@ -105,6 +105,20 @@ pub struct Opening {
   pub edge: text = ""
 }
 
+/// A wing of a house (owner, 2026-11-14): `w` by `h` from (x, y), against one side of the house,
+/// `floors` high from the house's own ground floor.  It has walls on its three free sides and none
+/// against the house, whose wall has a doorway into it on each of its floors.  Its `top`: "" a roof
+/// of the house's own; "terrace", a lower roof terrace — paved, a low wall round it, a door onto
+/// it from the house's floor at that height; "flat", a flat roof.
+pub struct Wing {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub floors: integer = 1,
+  pub top: text = ""
+}
+
 /// A house as seen from outside: `w` by `h` from (x, y) on layer z, its rows of `roof` and its
 /// bottom row of `wall`, with its door (of `door`) in the bottom row at `door_at` cells from its
 /// west side (-1: the middle).  The cell in front of the door is kept free.
@@ -145,7 +159,16 @@ pub struct House {
   pub court: vector<integer> = [],
   /// Its angle in the hex version of the place, in steps of 30 degrees anticlockwise (0..11); -1:
   /// the hex town's to give.  The square cells stay square (DESIGN.md § What the player sees).
-  pub turn: integer = -1
+  pub turn: integer = -1,
+  /// Its wings: an L, a T, a lower part with a roof terrace.
+  pub wings: vector<Wing> = [],
+  /// What it ends in above: "" its roof as its material makes it; "flat", a flat roof walked on;
+  /// "attic", a room under the roof — a floor on the roof's layer within the eaves, the stairs up
+  /// to it, a window in each gable end (its shorter sides), a dormer at every third cell under the
+  /// slopes (an upright window standing out of the roof), the roof over it a layer up.
+  pub top: text = "",
+  /// An out-house (a shed, a wash-house): a small building in a yard, as small as three by three.
+  pub out: boolean = false
 }
 
 
@@ -400,7 +423,9 @@ pub fn intent_from(v: const JsonValue) -> Intent {
                           front: e.field("front").as_bool() ?? true,
                           openings: openings_of(e.field("openings")), holes: points_of(e.field("holes")),
                           dealt: e.field("dealt").as_bool() ?? false,
-                          court: ints_of(e.field("court")), turn: int_of(e.field("turn"), -1) }];
+                          court: ints_of(e.field("court")), turn: int_of(e.field("turn"), -1),
+                          wings: wings_of(e.field("wings")), top: text_of(e.field("top"), ""),
+                          out: e.field("out").as_bool() ?? false }];
   }
   ss = v.field("slopes");
   for i in 0..ss.len() {
@@ -466,6 +491,18 @@ fn openings_of(v: const JsonValue) -> vector<Opening> {
     at = e.field("at");
     out += [Opening { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), z: int_of(at.item(2), 0),
                       cell: text_of(e.field("as"), ""), side: text_of(e.field("side"), ""), edge: text_of(e.field("edge"), "") }];
+  }
+  out
+}
+
+fn wings_of(v: const JsonValue) -> vector<Wing> {
+  out: vector<Wing> = [];
+  for i in 0..v.len() {
+    e = v.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    out += [Wing { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 3), h: int_of(sz.item(1), 3),
+                   floors: int_of(e.field("floors"), 1), top: text_of(e.field("top"), "") }];
   }
   out
 }
@@ -601,6 +638,18 @@ pub fn intent_json(it: const Intent) -> text {
         out += ", \"court\": [{ct.x}, {ct.y}, {ct.w}, {ct.h}]";
       }
       if h.turn >= 0 { out += ", \"turn\": {h.turn}"; }
+      if len(h.wings) > 0 {
+        ws = "";
+        for wg in h.wings {
+          ws += if ws == "" { "" } else { ", " };
+          ws += "{{ \"at\": [{wg.x}, {wg.y}], \"size\": [{wg.w}, {wg.h}], \"floors\": {wg.floors}";
+          if wg.top != "" { ws += ", \"top\": {quote(wg.top)}"; }
+          ws += " }}";
+        }
+        out += ", \"wings\": [{ws}]";
+      }
+      if h.top != "" { out += ", \"top\": {quote(h.top)}"; }
+      if h.out { out += ", \"out\": true"; }
       out += " }}";
       first = false;
     }
@@ -1261,7 +1310,8 @@ fn stair_cells(h: const House, seed: integer) -> vector<(integer, integer, integ
   corners = [(h.x + 1, h.y + 1), (h.x + h.w - 2, h.y + 1), (h.x + 1, h.y + h.h - 2), (h.x + h.w - 2, h.y + h.h - 2)];
   arrived = (-1, -1);
   front = door_inside(h);
-  for z in house_lowest(h)..house_top(h) {
+  // an attic is one more climb
+  for z in house_lowest(h)..house_top(h) + (if h.top == "attic" { 1 } else { 0 }) {
     first = (mix(seed, h.x, h.y, z, 400) % 4)!;
     for i in 0..4 {
       c = corners[(first + i) % 4 ?? 0] ?? (h.x + 1, h.y + 1);
@@ -1282,7 +1332,8 @@ fn is_stair(stairs: const vector<(integer, integer, integer)>, x: integer, y: in
 }
 
 fn add_inside_house(g: Grid, h: const House, seed: integer) {
-  if h.w < 4 || h.h < 4 { return; }
+  // an out-house may be three by three: one cell inside
+  if h.w < 3 || h.h < 3 || (!h.out && (h.w < 4 || h.h < 4)) { return; }
   for z in house_lowest(h)..=house_top(h) {
     for y in h.y..h.y + h.h {
       for x in h.x..h.x + h.w {
@@ -1300,9 +1351,39 @@ fn add_inside_house(g: Grid, h: const House, seed: integer) {
   }
   for o in h.openings { set(g, o.x, o.y, o.z, if o.cell == "" { "floor" } else { o.cell }); }
   for y in h.y..h.y + h.h {
-    for x in h.x..h.x + h.w { set(g, x, y, house_top(h) + 1, h.roof); }
+    for x in h.x..h.x + h.w { set(g, x, y, house_top(h) + 1, if h.top == "flat" { "paving" } else { h.roof }); }
   }
   for p in h.holes { set(g, p.x, p.y, house_top(h) + 1, "void"); }
+  // an attic: a floor within the eaves on the roof's layer, the roof over it a layer up
+  if h.top == "attic" {
+    for y in h.y + 1..h.y + h.h - 1 {
+      for x in h.x + 1..h.x + h.w - 1 {
+        set(g, x, y, house_top(h) + 1, "floor");
+        set(g, x, y, house_top(h) + 2, h.roof);
+      }
+    }
+  }
+  // the wings: walls on their free sides, a doorway through the house's wall on each floor, their
+  // own roof; a terrace paved, a door onto it from the house
+  for wg in h.wings {
+    sd = wing_side(h, wg);
+    if sd == "" { continue; }
+    for z in h.z..h.z + wg.floors {
+      for y in wg.y..wg.y + wg.h {
+        for x in wg.x..wg.x + wg.w {
+          ring = (x == wg.x && sd != "W") || (x == wg.x + wg.w - 1 && sd != "E")
+              || (y == wg.y && sd != "N") || (y == wg.y + wg.h - 1 && sd != "S");
+          set(g, x, y, z, if ring { h.wall } else { "floor" });
+        }
+      }
+    }
+    for y in wg.y..wg.y + wg.h {
+      for x in wg.x..wg.x + wg.w { set(g, x, y, h.z + wg.floors, if wg.top == "" { h.roof } else { "paving" }); }
+    }
+    wd = wing_door(h, wg);
+    for z in h.z..h.z + wg.floors { set(g, wd.0, wd.1, z, "floor"); }
+    if wg.top == "terrace" && wg.floors < h.floors { set(g, wd.0, wd.1, h.z + wg.floors, h.door); }
+  }
   // the court: paved and open to the sky, pillars along its rim on the ground floor
   ct = court_of(h);
   if ct.w > 0 {
@@ -1392,6 +1473,28 @@ pub fn opening_edges(it: const Intent) -> vector<Edge> {
         yard_edges(out, Yard { x: ct.x, y: ct.y, w: ct.w, h: ct.h, z: z, what: "low_wall" });
       }
     }
+    // a roof terrace's low wall, on its free sides
+    for wg in h.wings {
+      if wg.top != "terrace" { continue; }
+      yard_edges(out, Yard { x: wg.x, y: wg.y, w: wg.w, h: wg.h, z: h.z + wg.floors, what: "low_wall", open: wing_side(h, wg) });
+    }
+    // an attic's sides: a wall under the roof's slopes, a window in each gable end
+    if h.top == "attic" && h.w >= 4 && h.h >= 4 {
+      along = h.w >= h.h;
+      za = house_top(h) + 1;
+      // under the slopes a wall, with a dormer — an upright window standing out of the roof
+      // (owner, 2026-11-14: not sloped windows in the sloped roofs) — at every third cell
+      for x in h.x + 1..h.x + h.w - 1 {
+        kind = if !along { "window" } else if dormer(x - h.x - 1) { "window" } else { "wall" };
+        out += [Edge { x: x, y: h.y + 1, z: za, side: "N", what: kind }];
+        out += [Edge { x: x, y: h.y + h.h - 1, z: za, side: "N", what: kind }];
+      }
+      for y in h.y + 1..h.y + h.h - 1 {
+        kind = if along { "window" } else if dormer(y - h.y - 1) { "window" } else { "wall" };
+        out += [Edge { x: h.x + 1, y: y, z: za, side: "W", what: kind }];
+        out += [Edge { x: h.x + h.w - 1, y: y, z: za, side: "W", what: kind }];
+      }
+    }
     for o in h.openings {
       if o.edge == "" { continue; }
       // N and W are the cell's own; S and E are the neighbour's N and W.
@@ -1401,6 +1504,37 @@ pub fn opening_edges(it: const Intent) -> vector<Edge> {
     }
   }
   out
+}
+
+/// Does the attic's cell `i` along its roof's slope (0 the first within the eaves) have a dormer?
+pub fn dormer(i: integer) -> boolean { i % 3 == 1 }
+
+/// Is cell (x, y) one of house `h`'s: within its footprint or a wing's?
+pub fn house_covers(h: const House, x: integer, y: integer) -> boolean {
+  if x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h { return true; }
+  for wg in h.wings {
+    if x >= wg.x && x < wg.x + wg.w && y >= wg.y && y < wg.y + wg.h { return true; }
+  }
+  false
+}
+
+/// The side of wing `wg` that lies against house `h`: "W" when the wing stands east of it, and so
+/// on; "" when it does not touch it.
+pub fn wing_side(h: const House, wg: const Wing) -> text {
+  if wg.x == h.x + h.w { "W" } else if wg.x + wg.w == h.x { "E" } else if wg.y == h.y + h.h { "N" } else if wg.y + wg.h == h.y { "S" } else { "" }
+}
+
+/// The cell of house `h`'s wall with the doorway into wing `wg`: the middle of where they touch.
+pub fn wing_door(h: const House, wg: const Wing) -> (integer, integer) {
+  sd = wing_side(h, wg);
+  if sd == "W" || sd == "E" {
+    lo = if wg.y + 1 > h.y + 1 { wg.y + 1 } else { h.y + 1 };
+    hi = if wg.y + wg.h - 2 < h.y + h.h - 2 { wg.y + wg.h - 2 } else { h.y + h.h - 2 };
+    return (if sd == "W" { h.x + h.w - 1 } else { h.x }, (lo + hi) / 2 ?? lo);
+  }
+  lo = if wg.x + 1 > h.x + 1 { wg.x + 1 } else { h.x + 1 };
+  hi = if wg.x + wg.w - 2 < h.x + h.w - 2 { wg.x + wg.w - 2 } else { h.x + h.w - 2 };
+  ((lo + hi) / 2 ?? lo, if sd == "N" { h.y + h.h - 1 } else { h.y })
 }
 
 // The edges round a yard: along each side not in its `open`, but for its gates; each as the N or

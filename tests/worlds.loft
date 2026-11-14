@@ -284,7 +284,7 @@ fn test_every_front_outside_the_cliff_area_slopes() {
         inh = false;
         for h in lf.intent.houses {
           for c in [(x, y), (x, y - 1)] {
-            if c.0 >= h.x && c.0 < h.x + h.w && c.1 >= h.y && c.1 < h.y + h.h { inh = true; }
+            if intent::house_covers(h, c.0, c.1) { inh = true; }
           }
         }
         if inh || tile_world::rise(w.w, x, y, z) != 0 { continue; }
@@ -326,4 +326,24 @@ fn test_orburys_gardens_have_their_gates() {
   rules::put_hero(l, 20, 41, 1);
   assert(rules::walk(l, 0, -1) == rules::Step.Blocked && tile_world::see_through(l.w, 20, 41, 1, 0, -1), "seen across, not crossed");
   assert(tile_world::edge(l.w, 2, 24, 2, tile_world::WEST) == rules::ed(l, "low_wall"), "the inn's terrace wall");
+}
+
+// More kinds of houses (owner, 2026-11-14).  Hollis's low wing carries a roof terrace: from her
+// upper floor through the door onto it, and its low wall stops the hero at its edge.  The second
+// well-off house has an attic over its upper floor, a window in its gable; the smithy's roof is
+// flat; a cottage's out-house has one cell inside.
+fn test_orburys_houses_of_more_kinds() {
+  lf = orbury();
+  l = lf.level;
+  rules::put_hero(l, 7, 39, 2);
+  assert(rules::walk(l, -1, 0) == rules::Step.Walked && rules::walk(l, -1, 0) == rules::Step.Walked, "out by the terrace's door");
+  assert(l.hero_x == 5 && l.hero_z == 2 && tile_world::open_sky(l.w, 5, 39, 2), "on the terrace, under the sky: {l.hero_x},{l.hero_y},{l.hero_z}");
+  rules::play(l, "a a");
+  assert(l.hero_x == 3 && rules::walk(l, -1, 0) == rules::Step.Blocked, "its low wall at the edge: {l.hero_x}");
+  assert(rules::walkable(l, tile_world::terrain(l.w, 4, 39, 1)) && rules::walkable(l, tile_world::terrain(l.w, 6, 39, 1)), "the wing below, and the doorway into it");
+  // the attic: layer 4 over the two floors on 2 and 3, the roof over it on 5
+  assert(rules::walkable(l, tile_world::terrain(l.w, 55, 27, 4)) && !tile_world::open_sky(l.w, 55, 27, 4), "the attic's floor, under its roof");
+  assert(tile_world::edge(l.w, 53, 27, 4, tile_world::WEST) == rules::ed(l, "window"), "a window in its gable");
+  assert(tile_world::open_sky(l.w, 49, 37, 2) && rules::walkable(l, tile_world::terrain(l.w, 49, 37, 2)), "the smithy's flat roof");
+  assert(rules::walkable(l, tile_world::terrain(l.w, 43, 38, 1)) && !tile_world::open_sky(l.w, 43, 38, 1), "inside the out-house");
 }

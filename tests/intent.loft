@@ -290,3 +290,53 @@ fn test_a_court_is_open_to_the_sky_with_pillars_round_it() {
   back = intent::intent_from(json_parse(intent::intent_json(it)));
   assert(intent::court_of(back.houses[0]!).w == 5 && back.houses[0]!.turn == 2 && len(back.over) == 1, "kept through the file");
 }
+
+// More kinds of houses (owner, 2026-11-14).  A wing: walls on its three free sides, none against
+// the house, a doorway through the house's wall; lower, with a roof terrace: paved, a low wall
+// round it but along the house, a door onto it from the house's upper floor.
+fn test_a_wing_joins_its_house_and_carries_a_roof_terrace() {
+  it = intent::no_intent();
+  it.houses += [intent::House { x: 0, y: 0, w: 6, h: 6, z: 0, roof: "house_roof", wall: "stone_wall", door: "stone_door",
+                                door_at: 2, floors: 2, wings: [intent::Wing { x: 6, y: 1, w: 3, h: 4, floors: 1, top: "terrace" }] }];
+  fills = intent::derive(it, []);
+  assert(terrain_of(fills, 6, 1, 0) == "stone_wall" && terrain_of(fills, 8, 2, 0) == "stone_wall" && terrain_of(fills, 7, 4, 0) == "stone_wall",
+         "walls on its free sides");
+  assert(terrain_of(fills, 6, 2, 0) == "floor" && terrain_of(fills, 7, 3, 0) == "floor", "floor up to the house's wall");
+  assert(terrain_of(fills, 5, 2, 0) == "floor", "a doorway through the house's wall: {terrain_of(fills, 5, 2, 0)}");
+  assert(terrain_of(fills, 5, 1, 0) == "stone_wall" && terrain_of(fills, 5, 3, 0) == "stone_wall", "the wall beside it stays");
+  assert(terrain_of(fills, 7, 2, 1) == "paving" && terrain_of(fills, 5, 2, 1) == "stone_door", "the terrace, and the door onto it");
+  es = edge_list(it);
+  assert(es.contains("6,1Nlow_wall") && es.contains("9,2Wlow_wall") && es.contains("7,5Nlow_wall") && !es.contains("6,2Wlow_wall"),
+         "a low wall round the terrace, none along the house: {es}");
+  back = intent::intent_from(json_parse(intent::intent_json(it)));
+  assert(len(back.houses[0]!.wings) == 1 && back.houses[0]!.wings[0]!.top == "terrace", "kept through the file");
+}
+
+// An attic: a floor within the eaves on the roof's layer, stairs up to it, the roof over it a layer
+// up, a wall under the slopes and a window in each gable end.  A flat roof is paved.  An out-house
+// is as small as three by three.
+fn test_an_attic_a_flat_roof_and_an_out_house() {
+  it = intent::no_intent();
+  it.houses += [intent::House { x: 0, y: 0, w: 7, h: 5, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                door_at: 3, floors: 1, top: "attic" }];
+  it.houses += [intent::House { x: 10, y: 0, w: 5, h: 5, z: 0, roof: "house_roof", wall: "stone_wall", door: "stone_door",
+                                door_at: 2, floors: 1, top: "flat" }];
+  it.houses += [intent::House { x: 20, y: 0, w: 3, h: 3, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                door_at: 1, floors: 1, out: true }];
+  fills = intent::derive(it, []);
+  assert(terrain_of(fills, 0, 0, 1) == "house_roof" && terrain_of(fills, 6, 4, 1) == "house_roof", "the eaves round it");
+  attic = 0;
+  up = 0;
+  for f in fills {
+    if f.z == 1 && f.x >= 1 && f.x <= 5 && f.y >= 1 && f.y <= 3 && (f.terrain == "floor" || f.terrain == "stairs_down") { attic += 1; }
+    if f.z == 0 && f.x < 7 && f.terrain == "stairs_up" { up += 1; }
+  }
+  assert(attic == 15 && up == 1, "the attic's floor, the stairs up to it: {attic} {up}");
+  assert(terrain_of(fills, 3, 2, 2) == "house_roof" && terrain_of(fills, 0, 0, 2) == "?", "the roof over the attic only");
+  es = edge_list(it);
+  assert(es.contains("1,1Nwall") && es.contains("1,1Wwindow") && es.contains("6,2Wwindow"), "walls under the slopes, windows in the gables: {es}");
+  assert(es.contains("2,1Nwindow") && es.contains("5,4Nwindow") && es.contains("3,1Nwall"), "a dormer at every third cell of each slope: {es}");
+  assert(terrain_of(fills, 12, 2, 1) == "paving", "a flat roof is paved");
+  assert(terrain_of(fills, 21, 1, 0) == "floor" && terrain_of(fills, 21, 2, 0) == "house_door" && terrain_of(fills, 20, 0, 0) == "wood_wall",
+         "an out-house: one cell inside, its door");
+}
