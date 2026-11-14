@@ -105,6 +105,20 @@ pub struct Opening {
   pub edge: text = ""
 }
 
+/// A corridor planned in a house (owner, 2026-11-14: plan the corridors before the rooms are laid
+/// out from them): the cells `w` by `h` from (x, y) of its inside, on its floor `floor` counted from
+/// the ground floor (0; -1 the basement), or on every floor (`ALL_FLOORS`).  The rooms are laid out
+/// from the corridors (`hall_rooms`).
+pub struct Hall {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub floor: integer = -100
+}
+
+pub const ALL_FLOORS = -100;
+
 /// A wing of a house (owner, 2026-11-14): `w` by `h` from (x, y), against one side of the house,
 /// `floors` high from the house's own ground floor.  It has walls on its three free sides and none
 /// against the house, whose wall has a doorway into it on each of its floors.  Its `top`: "" a roof
@@ -168,7 +182,10 @@ pub struct House {
   /// slopes (an upright window standing out of the roof), the roof over it a layer up.
   pub top: text = "",
   /// An out-house (a shed, a wash-house): a small building in a yard, as small as three by three.
-  pub out: boolean = false
+  pub out: boolean = false,
+  /// Its corridors, planned: on a floor that has any, the rooms are laid out from them instead of
+  /// dealt by the seed alone.
+  pub halls: vector<Hall> = []
 }
 
 
@@ -425,7 +442,7 @@ pub fn intent_from(v: const JsonValue) -> Intent {
                           dealt: e.field("dealt").as_bool() ?? false,
                           court: ints_of(e.field("court")), turn: int_of(e.field("turn"), -1),
                           wings: wings_of(e.field("wings")), top: text_of(e.field("top"), ""),
-                          out: e.field("out").as_bool() ?? false }];
+                          out: e.field("out").as_bool() ?? false, halls: halls_of(e.field("halls")) }];
   }
   ss = v.field("slopes");
   for i in 0..ss.len() {
@@ -491,6 +508,18 @@ fn openings_of(v: const JsonValue) -> vector<Opening> {
     at = e.field("at");
     out += [Opening { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), z: int_of(at.item(2), 0),
                       cell: text_of(e.field("as"), ""), side: text_of(e.field("side"), ""), edge: text_of(e.field("edge"), "") }];
+  }
+  out
+}
+
+fn halls_of(v: const JsonValue) -> vector<Hall> {
+  out: vector<Hall> = [];
+  for i in 0..v.len() {
+    e = v.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    out += [Hall { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1), h: int_of(sz.item(1), 1),
+                   floor: int_of(e.field("floor"), ALL_FLOORS) }];
   }
   out
 }
@@ -650,6 +679,16 @@ pub fn intent_json(it: const Intent) -> text {
       }
       if h.top != "" { out += ", \"top\": {quote(h.top)}"; }
       if h.out { out += ", \"out\": true"; }
+      if len(h.halls) > 0 {
+        hl = "";
+        for c in h.halls {
+          hl += if hl == "" { "" } else { ", " };
+          hl += "{{ \"at\": [{c.x}, {c.y}], \"size\": [{c.w}, {c.h}]";
+          if c.floor != ALL_FLOORS { hl += ", \"floor\": {c.floor}"; }
+          hl += " }}";
+        }
+        out += ", \"halls\": [{hl}]";
+      }
       out += " }}";
       first = false;
     }
@@ -1447,11 +1486,158 @@ pub fn house_edges(it: const Intent) -> vector<Edge> {
     // a house round a court is parted by the court itself
     if len(h.court) >= 4 { continue; }
     stairs = stair_cells(h, it.seed);
-    for z in h.z..=house_top(h) {
-      part_rooms(out, h.x + 1, h.y + 1, h.w - 2, h.h - 2, z, it.seed, 0, stairs);
+    for z in house_lowest(h)..=house_top(h) {
+      // a floor with corridors planned has its rooms laid out from them; any other above the
+      // ground is parted by the seed
+      if has_halls(h, z) { hall_rooms(out, h, z, it.seed, stairs); }
+      else if z >= h.z { part_rooms(out, h.x + 1, h.y + 1, h.w - 2, h.h - 2, z, it.seed, 0, stairs); }
     }
   }
   out
+}
+
+fn on_floor(h: const House, c: const Hall, z: integer) -> boolean {
+  c.floor == ALL_FLOORS || h.z + c.floor == z
+}
+
+fn has_halls(h: const House, z: integer) -> boolean {
+  for c in h.halls { if on_floor(h, c, z) { return true; } }
+  false
+}
+
+/// The room each inside cell of house `h` on layer z belongs to, row by row from its inside's
+/// north-west cell: 0 a corridor, 1 and up a room.  The rooms are laid out from the corridors
+/// (owner, 2026-11-14): along each of a corridor's sides, in the order the corridors are given, the
+/// floor beside it is cut into stretches of three or four cells (the last takes what is left, up
+/// to five), and each stretch runs back from the corridor as far as it is free — to the house's
+/// wall, another corridor or a room laid out before it.  What is left over after that (past a
+/// corridor's end, behind a room) is a room of its own, piece by piece.
+pub fn hall_plan(h: const House, z: integer, seed: integer) -> vector<integer> {
+  x0 = h.x + 1;
+  y0 = h.y + 1;
+  w = h.w - 2;
+  d = h.h - 2;
+  plan: vector<integer> = [for _ in 0..w * d { -1 }];
+  for c in h.halls {
+    if !on_floor(h, c, z) { continue; }
+    for y in c.y..c.y + c.h {
+      for x in c.x..c.x + c.w {
+        if x >= x0 && x < x0 + w && y >= y0 && y < y0 + d { plan[(y - y0) * w + (x - x0)] = 0; }
+      }
+    }
+  }
+  next = 1;
+  for ci in 0..len(h.halls) {
+    c = h.halls[ci]!;
+    if !on_floor(h, c, z) { continue; }
+    // its four sides: the cells along it (from, step, count) and the way out from it
+    for sd in [(c.x, c.y - 1, 1, 0, c.w, 0, -1), (c.x, c.y + c.h, 1, 0, c.w, 0, 1),
+               (c.x - 1, c.y, 0, 1, c.h, -1, 0), (c.x + c.w, c.y, 0, 1, c.h, 1, 0)] {
+      i = 0;
+      while i < sd.4 {
+        // a run of free cells along the side
+        if plan_at(plan, x0, y0, w, d, sd.0 + sd.2 * i, sd.1 + sd.3 * i) != -1 { i += 1; continue; }
+        run = 0;
+        while i + run < sd.4 && plan_at(plan, x0, y0, w, d, sd.0 + sd.2 * (i + run), sd.1 + sd.3 * (i + run)) == -1 { run += 1; }
+        at = 0;
+        while at < run {
+          wide = ROOM_WIDE + (mix(seed, sd.0 + sd.2 * (i + at), sd.1 + sd.3 * (i + at), z, 500 + ci) % 2)!;
+          if run - at - wide < ROOM_WIDE { wide = run - at; }
+          // back from the corridor, row by row, while the whole stretch is free
+          deep = 0;
+          free = true;
+          while free {
+            for k in 0..wide {
+              if plan_at(plan, x0, y0, w, d, sd.0 + sd.2 * (i + at + k) + sd.5 * deep, sd.1 + sd.3 * (i + at + k) + sd.6 * deep) != -1 { free = false; }
+            }
+            if !free { break; }
+            for k in 0..wide {
+              px = sd.0 + sd.2 * (i + at + k) + sd.5 * deep;
+              py = sd.1 + sd.3 * (i + at + k) + sd.6 * deep;
+              plan[(py - y0) * w + (px - x0)] = next;
+            }
+            deep += 1;
+          }
+          next += 1;
+          at += wide;
+        }
+        i += run;
+      }
+    }
+  }
+  // what is left over: each piece a room
+  for y in y0..y0 + d {
+    for x in x0..x0 + w {
+      if plan[(y - y0) * w + (x - x0)]! != -1 { continue; }
+      todo = [(x, y)];
+      plan[(y - y0) * w + (x - x0)] = next;
+      while len(todo) > 0 {
+        cell = todo[len(todo) - 1]!;
+        todo = todo[0..len(todo) - 1];
+        for nb in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+          if plan_at(plan, x0, y0, w, d, cell.0 + nb.0, cell.1 + nb.1) == -1 {
+            plan[(cell.1 + nb.1 - y0) * w + (cell.0 + nb.0 - x0)] = next;
+            todo += [(cell.0 + nb.0, cell.1 + nb.1)];
+          }
+        }
+      }
+      next += 1;
+    }
+  }
+  plan
+}
+
+// The plan's room at (x, y); -2 beyond the house's inside.
+fn plan_at(plan: const vector<integer>, x0: integer, y0: integer, w: integer, d: integer, x: integer, y: integer) -> integer {
+  if x < x0 || x >= x0 + w || y < y0 || y >= y0 + d { return -2; }
+  plan[(y - y0) * w + (x - x0)] ?? -2
+}
+
+// The thin walls of house `h` on layer z, its rooms laid out from its corridors (`hall_plan`): a
+// wall between any two cells of different rooms, and between a room and a corridor; and in each
+// room's walls one door, onto a corridor where it touches one, else into the room beside it —
+// never onto stairs.
+fn hall_rooms(out: vector<Edge>, h: const House, z: integer, seed: integer, stairs: const vector<(integer, integer, integer)>) {
+  x0 = h.x + 1;
+  y0 = h.y + 1;
+  w = h.w - 2;
+  d = h.h - 2;
+  plan = hall_plan(h, z, seed);
+  rooms = 0;
+  for v in plan { if v > rooms { rooms = v; } }
+  // each room's door: an edge of it as (x, y, side) — the N (0) or W (1) edge of that cell
+  doors: vector<(integer, integer, integer)> = [];
+  for room in 1..rooms + 1 {
+    for pass in 0..2 {
+      cands: vector<(integer, integer, integer)> = [];
+      for y in y0..y0 + d {
+        for x in x0..x0 + w {
+          for nb in [(0, -1, 0), (-1, 0, 1)] {
+            a = plan_at(plan, x0, y0, w, d, x, y);
+            b = plan_at(plan, x0, y0, w, d, x + nb.0, y + nb.1);
+            if b < 0 || a == b || (a != room && b != room) { continue; }
+            other = if a == room { b } else { a };
+            // first onto a corridor; with none beside it, into any room
+            if (pass == 0 && other != 0) || is_stair(stairs, x, y, z) || is_stair(stairs, x + nb.0, y + nb.1, z) { continue; }
+            cands += [(x, y, nb.2)];
+          }
+        }
+      }
+      if len(cands) == 0 { continue; }
+      doors += [cands[(mix(seed, h.x, h.y, z, 600 + room) % len(cands))!]!];
+      break;
+    }
+  }
+  for y in y0..y0 + d {
+    for x in x0..x0 + w {
+      for nb in [(0, -1, 0), (-1, 0, 1)] {
+        a = plan_at(plan, x0, y0, w, d, x, y);
+        b = plan_at(plan, x0, y0, w, d, x + nb.0, y + nb.1);
+        if b < 0 || a == b { continue; }
+        out += [Edge { x: x, y: y, z: z, side: if nb.2 == 0 { "N" } else { "W" }, what: if doors.contains((x, y, nb.2)) { "door" } else { "wall" } }];
+      }
+    }
+  }
 }
 
 /// The edges set where they are said (the intent's own) and on the outer side of houses' openings

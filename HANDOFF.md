@@ -44,7 +44,15 @@
   the gaps the layout had (rooms of two cells) and re-laid at the owner's word: a wing's room is
   three by three or more, and the layout makes room for it.
 
-**Checked, and not.**  477 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
+- **Corridors planned before the rooms** (owner, the same day): a house's `halls`
+  (`intent.loft` `hall_plan`, `hall_rooms`); the rooms are laid out from them, each with its door
+  onto the corridor.  In Orbury: the inn's upper floor, Hollis's ground floor, the second
+  well-off house.  The hex town and the game's 3D view draw every house's inner walls and
+  doorways (HY-Inner) — the seed's rooms too, which were not drawn before.
+- **Always push** (owner, the same day: "always push as a safety measurement"): green work is
+  committed and pushed every time, unasked.
+
+**Checked, and not.**  480 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
 (`loft --native --lib libs checks/view3d.loft`) and the sheet check pass.  **Not seen**: the game's 3D view of any of this (it draws only
 in a browser; no headless browser was run), nor `hextown.html` in a browser — the hex town was
 checked on a plan drawn from the port's data, the square town on `tools/map.loft`'s picture.
@@ -54,7 +62,11 @@ builds of 2026-11-13/14 free a store twice where a local is bound from a field r
 `json_parse(..)` — 49 tests failed on it before a line of today's work.  Reported as loft#2489;
 the game binds the parsed value first at its seven such lines (`*_doc = json_parse(..)`).  Fixed on loft
 branch `tuxedo-pr2482-next` (6e119a287, word from the loft session, 2026-11-14), not on `main` yet;
-once that build is installed the seven lines may go back to the short form, or stay.
+once that build is installed the seven lines may go back to the short form, or stay.  A second
+one, loft#2494 (open): native code for a tuple with a text member read off another tuple, passed
+to `contains`, does not compile; `hall_rooms` keeps its door's side as a number for it.  A script
+run without a flag compiles natively, so such a defect stops `tools/fill.loft` and leaves a place
+unfilled: after `orbury_gen.py`, check fill's last line says "filled in".
 
 **Open next** ◇: a find's spot in an attic or a wing; a wing's own rooms and stairs (it is
 one room a floor); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D

@@ -353,6 +353,10 @@ them (`hextown.loft` `dress`, `hexscene.loft`, `render3d.loft`).  All ◇ but th
                 of a house it takes that house's angle, and stands where the square map's place
                 for it lands through that house's turn.  Where it stands on a yard's side the
                 side is left out: its own wall is the boundary there.
+  (HY-Inner)    A house's inner walls are the square house's thin walls between its rooms, cell
+                by cell: each a stretch a storey high on its floor, turned with the house; one in
+                a house's wall line at the inside's rim runs on and is cut at the drawn outer
+                wall.  A door in one is a doorway: two posts and the wall over the way through.
   (HY-Bay)      A bay window is an opening like any other to the walls (HO-Point), drawn standing
                 out from its wall on every storey: a sill, a post at each end, a little roof.
   (HY-Canopy)   A roof on pillars (a gazebo) is four slopes to a point over its square, a beam
@@ -458,6 +462,10 @@ fails nothing, and should not: it changes no cell (HT-Turn30).
   `test_an_attic_a_flat_roof_and_an_out_house`; `tests/worlds.loft`
   `test_orburys_houses_of_more_kinds`); a wing's free walls must be three hex steps or more, or
   they may be lost (below);
+- HY-Inner: `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (each inner wall within
+  its house); the rooms themselves `tests/intent.loft` `test_rooms_are_laid_out_from_the_planned_corridors`,
+  `test_corridors_that_end_and_cross` and `tests/worlds.loft`
+  `test_every_room_is_reached_from_its_planned_corridor`;
 - HY-Kinds, HY-Out, HY-Turn, HY-Angle, HY-Roof, HY-Bay and HY-Canopy have no test of their own: they were checked by
   eye on a plan drawn from the port's data, not in the 3D view;
 - mirroring (an exact lattice reflection, ROUNDTRIP X2, not yet a routine of `hexturn`);

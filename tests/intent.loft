@@ -340,3 +340,99 @@ fn test_an_attic_a_flat_roof_and_an_out_house() {
   assert(terrain_of(fills, 21, 1, 0) == "floor" && terrain_of(fills, 21, 2, 0) == "house_door" && terrain_of(fills, 20, 0, 0) == "wood_wall",
          "an out-house: one cell inside, its door");
 }
+
+fn plan_rows(h: const intent::House, z: integer) -> text {
+  plan = intent::hall_plan(h, z, 1);
+  out = "";
+  for i in 0..len(plan) {
+    v = plan[i] ?? -1;
+    out += if v == 0 { "." } else { "{v % 10}" };
+    if (i + 1) % (h.w - 2) == 0 { out += "|"; }
+  }
+  out
+}
+
+// Corridors planned in a house before its rooms (owner, 2026-11-14): the rooms are laid out from
+// them — along each side of a corridor the floor is cut into rooms that run back to the wall —
+// every room walled off, with one door, onto the corridor.  A floor with no corridor planned is
+// parted by the seed as before.
+fn test_rooms_are_laid_out_from_the_planned_corridors() {
+  it = intent::no_intent();
+  // inside 11 by 7 (x 1..11, y 1..7): a corridor along the middle row, on the ground floor only
+  it.houses += [intent::House { x: 0, y: 0, w: 13, h: 9, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                door_at: 6, floors: 2, halls: [intent::Hall { x: 1, y: 4, w: 11, h: 1, floor: 0 }] }];
+  h = it.houses[0]!;
+  rows = plan_rows(h, 0);
+  assert(rows.contains("...........|"), "the corridor, its whole row: {rows}");
+  plan = intent::hall_plan(h, 0, 1);
+  rooms = 0;
+  for v in plan {
+    assert(v >= 0, "every cell a corridor's or a room's: {rows}");
+    if v > rooms { rooms = v; }
+  }
+  assert(rooms >= 4 && rooms <= 8, "rooms either side of it: {rooms}: {rows}");
+  // each room a rectangle three cells or more along the corridor, running back to the wall
+  for room in 1..rooms + 1 {
+    lo = 100;
+    hi = -1;
+    n = 0;
+    for i in 0..len(plan) {
+      if (plan[i] ?? 0) != room { continue; }
+      n += 1;
+      x = i % 11;
+      if x < lo { lo = x; }
+      if x > hi { hi = x; }
+    }
+    assert(hi - lo + 1 >= 3 && n == (hi - lo + 1) * 3, "room {room}: {hi - lo + 1} wide, three deep: {rows}");
+  }
+  // its walls: one door a room, and every door onto the corridor (row 4)
+  doors = 0;
+  walls = 0;
+  for e in intent::house_edges(it) {
+    if e.z != 0 { continue; }
+    if e.what == "wall" { walls += 1; }
+    if e.what != "door" { continue; }
+    doors += 1;
+    assert(e.side == "N" && (e.y == 4 || e.y == 5), "a door onto the corridor: {e.x},{e.y}{e.side}");
+  }
+  assert(doors == rooms && walls > 20, "one door a room: {doors} doors, {rooms} rooms, {walls} walls");
+  // the upper floor has no corridor planned: dealt by the seed, as a house without any
+  plain = intent::no_intent();
+  plain.houses += [intent::House { x: 0, y: 0, w: 13, h: 9, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                   door_at: 6, floors: 2 }];
+  up = "";
+  for e in intent::house_edges(it) { if e.z == 1 { up += "{e.x},{e.y}{e.side}{e.what} "; } }
+  was = "";
+  for e in intent::house_edges(plain) { if e.z == 1 { was += "{e.x},{e.y}{e.side}{e.what} "; } }
+  assert(up == was && up != "", "the floor above as the seed parts it");
+  back = intent::intent_from(json_parse(intent::intent_json(it)));
+  assert(len(back.houses[0]!.halls) == 1 && back.houses[0]!.halls[0]!.floor == 0 && back.houses[0]!.halls[0]!.w == 11, "kept through the file");
+}
+
+// A corridor that stops short leaves the floor past its end a room of its own, with its door onto
+// the corridor's end; two corridors that cross are one, and rooms fill the four corners.
+fn test_corridors_that_end_and_cross() {
+  it = intent::no_intent();
+  it.houses += [intent::House { x: 0, y: 0, w: 11, h: 11, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                door_at: 5, floors: 1,
+                                halls: [intent::Hall { x: 5, y: 1, w: 1, h: 9 }, intent::Hall { x: 1, y: 5, w: 9, h: 1 }] }];
+  h = it.houses[0]!;
+  plan = intent::hall_plan(h, 0, 1);
+  rows = plan_rows(h, 0);
+  halls = 0;
+  for v in plan { if v == 0 { halls += 1; } }
+  assert(halls == 17, "the cross: {halls}: {rows}");
+  corners = [plan[0]!, plan[8]!, plan[72]!, plan[80]!];
+  assert(corners[0]! > 0 && corners[0]! != corners[1]! && corners[1]! != corners[2]! && corners[2]! != corners[3]!, "a room in each corner: {rows}");
+  short = intent::no_intent();
+  short.houses += [intent::House { x: 0, y: 0, w: 9, h: 7, z: 0, roof: "house_roof", wall: "wood_wall", door: "house_door",
+                                   door_at: 4, floors: 1, halls: [intent::Hall { x: 4, y: 3, w: 1, h: 3 }] }];
+  sh = short.houses[0]!;
+  sp = intent::hall_plan(sh, 0, 1);
+  srows = plan_rows(sh, 0);
+  // inside 7 by 5: the corridor in column 3 (x 4), rows 2..4 (y 3..5); past its end rows 0..1
+  assert((sp[3] ?? 0) > 0 && (sp[3 + 7] ?? 0) == (sp[3] ?? 0), "past the corridor's end, a room: {srows}");
+  onto_end = false;
+  for e in intent::house_edges(short) { if e.what == "door" && e.x == 4 && e.y == 3 && e.side == "N" { onto_end = true; } }
+  assert(onto_end, "its door onto the corridor's end: {srows}");
+}

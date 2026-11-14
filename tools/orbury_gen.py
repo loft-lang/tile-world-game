@@ -257,6 +257,10 @@ inn = {"at": [8, 22], "size": [13, 8], "z": 2, "floors": 2, "basement": True, "f
        "wall": "wood_wall", "roof": "house_roof", "door": "house_door",
        "openings": [{"at": [14, 29, 2], "as": "barred"}, {"at": [10, 29, 1]}, {"at": [8, 25, 3]}],
        "holes": [[15, 25], [16, 25]]}
+# Corridors planned before the rooms (owner, 2026-11-14): upstairs a corridor the length of the
+# inn, the guests' rooms either side of it; the broken window is at its west end, the fallen roof
+# over it.
+inn["halls"] = [{"at": [9, 25], "size": [11, 1], "floor": 1}]
 houses.append(inn)
 # The inn's terrace, where its tables were left out: paved, a low wall round it, a way in from the
 # market's side.
@@ -293,6 +297,7 @@ houses[-1]["turn"] = 1
 # one-floor wing into its garden.
 houses[-1]["top"] = "attic"
 houses[-1]["wings"] = [{"at": [60, 25], "size": [5, 5], "floors": 1}]   # a room of four by three
+houses[-1]["halls"] = [{"at": [56, 25], "size": [1, 5]}, {"at": [56, 27], "size": [3, 1], "floor": 0}]   # a hall on both floors, and across to the wing
 keep(60, 25, 2, 5, 5, 1)
 yard(65, 24, 4, 7, 2, "low_wall", open="W")   # beyond the wing; in past the wing's corners
 ground(65, 24, 4, 3, 2, "paving"); seat(66, 25, 2, [(65, 25), (67, 25)])
@@ -324,6 +329,7 @@ ground(22, 39, 1, 1, 1, "autumn_oak")
 houses[4]["wings"] = [{"at": [2, 36], "size": [4, 5], "floors": 1, "top": "terrace"}]   # a room of three by three
 keep(2, 36, 1, 4, 5, 1)
 houses[8]["top"] = "flat"
+houses[4]["halls"] = [{"at": [10, 36], "size": [1, 5], "floor": 0}]   # a hall from Hollis's front door to the back
 houses[4]["openings"] = [window(13, 38, 1, "E")]        # Hollis's
 houses[8]["openings"] = [window(46, 37, 1, "W")]        # the smithy
 houses[7]["turn"] = 11; houses[9]["turn"] = 1           # two cottages at an angle, in the hex town

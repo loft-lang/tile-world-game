@@ -74,7 +74,10 @@ pub struct Placed {
   pub tops: vector<float> = [],
   pub rims: vector<float> = [],
   /// The house's wall where it rises over a lower wing's roof.
-  pub rises: vector<Rise> = []
+  pub rises: vector<Rise> = [],
+  /// Its inner walls, each a stretch on one floor (z0 the floor's height, z1 1 for a doorway in
+  /// it, else 0): the rooms parted by the seed, or laid out from its planned corridors.
+  pub inner: vector<Rise> = []
 }
 
 /// The kinds of roof: pitched and hipped; a roof garden, flat behind a low wall, grass on it; a
@@ -791,11 +794,37 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
       }
     }
   }
+  inner = intent::house_edges(it);
   // @FR-HY-Parts: every house in parts, the house itself and its wings, each with its roof
   for i in 0..len(it.houses) {
     h = it.houses[i]!;
     p = houses[i]!;
     drawn = drawn_cells(h, p);
+    // @FR-HY-Inner: its inner walls, cell by cell, turned with it; one that ends at the house's
+    // wall runs on to it
+    hull: vector<(float, float)> = [];
+    for c in p.built.corners { hull += [(c.0 * hexterrain::METRE, c.1 * hexterrain::METRE)]; }
+    for e in inner {
+      if e.x <= h.x || e.x >= h.x + h.w || e.y <= h.y || e.y >= h.y + h.h || e.z < h.z - 1 || e.z >= h.z + (if h.floors > 0 { h.floors } else { 1 }) { continue; }
+      north = e.side == "N";
+      ta = ((e.x as float) - 0.5, (e.y as float) - 0.5);
+      tb = if north { ((e.x as float) + 0.5, (e.y as float) - 0.5) } else { ((e.x as float) - 0.5, (e.y as float) + 0.5) };
+      // at the inside's rim: on past it, to be cut at the drawn wall
+      if north && e.x == h.x + 1 { ta = (ta.0 - 0.9, ta.1); }
+      if north && e.x == h.x + h.w - 2 { tb = (tb.0 + 0.9, tb.1); }
+      if !north && e.y == h.y + 1 { ta = (ta.0, ta.1 - 0.9); }
+      if !north && e.y == h.y + h.h - 2 { tb = (tb.0, tb.1 + 0.9); }
+      pa = with_house(h, p, drawn, ta.0, ta.1);
+      pb = with_house(h, p, drawn, tb.0, tb.1);
+      lo = 0;
+      hi = 20;
+      while lo < hi && !inside(hull, pa.0 + (pb.0 - pa.0) * (lo as float) / 20.0, pa.1 + (pb.1 - pa.1) * (lo as float) / 20.0) { lo += 1; }
+      while hi > lo && !inside(hull, pa.0 + (pb.0 - pa.0) * (hi as float) / 20.0, pa.1 + (pb.1 - pa.1) * (hi as float) / 20.0) { hi -= 1; }
+      if hi <= lo { continue; }
+      p.inner += [Rise { ax: pa.0 + (pb.0 - pa.0) * (lo as float) / 20.0, ay: pa.1 + (pb.1 - pa.1) * (lo as float) / 20.0,
+                         bx: pa.0 + (pb.0 - pa.0) * (hi as float) / 20.0, by: pa.1 + (pb.1 - pa.1) * (hi as float) / 20.0,
+                         z0: p.floor + ((e.z - h.z) as float) * storey, z1: if e.what == "door" { 1.0 } else { 0.0 } }];
+    }
     roof = if p.roof != ROOF_PITCHED { p.roof } else if h.top == "attic" { ROOF_ATTIC } else if h.top == "flat" { ROOF_FLAT } else { ROOF_PITCHED };
     main = block_of(h, p, drawn, h.x, h.y, h.w, h.h, p.top, roof);
     if roof == ROOF_ATTIC {

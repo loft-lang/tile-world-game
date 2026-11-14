@@ -254,5 +254,16 @@ fn test_orburys_houses_come_in_parts() {
       }
     }
   }
+  // inner walls where the square houses have rooms: each a stretch within its house, some doorways
+  walls = 0;
+  doorways = 0;
+  for i in 0..len(s.houses) {
+    for iw in s.houses[i]!.inner {
+      walls += 1;
+      if iw.z1 > 0.5 { doorways += 1; }
+      assert(hexscene::house_at(s, (iw.ax + iw.bx) * 0.5, (iw.ay + iw.by) * 0.5) == i, "an inner wall within its house");
+    }
+  }
+  assert(walls > 100 && doorways > 20, "inner walls and their doorways: {walls} {doorways}");
   assert(attics == 4 && dormers == 5 && flats == 1 && terraces == 1 && winged == 3, "four attics with five dormers, a flat roof, a terrace, three houses with a wing: {attics} {dormers} {flats} {terraces} {winged}");
 }

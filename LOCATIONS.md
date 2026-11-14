@@ -80,6 +80,10 @@ is not.
     garden, three cells square; and of the ordinary houses, dealt like the rest: a cottage of
     the middle terrace and a miner's house with an attic, a miner's house with a wing behind it (a room of three by
     three);
+  - **corridors planned before the rooms** (owner, 2026-11-14): upstairs in the inn a corridor
+    its whole length, the guests' rooms either side — the broken window at its west end, the
+    fallen roof over it; in Hollis's a hall from her front door to the back; in the second
+    well-off house a hall on both floors, and across to its wing on the ground floor;
   - **at an angle in the hex town**: the second well-off house, a cottage, a miner's house, the
     farmhouse and the barn (their gardens turn with them); a house asked to turn stays square
     where it would stand on another or across a road.

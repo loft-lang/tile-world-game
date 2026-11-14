@@ -63,7 +63,9 @@ pub struct House {
   pub parts: vector<Part> = [],
   pub tops: vector<float> = [],
   pub rims: vector<float> = [],
-  pub rises: vector<Rise> = []
+  pub rises: vector<Rise> = [],
+  /// Its inner walls, each a stretch on one floor (z0 the floor's height; z1 1 for a doorway).
+  pub inner: vector<Rise> = []
 }
 
 /// What stands along a yard's side (owner, 2026-11-14): its kind (1 a low wall, 2 a low hedge, 3 a
@@ -223,9 +225,16 @@ pub fn load(text: text) -> Scene? {
       rises += [Rise { ax: num(r.field("a").item(0)), ay: num(r.field("a").item(1)), bx: num(r.field("b").item(0)),
                        by: num(r.field("b").item(1)), z0: num(r.field("z0")), z1: num(r.field("z1")) }];
     }
+    inner: vector<Rise> = [];
+    iv = h.field("inner");
+    for j in 0..iv.len() {
+      r = iv.item(j);
+      inner += [Rise { ax: num(r.field("a").item(0)), ay: num(r.field("a").item(1)), bx: num(r.field("b").item(0)),
+                       by: num(r.field("b").item(1)), z0: num(r.field("z")), z1: num(r.field("door")) }];
+    }
     houses += [House { base: num(h.field("base")), floor: num(h.field("floor")), top: num(h.field("top")),
                        xs: xs, ys: ys, gaps: gaps, roof: num(h.field("roof")) as integer, court_xs: cxs, court_ys: cys,
-                       parts: parts, tops: tops, rims: rims, rises: rises }];
+                       parts: parts, tops: tops, rims: rims, rises: rises, inner: inner }];
   }
   sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
                w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,

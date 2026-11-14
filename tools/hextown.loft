@@ -78,7 +78,12 @@ fn scene(name: text, town: hextown::Town) -> text {
       if len(rises) > 0 { rises += ", "; }
       rises += "{{\"a\": [{rs.ax}, {rs.ay}], \"b\": [{rs.bx}, {rs.by}], \"z0\": {rs.z0}, \"z1\": {rs.z1}}}";
     }
-    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}], \"parts\": [{parts}], \"tops\": [{tops}], \"rims\": [{rims}], \"rises\": [{rises}]}}";
+    inner = "";
+    for rs in p.inner {
+      if len(inner) > 0 { inner += ", "; }
+      inner += "{{\"a\": [{round(rs.ax * 1000.0) / 1000.0}, {round(rs.ay * 1000.0) / 1000.0}], \"b\": [{round(rs.bx * 1000.0) / 1000.0}, {round(rs.by * 1000.0) / 1000.0}], \"z\": {rs.z0}, \"door\": {rs.z1 as integer}}}";
+    }
+    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}], \"parts\": [{parts}], \"tops\": [{tops}], \"rims\": [{rims}], \"rises\": [{rises}], \"inner\": [{inner}]}}";
   }
   out += "], \"things\": [";
   for i in 0..len(town.things) {

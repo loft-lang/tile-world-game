@@ -350,3 +350,50 @@ fn test_orburys_houses_of_more_kinds() {
   assert(tile_world::open_sky(l.w, 49, 37, 2) && rules::walkable(l, tile_world::terrain(l.w, 49, 37, 2)), "the smithy's flat roof");
   assert(rules::walkable(l, tile_world::terrain(l.w, 43, 38, 1)) && !tile_world::open_sky(l.w, 43, 38, 1), "inside the out-house");
 }
+
+// Corridors planned before the rooms (owner, 2026-11-14): on each floor of Orbury's houses that has
+// one — upstairs in the inn, Hollis's ground floor, both floors of the second well-off house —
+// every cell of the inside is walked to from the corridor, through the rooms' doors; and the
+// corridor's own cells have no wall between them.
+fn test_every_room_is_reached_from_its_planned_corridor() {
+  lf = orbury();
+  l = lf.level;
+  floors = 0;
+  for h in lf.intent.houses {
+    for z in h.z..h.z + h.floors {
+      start = (-1, -1);
+      for c in h.halls { if c.floor == intent::ALL_FLOORS || h.z + c.floor == z { start = (c.x, c.y); } }
+      if start.0 < 0 { continue; }
+      floors += 1;
+      seen = [start];
+      todo = [start];
+      while len(todo) > 0 {
+        c = todo[len(todo) - 1]!;
+        todo = todo[0..len(todo) - 1];
+        for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+          n = (c.0 + d.0, c.1 + d.1);
+          inside = n.0 > h.x && n.0 < h.x + h.w - 1 && n.1 > h.y && n.1 < h.y + h.h - 1;
+          if !inside || seen.contains(n) || !tile_world::crossable(l.w, c.0, c.1, z, d.0, d.1) { continue; }
+          if !rules::walkable(l, tile_world::terrain(l.w, n.0, n.1, z)) { continue; }
+          seen += [n];
+          todo += [n];
+        }
+      }
+      cells = 0;
+      for y in h.y + 1..h.y + h.h - 1 {
+        for x in h.x + 1..h.x + h.w - 1 { if rules::walkable(l, tile_world::terrain(l.w, x, y, z)) { cells += 1; } }
+      }
+      assert(len(seen) == cells, "the house at ({h.x}, {h.y}), layer {z}: {len(seen)} of {cells} cells reached from its corridor");
+      for c in h.halls {
+        if !(c.floor == intent::ALL_FLOORS || h.z + c.floor == z) { continue; }
+        for y in c.y..c.y + c.h {
+          for x in c.x..c.x + c.w {
+            if x + 1 < c.x + c.w { assert(tile_world::edge(l.w, x + 1, y, z, tile_world::WEST) == 0, "the corridor open along itself at ({x}, {y})"); }
+            if y + 1 < c.y + c.h { assert(tile_world::edge(l.w, x, y + 1, z, tile_world::NORTH) == 0, "the corridor open along itself at ({x}, {y})"); }
+          }
+        }
+      }
+    }
+  }
+  assert(floors == 4, "four floors with a corridor planned: {floors}");
+}
