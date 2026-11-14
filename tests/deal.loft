@@ -67,10 +67,15 @@ fn test_templates_keep_to_the_houses_they_are_drawn_for() {
   for seed in [7, 8, 9, 10, 11, 12] {
     r = dealt(seed);
     for h in r.1.houses {
-      fl = r.0.intent.houses[h.house]!.floors;
+      // an attic counts with the floors: a layer with an inside of its own
+      attic = r.0.intent.houses[h.house]!.top == "attic";
+      fl = r.0.intent.houses[h.house]!.floors + (if attic { 1 } else { 0 });
       for p in h.laid {
         t = stamp::named(ts, p.name) ?? continue;
         assert(t.template.floors == 0 || t.template.floors == fl, "seed {seed}: {p.name} (drawn for {t.template.floors}) on house {h.house} of {fl}");
+        assert(!t.template.attic || attic, "seed {seed}: {p.name}, drawn for an attic, on house {h.house} without one");
+        assert(!(attic && t.template.kind == "way_in" && t.template.floors != 0 && !t.template.attic),
+               "seed {seed}: {p.name}, a way through an upper wall, on house {h.house} whose upper layer is an attic");
         if p.name == "way_window_step" || p.name == "way_upper_door" { upper += 1; }
       }
     }
@@ -144,4 +149,40 @@ fn test_finds_lie_on_the_templates_spots() {
     }
   }
   assert(finds >= 1, "finds dealt: {finds}");
+}
+
+// Houses of more kinds are dealt like the rest (owner, 2026-11-14: teach the deal wings and attics).
+// Over a few seeds every one of them passes its draw; a house with an attic is dealt the way in at
+// a dormer, and what is drawn for an upper floor lies in its attic, within the eaves; a house with
+// a wing is dealt a way in through one of the wing's walls, and something left inside the wing.
+fn test_houses_with_an_attic_or_a_wing_are_dealt() {
+  km = kit();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  dormers = 0;
+  in_attic = 0;
+  wing_ways = 0;
+  in_wing = 0;
+  kinds = 0;
+  for seed in [7, 8, 9, 10, 11, 12, 13, 14] {
+    r = dealt(seed);
+    for h in r.1.houses {
+      ih = r.0.intent.houses[h.house]!;
+      if ih.top != "attic" && len(ih.wings) == 0 { continue; }
+      kinds += 1;
+      assert(h.draw >= 0, "seed {seed}: house {h.house} passed a draw");
+      for p in h.laid {
+        t = stamp::named(ts, p.name) ?? continue;
+        if p.name == "way_dormer" { dormers += 1; }
+        if ih.top == "attic" && t.template.kind == "inside" && t.template.floors == ih.floors + 1 { in_attic += 1; }
+        for wg in ih.wings {
+          near = p.x >= wg.x - 1 && p.x <= wg.x + wg.w && p.y >= wg.y - 1 && p.y <= wg.y + wg.h;
+          beyond = p.x >= ih.x + ih.w || p.x < ih.x || p.y < ih.y || p.y >= ih.y + ih.h;
+          if near && beyond && t.template.kind == "way_in" { wing_ways += 1; }
+          if near && beyond && t.template.kind == "inside" { in_wing += 1; }
+        }
+      }
+    }
+  }
+  assert(kinds == 24, "two houses with an attic and one with a wing, eight seeds: {kinds}");
+ assert(dormers >= 2 && in_attic >= 1 && wing_ways >= 1 && in_wing >= 1, "dormers {dormers}, lairs in the attic {in_attic}, ways through the wing {wing_ways}, left in the wing {in_wing}");
 }

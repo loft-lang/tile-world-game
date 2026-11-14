@@ -292,11 +292,11 @@ houses[-1]["turn"] = 1
 # More kinds of houses (owner, 2026-11-14): it has an attic under its roof, with dormers, and a
 # one-floor wing into its garden.
 houses[-1]["top"] = "attic"
-houses[-1]["wings"] = [{"at": [60, 24], "size": [3, 4], "floors": 1}]
-keep(60, 24, 2, 3, 4)
-yard(60, 24, 5, 7, 2, "low_wall", open="W", gates=[(62, 30, "S")])
-ground(63, 24, 2, 7, 2, "paving"); seat(64, 26, 2, [(64, 25), (64, 27)])
-for p in ((60, 29), (61, 29)): ground(p[0], p[1], 1, 1, 2, "oak")
+houses[-1]["wings"] = [{"at": [60, 25], "size": [5, 5], "floors": 1}]   # a room of four by three
+keep(60, 25, 2, 5, 5, 1)
+yard(65, 24, 4, 7, 2, "low_wall", open="W")   # beyond the wing; in past the wing's corners
+ground(65, 24, 4, 3, 2, "paving"); seat(66, 25, 2, [(65, 25), (67, 25)])
+for p in ((66, 29), (68, 29)): ground(p[0], p[1], 1, 1, 2, "oak")
 # The market's gazebo: four pillars and a roof, by the well.
 for p in ((34, 26), (36, 26), (34, 28), (36, 28)): ground(p[0], p[1], 1, 1, 2, "pillar")
 ground(34, 26, 3, 3, 3, "house_roof")
@@ -312,17 +312,17 @@ placed(37, 5, 5, 1, lambda c: at(MARKET, c) + 2, before1, 1, 1, dealt=True)     
 placed(46, 8, 6, 1, behind1, before1, 0, 1, door_at=3, wall="stone_wall")              # the smithy
 placed(54, 6, 5, 1, behind1, before1, 0, 1, floors=2, dealt=True)   # the same
 # Their gardens, each behind a low hedge with a gate; Hollis's west of the house, the cottages' east.
-yard(2, 35, 4, 6, 1, "low_hedge", open="E", gates=[(2, 40, "S")])
+yard(1, 34, 4, 2, 1, "low_hedge", open="S")   # Hollis's, behind her wing: in at its corner
 yard(20, 37, 3, 4, 1, "low_hedge", open="W", gates=[(21, 40, "S")])
 yard(42, 37, 3, 4, 1, "low_hedge", open="W", gates=[(43, 40, "S")])
 yard(60, 35, 3, 5, 1, "low_hedge", open="W", gates=[(62, 38, "E")])
-plot(2, 36, 3, 2, 1); ground(2, 38, 1, 1, 1, "oak")      # Hollis's herbs
+plot(2, 34, 3, 1, 1); ground(1, 35, 1, 1, 1, "oak")      # Hollis's herbs
 plot(20, 37, 2, 2, 1); plot(60, 39, 3, 1, 1)
 ground(22, 39, 1, 1, 1, "autumn_oak")
 # Hollis's has a low wing into her garden, its roof a terrace her upper floor opens onto; the
 # smithy a flat roof.
-houses[4]["wings"] = [{"at": [3, 38], "size": [3, 3], "floors": 1, "top": "terrace"}]
-keep(3, 38, 1, 3, 3)
+houses[4]["wings"] = [{"at": [2, 36], "size": [4, 5], "floors": 1, "top": "terrace"}]   # a room of three by three
+keep(2, 36, 1, 4, 5, 1)
 houses[8]["top"] = "flat"
 houses[4]["openings"] = [window(13, 38, 1, "E")]        # Hollis's
 houses[8]["openings"] = [window(46, 37, 1, "W")]        # the smithy
@@ -343,6 +343,11 @@ for p in ((55, 50), (59, 50), (56, 52)): ground(p[0], p[1], 1, 1, 0, "oak")
 yard(15, 50, 2, 3, 0, "fence", open="W")
 yard(50, 52, 2, 4, 0, "fence", open="W")
 plot(15, 50, 2, 2, 0); plot(50, 52, 2, 2, 0)
+# Ordinary houses of more kinds, dealt like the rest (HOUSES.md § The deal): a cottage and a
+# miner's house with an attic, a miner's house with a wing.
+houses[5]["top"] = "attic"; houses[14]["top"] = "attic"
+houses[16]["wings"] = [{"at": [45, 48], "size": [5, 4], "floors": 1}]   # behind it: a room of three by three
+keep(45, 48, 0, 5, 4, 1)
 houses[10]["turn"] = 1; houses[16]["turn"] = 11
 keep(53, 48, 0, 9, 7, 0)
 # Thornfield (@ST-Farm), the Dunns' farm at the village's edge, east of the cemetery on the town's

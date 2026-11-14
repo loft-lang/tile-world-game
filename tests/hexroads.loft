@@ -254,5 +254,5 @@ fn test_orburys_houses_come_in_parts() {
       }
     }
   }
-  assert(attics == 2 && dormers == 3 && flats == 1 && terraces == 1 && winged == 2, "two attics with three dormers, a flat roof, a terrace, two houses with a wing: {attics} {dormers} {flats} {terraces} {winged}");
+  assert(attics == 4 && dormers == 5 && flats == 1 && terraces == 1 && winged == 3, "four attics with five dormers, a flat roof, a terrace, three houses with a wing: {attics} {dormers} {flats} {terraces} {winged}");
 }

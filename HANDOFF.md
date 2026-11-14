@@ -36,11 +36,15 @@
   for a lower roof terrace), its `top` ("flat", "attic" — with dormers), `out` for an out-house
   (`intent.loft`); the hex town draws a house in parts, each with its eaves and roof
   (formal/hex-houses.md HY-Parts, HY-Kinds, HY-Out).  In Orbury: the second well-off house (attic,
-  wing), Hollis's (terrace wing), the farmhouse (attic), the smithy (flat), two out-houses.  The
-  dealt houses keep their boxes: the templates count a house's layers (`floors`), so an attic or
-  a wing on a dealt house wants the deal taught first.
+  wing), Hollis's (terrace wing), the farmhouse (attic), the smithy (flat), two out-houses.
+- **The deal handles wings and attics** (owner, the same day; HOUSES.md § The deal): an attic
+  counts with a house's floors, a wing's walls are outer walls and its room is inside; a template
+  may be drawn for an attic (`attic`), the first `way_dormer`.  Three of Orbury's ordinary houses
+  are of these kinds: houses 5 and 14 an attic, house 16 a wing.  The wings were first laid into
+  the gaps the layout had (rooms of two cells) and re-laid at the owner's word: a wing's room is
+  three by three or more, and the layout makes room for it.
 
-**Checked, and not.**  476 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
+**Checked, and not.**  477 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
 (`loft --native --lib libs checks/view3d.loft`) and the sheet check pass.  **Not seen**: the game's 3D view of any of this (it draws only
 in a browser; no headless browser was run), nor `hextown.html` in a browser — the hex town was
 checked on a plan drawn from the port's data, the square town on `tools/map.loft`'s picture.
@@ -48,9 +52,11 @@ checked on a plan drawn from the port's data, the square town on `tools/map.loft
 **loft.**  The game is built with `~/workspace/loft/target/release/loft` (2026.11.20261113); the
 builds of 2026-11-13/14 free a store twice where a local is bound from a field read straight off
 `json_parse(..)` — 49 tests failed on it before a line of today's work.  Reported as loft#2489;
-the game binds the parsed value first at its seven such lines (`*_doc = json_parse(..)`).
+the game binds the parsed value first at its seven such lines (`*_doc = json_parse(..)`).  Fixed on loft
+branch `tuxedo-pr2482-next` (6e119a287, word from the loft session, 2026-11-14), not on `main` yet;
+once that build is installed the seven lines may go back to the short form, or stay.
 
-**Open next** ◇: the deal on houses with wings and attics; a wing's own rooms and stairs (it is
+**Open next** ◇: a find's spot in an attic or a wing; a wing's own rooms and stairs (it is
 one room a floor); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D
 only (BUILD.md phase E) and so shows the new shapes as plain lines; the cemetery's fence still
 cells (`garden_fence`), not an edge; the urn's route where Sibil's house is dealt a chair's way.

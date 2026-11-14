@@ -94,8 +94,16 @@ struct Area {
 }
 
 fn area_of(s: const Shell) -> Area {
-  Area { x0: s.x - MARGIN, y0: s.y - MARGIN, x1: s.x + s.w - 1 + MARGIN, y1: s.y + s.h - 1 + MARGIN,
-         z0: s.z - 1, z1: s.z + s.floors }
+  a = Area { x0: s.x - MARGIN, y0: s.y - MARGIN, x1: s.x + s.w - 1 + MARGIN, y1: s.y + s.h - 1 + MARGIN,
+             z0: s.z - 1, z1: s.z + s.floors };
+  // round its wings too
+  for wg in s.wings {
+    if wg.x - MARGIN < a.x0 { a.x0 = wg.x - MARGIN; }
+    if wg.y - MARGIN < a.y0 { a.y0 = wg.y - MARGIN; }
+    if wg.x + wg.w - 1 + MARGIN > a.x1 { a.x1 = wg.x + wg.w - 1 + MARGIN; }
+    if wg.y + wg.h - 1 + MARGIN > a.y1 { a.y1 = wg.y + wg.h - 1 + MARGIN; }
+  }
+  a
 }
 
 // `a` grown to take in `cells`, with a margin.
@@ -156,7 +164,9 @@ struct Key {
   const k: integer
 }
 
-// A house's shell, from its intent: its box, its layer, its floors, its front door.
+// A house's shell, from its intent: its box, its layer, its floors, its front door; and what makes
+// it more than a box (owner, 2026-11-14) — an attic, counted with its floors (a layer with an
+// inside of its own, the eaves round it), and its wings.
 struct Shell {
   x: integer,
   y: integer,
@@ -165,13 +175,25 @@ struct Shell {
   z: integer,
   floors: integer,
   door_x: integer,
-  door_y: integer
+  door_y: integer,
+  attic: boolean = false,
+  wings: vector<intent::Wing> = [],
+  /// The side of each wing that lies against the house (`intent::wing_side`).
+  sides: vector<text> = []
 }
 
 fn shell_of(h: const intent::House) -> Shell {
   d = if h.door_at >= 0 { h.door_at } else { h.w / 2 };
-  Shell { x: h.x, y: h.y, w: h.w, h: h.h, z: h.z, floors: if h.floors > 0 { h.floors } else { 1 },
-          door_x: h.x + d, door_y: h.y + h.h - 1 }
+  attic = h.top == "attic";
+  s = Shell { x: h.x, y: h.y, w: h.w, h: h.h, z: h.z, floors: (if h.floors > 0 { h.floors } else { 1 }) + (if attic { 1 } else { 0 }),
+              door_x: h.x + d, door_y: h.y + h.h - 1, attic: attic };
+  for wg in h.wings {
+    sd = intent::wing_side(h, wg);
+    if sd == "" { continue; }
+    s.wings += [wg];
+    s.sides += [sd];
+  }
+  s
 }
 
 fn in_floor(s: const Shell, x: integer, y: integer) -> boolean {
@@ -180,6 +202,70 @@ fn in_floor(s: const Shell, x: integer, y: integer) -> boolean {
 
 fn in_footprint(s: const Shell, x: integer, y: integer) -> boolean {
   x >= s.x && x < s.x + s.w && y >= s.y && y < s.y + s.h
+}
+
+// Is (x, y) a cell of the house: within its box or a wing's?
+fn covers(s: const Shell, x: integer, y: integer) -> boolean {
+  if in_footprint(s, x, y) { return true; }
+  for wg in s.wings { if x >= wg.x && x < wg.x + wg.w && y >= wg.y && y < wg.y + wg.h { return true; } }
+  false
+}
+
+// Is (x, y) a floor cell of wing `i`: within its walls, which it has on its free sides only?
+fn in_wing(s: const Shell, i: integer, x: integer, y: integer) -> boolean {
+  wg = s.wings[i]!;
+  sd = s.sides[i]!;
+  if x < wg.x || x >= wg.x + wg.w || y < wg.y || y >= wg.y + wg.h { return false; }
+  !((x == wg.x && sd != "W") || (x == wg.x + wg.w - 1 && sd != "E") || (y == wg.y && sd != "N") || (y == wg.y + wg.h - 1 && sd != "S"))
+}
+
+// Is (x, y, z) inside the house: a floor cell of one of its floors (its attic's too), of a wing on
+// one of the wing's floors, or the doorway between them?
+fn in_room(s: const Shell, x: integer, y: integer, z: integer) -> boolean {
+  if z < s.z || z >= s.z + s.floors { return false; }
+  if in_floor(s, x, y) { return true; }
+  for i in 0..len(s.wings) {
+    wg = s.wings[i]!;
+    if z >= s.z + wg.floors { continue; }
+    if in_wing(s, i, x, y) { return true; }
+    // the doorway: the house's wall cell between its floor and the wing's
+    if in_footprint(s, x, y) {
+      for d in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        if in_wing(s, i, x + d.0, y + d.1) && in_floor(s, x - d.0, y - d.1) { return true; }
+      }
+    }
+  }
+  false
+}
+
+// The outer wall cells of a house with wings a way in may lie on, each as (x, y, side: 0 the
+// front (south), 1 west, 2 the back, 3 east): the house's own, but its corners, its front door
+// and where a wing stands against it; and each wing's free walls where its floor lies behind
+// them (`wings`: a template drawn for one layer only).
+fn outer_walls(s: const Shell, wings: boolean) -> vector<(integer, integer, integer)> {
+  out: vector<(integer, integer, integer)> = [];
+  for x in s.x + 1..s.x + s.w - 1 {
+    if x != s.door_x && !covers(s, x, s.y + s.h) { out += [(x, s.y + s.h - 1, 0)]; }
+    if !covers(s, x, s.y - 1) { out += [(x, s.y, 2)]; }
+  }
+  for y in s.y + 1..s.y + s.h - 1 {
+    if !covers(s, s.x - 1, y) { out += [(s.x, y, 1)]; }
+    if !covers(s, s.x + s.w, y) { out += [(s.x + s.w - 1, y, 3)]; }
+  }
+  if !wings { return out; }
+  for i in 0..len(s.wings) {
+    wg = s.wings[i]!;
+    sd = s.sides[i]!;
+    for x in wg.x..wg.x + wg.w {
+      if sd != "S" && in_wing(s, i, x, wg.y + wg.h - 2) && !in_wing(s, i, x, wg.y + wg.h - 1) { out += [(x, wg.y + wg.h - 1, 0)]; }
+      if sd != "N" && in_wing(s, i, x, wg.y + 1) && !in_wing(s, i, x, wg.y) { out += [(x, wg.y, 2)]; }
+    }
+    for y in wg.y..wg.y + wg.h {
+      if sd != "W" && in_wing(s, i, wg.x + 1, y) && !in_wing(s, i, wg.x, y) { out += [(wg.x, y, 1)]; }
+      if sd != "E" && in_wing(s, i, wg.x + wg.w - 2, y) && !in_wing(s, i, wg.x + wg.w - 1, y) { out += [(wg.x + wg.w - 1, y, 3)]; }
+    }
+  }
+  out
 }
 
 // --- The draw ---
@@ -230,10 +316,19 @@ fn of_kind(ts: const vector<levels::LevelFile>, kind: text, at: text, closes: in
   out
 }
 
-// The templates of `ts` at `idx` drawn for a house of `floors` floors, or for any.
-fn for_floors(ts: const vector<levels::LevelFile>, idx: const vector<integer>, floors: integer) -> vector<integer> {
+// Is template `tp` drawn for a house like `s`: for its floors (its attic one of them) or for any;
+// one drawn for an attic only where there is one; and no way in through an upper wall where the
+// upper layer is an attic, whose eaves are roof, not wall.
+fn drawn_for(tp: const levels::TemplateInfo, s: const Shell) -> boolean {
+  if tp.attic { return s.attic && (tp.floors == 0 || tp.floors == s.floors); }
+  if tp.floors == 0 { return true; }
+  tp.floors == s.floors && !(s.attic && tp.kind == "way_in")
+}
+
+// The templates of `ts` at `idx` drawn for house `s`.
+fn for_floors(ts: const vector<levels::LevelFile>, idx: const vector<integer>, s: const Shell) -> vector<integer> {
   out: vector<integer> = [];
-  for i in idx { fl = ts[i]!.template.floors; if fl == 0 || fl == floors { out += [i]; } }
+  for i in idx { if drawn_for(ts[i]!.template, s) { out += [i]; } }
   out
 }
 
@@ -241,7 +336,7 @@ fn for_floors(ts: const vector<levels::LevelFile>, idx: const vector<integer>, f
 // already taken (`used`); null when this draw finds no place for it.
 fn place(r: Rng, t: const levels::LevelFile, sh: const stamp::Shape, s: const Shell, used: const hash<Key[k]>,
          turn_to: integer = -1) -> Laid? {
-  if t.template.floors != 0 && t.template.floors != s.floors { return null; }
+  if !drawn_for(t.template, s) { return null; }
   flip = t.template.flips && next(r, 2) == 1;
   at = t.template.at;
   turn = 0;
@@ -256,7 +351,15 @@ fn place(r: Rng, t: const levels::LevelFile, sh: const stamp::Shape, s: const Sh
       ws = t.template.side;
       side = if ws == "S" { 0 } else if ws == "W" { 1 } else if ws == "N" { 2 } else if ws == "E" { 3 } else { next(r, 4) };
       turn = side;
-      if side == 0 {
+      if len(s.wings) > 0 {
+        // a house with wings: one of its outer walls' cells on that side, a wing's among them
+        cands: vector<(integer, integer, integer)> = [];
+        for c in outer_walls(s, t.template.floors == 0 && !t.template.attic) { if c.2 == side { cands += [c]; } }
+        if len(cands) == 0 { return null; }
+        pc = cands[next(r, len(cands))]!;
+        wx = pc.0;
+        wy = pc.1;
+      } else if side == 0 {
         if s.w < 3 { return null; }
         wx = s.x + 1 + next(r, s.w - 2);
         wy = s.y + s.h - 1;
@@ -284,6 +387,16 @@ fn place(r: Rng, t: const levels::LevelFile, sh: const stamp::Shape, s: const Sh
     lo_y = if at == "under" { s.y } else { s.y + 1 };
     room_w = (if at == "under" { s.w } else { s.w - 2 }) - sz.0;
     room_h = (if at == "under" { s.h } else { s.h - 2 }) - sz.1;
+    // one time in three, in a wing: within its walls
+    if at == "inside" && len(s.wings) > 0 && next(r, 3) == 0 {
+      wi = next(r, len(s.wings));
+      wg = s.wings[wi]!;
+      sd = s.sides[wi]!;
+      lo_x = wg.x + (if sd == "W" { 0 } else { 1 });
+      lo_y = wg.y + (if sd == "N" { 0 } else { 1 });
+      room_w = wg.w - (if sd == "W" || sd == "E" { 1 } else { 2 }) - sz.0;
+      room_h = wg.h - (if sd == "N" || sd == "S" { 1 } else { 2 }) - sz.1;
+    }
     if room_w < 0 || room_h < 0 { return null; }
     ox = lo_x + next(r, room_w + 1);
     oy = lo_y + next(r, room_h + 1);
@@ -293,6 +406,11 @@ fn place(r: Rng, t: const levels::LevelFile, sh: const stamp::Shape, s: const Sh
     if at == "inside" || at == "under" {
       // On the house's floors only floor cells (its ground floor, an upper one), never its walls;
       // below (the cellar) and the roof, within its footprint.
+      if at == "inside" {
+        if c.2 >= s.z && c.2 < s.z + s.floors && !in_room(s, c.0, c.1, c.2) { return null; }
+        if !covers(s, c.0, c.1) { return null; }
+        continue;
+      }
       if c.2 >= s.z && c.2 < s.z + s.floors && !in_floor(s, c.0, c.1) { return null; }
       if !in_footprint(s, c.0, c.1) { return null; }
     }
@@ -406,7 +524,7 @@ fn passes(l: rules::Level, s: const Shell, a: const Area, town: const vector<int
   // stepped aside.
   l.enemies = [];
   if !solve(l, a, town, way, way_sh, way_p) { return false; }
-  inside = in_floor(s, l.hero_x, l.hero_y) && l.hero_z >= s.z && l.hero_z < s.z + s.floors;
+  inside = in_room(s, l.hero_x, l.hero_y, l.hero_z);
   if !inside { return false; }
   floor = cellar_floor(l, s, cellar_sh, cellar_p);
   if tunnel_p.name != "" {
@@ -449,7 +567,7 @@ fn under_a_house(it: const intent::Intent, x: integer, y: integer, z: integer) -
 // its own footprint that is another's?  (A yard's wall or its chair laid into the neighbour.)
 fn on_a_neighbour(it: const intent::Intent, s: const Shell, sh: const stamp::Shape, p: const Laid) -> boolean {
   for c in stamp::cells_of(sh, p.x, p.y, p.z, p.turn, p.flip) {
-    if !in_footprint(s, c.0, c.1) && under_a_house(it, c.0, c.1, c.2) { return true; }
+    if !covers(s, c.0, c.1) && under_a_house(it, c.0, c.1, c.2) { return true; }
   }
   false
 }
@@ -606,18 +724,18 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
     hi = ordinary[oi]!;
     s = shell_of(it.houses[hi]!);
     // Only what is drawn for a house of its floors (`floors`), so no draw goes to waste on it.
-    closings = for_floors(ts, all_closings, s.floors);
-    ways = for_floors(ts, all_ways, s.floors);
-    insides = for_floors(ts, all_insides, s.floors);
-    finds = for_floors(ts, all_finds, s.floors);
-    cellars = for_floors(ts, all_cellars, s.floors);
-    with_cellar = for_floors(ts, all_with_cellar, s.floors);
+    closings = for_floors(ts, all_closings, s);
+    ways = for_floors(ts, all_ways, s);
+    insides = for_floors(ts, all_insides, s);
+    finds = for_floors(ts, all_finds, s);
+    cellars = for_floors(ts, all_cellars, s);
+    with_cellar = for_floors(ts, all_with_cellar, s);
     town_here: vector<integer> = [];
     for tk in town_cells {
       tx = intent::x_of(tk);
       ty = intent::y_of(tk);
       if tx >= s.x - MARGIN && tx < s.x + s.w + MARGIN && ty >= s.y - MARGIN && ty < s.y + s.h + MARGIN
-         && !in_footprint(s, tx, ty) {
+         && !covers(s, tx, ty) {
         town_here += [tk];
       }
     }
@@ -749,7 +867,7 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
           for tk in town_cells {
             tx = intent::x_of(tk);
             ty = intent::y_of(tk);
-            if tx >= a.x0 && tx <= a.x1 && ty >= a.y0 && ty <= a.y1 && !in_footprint(s, tx, ty) { seeds += [tk]; }
+            if tx >= a.x0 && tx <= a.x1 && ty >= a.y0 && ty <= a.y1 && !covers(s, tx, ty) { seeds += [tk]; }
           }
         }
         trial = l;

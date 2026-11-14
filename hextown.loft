@@ -616,14 +616,17 @@ fn yard_house(it: const intent::Intent, yd: const intent::Yard, roof: boolean) -
       continue;
     }
     if yd.z != h.z { continue; }
-    rows = yd.y < h.y + h.h && h.y < yd.y + yd.h;
-    cols = yd.x < h.x + h.w && h.x < yd.x + yd.w;
+    // a cell of the house, or of a wing of it, just beyond a side the yard leaves open
     for j in 0..len(yd.open) {
       sd = yd.open[j..j + 1];
-      if sd == "W" && h.x + h.w == yd.x && rows { return i; }
-      if sd == "E" && h.x == yd.x + yd.w && rows { return i; }
-      if sd == "N" && h.y + h.h == yd.y && cols { return i; }
-      if sd == "S" && h.y == yd.y + yd.h && cols { return i; }
+      for y in yd.y..yd.y + yd.h {
+        if sd == "W" && intent::house_covers(h, yd.x - 1, y) { return i; }
+        if sd == "E" && intent::house_covers(h, yd.x + yd.w, y) { return i; }
+      }
+      for x in yd.x..yd.x + yd.w {
+        if sd == "N" && intent::house_covers(h, x, yd.y - 1) { return i; }
+        if sd == "S" && intent::house_covers(h, x, yd.y + yd.h) { return i; }
+      }
     }
   }
   -1

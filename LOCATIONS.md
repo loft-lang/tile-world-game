@@ -73,10 +73,13 @@ is not.
     lord's;
   - **more kinds of houses** (owner, 2026-11-14: attic, flat roof, lower roof terrace, wings,
     out-houses; and not sloped windows in the sloped roofs, so dormers): the second well-off house
-    has an **attic** under its roof, with dormers, and a one-floor **wing** into its garden;
-    Hollis's a low wing whose roof is a **terrace** her upper floor opens onto, a low wall round
-    it; the farmhouse an attic; the smithy a **flat roof**; two cottages an **out-house** in their
-    garden, three cells square;
+    has an **attic** under its roof, with dormers, and a one-floor **wing** east of it (a room
+    of four by three), its walled garden beyond the wing; Hollis's a low wing west of her house (a
+    room of three by three) whose roof is a **terrace** her upper floor opens onto, a low wall
+    round it, her herb garden behind the wing; the farmhouse an attic; the smithy a **flat roof**; two cottages an **out-house** in their
+    garden, three cells square; and of the ordinary houses, dealt like the rest: a cottage of
+    the middle terrace and a miner's house with an attic, a miner's house with a wing behind it (a room of three by
+    three);
   - **at an angle in the hex town**: the second well-off house, a cottage, a miner's house, the
     farmhouse and the barn (their gardens turn with them); a house asked to turn stays square
     where it would stand on another or across a road.

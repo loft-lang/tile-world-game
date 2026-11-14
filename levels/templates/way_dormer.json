@@ -1,0 +1,85 @@
+{
+  "name": "way_dormer",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "a dormer of the attic with its window gone, its sill low (a fence edge), over the eaves (layer 1): two tables left out under them and a chair \u2014 the chair pulled onto a table, a step of 3 onto the eaves, and in at the dormer",
+    "at": "wall",
+    "wall": [
+      1,
+      0
+    ],
+    "gives": true,
+    "weight": 5,
+    "solution": "a a pa d w w",
+    "attic": true
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "(": "house_roof"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 1,
+      "rows": [
+        " ("
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        1,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        1,
+        1,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        2,
+        1,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      1,
+      0,
+      1,
+      "N",
+      "fence"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    3,
+    1,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

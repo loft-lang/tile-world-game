@@ -73,11 +73,11 @@ in the JSON.  **Applied** by `stamp.loft` (`stamp::apply`: at a cell, turned, mi
 `tests/stamps.loft` checks every file loads with its kind and survives a save unchanged, and plays
 the window's step, the weighted hatch and the barred door in every way they can lie.
 
-**The files**, the whole catalogue below (55):
+**The files**, the whole catalogue below (56):
 
 | Kind | Templates |
 |---|---|
-| way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door`, `way_back_door_walled`, `way_back_door_hedged`, `way_bay_broken` |
+| way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door`, `way_back_door_walled`, `way_back_door_hedged`, `way_bay_broken`, `way_dormer` |
 | inside | `inside_pushed_to_walls`, `inside_stacked`, `inside_barred_room`, `inside_in_haste`, `inside_roof_fall`, `inside_stair_rotted`, `inside_floor_hole`, `inside_rat_nest`, `inside_grey_rat`, `inside_bats_upstairs`, `inside_spider_upstairs` |
 | find | `find_health_potion`, `find_spirit_potion`, `find_boost_potion`, `find_sticks`, `find_torch`, `find_herb`, `find_mushroom`, `find_sack`, `find_tar_barrel` |
 | cellar | `cellar_none`, `cellar_neighbours`, `cellar_neighbours_end`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
@@ -137,6 +137,7 @@ appears in no house.
 | `exit`, `tunnel` | a cellar's gap a tunnel joins, `[x, y, z, side]`, and the tunnel it wants (§ 4) |
 | `entry`, `stretch` | a tunnel's cell that joins the gap, and the row repeated to lengthen it (§ 4) |
 | `side` | a way in laid on one wall only (`N`, `E`, `S`, `W`): the upper door on the uphill side (`N`), where the street above is |
+| `attic` | drawn for a house with an attic, and dealt to such houses only (`way_dormer`) |
 | `floors` | the house it is drawn for: its layer 1 is a one-floor house's roof (`way_roof_hole`) or a two-floor house's upper floor (`inside_bats_upstairs`); 0 any |
 
 **Houses of two floors** (2026-11-10): three of the ordinary houses have an upper floor — two
@@ -147,6 +148,27 @@ onto a table) and `way_upper_door` (the upper floor's door onto the street above
 their insides the upper-floor templates (`floors: 2`: bats and a spider upstairs, a hole in the
 upper floor, a rotted stair), laid on the upper floor's own cells, never its walls.  A house is
 drawn only from what is drawn for its floors, so no draw is wasted on what cannot lie there.
+
+**Houses with wings and attics** (owner, 2026-11-14: teach the deal).  The deal's shell of a
+house knows more than its box (`deal.loft` `Shell`, `in_room`, `outer_walls`):
+- **An attic counts with the floors**: a layer with an inside of its own, within the eaves.  So a
+  cottage with an attic is dealt as a house of two layers: what is drawn for an upper floor lies
+  in the attic (the bats, the spider, a hole in its floor, the rotted stair), and what is drawn
+  for a cottage's roof does not.  A way in through an upper wall (`way_window_step`,
+  `way_upper_door`) is not dealt there: the eaves are roof, not wall.  Its own way in is
+  **`way_dormer`** ◇: a dormer with its window gone, its sill a fence edge; two tables and a chair
+  left out under the eaves, the chair pulled onto a table, a step of 3 onto the eaves, and in.
+- **A wing's walls are outer walls**: a way in drawn for one layer is laid on the house's own
+  walls — but where a wing stands against them — or on a wing's three free walls, its inside
+  facing into the wing.  **A wing's room is inside**: the hero in it has got in; one time in three
+  an arrangement or a neglect is laid in a wing instead of the house; the walk round the house
+  goes round its wings.  The cellar stays under the house itself.
+- In Orbury three ordinary houses are of these kinds ◇: a cottage of the middle terrace and a
+  miner's house have an attic, a miner's house a wing.  Dealt over seeds 7–22 (176 houses, every
+  one passing its play): the dormer 10 times on the two attic houses; on the house with a wing
+  (a room of three by three behind it), 7 ways in through the wing's walls and 6 arrangements or
+  neglects laid in the wing: a rat's nest, a roof fall, a barred room.  A wing wants a room that
+  size or more: in one of two by two almost nothing drawn for a floor fits.
 
 **Off the neighbour** (2026-11-14): a way in whose cells would lie on another house — a yard's
 wall or its chair laid into the house beside — is drawn again (`deal::on_a_neighbour`).  Dealt

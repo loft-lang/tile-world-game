@@ -136,7 +136,10 @@ pub struct TemplateInfo {
   pub finds: vector<(integer, integer, integer)> = [],
   /// A cellar that connects (HOUSES.md § Tunnels): the cellar it creates under the neighbour its
   /// gap faces, joined to it by its `tunnel` ("" none).
-  pub other: text = ""
+  pub other: text = "",
+  /// Drawn for a house with an attic (owner, 2026-11-14): its layer 1 is the attic of a house of
+  /// one floor, the eaves round it.  Dealt to such houses only.
+  pub attic: boolean = false
 }
 
 /// No template: an ordinary place.
@@ -453,7 +456,7 @@ fn template_of(v: const JsonValue) -> TemplateInfo {
                  exit_side: str(xv.item(3), ""), tunnel: str(v.field("tunnel"), ""),
                  entry_x: num(ev.item(0), 0), entry_y: num(ev.item(1), 0), entry_z: num(ev.item(2), 0),
                  stretch: num(v.field("stretch"), -1), side: str(v.field("side"), ""), finds: spots_of(v.field("finds")),
-                 other: str(v.field("other"), "") }
+                 other: str(v.field("other"), ""), attic: v.field("attic").as_bool() ?? false }
 }
 
 // A place file's `serves`: the tags it lists.
@@ -653,6 +656,7 @@ pub fn save_with(lf: const LevelFile, mats: const materials::Materials) -> text 
     if tp.stretch >= 0 { out += ", \"stretch\": {tp.stretch}"; }
     if tp.side != "" { out += ", \"side\": {quoted(tp.side)}"; }
     if tp.other != "" { out += ", \"other\": {quoted(tp.other)}"; }
+    if tp.attic { out += ", \"attic\": true"; }
     if len(tp.finds) > 0 {
       fs = "";
       for c in tp.finds { fs += if fs == "" { "[{c.0}, {c.1}, {c.2}]" } else { ", [{c.0}, {c.1}, {c.2}]" }; }

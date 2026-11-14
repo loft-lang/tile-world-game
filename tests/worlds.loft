@@ -335,12 +335,15 @@ fn test_orburys_gardens_have_their_gates() {
 fn test_orburys_houses_of_more_kinds() {
   lf = orbury();
   l = lf.level;
-  rules::put_hero(l, 7, 39, 2);
+  rules::put_hero(l, 7, 38, 2);
   assert(rules::walk(l, -1, 0) == rules::Step.Walked && rules::walk(l, -1, 0) == rules::Step.Walked, "out by the terrace's door");
-  assert(l.hero_x == 5 && l.hero_z == 2 && tile_world::open_sky(l.w, 5, 39, 2), "on the terrace, under the sky: {l.hero_x},{l.hero_y},{l.hero_z}");
-  rules::play(l, "a a");
-  assert(l.hero_x == 3 && rules::walk(l, -1, 0) == rules::Step.Blocked, "its low wall at the edge: {l.hero_x}");
-  assert(rules::walkable(l, tile_world::terrain(l.w, 4, 39, 1)) && rules::walkable(l, tile_world::terrain(l.w, 6, 39, 1)), "the wing below, and the doorway into it");
+  assert(l.hero_x == 5 && l.hero_z == 2 && tile_world::open_sky(l.w, 5, 38, 2), "on the terrace, under the sky: {l.hero_x},{l.hero_y},{l.hero_z}");
+  rules::play(l, "a a a");
+  assert(l.hero_x == 2 && rules::walk(l, -1, 0) == rules::Step.Blocked, "its low wall at the edge: {l.hero_x}");
+  assert(rules::walkable(l, tile_world::terrain(l.w, 6, 38, 1)), "the doorway into the wing below");
+  room = 0;
+  for y in 36..41 { for x in 2..6 { if rules::walkable(l, tile_world::terrain(l.w, x, y, 1)) { room += 1; } } }
+  assert(room == 9, "the wing's room, three by three: {room}");
   // the attic: layer 4 over the two floors on 2 and 3, the roof over it on 5
   assert(rules::walkable(l, tile_world::terrain(l.w, 55, 27, 4)) && !tile_world::open_sky(l.w, 55, 27, 4), "the attic's floor, under its roof");
   assert(tile_world::edge(l.w, 53, 27, 4, tile_world::WEST) == rules::ed(l, "window"), "a window in its gable");
