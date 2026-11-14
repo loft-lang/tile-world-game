@@ -1,5 +1,52 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
+## State on 2026-11-14
+
+**The owner's rulings today** (DESIGN.md § The world and § What the player sees, LOCATIONS.md § 1):
+- **Hedges and low walls run along the tiles**, as edges, not a tile wide.  A low wall (2 high) is
+  climbed from just a chair and walked across; a low hedge (2 high) is seen across and jumped from
+  a table; a full hedge (a layer high, not seen through) is crossed only with extra height — along
+  a hill, a table with a chair — and then it gets dangerous, for the drop is a fall.
+- **This is the end of the 2D view**, because of its limitations: the point where the old
+  presentation with the basic tiles breaks.  It also allows doors and windows at the side and back
+  of buildings.
+- The changes should make the town **from a blocky town into one where people lived and wanted to
+  live**; the templates use the new shapes for puzzles.
+
+**Built:**
+- **The edges** `low_wall`, `low_hedge`, `hedge` (kinds.json; an edge's `over`: how high the hero
+  stands to get over it; `rules::crosses_from`); the far side's drop of a layer or more a fall.
+  A hedge at a cliff's foot is stepped over from the terrace above.  `tests/moves.loft`.
+- **The drawing kit** (`intent.loft`): `yards` (an edge of a kind along a rectangle's sides, an
+  `open` side against its house, `gates`, a `floor`), `over` (ground laid after the houses), a
+  house's `court` (a cloister: pillars, open to the sky) and `turn` (its angle in the hex town).
+  New materials `pillar`, `paving`, `hedge` (theme.json).
+- **Orbury** (`tools/orbury_gen.py`, LOCATIONS.md § 1's list): the lord's cloister and hedged
+  garden, the inn's terrace, the market's gazebo, a roof garden, bay windows, gardens with plots
+  and seats, fenced fields, side windows, five houses at an angle in the hex town.
+- **Three ways in** (`levels/templates/`, HOUSES.md § 1): `way_back_door_walled`,
+  `way_back_door_hedged`, `way_bay_broken`; a way in is no longer laid onto the neighbour's house.
+- **The hex town** (`hextown.loft` `dress`, formal/hex-houses.md § Yards, courts, bays and roof
+  gardens): the yards' sides, the court, the roof garden, the bays, the gazebo, in `hextown.html`
+  and in the game's 3D view (`hexscene.loft`, `render3d.loft`).  The port now covers the whole
+  88 cells (Thornfield was cut off at 64).
+
+**Checked, and not.**  472 tests (`loft --lib libs --tests tests`), 37 game checks, 8 view checks
+(`loft --native --lib libs checks/view3d.loft`) and the sheet check pass.  **Not seen**: the game's 3D view of any of this (it draws only
+in a browser; no headless browser was run), nor `hextown.html` in a browser — the hex town was
+checked on a plan drawn from the port's data, the square town on `tools/map.loft`'s picture.
+
+**loft.**  The game is built with `~/workspace/loft/target/release/loft` (2026.11.20261113); the
+builds of 2026-11-13/14 free a store twice where a local is bound from a field read straight off
+`json_parse(..)` — 49 tests failed on it before a line of today's work.  Reported as loft#2489;
+the game binds the parsed value first at its seven such lines (`*_doc = json_parse(..)`).
+
+**Open next** ◇: houses of other shapes than a box (an L, a wing: the square house is a
+rectangle); a yard as hex cells once a place is modelled in hex; the Tanmatsu, which draws 2D
+only (BUILD.md phase E) and so shows the new shapes as plain lines; the cemetery's fence still
+cells (`garden_fence`), not an edge; the urn's route where Sibil's house is dealt a chair's way.
+
+
 ## State on 2026-11-10 (night)
 
 Everything is committed and pushed (`main` @ the commit adding this section); the tests, the game

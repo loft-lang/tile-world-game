@@ -23,6 +23,12 @@ OpenGL and shaders, through the `graphics` library.  TANMATSU.md § One world, d
 one fidelity is the frame: the world draws nothing, and each machine draws it with the renderer
 it can afford.
 
+**Since 2026-11-14 (owner): the game's presentation.**  The 2D view ends with the shapes the
+basic tiles cannot show — hedges and low walls along the tiles, pillars, bay windows, roof
+gardens, terraces, buildings at an angle, doors and windows at a building's side and back
+(DESIGN.md § What the player sees).  They are drawn here, and in the hex version of a place
+(formal/hex-houses.md).
+
 Every choice below that is not the owner's is **proposed**, or a **default** taken to change later
 (§ Defaults).
 
@@ -111,6 +117,7 @@ properties is built the same way.
 | Stairs (`stairs` ±1) | a ramp quad from this layer's ground to the next one's | the stairs tile |
 | A wall: terrain `upright` and `opaque` | a box one layer high | its sides: the cell's own picture (dungeon:40, a house wall's autotile piece); its top: the layer above's ground at that cell when there is one (what the 2D draws over it a tile up), else the kind's `upper` (dungeon:57) |
 | A door (`opens_to`) and an open door | the doorway: the walls beside it continue; the door picture on a panel set in the opening — closed across it, open swung against the side | the door tile (dungeon:45, the house doors' town:74 and 78) |
+| A low wall, a low hedge, a hedge (edges, DESIGN.md § The world) | a thin panel on the cell boundary: half a layer high for the two low ones (2 steps of 4), the whole layer for a hedge | `stone_wall`'s picture for the wall, the `hedge` material's for the hedges |
 | A fence: `upright`, a line (`along`) | a panel through the middle of the cell along its line, as tall as the picture | the 2D's choice of across or along, on both faces |
 | A standing beam, a held-shut door (`barred`) | as a wall or a door, with their pictures | their tiles |
 | A roof (a material of kind `wall` with a roof autotile, on the layer over a house) | one slope facing south, as the 2D's pictures show it (§ Roofs) | the autotile pieces, row by row |

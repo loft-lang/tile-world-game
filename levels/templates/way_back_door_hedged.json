@@ -1,0 +1,111 @@
+{
+  "name": "way_back_door_hedged",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "the back door in a yard behind a low hedge, a table standing against the hedge and a chair off to the side: the chair pushed to the table's foot, onto it, onto the table, and over",
+    "at": "wall",
+    "wall": [
+      1,
+      0
+    ],
+    "gives": true,
+    "weight": 2,
+    "solution": "a a s a w w w w w"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop",
+    "p": "paving"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        " E ",
+        "ppp"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        2,
+        0
+      ],
+      "stack": [
+        "table"
+      ]
+    },
+    {
+      "at": [
+        3,
+        3,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      2,
+      0,
+      "N",
+      "low_hedge"
+    ],
+    [
+      1,
+      2,
+      0,
+      "N",
+      "low_hedge"
+    ],
+    [
+      2,
+      2,
+      0,
+      "N",
+      "low_hedge"
+    ],
+    [
+      0,
+      1,
+      0,
+      "W",
+      "low_hedge"
+    ],
+    [
+      3,
+      1,
+      0,
+      "W",
+      "low_hedge"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    4,
+    3,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

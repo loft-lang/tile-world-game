@@ -294,3 +294,36 @@ fn test_every_front_outside_the_cliff_area_slopes() {
   }
   assert(missing == "", "fronts that do not slope: {missing}");
 }
+
+// The lord's garden (owner, 2026-11-14) lies behind a hedge a layer high, with no gate: from beside
+// it the hedge is not crossed and not seen through; from the hilltop above its north side it is
+// stepped over, and the drop is a fall; and the house's side door opens onto it.
+fn test_the_lords_garden_is_entered_over_its_hedge_at_a_fall() {
+  lf = orbury();
+  l = lf.level;
+  hedge = rules::ed(l, "hedge");
+  assert(tile_world::edge(l.w, 40, 9, 3, tile_world::NORTH) == hedge, "the hedge along its north side");
+  assert(tile_world::edge(l.w, 46, 12, 3, tile_world::WEST) == hedge, "and along its east side");
+  rules::put_hero(l, 46, 12, 3);
+  assert(rules::walk(l, -1, 0) == rules::Step.Blocked, "not crossed from beside it");
+  assert(!tile_world::see_through(l.w, 46, 12, 3, -1, 0), "not seen through");
+  rules::put_hero(l, 39, 8, 4);
+  health = l.health;
+  assert(rules::walk(l, 0, 1) == rules::Step.Fell && l.hero_y == 9 && l.hero_z == 3, "over it from the hilltop: {l.hero_x},{l.hero_y},{l.hero_z}");
+  assert(l.health == health - 1, "at a fall's cost: {l.health}");
+  assert(rules::walk(l, 0, -1) == rules::Step.Blocked, "and not back up");
+  assert(rules::walkable(l, tile_world::terrain(l.w, 37, 15, 3)), "the side door, in the house's east wall");
+}
+
+// The gardens' low hedges have gates, and the inn's terrace its low wall: seen across, not walked
+// across but at the gate.
+fn test_orburys_gardens_have_their_gates() {
+  lf = orbury();
+  l = lf.level;
+  low = rules::ed(l, "low_hedge");
+  assert(tile_world::edge(l.w, 20, 41, 1, tile_world::NORTH) == low, "a cottage's garden hedge");
+  assert(tile_world::edge(l.w, 21, 41, 1, tile_world::NORTH) == 0, "and its gate");
+  rules::put_hero(l, 20, 41, 1);
+  assert(rules::walk(l, 0, -1) == rules::Step.Blocked && tile_world::see_through(l.w, 20, 41, 1, 0, -1), "seen across, not crossed");
+  assert(tile_world::edge(l.w, 2, 24, 2, tile_world::WEST) == rules::ed(l, "low_wall"), "the inn's terrace wall");
+}

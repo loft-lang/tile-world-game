@@ -175,3 +175,35 @@ fn test_orburys_cliffs_drop_a_storey_and_its_slopes_do_not() {
   b = hexscene::height_at(s, 25.0 * 1.5, -33.5 * 1.5 - 0.3);
   assert(abs_f(a - b) < 1.0, "the sloping front rises {a - b} m over 0.6 m, no cliff");
 }
+
+// What the basic tiles could not show (owner, 2026-11-14), in Orbury's hex version: hedges, low
+// walls and fences along its yards, each stretch with a length and standing outside every house; a
+// house round a court, one with a roof garden, bay windows, a gazebo's roof; houses at an angle.
+fn test_orburys_yards_stand_outside_its_houses() {
+  s = hexscene::load(file("../levels/orbury.hex.json").content() ?? "") ?? return;
+  kinds = [0, 0, 0, 0, 0];
+  for f in s.fences {
+    l = sqrt((f.bx - f.ax) * (f.bx - f.ax) + (f.by - f.ay) * (f.by - f.ay));
+    assert(l > 0.2 && f.height > 0.5 && f.thick > 0.05, "a stretch of {l} m, {f.height} high");
+    assert(hexscene::house_at(s, (f.ax + f.bx) * 0.5, (f.ay + f.by) * 0.5) < 0, "outside every house: ({f.ax}, {f.ay}) to ({f.bx}, {f.by})");
+    kinds[f.kind] += 1;
+  }
+  assert(kinds[1]! > 0 && kinds[2]! > 0 && kinds[3]! > 0 && kinds[4]! > 0, "low walls, low hedges, hedges and fences: {kinds}");
+  courts = 0;
+  gardens = 0;
+  bays = 0;
+  for i in 0..len(s.houses) {
+    h = s.houses[i];
+    if len(h.court_xs) == 4 {
+      courts += 1;
+      cx = ((h.court_xs[0] ?? 0.0) + (h.court_xs[2] ?? 0.0)) * 0.5;
+      cy = ((h.court_ys[0] ?? 0.0) + (h.court_ys[2] ?? 0.0)) * 0.5;
+      assert(hexscene::house_at(s, cx, cy) == i && hexscene::in_court(s, i, cx, cy), "its court inside it");
+      (q, r) = hexscene::cell_near(cx, cy);
+      assert(hexscene::cell_kind(s, q, r) == 7, "and paved: {hexscene::cell_kind(s, q, r)}");
+    }
+    if h.roof == 1 { gardens += 1; }
+    for gp in h.gaps { if gp.kind == 3 { bays += 1; } }
+  }
+  assert(courts == 1 && gardens == 1 && bays == 2 && len(s.canopies) == 1, "a court, a roof garden, two bays, a gazebo: {courts} {gardens} {bays} {len(s.canopies)}");
+}

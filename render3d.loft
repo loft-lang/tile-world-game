@@ -715,7 +715,14 @@ fn edges(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
     oy = if across { y - 1 } else { y };
     open = tile_world::terrain(w.w, x, y, z) == tile_world::VOID || tile_world::terrain(w.w, ox, oy, z) == tile_world::VOID;
     s = edge_sprite(g, w, x, y, z, across);
-    if e == fence || (e == window && open) {
+    // a low wall and a low hedge stand two steps of a layer's four, a hedge the whole layer
+    if e == rules::edge_id(w.k, "low_wall") {
+      panel(out, mat_sprite(g, "stone_wall"), a, b, z, 0.0, 1.0, 0.0, 0.5, light);
+    } else if e == rules::edge_id(w.k, "low_hedge") {
+      panel(out, mat_sprite(g, "hedge"), a, b, z, 0.0, 1.0, 0.0, 0.5, light);
+    } else if e == rules::edge_id(w.k, "hedge") {
+      panel(out, mat_sprite(g, "hedge"), a, b, z, 0.0, 1.0, 0.0, 1.0, light);
+    } else if e == fence || (e == window && open) {
       panel(out, s, a, b, z, 0.0, 1.0, 0.25, 0.35, light);
     } else if e == wall {
       panel(out, s, a, b, z, 0.0, 1.0, 0.0, 1.0, light);
@@ -1005,7 +1012,14 @@ fn hex_y(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, b
   if !v.hex_mode { return base; }
   s = v.hex[0]!;
   if tile_world::open_sky(w.w, x, y, z) {
-    return hexscene::height_at_layer(s, TILE_M * (x as float), -TILE_M * (y as float), z) / TILE_M;
+    // on a house's roof (a roof garden, a roof walked over): its storey's height, not the ground's
+    mx = TILE_M * (x as float);
+    my = -TILE_M * (y as float);
+    hi = hexscene::house_at(s, mx, my);
+    if hi >= 0 && base * s.storey > s.houses[hi]!.floor + 0.1 && !hexscene::in_court(s, hi, mx, my) {
+      return (base * s.storey + (if s.houses[hi]!.roof == 1 { 0.3 } else { 0.0 })) / TILE_M;
+    }
+    return hexscene::height_at_layer(s, mx, my, z) / TILE_M;
   }
   base * s.storey / TILE_M
 }
@@ -1059,7 +1073,7 @@ fn hex_kinds(g: const game::Game) -> vector<integer> {
   path = mat_sprite(g, "path");
   // a cliff's face: the earth a terrace stands on, as the square view draws a terrace's front
   [mat_sprite(g, "grass"), path, path, path, mat_sprite(g, "shallows"), mat_sprite(g, "bridge"),
-   theme::terrain_sprite(g.look, rules::tr(g.world, "wall"), 0, 0, false)]
+   theme::terrain_sprite(g.look, rules::tr(g.world, "wall"), 0, 0, false), mat_sprite(g, "paving"), mat_sprite(g, "field")]
 }
 
 /// Build what is dirty of the hex version's meshes (all of it the first time, or at a change of
@@ -1098,6 +1112,15 @@ fn hex_build(v: View3D, gl: const Gl, g: const game::Game) {
     for i in inp.cell_ixs { hex_cell(out, s, f.xs[i] ?? 0, f.ys[i] ?? 0, kinds, night); }
     for i in 0..len(s.houses) {
       if (v.hex_house_ck[i] ?? -1) == inp.key.ck { house_faces(out, g, s, s.houses[i], night); }
+    }
+    // what stands along the yards, and the roofs on pillars: each with the chunk its middle lies in
+    for each_fence in s.fences {
+      (fq, fr) = hexscene::cell_near((each_fence.ax + each_fence.bx) * 0.5, (each_fence.ay + each_fence.by) * 0.5);
+      if gridmesh::chunk_of(fq, fr, HEX_SHIFT).ck == inp.key.ck { fence_faces(out, g, s, each_fence, night); }
+    }
+    for each_canopy in s.canopies {
+      (cq, cr) = hexscene::cell_near(each_canopy.x, each_canopy.y);
+      if gridmesh::chunk_of(cq, cr, HEX_SHIFT).ck == inp.key.ck { canopy_faces(out, g, each_canopy, night); }
     }
     gk = gridmesh::group_of(inp.key.cx, inp.key.cy, HEX_GROUP).gk;
     v.hex_chunks[inp.key.ck] = null;
@@ -1385,6 +1408,7 @@ fn in_area(s: const hexscene::Scene, area: integer, own: integer, near: const ve
 fn piece_sprite(s: const hexscene::Scene, own: integer, near: const vector<integer>, x: float, y: float,
                 kinds: const vector<integer>) -> integer {
   if own == 5 { return kinds[5] ?? -1; }
+  if own == 7 || own == 8 { return kinds[own] ?? -1; }
   if in_area(s, hexscene::ROAD, own, near, x, y) { return kinds[1] ?? -1; }
   if in_area(s, hexscene::RAIL, own, near, x, y) { return kinds[2] ?? -1; }
   if in_area(s, hexscene::STREAM, own, near, x, y) { return kinds[if own == 4 { 4 } else { 3 }] ?? -1; }
@@ -1500,6 +1524,18 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
         lo = if door { z0 } else { z0 + 0.9 };
         hi = z0 + (if door { 2.1 } else { 2.0 });
         wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, lo, t, night);
+        if sp.2 == 3 {
+          // a bay window: a sill and a little roof standing out from the wall, a post at each end
+          reach = 0.6;
+          bx0 = sx + uy * reach;
+          by0 = sy - ux * reach;
+          wall_piece(out, walls, bx0, by0, ux, uy, sp.0 - 0.2, sp.1 + 0.2, lo - 0.25, lo, t + reach * 2.0, night);
+          wall_piece(out, stone, bx0, by0, ux, uy, sp.0 - 0.3, sp.1 + 0.3, hi, hi + 0.18, t + reach * 2.0 + 0.3, night);
+          px0 = sx + uy * (reach * 2.0 + t * 0.5 - 0.06);
+          py0 = sy - ux * (reach * 2.0 + t * 0.5 - 0.06);
+          wall_piece(out, walls, px0, py0, ux, uy, sp.0 - 0.2, sp.0 - 0.08, lo, hi, 0.12, night);
+          wall_piece(out, walls, px0, py0, ux, uy, sp.1 + 0.08, sp.1 + 0.2, lo, hi, 0.12, night);
+        }
         z = hi;
       }
       wall_piece(out, walls, sx, sy, ux, uy, sp.0, sp.1, z, h.top, t, night);
@@ -1517,15 +1553,84 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
   cx = (cx / (n as float)) ?? 0.0;
   cy = (cy / (n as float)) ?? 0.0;
   planks = mat_sprite(g, "bridge");
+  roof = mat_sprite(g, if storeys > 1 { "house_slate" } else { "house_roof" });
+  // round a court: each corner of the house with the court's corner nearest it
+  court = len(h.court_xs) == 4 && n == 4;
+  ic: vector<(float, float)> = [];
+  if court {
+    for i in 0..n {
+      best = 0;
+      best_d = -1.0;
+      for j in 0..4 {
+        d = ((h.court_xs[j] ?? 0.0) - (h.xs[i] ?? 0.0)) * ((h.court_xs[j] ?? 0.0) - (h.xs[i] ?? 0.0))
+          + ((h.court_ys[j] ?? 0.0) - (h.ys[i] ?? 0.0)) * ((h.court_ys[j] ?? 0.0) - (h.ys[i] ?? 0.0));
+        if best_d < 0.0 || d < best_d {
+          best = j;
+          best_d = d;
+        }
+      }
+      ic += [(h.court_xs[best] ?? 0.0, h.court_ys[best] ?? 0.0)];
+    }
+  }
   for st in 1..storeys {
     z = h.floor + (st as float) * s.storey;
     for i in 0..n {
       a = (h.xs[(i + n - 1) % n ?? 0] ?? 0.0, h.ys[(i + n - 1) % n ?? 0] ?? 0.0, z);
       b = (h.xs[i] ?? 0.0, h.ys[i] ?? 0.0, z);
-      patch(out, planks, (cx, cy, z), a, b, (cx, cy, z), night);
+      if court {
+        ca = ic[(i + n - 1) % n ?? 0] ?? (cx, cy);
+        cb = ic[i] ?? (cx, cy);
+        patch(out, planks, a, b, (cb.0, cb.1, z), (ca.0, ca.1, z), night);
+      } else {
+        patch(out, planks, (cx, cy, z), a, b, (cx, cy, z), night);
+      }
     }
   }
-  roof = mat_sprite(g, if storeys > 1 { "house_slate" } else { "house_roof" });
+  if h.roof == 1 {
+    // a roof garden: flat, grass on it, a low wall round it
+    lawn = mat_sprite(g, "grass");
+    z = h.top + 0.3;
+    for i in 0..n {
+      ax = h.xs[(i + n - 1) % n ?? 0] ?? 0.0;
+      ay = h.ys[(i + n - 1) % n ?? 0] ?? 0.0;
+      bx = h.xs[i] ?? 0.0;
+      by = h.ys[i] ?? 0.0;
+      patch(out, lawn, (cx, cy, z), (ax, ay, z), (bx, by, z), (cx, cy, z), night);
+      l = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+      if l < 0.001 { continue; }
+      ux = (bx - ax) / l ?? 0.0;
+      uy = (by - ay) / l ?? 0.0;
+      wall_piece(out, walls, ax - ux * t * 0.5, ay - uy * t * 0.5, ux, uy, 0.0, l + t, h.top, h.top + 1.6, t, night);
+    }
+    return;
+  }
+  if court {
+    // the roof a ring: up from the eaves outside to a ridge, down to the court; along the court a
+    // beam at every storey's top and a low wall on every upper floor
+    for i in 0..n {
+      j = (i + n - 1) % n ?? 0;
+      oa = (h.xs[j] ?? 0.0, h.ys[j] ?? 0.0);
+      ob = (h.xs[i] ?? 0.0, h.ys[i] ?? 0.0);
+      ca = ic[j] ?? oa;
+      cb = ic[i] ?? ob;
+      wide = sqrt((ca.0 - oa.0) * (ca.0 - oa.0) + (ca.1 - oa.1) * (ca.1 - oa.1));
+      zr = h.top + 0.3 * wide;
+      ra = ((oa.0 + ca.0) * 0.5, (oa.1 + ca.1) * 0.5, zr);
+      rb = ((ob.0 + cb.0) * 0.5, (ob.1 + cb.1) * 0.5, zr);
+      patch(out, roof, (oa.0, oa.1, h.top), (ob.0, ob.1, h.top), rb, ra, night);
+      patch(out, roof, ra, rb, (cb.0, cb.1, h.top), (ca.0, ca.1, h.top), night);
+      l = sqrt((cb.0 - ca.0) * (cb.0 - ca.0) + (cb.1 - ca.1) * (cb.1 - ca.1));
+      if l < 0.001 { continue; }
+      ux = (cb.0 - ca.0) / l ?? 0.0;
+      uy = (cb.1 - ca.1) / l ?? 0.0;
+      for st in 0..storeys {
+        z0 = h.floor + (st as float) * s.storey;
+        wall_piece(out, walls, ca.0, ca.1, ux, uy, -0.15, l + 0.15, z0 + s.storey - 0.35, z0 + s.storey, 0.3, night);
+        if st > 0 { wall_piece(out, walls, ca.0, ca.1, ux, uy, 0.0, l, z0, z0 + 1.3, 0.2, night); }
+      }
+    }
+    return;
+  }
   over = 0.4 + t * 0.5;
   if n != 4 {
     z = h.top + 0.3;
@@ -1563,6 +1668,46 @@ fn house_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene,
   patch(out, roof, c3, c4, r1, r2, night);
   patch(out, roof, c2, c3, r2, r2, night);
   patch(out, roof, c4, c1, r1, r1, night);
+}
+
+/// What stands along a yard's side (owner, 2026-11-14): a low wall of stone, a hedge, a fence of
+/// posts and two rails, in pieces of 0.75 m at most, each on the ground under it.
+fn fence_faces(out: vector<Face>, g: const game::Game, s: const hexscene::Scene, f: const hexscene::Fence, night: boolean) {
+  l = sqrt((f.bx - f.ax) * (f.bx - f.ax) + (f.by - f.ay) * (f.by - f.ay));
+  if l < 0.05 { return; }
+  ux = (f.bx - f.ax) / l ?? 0.0;
+  uy = (f.by - f.ay) / l ?? 0.0;
+  sp = mat_sprite(g, if f.kind == 1 { "stone_wall" } else if f.kind == 4 { "bridge" } else { "hedge" });
+  n = ceil(l / 0.75 ?? 1.0) as integer;
+  if n < 1 { n = 1; }
+  for i in 0..n {
+    s0 = l * (i as float) / (n as float) ?? 0.0;
+    s1 = l * ((i + 1) as float) / (n as float) ?? l;
+    sm = (s0 + s1) * 0.5;
+    z = hexscene::height_at(s, f.ax + ux * sm, f.ay + uy * sm);
+    if f.kind == 4 {
+      wall_piece(out, sp, f.ax, f.ay, ux, uy, s0, s0 + 0.12, z - 0.3, z + f.height, 0.12, night);
+      wall_piece(out, sp, f.ax, f.ay, ux, uy, s0, s1, z + f.height * 0.45, z + f.height * 0.55, 0.06, night);
+      wall_piece(out, sp, f.ax, f.ay, ux, uy, s0, s1, z + f.height * 0.85, z + f.height * 0.95, 0.06, night);
+    } else {
+      wall_piece(out, sp, f.ax, f.ay, ux, uy, s0 - 0.02, s1 + 0.02, z - 0.4, z + f.height, f.thick, night);
+    }
+  }
+}
+
+/// A roof on pillars: four slopes up to a point, a beam round under them.
+fn canopy_faces(out: vector<Face>, g: const game::Game, c: const hexscene::Canopy, night: boolean) {
+  roof = mat_sprite(g, "house_roof");
+  wood = mat_sprite(g, "bridge");
+  r = c.size * 0.5 + 0.3;
+  top = (c.x, c.y, c.z + 1.5);
+  cs = [(c.x - r, c.y - r, c.z), (c.x + r, c.y - r, c.z), (c.x + r, c.y + r, c.z), (c.x - r, c.y + r, c.z)];
+  for i in 0..4 {
+    a = cs[i] ?? top;
+    b = cs[(i + 1) % 4 ?? 0] ?? top;
+    patch(out, roof, a, b, top, top, night);
+    wall_piece(out, wood, a.0, a.1, (b.0 - a.0) / (2.0 * r), (b.1 - a.1) / (2.0 * r), 0.3, 2.0 * r - 0.3, c.z - 0.25, c.z, 0.2, night);
+  }
 }
 
 // --- The GPU ---

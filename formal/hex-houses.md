@@ -298,6 +298,57 @@ loop of 28 walls, its stream one of 54; every rail and stream centre is clearly 
 but four of the paths', every one of those four in a lane too narrow to carry walls (§ Not
 covered).
 
+## Yards, courts, bays and roof gardens
+
+Owner, 2026-11-14: hedges, low walls and fences round the landscape and the gardens; pillars for an
+in-house plaza as a cloister, or for a gazebo; roof gardens, bay windows and terraces; more
+buildings at angles.  The rules they play by are the square game's (DESIGN.md § The world: each an
+edge along the tiles, got over from a height); these are how the hex version of a place draws
+them (`hextown.loft` `dress`, `hexscene.loft`, `render3d.loft`).  All ◇ but the owner's words.
+
+```
+  (HY-Side)     What stands along a yard's side is a straight stretch on the ground, from point to
+                point, of its kind's height and thickness (hexsizes.json's "yards": a low wall
+                and a low hedge two steps of a storey's four, a hedge a whole storey, a fence),
+                broken where the yard has a gate and left out along the side against its house.
+                It follows the ground: drawn in pieces of 0.75 m at most, each standing on the
+                ground under its middle.
+  (HY-Turn)     A yard against a house turns with it: each of its points is the square map's
+                point carried through the house's own turn, its odd step's offset with it
+                (`hexturn::turned_point`), so the yard keeps its place beside the house at every
+                angle.  A side that ends at the house runs on a little and is cut where it enters
+                the house's outline, so it meets the wall whichever line the wall was moved to
+                (HT-Near).  What lies in such a yard turns with it: its plots and paving, tile
+                by tile, and its trees.  A yard of its own stands where the square map has it.
+  (HY-Outside)  No stretch stands inside a house: its middle lies outside every house's outline.
+  (HY-Angle)    A house stands at the angle its place gives it (the intent's `turn`), else facing
+                down the hill; square to the grid where the turned house would stand on a house
+                already placed, or on more of a road's cells than the start of the way to its own
+                door (three).
+  (HY-Court)    A house round a court keeps its outline; the court is a second outline inside it,
+                the square map's rectangle carried through the house's turn, its cells paved and
+                open to the sky.  The roof is a ring: from the eaves outside up to a ridge midway
+                and down to the court.  Pillars stand on the court's rim where the square map has
+                them, from the floor to the eaves; along the court a beam at every storey's top
+                and a low wall on every upper floor.
+  (HY-Roof)     A roof garden is a flat roof at the eaves, grass on it, the house's own walls
+                carried up round it as a low wall; who stands on it stands at its storey's height,
+                not the ground's.
+  (HY-Bay)      A bay window is an opening like any other to the walls (HO-Point), drawn standing
+                out from its wall on every storey: a sill, a post at each end, a little roof.
+  (HY-Canopy)   A roof on pillars (a gazebo) is four slopes to a point over its square, a beam
+                round under them, its eaves a storey over the ground at its middle.
+```
+
+Not cells: a yard is drawn from the square map's rectangle, not from hex cells of its own, so
+HW-Clear is not claimed for it — the hex version is drawn, not played (the play is the square
+game's).  When a place is modelled in hex, a yard becomes a structure of cells like a road
+(HR-Sides), its sides walls with a height.
+
+Orbury (2026-11-14): 19 houses, five at an angle (the second well-off house and the farmhouse at
+30°, a cottage, a miner's house and the barn at 330°); one court, one roof garden, two bays, one
+gazebo; the yards' sides in stretches of all four kinds.
+
 ## The house's plan
 
 ```
@@ -351,6 +402,7 @@ Over boxes (5 × 4, 3 × 2, 2 × 2), two L's, a T and a U at the twelve angles (
 | HW-Step | `tests/hexroads.loft`: `test_a_band_stepping_over_a_row_keeps_its_steps` |
 | HW-Slant | `tests/hexroads.loft`: `test_a_slanted_spur_keeps_its_heading` |
 | HR-Sides, HW-Clear (roads) | `tests/hexroads.loft`: `test_orburys_roads_rails_and_stream_are_clear` |
+| HY-Side, HY-Outside, HY-Court | `tests/hexroads.loft`: `test_orburys_yards_stand_outside_its_houses`; the square side of them: `tests/intent.loft` `test_a_yard_is_edged_but_for_its_open_side_and_its_gate`, `test_a_court_is_open_to_the_sky_with_pillars_round_it`; `tests/moves.loft` (the four edge tests); `tests/worlds.loft` `test_the_lords_garden_is_entered_over_its_hedge_at_a_fall`, `test_orburys_gardens_have_their_gates` |
 
 Measured for HO-Turn30: a door and a window at every half step along every wall of five boxes
 (384 openings, corners included), turned 30°: the worst 0.317 units along the wall, under the
@@ -379,7 +431,10 @@ fails nothing, and should not: it changes no cell (HT-Turn30).
   3 × 2 wing lost them at every angle, a 5 × 3 body with a 3 × 3 wing at 30° only, and three others
   kept them.  Until the runs are read better, HX-Size's "big enough" means walls of three steps.
 
-- a courtyard (a structure with a hole), inner walls, and walls not at a right angle;
+- a courtyard as cells (a structure with a hole: a court is drawn as a second outline, HY-Court),
+  inner walls, and walls not at a right angle;
+- HY-Turn, HY-Angle, HY-Roof, HY-Bay and HY-Canopy have no test of their own: they were checked by
+  eye on a plan drawn from the port's data, not in the 3D view;
 - mirroring (an exact lattice reflection, ROUNDTRIP X2, not yet a routine of `hexturn`);
 - the count of cells: an odd step keeps the walls near their places (HT-Near), not the count —
   a U loses 6 of its 55 cells at 30°, its 4.5 m arms becoming 3.9 m.

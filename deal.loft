@@ -445,6 +445,15 @@ fn under_a_house(it: const intent::Intent, x: integer, y: integer, z: integer) -
   false
 }
 
+// Does template shape `sh` laid as `p` on house `s` reach onto another house: a cell of it beyond
+// its own footprint that is another's?  (A yard's wall or its chair laid into the neighbour.)
+fn on_a_neighbour(it: const intent::Intent, s: const Shell, sh: const stamp::Shape, p: const Laid) -> boolean {
+  for c in stamp::cells_of(sh, p.x, p.y, p.z, p.turn, p.flip) {
+    if !in_footprint(s, c.0, c.1) && under_a_house(it, c.0, c.1, c.2) { return true; }
+  }
+  false
+}
+
 // A tunnel for cellar `cellar` laid as `cp` (HOUSES.md § Tunnels): from the gap in its wall,
 // turned to run out the way the gap faces, through earth only — never under a house, never over
 // another template — its stretch row repeated until it reaches the town: its mouth's start among
@@ -639,6 +648,7 @@ pub fn deal(l: rules::Level, it: const intent::Intent, ts: const vector<levels::
           if wi < 0 { continue; }
           way = ways[wi]!;
           way_p = own(place(r, ts[way]!, shapes[way]!, s, used) ?? continue);
+          if on_a_neighbour(it, s, shapes[way]!, way_p) { continue; }
           take_cells(used, shapes[way]!, way_p);
           laid += [way_p];
         }

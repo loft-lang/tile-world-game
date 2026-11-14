@@ -89,7 +89,9 @@ pub fn measures_file(path: text) -> Measures {
   d = default_measures();
   text = file(path).content() ?? "";
   if text == "" { return d; }
-  t = json_parse(text).field("terrain");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  t_doc = json_parse(text);
+  t = t_doc.field("terrain");
   Measures { storey: num(t.field("storey"), d.storey), hillside: num(t.field("hill_falloff"), d.hillside),
              bank: num(t.field("bank_falloff"), d.bank), blend: num(t.field("seat_blend"), d.blend) }
 }

@@ -38,7 +38,10 @@
     "door":   { "id": 2, "walk": true, "opaque": true, "glyph": "+" },
     "window": { "id": 3, "glyph": "=" },
     "fence":  { "id": 4, "climb": true, "glyph": "-" },
-    "slope":  { "id": 5, "walk": true, "slope": true, "glyph": "/" }
+    "slope":  { "id": 5, "walk": true, "slope": true, "glyph": "/" },
+    "low_wall":  { "id": 6, "over": 1, "glyph": "n" },
+    "low_hedge": { "id": 7, "over": 2, "glyph": "h" },
+    "hedge":     { "id": 8, "opaque": true, "over": 4, "glyph": "H" }
   },
   "things": {
     "cart":   { "id": 1, "height": 1, "move": "push_pull", "rails": true, "train": true, "stand": true, "rest": true, "derails_to": "derailed_cart", "loads_to": "full_cart", "glyph": "c" },

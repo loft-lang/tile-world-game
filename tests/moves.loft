@@ -459,6 +459,69 @@ fn test_a_fence_edge_is_climbed_over() {
   assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h1", "a wall edge: {at(w)}");
 }
 
+// A low wall between x 1 and x 2 (owner, 2026-11-14): not stepped over from the ground, climbed
+// from a chair; seen across; nothing is pushed across it.
+fn test_a_low_wall_is_climbed_from_a_chair() {
+  w = row(5);
+  tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, rules::ed(w, "low_wall"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && at(w) == "1,0,0 h0", "not from the ground: {at(w)}");
+  assert(tile_world::see_through(w.w, 1, 0, 0, 1, 0), "seen across");
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 0, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "1,0,0 h1", "the chair is not pushed across: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h0", "over it from the chair: {at(w)}");
+  assert(rules::walk(w, -1, 0) == rules::Step.Blocked, "and not back from the ground");
+}
+
+// A low hedge is too high for a chair: it is jumped from a table (2).
+fn test_a_low_hedge_is_jumped_from_a_table() {
+  w = row(6);
+  tile_world::set_edge(w.w, 3, 0, 0, tile_world::WEST, rules::ed(w, "low_hedge"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 2, 0, 0);
+  assert(w.hero_h == 1 && rules::walk(w, 1, 0) == rules::Step.Blocked, "not from a chair: {at(w)}");
+  assert(tile_world::see_through(w.w, 2, 0, 0, 1, 0), "seen across");
+  _ = tile_world::take(w.w, 2, 0, 0);
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "table"));
+  tile_world::place(w.w, 1, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 1, 0, 0);
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "2,0,0 h2", "onto the table: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Walked && at(w) == "3,0,0 h0", "over the hedge: {at(w)}");
+  assert(w.health == w.k.health, "two steps down cost nothing");
+}
+
+// A hedge stands a layer high and stops sight: got over only from a layer's height — here a
+// hillside's rise, a table and a chair on it — and the drop down its far side is a fall.
+fn test_a_hedge_is_crossed_from_a_layers_height_and_costs_a_fall() {
+  w = row(6);
+  tile_world::set_edge(w.w, 3, 0, 0, tile_world::WEST, rules::ed(w, "hedge"));
+  assert(!tile_world::see_through(w.w, 2, 0, 0, 1, 0), "not seen through");
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "table"));
+  tile_world::place(w.w, 2, 0, 0, rules::th(w, "chair"));
+  rules::put_hero(w, 2, 0, 0);
+  assert(w.hero_h == 3 && rules::walk(w, 1, 0) == rules::Step.Blocked, "a table and a chair are not enough: {at(w)}");
+  tile_world::set_rise(w.w, 2, 0, 0, 1);
+  rules::put_hero(w, 2, 0, 0);
+  assert(w.hero_h == 4, "on the rise: {at(w)}");
+  assert(rules::walk(w, 1, 0) == rules::Step.Fell && at(w) == "3,0,0 h0", "over, and down: {at(w)}");
+  assert(w.health == w.k.health - 1, "a layer's fall: {w.health}");
+}
+
+// A hedge along the foot of a cliff is stepped over from the terrace above it, and the drop is the
+// cliff's fall as ever; from below it is not crossed.
+fn test_a_hedge_at_a_cliffs_foot_is_crossed_from_above() {
+  w = rules::level(rules::kinds());
+  tile_world::fill(w.w, 0, 0, 3, 0, 0, rules::tr(w, "floor"));
+  tile_world::fill(w.w, 0, 0, 1, 0, 0, rules::tr(w, "wall"));
+  tile_world::fill(w.w, 0, 0, 1, 0, 1, rules::tr(w, "floor"));
+  tile_world::set_edge(w.w, 2, 0, 0, tile_world::WEST, rules::ed(w, "hedge"));
+  rules::put_hero(w, 2, 0, 0);
+  assert(rules::walk(w, -1, 0) == rules::Step.Blocked, "not from below: {at(w)}");
+  rules::put_hero(w, 1, 0, 1);
+  assert(rules::walk(w, 1, 0) == rules::Step.Fell && at(w) == "2,0,0 h0", "from above: {at(w)}");
+}
+
 // Walking into a closed door opens it — one move, the hero stays — and it no longer stops
 // light; the next step goes through.
 fn test_a_door_opens() {

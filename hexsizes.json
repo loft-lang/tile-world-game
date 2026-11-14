@@ -1,5 +1,5 @@
 {
-  "about": "The measurements of structures on the hex grid, in metres (formal/hex-houses.md § Sizes). Change them here, not in the routines; tests/hexhouses.loft checks the rules still hold with them. A hex step is 1.5 m, fixed by the grid. Each kind of wall has its own thickness: an outer wall, an inner wall between rooms and a fence (the inner wall and the fence are not drawn yet; their numbers are first guesses for the owner to set). The terrain's measurements: a storey (one layer of the square world), how wide a hillside is between two terraces, how wide a stream's bank, and how far round a house the ground blends back to its own height.",
+  "about": "The measurements of structures on the hex grid, in metres (formal/hex-houses.md § Sizes). Change them here, not in the routines; tests/hexhouses.loft checks the rules still hold with them. A hex step is 1.5 m, fixed by the grid. Each kind of wall has its own thickness: an outer wall, an inner wall between rooms and a fence (the inner wall and the fence are not drawn yet; their numbers are first guesses for the owner to set). What stands along a yard's side, by kind (owner, 2026-11-14): a low wall and a low hedge two steps of a storey's four, a hedge a whole storey. The terrain's measurements: a storey (one layer of the square world), how wide a hillside is between two terraces, how wide a stream's bank, and how far round a house the ground blends back to its own height.",
   "walls": {
     "outer": 0.75,
     "inner": 0.45,
@@ -10,6 +10,12 @@
     "window": 0.8660254037844386
   },
   "corner_clearance": 0.75,
+  "yards": {
+    "low_wall": { "height": 1.3, "thick": 0.4 },
+    "low_hedge": { "height": 1.3, "thick": 0.7 },
+    "hedge": { "height": 2.6, "thick": 0.9 },
+    "fence": { "height": 1.0, "thick": 0.15 }
+  },
   "terrain": {
     "storey": 2.6,
     "hill_falloff": 6.0,

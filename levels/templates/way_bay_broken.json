@@ -1,0 +1,86 @@
+{
+  "name": "way_bay_broken",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "a bay window with its glass gone: the wall's cell open, the bay beyond it, its sill a low wall; a chair below it",
+    "at": "wall",
+    "wall": [
+      0,
+      0
+    ],
+    "gives": true,
+    "weight": 3,
+    "solution": "w w w w w"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        ".",
+        "."
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        0,
+        3,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      2,
+      0,
+      "N",
+      "low_wall"
+    ],
+    [
+      0,
+      1,
+      0,
+      "W",
+      "window"
+    ],
+    [
+      1,
+      1,
+      0,
+      "W",
+      "window"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    0,
+    4,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

@@ -351,6 +351,61 @@ fn test_the_rotted_cellar_stair_in_every_way_it_lies() {
   }
 }
 
+// A way in drawn against a wall, laid in each of the eight ways on the block and played from its
+// start by its own solution: the hero ends on the wall's cell it opens, and has lost no health.
+fn plays_in(name: text, start_x: integer, start_y: integer, wall_x: integer, solution: text) {
+  km = kit();
+  t = template(name);
+  b = stamp::box_of(t);
+  for turn in 0..4 {
+    for flip in [false, true] {
+      l = block();
+      c = against_wall(turn, b.y1 - b.y0 + 1);
+      stamp::apply(l, t, c.0, c.1, 0, turn, flip, km.1);
+      st = stamp::spot(b, turn, flip, start_x, start_y);
+      rules::put_hero(l, c.0 + st.0, c.1 + st.1, 0);
+      rules::play(l, turned_moves(solution, turn, flip));
+      win = stamp::spot(b, turn, flip, wall_x, 0);
+      assert(l.hero_z == 0 && l.hero_x == c.0 + win.0 && l.hero_y == c.1 + win.1 && l.health == l.k.health,
+             "{name} turn {turn} flip {flip}: in through the wall: {at(l)}");
+    }
+  }
+}
+
+// The back door behind a low wall (owner, 2026-11-14: climbed from just a chair): the chair pushed
+// up to the wall, climbed, the wall crossed.  Without the chair the wall is not crossed.
+fn test_the_walled_back_door_in_every_way_it_lies() {
+  plays_in("way_back_door_walled", 1, 4, 1, "w w w w");
+  km = kit();
+  l = block();
+  stamp::apply(l, template("way_back_door_walled"), 3, 8, 0, 0, false, km.1);
+  _ = tile_world::take(l.w, 4, 11, 0);
+  rules::put_hero(l, 4, 12, 0);
+  rules::play(l, "w w w w");
+  assert(l.hero_y == 10, "no chair, no way over the wall: {at(l)}");
+}
+
+// The back door behind a low hedge (owner: jumped from a table): the chair pushed to the table's
+// foot, the hero onto it, onto the table, over the hedge.  From the chair alone the hedge holds.
+fn test_the_hedged_back_door_in_every_way_it_lies() {
+  plays_in("way_back_door_hedged", 4, 3, 1, "a a s a w w w w");
+  km = kit();
+  l = block();
+  stamp::apply(l, template("way_back_door_hedged"), 3, 8, 0, 0, false, km.1);
+  // the table gone, the chair against the hedge: a step of 1 is not enough
+  _ = tile_world::take(l.w, 4, 10, 0);
+  _ = tile_world::take(l.w, 6, 11, 0);
+  tile_world::place(l.w, 4, 10, 0, rules::th(l, "chair"));
+  rules::put_hero(l, 4, 11, 0);
+  rules::play(l, "w w w");
+  assert(l.hero_y == 10 && l.hero_h == 1, "on the chair, the hedge before it: {at(l)}");
+}
+
+// A bay window with its glass gone: its sill a low wall, the chair below it pushed up and climbed.
+fn test_the_broken_bay_in_every_way_it_lies() {
+  plays_in("way_bay_broken", 0, 4, 0, "w w w w");
+}
+
 // A tunnel stretched (HOUSES.md § Tunnels): its stretch row repeated, the rows below it moved down
 // with what is on them; what is on the stretch row itself repeated with it, what is above kept once.
 fn test_a_tunnel_stretches() {

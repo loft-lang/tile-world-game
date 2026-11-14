@@ -49,6 +49,31 @@ is not.
   care; and too little maintenance let time in, so for example part of a roof came down.  A
   variety of houses, some elaborate, most not spectacular: most people were lowly miners, but
   there was money too (owner, 2026-11-08).
+- **A town where people lived and wanted to live** (owner, 2026-11-14): not a blocky town.  What
+  the basic tiles could not show comes in with the end of the 2D view (DESIGN.md § What the player
+  sees): hedges, low walls and fences round the landscape and the gardens; pillars for an in-house
+  plaza as a cloister, or for a gazebo; roof gardens, bay windows and terraces; doors and windows
+  at the side and back of buildings; more buildings at an angle.  Built into Orbury ◇ (each choice
+  of where is a proposal, `tools/orbury_gen.py`):
+  - **the lord's house** round an inner court, a cloister: pillars along it, open to the sky, a
+    low wall along it upstairs; a door in its east side onto **his garden**, behind a hedge a layer
+    high with no gate, laid out with a paved walk, two beds behind low hedges and a seat.  The
+    garden is entered by the house, or from the hilltop behind it over the hedge at the cliff's
+    foot, at a fall's cost;
+  - **the inn's terrace**, west of it where its tables were left out: paved, a low wall round it;
+  - **the market's gazebo** by the well: four pillars, a roof, a table and two chairs under it;
+  - **the well-off houses**: the first with a roof garden (grass and bushes behind a low wall, up
+    by a hatch from its upper floor) and a bay window either side of its door on both floors; the
+    second with a walled garden, part paved, a table and chairs, two trees;
+  - **the cottages' gardens** on the middle terrace, each behind a low hedge with a gate, a kitchen
+    plot and a tree in it; Hollis's with her herbs;
+  - **the miners' yards**, two of them, behind a plain fence, a plot in each; **Thornfield's
+    fields** fenced, a gate in each onto the path between them;
+  - **windows in the sides** of Hollis's, the smithy, the well-off houses, the farmhouse and the
+    lord's;
+  - **at an angle in the hex town**: the second well-off house, a cottage, a miner's house, the
+    farmhouse and the barn (their gardens turn with them); a house asked to turn stays square
+    where it would stand on another or across a road.
 - **The town's layout is fixed** (owner, 2026-11-08), with the farms and the cemetery on its side
   of the stream; what varies is the state of the houses and their interior, dealt from the
   templates (PUZZLES.md § Houses).

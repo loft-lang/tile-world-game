@@ -671,6 +671,21 @@ on water, and things pushed or blown into it are lost.
     and it stops trains. Bats fly over it. Built (slice 2) as a terrain cell and as an edge
     between two cells; bats wait for enemies.
   - Tree: blocks walking; light and sight pass it (built, slice 2).
+  - Hedges and low walls (owner, 2026-11-14).  Neither is a tile wide: they run along the tiles,
+    as edges between two cells (kinds.json's `low_wall`, `low_hedge`, `hedge`), like the fence's
+    edge.  Each is got over only by a hero standing high enough on its own side (the edge's
+    `over`, in steps), and nothing else crosses it: no thing pushed or pulled, no enemy.
+    - **A low wall** stands 2 high and is seen across.  It is climbed from just a chair
+      (`over` 1), and walked across.
+    - **A low hedge** stands 2 high and is seen across.  It cannot be climbed or walked across;
+      it is jumped from a table (`over` 2).
+    - **A hedge** stands the full height of a layer and stops sight.  It can be crossed, but it
+      needs extra height: along a hill (a rise of 1) with a table and a chair on it (`over` 4),
+      or from the terrace above it where it stands at a front's foot.  Then it gets dangerous:
+      the drop down its far side is a fall, and costs health like any fall of a layer.
+    Coming down the far side of any of them the hero drops however deep it is; less than a layer
+    costs nothing.  Built: `rules.loft` (`crosses_from`, `over_between`), `tests/moves.loft`.
+    The 2D view draws them as plain lines; their look is the 3D view's (§ What the player sees).
   - Door: walking into a closed one opens it (built, slice 2).
   - Stairs: walking onto them takes the hero to the same cell a layer up or down (built, slice 2).
   - Well.
@@ -1214,6 +1229,15 @@ enemies.  The tiles are the game's own sheet ([ART.md](ART.md)).
     (`checks/game.loft`).
 
 ## What the player sees
+
+**The 2D view ends here** (owner, 2026-11-14).  Hedges and low walls along the tiles, pillars,
+bay windows, roof gardens, terraces and buildings at an angle are shapes the basic tiles cannot
+show, so this is the point where the old presentation with the basic tiles breaks; the 2D view is
+at the end of what it can do, and the 3D view (RENDER_3D.md) is the game's presentation from here.
+What it also frees: doors and windows at the side and the back of buildings, which the tiles'
+pictures only had for a front.  The 2D view is not taken out; it gets no more than plain marks for
+what is new.  ◇ Open against BUILD.md phase E ("no backend lost": the Tanmatsu draws 2D until it
+draws 3D): on that device the new shapes are plain lines until then.
 
 - **The way the hero faces is seen** (owner, 2026-11-07; built, `game.loft` `draw_figure`): the
   way it last stepped, where Q acts.  Facing east or west it leans FACE_TILT degrees (6) that way,

@@ -137,7 +137,15 @@ pub struct House {
   pub holes: vector<Point> = [],
   /// An ordinary house, dealt from the templates when a game starts (HOUSES.md § The deal): how it
   /// was locked and the way in, its inside as left, its cellar.
-  pub dealt: boolean = false
+  pub dealt: boolean = false,
+  /// An inner court (owner, 2026-11-14: an in-house plaza as a cloister): `court` cells of its
+  /// inside, w by h from (x, y), open to the sky on every floor, paved on the ground floor, with
+  /// pillars along its rim — every other cell — carrying the floors round it; on an upper floor a
+  /// low wall runs along the court.  As [x, y, w, h]; empty: no court.
+  pub court: vector<integer> = [],
+  /// Its angle in the hex version of the place, in steps of 30 degrees anticlockwise (0..11); -1:
+  /// the hex town's to give.  The square cells stay square (DESIGN.md § What the player sees).
+  pub turn: integer = -1
 }
 
 
@@ -157,6 +165,23 @@ pub struct Area {
   pub y: integer,
   pub w: integer,
   pub h: integer
+}
+
+/// A yard (owner, 2026-11-14: hedges, low walls and fences round the gardens): the cells w by h
+/// from (x, y) on layer z, with an edge of `what` (kinds.json's: low_wall, low_hedge, hedge, fence)
+/// along every side of it but those in `open` (of "NESW": a side against its house), and but its
+/// `gates`: each the side of one of its cells left open.  With `floor`, its cells are of that (a
+/// terrace's paving); else the ground stays what it is.
+pub struct Yard {
+  pub x: integer,
+  pub y: integer,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub what: text,
+  pub open: text = "",
+  pub gates: vector<Edge> = [],
+  pub floor: text = ""
 }
 
 /// A slope: three cells from (x, y) on layer z, stepping (dx, dy), rising 1, 2 and 3 steps, so the
@@ -221,7 +246,11 @@ pub struct Intent {
   /// default), a cliff, climbed only by stairs and slopes and fallen off.
   pub fronts: text = "",
   /// Where fronts stay cliffs in a place whose fronts slope: every front with a cell in one.
-  pub cliffs: vector<Area> = []
+  pub cliffs: vector<Area> = [],
+  /// The yards: gardens and terraces, each with its hedge, wall or fence round it.
+  pub yards: vector<Yard> = [],
+  /// Ground laid over the houses, after them (a roof garden's bushes, a hatch in a roof).
+  pub over: vector<Ground> = []
 }
 
 /// A word a room can take: the things it scatters (picked in turn by the hash), how many for
@@ -264,6 +293,7 @@ pub fn is_empty(it: const Intent) -> boolean {
   len(it.rooms) == 0 && len(it.corridors) == 0 && len(it.grounds) == 0 && len(it.trails) == 0
     && len(it.blobs) == 0 && len(it.houses) == 0 && len(it.slopes) == 0 && len(it.items) == 0
     && len(it.domes) == 0 && len(it.edges) == 0 && it.fronts == "" && len(it.cliffs) == 0
+    && len(it.yards) == 0 && len(it.over) == 0
 }
 
 /// Is the front between cells (x, y) and (x + dx, y + dy) a cliff: in a place whose fronts slope,
@@ -369,7 +399,8 @@ pub fn intent_from(v: const JsonValue) -> Intent {
                           basement: e.field("basement").as_bool() ?? false,
                           front: e.field("front").as_bool() ?? true,
                           openings: openings_of(e.field("openings")), holes: points_of(e.field("holes")),
-                          dealt: e.field("dealt").as_bool() ?? false }];
+                          dealt: e.field("dealt").as_bool() ?? false,
+                          court: ints_of(e.field("court")), turn: int_of(e.field("turn"), -1) }];
   }
   ss = v.field("slopes");
   for i in 0..ss.len() {
@@ -393,6 +424,29 @@ pub fn intent_from(v: const JsonValue) -> Intent {
     sz = e.field("size");
     it.cliffs += [Area { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1), h: int_of(sz.item(1), 1) }];
   }
+  ys = v.field("yards");
+  for i in 0..ys.len() {
+    e = ys.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    gates: vector<Edge> = [];
+    gv = e.field("gates");
+    for j in 0..gv.len() {
+      gates += [Edge { x: int_of(gv.item(j).item(0), 0), y: int_of(gv.item(j).item(1), 0), z: int_of(e.field("z"), 0),
+                       side: text_of(gv.item(j).item(2), "S"), what: "" }];
+    }
+    it.yards += [Yard { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1), h: int_of(sz.item(1), 1),
+                        z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "low_wall"),
+                        open: text_of(e.field("open"), ""), gates: gates, floor: text_of(e.field("floor"), "") }];
+  }
+  ov = v.field("over");
+  for i in 0..ov.len() {
+    e = ov.item(i);
+    at = e.field("at");
+    sz = e.field("size");
+    it.over += [Ground { x: int_of(at.item(0), 0), y: int_of(at.item(1), 0), w: int_of(sz.item(0), 1),
+                         h: int_of(sz.item(1), 1), z: int_of(e.field("z"), 0), what: text_of(e.field("as"), "floor") }];
+  }
   ims = v.field("items");
   for i in 0..ims.len() {
     e = ims.item(i);
@@ -414,6 +468,18 @@ fn openings_of(v: const JsonValue) -> vector<Opening> {
                       cell: text_of(e.field("as"), ""), side: text_of(e.field("side"), ""), edge: text_of(e.field("edge"), "") }];
   }
   out
+}
+
+fn ints_of(v: const JsonValue) -> vector<integer> {
+  out: vector<integer> = [];
+  for i in 0..v.len() { out += [int_of(v.item(i), 0)]; }
+  out
+}
+
+/// A house's court as an area; w 0 when it has none.
+pub fn court_of(h: const House) -> Area {
+  if len(h.court) < 4 { return Area { x: 0, y: 0, w: 0, h: 0 }; }
+  Area { x: h.court[0] ?? 0, y: h.court[1] ?? 0, w: h.court[2] ?? 0, h: h.court[3] ?? 0 }
 }
 
 fn points_of(v: const JsonValue) -> vector<Point> {
@@ -530,6 +596,11 @@ pub fn intent_json(it: const Intent) -> text {
         for p in h.holes { hs += if hs == "" { "[{p.x}, {p.y}]" } else { ", [{p.x}, {p.y}]" }; }
         out += ", \"holes\": [{hs}]";
       }
+      if len(h.court) >= 4 {
+        ct = court_of(h);
+        out += ", \"court\": [{ct.x}, {ct.y}, {ct.w}, {ct.h}]";
+      }
+      if h.turn >= 0 { out += ", \"turn\": {h.turn}"; }
       out += " }}";
       first = false;
     }
@@ -562,6 +633,34 @@ pub fn intent_json(it: const Intent) -> text {
     for a in it.cliffs {
       out += if first { "\n" } else { ",\n" };
       out += "    {{ \"at\": [{a.x}, {a.y}], \"size\": [{a.w}, {a.h}] }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.yards) > 0 {
+    out += ", \"yards\": [";
+    first = true;
+    for yd in it.yards {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{yd.x}, {yd.y}], \"size\": [{yd.w}, {yd.h}], \"z\": {yd.z}, \"as\": {quote(yd.what)}";
+      if yd.open != "" { out += ", \"open\": {quote(yd.open)}"; }
+      if len(yd.gates) > 0 {
+        gs = "";
+        for gt in yd.gates { gs += if gs == "" { "[{gt.x}, {gt.y}, {quote(gt.side)}]" } else { ", [{gt.x}, {gt.y}, {quote(gt.side)}]" }; }
+        out += ", \"gates\": [{gs}]";
+      }
+      if yd.floor != "" { out += ", \"floor\": {quote(yd.floor)}"; }
+      out += " }}";
+      first = false;
+    }
+    out += " ]";
+  }
+  if len(it.over) > 0 {
+    out += ", \"over\": [";
+    first = true;
+    for og in it.over {
+      out += if first { "\n" } else { ",\n" };
+      out += "    {{ \"at\": [{og.x}, {og.y}], \"size\": [{og.w}, {og.h}], \"z\": {og.z}, \"as\": {quote(og.what)} }}";
       first = false;
     }
     out += " ]";
@@ -606,7 +705,9 @@ fn mix(seed: integer, x: integer, y: integer, z: integer, salt: integer) -> inte
 /// "along_walls": bool } }.
 pub fn words_from(theme_text: text) -> vector<Word> {
   out: vector<Word> = [];
-  w = json_parse(theme_text).field("words");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  w_doc = json_parse(theme_text);
+  w = w_doc.field("words");
   for name in w.keys() {
     e = w.field(name);
     things: vector<text> = [];
@@ -1202,6 +1303,16 @@ fn add_inside_house(g: Grid, h: const House, seed: integer) {
     for x in h.x..h.x + h.w { set(g, x, y, house_top(h) + 1, h.roof); }
   }
   for p in h.holes { set(g, p.x, p.y, house_top(h) + 1, "void"); }
+  // the court: paved and open to the sky, pillars along its rim on the ground floor
+  ct = court_of(h);
+  if ct.w > 0 {
+    for y in ct.y..ct.y + ct.h {
+      for x in ct.x..ct.x + ct.w {
+        set(g, x, y, h.z, if court_pillar(h, x, y) { "pillar" } else { "paving" });
+        for z in h.z + 1..=house_top(h) + 1 { set(g, x, y, z, "void"); }
+      }
+    }
+  }
   for s in stair_cells(h, seed) {
     set(g, s.0, s.1, s.2, "stairs_up");
     set(g, s.0, s.1, s.2 + 1, "stairs_down");
@@ -1252,6 +1363,8 @@ pub fn house_edges(it: const Intent) -> vector<Edge> {
   out: vector<Edge> = [];
   for h in it.houses {
     if h.floors <= 0 || h.w < 4 || h.h < 4 { continue; }
+    // a house round a court is parted by the court itself
+    if len(h.court) >= 4 { continue; }
     stairs = stair_cells(h, it.seed);
     for z in h.z..=house_top(h) {
       part_rooms(out, h.x + 1, h.y + 1, h.w - 2, h.h - 2, z, it.seed, 0, stairs);
@@ -1269,8 +1382,16 @@ pub fn opening_edges(it: const Intent) -> vector<Edge> {
     else if e.side == "E" { out += [Edge { x: e.x + 1, y: e.y, z: e.z, side: "W", what: e.what }]; }
     else { out += [e]; }
   }
+  for yd in it.yards { yard_edges(out, yd); }
   for h in it.houses {
     if h.floors <= 0 { continue; }
+    // an upper floor ends at the court in a low wall
+    ct = court_of(h);
+    if ct.w > 0 {
+      for z in h.z + 1..=house_top(h) {
+        yard_edges(out, Yard { x: ct.x, y: ct.y, w: ct.w, h: ct.h, z: z, what: "low_wall" });
+      }
+    }
     for o in h.openings {
       if o.edge == "" { continue; }
       // N and W are the cell's own; S and E are the neighbour's N and W.
@@ -1280,6 +1401,41 @@ pub fn opening_edges(it: const Intent) -> vector<Edge> {
     }
   }
   out
+}
+
+// The edges round a yard: along each side not in its `open`, but for its gates; each as the N or
+// W edge of its cell.
+fn yard_edges(out: vector<Edge>, yd: const Yard) {
+  for x in yd.x..yd.x + yd.w {
+    if !has_side(yd.open, "N") && !gate_at(yd, x, yd.y, "N") { out += [Edge { x: x, y: yd.y, z: yd.z, side: "N", what: yd.what }]; }
+    if !has_side(yd.open, "S") && !gate_at(yd, x, yd.y + yd.h - 1, "S") { out += [Edge { x: x, y: yd.y + yd.h, z: yd.z, side: "N", what: yd.what }]; }
+  }
+  for y in yd.y..yd.y + yd.h {
+    if !has_side(yd.open, "W") && !gate_at(yd, yd.x, y, "W") { out += [Edge { x: yd.x, y: y, z: yd.z, side: "W", what: yd.what }]; }
+    if !has_side(yd.open, "E") && !gate_at(yd, yd.x + yd.w - 1, y, "E") { out += [Edge { x: yd.x + yd.w, y: y, z: yd.z, side: "W", what: yd.what }]; }
+  }
+}
+
+fn has_side(sides: text, side: text) -> boolean {
+  for i in 0..len(sides) { if sides[i..i + 1] == side { return true; } }
+  false
+}
+
+fn gate_at(yd: const Yard, x: integer, y: integer, side: text) -> boolean {
+  for gt in yd.gates { if gt.x == x && gt.y == y && gt.side == side { return true; } }
+  false
+}
+
+/// Is cell (x, y) on the rim of a house's court where a pillar stands: at its four corners, and
+/// every other cell along each side from the side's first corner?
+pub fn court_pillar(h: const House, x: integer, y: integer) -> boolean {
+  c = court_of(h);
+  if c.w <= 0 || x < c.x || x >= c.x + c.w || y < c.y || y >= c.y + c.h { return false; }
+  last_x = x == c.x + c.w - 1;
+  last_y = y == c.y + c.h - 1;
+  along_x = (x - c.x) % 2 == 0 || last_x;
+  along_y = (y - c.y) % 2 == 0 || last_y;
+  ((y == c.y || last_y) && along_x) || ((x == c.x || last_x) && along_y)
 }
 
 /// The boxes of floor whose thin walls the intent derives — each inside-out house's inside, on
@@ -1341,7 +1497,18 @@ pub fn derive(it: const Intent, words: const vector<Word>, held: const vector<Fi
       }
     }
   }
+  for yd in it.yards {
+    if yd.floor == "" { continue; }
+    for y in yd.y..yd.y + yd.h {
+      for x in yd.x..yd.x + yd.w { set(g, x, y, yd.z, yd.floor); }
+    }
+  }
   for hs in it.houses { add_house(g, hs, it.seed); }
+  for og in it.over {
+    for y in og.y..og.y + og.h {
+      for x in og.x..og.x + og.w { set(g, x, y, og.z, og.what); }
+    }
+  }
   for sl in it.slopes { add_slope(g, sl); }
   for im in it.items {
     at = terrain_at(g, im.x, im.y, im.z);

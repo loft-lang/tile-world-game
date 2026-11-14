@@ -7,7 +7,10 @@
 # mean height of the three cells round it, coloured by its surface.  A house's walls stand on its
 # outline (the straight walls' corners) from the lowest ground under it to its eaves, as thick as
 # hexsizes.json says, with room left for its doors (the ground storey) and windows (every storey),
-# a mesh in each; a hipped roof on a rectangular house, a flat one on any other.
+# a mesh in each; a hipped roof on a rectangular house, a flat one on any other.  What the basic
+# tiles could not show (owner, 2026-11-14): hedges, low walls and fences along the yards' sides,
+# standing on the ground; a court's pillars and the roof round it; a roof garden behind its low
+# wall; bay windows; a gazebo.  ?scene=N&eye=x,y,z&at=x,y,z sets the view (metres: x east, y north, z up).
 # Copyright (c) 2026 Jurjen Stellingwerff
 # SPDX-License-Identifier: LGPL-3.0-or-later
 import json, sys
@@ -52,7 +55,7 @@ page = """<!doctype html>
 <script>
 const DATA = __DATA__;
 const CK = [0, -1, -1, 0, 1, 1], CM = [2, 1, -1, -2, -1, 1];
-const KIND = { 0: [0.42, 0.62, 0.30], 1: [0.78, 0.68, 0.48], 2: [0.50, 0.46, 0.42], 3: [0.62, 0.53, 0.40], 4: [0.33, 0.55, 0.78], 5: [0.62, 0.48, 0.32] };
+const KIND = { 0: [0.42, 0.62, 0.30], 1: [0.78, 0.68, 0.48], 2: [0.50, 0.46, 0.42], 3: [0.62, 0.53, 0.40], 4: [0.33, 0.55, 0.78], 5: [0.62, 0.48, 0.32], 7: [0.66, 0.65, 0.62], 8: [0.50, 0.36, 0.24] };
 const STOREY = DATA.storey, WALL = DATA.wall;
 
 function groundMesh(g) {
@@ -102,7 +105,37 @@ const MAT = {
   poplar: new THREE.MeshLambertMaterial({ color: 0x5f9a40 }),
   stone: new THREE.MeshLambertMaterial({ color: 0x8f8a84 }),
   wood: new THREE.MeshLambertMaterial({ color: 0x8a6a44 }),
+  hedge: new THREE.MeshLambertMaterial({ color: 0x3f7a35 }),
+  tall_hedge: new THREE.MeshLambertMaterial({ color: 0x2c5f2e }),
+  lawn: new THREE.MeshLambertMaterial({ color: 0x6b9e4d }),
 };
+
+// The ground's height at (x, y): its nearest cell's.
+function heightAt(g, x, y) {
+  const r = Math.round(y / 1.299038), q = Math.round((x / 0.75 - (r & 1)) / 2);
+  if (q < g.q0 || q >= g.q0 + g.w || r < g.r0 || r >= g.r0 + g.h) return 0;
+  return g.heights[(r - g.r0) * g.w + (q - g.q0)];
+}
+
+// What stands along a yard's side: in pieces of 0.75 m at most, each on the ground under it.
+function fence(group, g, f) {
+  const L = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]);
+  if (L < 0.05) return;
+  const u = [(f.b[0] - f.a[0]) / L, (f.b[1] - f.a[1]) / L], n = Math.max(1, Math.ceil(L / 0.75));
+  const mat = f.kind === 1 ? MAT.stone : f.kind === 2 ? MAT.hedge : f.kind === 3 ? MAT.tall_hedge : MAT.wood;
+  for (let i = 0; i < n; i++) {
+    const s0 = L * i / n, s1 = L * (i + 1) / n, sm = (s0 + s1) / 2;
+    const z = heightAt(g, f.a[0] + u[0] * sm, f.a[1] + u[1] * sm);
+    if (f.kind === 4) {
+      // a fence: a post and two rails
+      wallBox(group, f.a, u, s0, s0 + 0.12, z - 0.3, z + f.height, 0.12, mat);
+      wallBox(group, f.a, u, s0, s1, z + f.height * 0.45, z + f.height * 0.55, 0.06, mat);
+      wallBox(group, f.a, u, s0, s1, z + f.height * 0.85, z + f.height * 0.95, 0.06, mat);
+    } else {
+      wallBox(group, f.a, u, s0 - 0.02, s1 + 0.02, z - 0.4, z + f.height, f.thick, mat);
+    }
+  }
+}
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 
 // A box from s0 to s1 along the wall from a (direction u), from height z0 to z1, `t` thick.
@@ -137,7 +170,15 @@ function house(group, h) {
         const z0 = h.floor + st * STOREY, door = sp.kind === 1 && st === 0;
         const lo = door ? z0 : z0 + 0.9, hi = z0 + (door ? 2.1 : 2.0);
         wallBox(group, a2, u, sp.s0, sp.s1, z, lo, WALL, MAT.wall);
-        wallBox(group, a2, u, sp.s0, sp.s1, lo, hi, door ? 0.12 : 0.06, door ? MAT.door : MAT.glass);
+        if (sp.kind === 3) {
+          // a bay window: glass standing out from the wall, a sill under it and a little roof over it
+          const out = 0.6, n = [u[1], -u[0]], a3 = [a2[0] + n[0] * out, a2[1] + n[1] * out];
+          wallBox(group, a3, u, sp.s0 - 0.2, sp.s1 + 0.2, lo - 0.25, lo, WALL + out * 2, MAT.wall);
+          wallBox(group, a3, u, sp.s0 - 0.15, sp.s1 + 0.15, lo, hi, out * 2, MAT.glass);
+          wallBox(group, a3, u, sp.s0 - 0.3, sp.s1 + 0.3, hi, hi + 0.18, WALL + out * 2 + 0.3, storeys > 1 ? MAT.slate : MAT.roof);
+        } else {
+          wallBox(group, a2, u, sp.s0, sp.s1, lo, hi, door ? 0.12 : 0.06, door ? MAT.door : MAT.glass);
+        }
         z = hi;
       }
       wallBox(group, a2, u, sp.s0, sp.s1, z, h.top, WALL, MAT.wall);
@@ -145,7 +186,46 @@ function house(group, h) {
     }
     wallBox(group, a2, u, at, len, h.floor, h.top, WALL, MAT.wall);
   }
-  group.add(roof(h, storeys > 1 ? MAT.slate : MAT.roof));
+  const tiles = storeys > 1 ? MAT.slate : MAT.roof;
+  if (h.roof === 1) {
+    // a roof garden: flat, grass on it, a low wall round it
+    const shape = new THREE.Shape(cs.map(c => new THREE.Vector2(c[0], c[1])));
+    const m = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false }), MAT.lawn);
+    m.rotation.x = -Math.PI / 2; m.position.y = h.top; group.add(m);
+    for (let i = 0; i < n; i++) {
+      const a = cs[(i + n - 1) % n], b = cs[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      wallBox(group, [a[0] - u[0] * WALL / 2, a[1] - u[1] * WALL / 2], u, 0, L + WALL, h.top, h.top + 1.2, WALL, MAT.wall);
+    }
+  } else if (h.court && h.court.length === 4 && n === 4) {
+    court(group, h, storeys, tiles);
+  } else {
+    group.add(roof(h, tiles));
+  }
+}
+
+// A house round a court: its roof a ring, rising from the eaves outside to a ridge and down to the
+// court; along the court a beam at every storey's top and a low wall on every upper floor.
+function court(group, h, storeys, mat) {
+  const O = h.corners, C = O.map(o => h.court.reduce((best, c) => Math.hypot(c[0] - o[0], c[1] - o[1]) < Math.hypot(best[0] - o[0], best[1] - o[1]) ? c : best));
+  const tri = [];
+  const P = (c, z) => [c[0], z, -c[1]];
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4, wide = Math.hypot(C[i][0] - O[i][0], C[i][1] - O[i][1]);
+    const Ri = [(O[i][0] + C[i][0]) / 2, (O[i][1] + C[i][1]) / 2], Rj = [(O[j][0] + C[j][0]) / 2, (O[j][1] + C[j][1]) / 2];
+    const zr = h.top + 0.3 * wide;
+    tri.push(P(O[i], h.top), P(O[j], h.top), P(Rj, zr), P(O[i], h.top), P(Rj, zr), P(Ri, zr));
+    tri.push(P(Ri, zr), P(Rj, zr), P(C[j], h.top), P(Ri, zr), P(C[j], h.top), P(C[i], h.top));
+    const L = Math.hypot(C[j][0] - C[i][0], C[j][1] - C[i][1]), u = [(C[j][0] - C[i][0]) / L, (C[j][1] - C[i][1]) / L];
+    for (let st = 0; st < storeys; st++) {
+      const z0 = h.floor + st * STOREY;
+      wallBox(group, C[i], u, -0.15, L + 0.15, z0 + STOREY - 0.35, z0 + STOREY, 0.3, MAT.wall);
+      if (st > 0) wallBox(group, C[i], u, 0, L, z0, z0 + 0.9, 0.2, MAT.wall);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(tri.flat(), 3));
+  geo.computeVertexNormals();
+  group.add(new THREE.Mesh(geo, mat));
 }
 
 // A hipped roof on four corners, a flat one on more; 0.4 m over the walls.
@@ -193,6 +273,13 @@ function thing(group, t) {
     const m = at(new THREE.Mesh(BOX, MAT.wood), t.x, t.y, t.z + 0.5); m.scale.set(1.5, 1.0, 0.12);
   } else if (k === "village_well") {
     at(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.0, 14), MAT.stone), t.x, t.y, t.z + 0.5);
+  } else if (k === "pillar") {
+    at(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, t.size, 10), MAT.stone), t.x, t.y, t.z + t.size / 2);
+  } else if (k === "gazebo_roof") {
+    // a pointed roof on its pillars, a beam round under it
+    const m = at(new THREE.Mesh(new THREE.ConeGeometry(t.size * 0.78, 1.6, 4), MAT.roof), t.x, t.y, t.z + 0.8);
+    m.rotation.y = Math.PI / 4;
+    const b = at(new THREE.Mesh(BOX, MAT.wood), t.x, t.y, t.z - 0.1); b.scale.set(t.size * 1.02, 0.2, t.size * 1.02);
   } else if (k === "bridge") {
     const m = at(new THREE.Mesh(BOX, MAT.wood), t.x, t.y, t.z - 0.15); m.scale.set(1.5, 0.3, 1.5);
   }
@@ -214,6 +301,7 @@ const scenes = DATA.scenes.map(s => {
   group.add(groundMesh(s.ground));
   for (const h of s.houses) house(group, h);
   for (const t of s.things) thing(group, t);
+  for (const f of s.fences || []) fence(group, s.ground, f);
   scene.add(group);
   // look at the middle of the ground, from the south-east above
   const g = s.ground, lk = (q, r) => 2 * q + (r & 1);
@@ -221,9 +309,11 @@ const scenes = DATA.scenes.map(s => {
   const span = Math.max(g.w * 1.5, g.h * 1.3);
   return { name: s.name, scene, target: new THREE.Vector3(mx, 3, -my), eye: new THREE.Vector3(mx + span * 0.35, span * 0.55, -my + span * 0.75) };
 });
+const ask = new URLSearchParams(location.search);
+const vec = name => { const v = (ask.get(name) || "").split(",").map(Number); return v.length === 3 && v.every(isFinite) ? new THREE.Vector3(v[0], v[2], -v[1]) : null; };
 function show(i) {
   current = scenes[i];
-  camera.position.copy(current.eye); controls.target.copy(current.target); controls.update();
+  camera.position.copy(vec("eye") || current.eye); controls.target.copy(vec("at") || current.target); controls.update();
   document.querySelectorAll("#buttons button").forEach((b, j) => b.classList.toggle("on", j === i));
 }
 const buttons = document.getElementById("buttons");

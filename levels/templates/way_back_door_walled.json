@@ -1,0 +1,101 @@
+{
+  "name": "way_back_door_walled",
+  "template": {
+    "kind": "way_in",
+    "turns": true,
+    "flips": true,
+    "about": "the back door in a paved yard behind a low wall, a chair left outside it: pushed up to the wall and climbed over",
+    "at": "wall",
+    "wall": [
+      1,
+      0
+    ],
+    "gives": true,
+    "weight": 2,
+    "solution": "w w w w w"
+  },
+  "camera": "follow",
+  "legend": {
+    ".": "floor",
+    "#": "wall",
+    ">": "stairs_down",
+    "<": "stairs_up",
+    "_": "void",
+    "E": "house_door",
+    "[": "bush",
+    "G": "garden_fence",
+    "I": "prop",
+    "p": "paving"
+  },
+  "ground": [],
+  "chunks": [
+    {
+      "cx": 0,
+      "cy": 0,
+      "z": 0,
+      "rows": [
+        " E ",
+        "ppp"
+      ]
+    }
+  ],
+  "things": [
+    {
+      "at": [
+        1,
+        3,
+        0
+      ],
+      "stack": [
+        "chair"
+      ]
+    }
+  ],
+  "tiles": [],
+  "edges": [
+    [
+      0,
+      2,
+      0,
+      "N",
+      "low_wall"
+    ],
+    [
+      1,
+      2,
+      0,
+      "N",
+      "low_wall"
+    ],
+    [
+      2,
+      2,
+      0,
+      "N",
+      "low_wall"
+    ],
+    [
+      0,
+      1,
+      0,
+      "W",
+      "low_wall"
+    ],
+    [
+      3,
+      1,
+      0,
+      "W",
+      "low_wall"
+    ]
+  ],
+  "rises": [],
+  "start": [
+    1,
+    4,
+    0
+  ],
+  "goal": {
+    "type": ""
+  }
+}

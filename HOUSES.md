@@ -73,11 +73,11 @@ in the JSON.  **Applied** by `stamp.loft` (`stamp::apply`: at a cell, turned, mi
 `tests/stamps.loft` checks every file loads with its kind and survives a save unchanged, and plays
 the window's step, the weighted hatch and the barred door in every way they can lie.
 
-**The files**, the whole catalogue below (52):
+**The files**, the whole catalogue below (55):
 
 | Kind | Templates |
 |---|---|
-| way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door` |
+| way in | `way_barred_front`, `way_back_door`, `way_back_door_overgrown`, `way_boarded_door`, `way_shuttered`, `way_chair_behind_door`, `way_broken_sill`, `way_window_step`, `way_roof_hole`, `way_roof_hatch`, `way_roof_hatch_weighted`, `way_slumped_wall`, `way_walled_up`, `way_upper_door`, `way_back_door_walled`, `way_back_door_hedged`, `way_bay_broken` |
 | inside | `inside_pushed_to_walls`, `inside_stacked`, `inside_barred_room`, `inside_in_haste`, `inside_roof_fall`, `inside_stair_rotted`, `inside_floor_hole`, `inside_rat_nest`, `inside_grey_rat`, `inside_bats_upstairs`, `inside_spider_upstairs` |
 | find | `find_health_potion`, `find_spirit_potion`, `find_boost_potion`, `find_sticks`, `find_torch`, `find_herb`, `find_mushroom`, `find_sack`, `find_tar_barrel` |
 | cellar | `cellar_none`, `cellar_neighbours`, `cellar_neighbours_end`, `cellar_open`, `cellar_weighted_hatch`, `cellar_hidden_hatch`, `cellar_in_barred_room`, `cellar_under_fall`, `cellar_outside_door`, `cellar_tunnel_only`, `cellar_stair_rotted`, `cellar_flooded`, `cellar_dark_rats` |
@@ -91,7 +91,8 @@ people, not a map; **the blast** works on any wall, and `way_walled_up` is the h
 else does.  **The barrel and a chair** as a step is out: a chair lifts only onto a table (`surface`),
 not onto a barrel.
 
-Played by `tests/stamps.loft` in every way they lie: the window's step, the weighted and the hidden
+Played by `tests/stamps.loft` in every way they lie: the walled and the hedged back door and the
+broken bay (2026-11-14), the window's step, the weighted and the hidden
 hatch (a chair walked into is pushed, so the middle one is pulled out and pushed aside), the
 barred door, the boarded door (a pick takes it apart, bare hands do not), the barred room and the
 hatch under the fall (their stones give to no push), the weighted roof hatch, the chair behind the
@@ -147,6 +148,12 @@ their insides the upper-floor templates (`floors: 2`: bats and a spider upstairs
 upper floor, a rotted stair), laid on the upper floor's own cells, never its walls.  A house is
 drawn only from what is drawn for its floors, so no draw is wasted on what cannot lie there.
 
+**Off the neighbour** (2026-11-14): a way in whose cells would lie on another house — a yard's
+wall or its chair laid into the house beside — is drawn again (`deal::on_a_neighbour`).  Dealt
+over seeds 7–22 (176 houses, every one passing its play): the broken bay 12 times, the hedged back
+door 6, the walled one 5.  With the urn in the hands none of the three is a way (the chair is not
+pushed), so Sibil's house dealt one needs another route for it.
+
 **Not dealt yet** (`at` none), each for a reason: `way_shuttered`, windows the ordinary houses do
 not have; `way_walled_up`, a directed blast in its solution; `cellar_in_barred_room`, a house
 bigger than the cottages; `tunnel_vault_onwards` (§ 4).
@@ -179,6 +186,9 @@ What a house's templates are made of, from `kinds.json` and the rules as they st
 | a door held shut (`barred`) | its beam lifted from the side it opens towards, the beam in the hand; from the other side only a directed blast opens it | built |
 | a window edge | seen through, never walked through | built |
 | a fence edge | climbed over as a step of 1, nothing pushed across: a low sill, a garden fence | built |
+| a low wall edge | seen across; climbed from just a chair (a step of 1), nothing pushed across: a yard's wall, a roof garden's parapet, a terrace's edge | built (owner, 2026-11-14) |
+| a low hedge edge | seen across; never climbed, jumped from a table (2): the chair first, to get onto the table | built (owner, 2026-11-14) |
+| a hedge edge | a layer high, not seen through; crossed only from a layer's height (a rise, a table and a chair on it, or the terrace above), and the drop beyond is a fall | built (owner, 2026-11-14) |
 | an opening in an outer wall (`openings`) | a cell of the wall made floor, a door or a niche, with an edge of its own on the outside | built (the inn) |
 | a roof hole (`holes`) | the roof gone over those cells, open to the sky | built (the inn) |
 | a roof | walked on (a floor-kind material); two roofs that meet are one way | built |
@@ -226,6 +236,9 @@ in.
 | **the back door** | round the house to a door the family only closed | getting round: a garden fence climbed, bushes felled with an axe, a rock pushed off the path | built |
 | **the beam from the right side** | in by another way, the front door's beam lifted from inside: the house opened for good | another way in first | built |
 | **a broken window** | a window whose sill is low (a fence edge), climbed through on the ground floor | — | built |
+| **the back door behind a low wall** ◇ | the back door in a paved yard, a low wall round it and no gate; a chair left outside is pushed up to the wall, climbed, and the wall crossed | hands empty for the chair | built (`way_back_door_walled`, 2026-11-14) |
+| **the back door behind a low hedge** ◇ | the same yard behind a low hedge: a table stands against it and a chair off to the side; the chair pushed to the table's foot, the hero onto it, onto the table, and over | hands empty for the chair | built (`way_back_door_hedged`) |
+| **the broken bay window** ◇ | a bay with its glass gone: the wall's cell open behind it, its sill a low wall; the chair below it pushed up and climbed | hands empty for the chair | built (`way_bay_broken`) |
 | **the upper window, by a step** | a window opening on the upper floor, reached by a step of 3 against the wall below it: a chair pulled onto a table (not a barrel: a chair lifts only onto a table) | the step's things, found nearby | built (`way_window_step`) |
 | **the fallen roof** | onto the roof, and down through the hole into the room below: onto the table under it for free, onto the floor for 1 health | a way onto the roof (below) | built |
 | **from the house beside** | along the row's joined roofs to a hole or a roof hatch in another; the house beside is the way in | the neighbour's way up | built |

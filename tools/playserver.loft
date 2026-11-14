@@ -29,7 +29,9 @@ struct World {
 
 fn worlds() -> vector<World> {
   out: vector<World> = [];
-  v = json_parse(file(ORDER).content() ?? "").field("worlds");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  v_doc = json_parse(file(ORDER).content() ?? "");
+  v = v_doc.field("worlds");
   for i in 0..v.len() {
     e = v.item(i);
     out += [World { name: e.field("name").as_text() ?? "", start: e.field("start").as_text() ?? "" }];

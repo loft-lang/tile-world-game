@@ -11,7 +11,8 @@
 use hex_field;
 use hexwalls;
 
-/// A door or a window: its kind (1 a door, 2 a window), the wall it is in, its span from a to b.
+/// A door or a window: its kind (1 a door, 2 a window, 3 a bay window), the wall it is in, its span
+/// from a to b.
 pub struct Gap {
   pub kind: integer,
   pub wall: integer,
@@ -29,7 +30,32 @@ pub struct House {
   pub top: float,
   pub xs: vector<float>,
   pub ys: vector<float>,
-  pub gaps: vector<Gap>
+  pub gaps: vector<Gap>,
+  /// Its roof: 0 pitched, 1 a roof garden (flat, a low wall round it).
+  pub roof: integer = 0,
+  /// Its inner court's corners, when it has one (four): open to the sky.
+  pub court_xs: vector<float> = [],
+  pub court_ys: vector<float> = []
+}
+
+/// What stands along a yard's side (owner, 2026-11-14): its kind (1 a low wall, 2 a low hedge, 3 a
+/// hedge a storey high, 4 a fence), from a to b, its height and its thickness; on the ground.
+pub struct Fence {
+  pub kind: integer,
+  pub ax: float,
+  pub ay: float,
+  pub bx: float,
+  pub by: float,
+  pub height: float,
+  pub thick: float
+}
+
+/// A roof on pillars (a gazebo's): its middle, the height of its eaves, its width.
+pub struct Canopy {
+  pub x: float,
+  pub y: float,
+  pub z: float,
+  pub size: float
 }
 
 struct Corner {
@@ -80,7 +106,9 @@ pub struct Scene {
   pub sides: vector<Side> = [],
   near: hash<Near[key]> = [],
   /// Each cell's terrace level, where the place gives them.
-  pub levels: vector<integer> = []
+  pub levels: vector<integer> = [],
+  pub fences: vector<Fence> = [],
+  pub canopies: vector<Canopy> = []
 }
 
 fn num(v: const JsonValue) -> float {
@@ -129,12 +157,32 @@ pub fn load(text: text) -> Scene? {
                      ax: num(o.field("a").item(0)), ay: num(o.field("a").item(1)),
                      bx: num(o.field("b").item(0)), by: num(o.field("b").item(1)) }];
     }
+    cxs: vector<float> = [];
+    cys: vector<float> = [];
+    ct = h.field("court");
+    for j in 0..ct.len() {
+      cxs += [num(ct.item(j).item(0))];
+      cys += [num(ct.item(j).item(1))];
+    }
     houses += [House { base: num(h.field("base")), floor: num(h.field("floor")), top: num(h.field("top")),
-                       xs: xs, ys: ys, gaps: gaps }];
+                       xs: xs, ys: ys, gaps: gaps, roof: num(h.field("roof")) as integer, court_xs: cxs, court_ys: cys }];
   }
   sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
                w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,
                storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [], levels: ls };
+  fv = s.field("fences");
+  for i in 0..fv.len() {
+    f = fv.item(i);
+    sc.fences += [Fence { kind: num(f.field("kind")) as integer, ax: num(f.field("a").item(0)), ay: num(f.field("a").item(1)),
+                          bx: num(f.field("b").item(0)), by: num(f.field("b").item(1)), height: num(f.field("height")),
+                          thick: num(f.field("thick")) }];
+  }
+  tv = s.field("things");
+  for i in 0..tv.len() {
+    th = tv.item(i);
+    if th.field("kind").as_text() != "gazebo_roof" { continue; }
+    sc.canopies += [Canopy { x: num(th.field("x")), y: num(th.field("y")), z: num(th.field("z")), size: num(th.field("size")) }];
+  }
   // The cliffs, each cut in stretches of 1.5 m at most: a stretch is drawn with the cell its
   // middle lies in.
   cv = s.field("cliffs");
@@ -353,6 +401,24 @@ pub fn house_at(s: const Scene, x: float, y: float) -> integer {
     if inside { return i; }
   }
   -1
+}
+
+/// Does (x, y) lie in house `i`'s inner court?
+pub fn in_court(s: const Scene, i: integer, x: float, y: float) -> boolean {
+  h = s.houses[i];
+  n = len(h.court_xs);
+  inside = false;
+  for j in 0..n {
+    x1 = h.court_xs[(j + n - 1) % n ?? 0] ?? 0.0;
+    y1 = h.court_ys[(j + n - 1) % n ?? 0] ?? 0.0;
+    x2 = h.court_xs[j] ?? 0.0;
+    y2 = h.court_ys[j] ?? 0.0;
+    if (y1 > y) != (y2 > y) {
+      cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
+      if x < cx { inside = !inside; }
+    }
+  }
+  inside
 }
 
 // ── cliffs ──────────────────────────────────────────────────────────────────

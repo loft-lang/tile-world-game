@@ -395,6 +395,8 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
 | ground, dome, slope | rectangles, ceiling heights, three rising cells | regions and heights (`hex_field`'s heights, `hex_terrain`) |
 | item, tree | a thing on a cell | a thing on a hex cell |
 | edge (a fence, a grate) | between two squares | between two hex cells |
+| yard (a garden, a terrace: owner, 2026-11-14) | an edge of its kind (low wall, low hedge, hedge, fence) along its sides, but the side against its house and its gates; its cells paved when it says so | what stands along its sides as straight stretches on the ground, turned with the house it stands against (formal/hex-houses.md § Yards) |
+| a house's court, its `turn`, what is laid `over` it | the court's cells paved and open to the sky, pillars on its rim, a low wall along it upstairs; the turn unseen; the roof garden's bushes and hatch after the house | the court's outline and pillars, the roof a ring round it; the house at its angle; a flat roof behind a low wall |
 
 - **Houses at every 30°, turned or mirrored, never refused** (owner, 2026-11-09).  A turn of
   30° is not a symmetry of the hex grid, so half the angles can never be exact, but within a few

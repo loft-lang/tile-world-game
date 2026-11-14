@@ -42,18 +42,31 @@ fn scene(name: text, town: hextown::Town) -> text {
       cs += "[{c.0 * M}, {c.1 * M}]";
     }
     ops = "";
-    for o in p.built.openings {
+ for oi in 0..len(p.built.openings) {
+      o = p.built.openings[oi];
       if len(ops) > 0 { ops += ", "; }
-      ops += "{{\"kind\": {o.kind}, \"wall\": {o.wall}, \"a\": [{o.ax * M}, {o.ay * M}], \"b\": [{o.bx * M}, {o.by * M}]}}";
+      // a bay window: kind 3
+      ops += "{{\"kind\": {if p.bays.contains(oi) { 3 } else { o.kind }}, \"wall\": {o.wall}, \"a\": [{o.ax * M}, {o.ay * M}], \"b\": [{o.bx * M}, {o.by * M}]}}";
     }
     if i > 0 { out += ", "; }
-    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"corners\": [{cs}], \"openings\": [{ops}]}}";
+    ct = "";
+    for c in p.court {
+      if len(ct) > 0 { ct += ", "; }
+      ct += "[{c.0}, {c.1}]";
+    }
+    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}]}}";
   }
   out += "], \"things\": [";
   for i in 0..len(town.things) {
     t = town.things[i];
     if i > 0 { out += ", "; }
-    out += "{{\"kind\": \"{t.kind}\", \"x\": {t.x}, \"y\": {t.y}, \"z\": {t.z}}}";
+    out += "{{\"kind\": \"{t.kind}\", \"x\": {t.x}, \"y\": {t.y}, \"z\": {t.z}, \"size\": {t.size}}}";
+  }
+  out += "], \"fences\": [";
+  for i in 0..len(town.fences) {
+    f = town.fences[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"kind\": {f.kind}, \"a\": [{f.ax}, {f.ay}], \"b\": [{f.bx}, {f.by}], \"height\": {f.height}, \"thick\": {f.thick}}}";
   }
   out + "]}}"
 }
@@ -61,7 +74,7 @@ fn scene(name: text, town: hextown::Town) -> text {
 fn main() {
   sz = hexwalls::sizes_file("../hexsizes.json");
   m = hexterrain::measures_file("../hexsizes.json");
-  town = hextown::port(file("../levels/orbury.json").content() ?? "", sz, m);
+  town = hextown::port(file("../levels/orbury.json").content() ?? "", sz, m, hextown::yards_file("../hexsizes.json"));
   if (arguments()[0] ?? "") == "level" {
     // the place's hex version, for the game's 3D view: levels/orbury.hex.json
     println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scene\": {scene("Orbury", town)}}}");

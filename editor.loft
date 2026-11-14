@@ -381,6 +381,11 @@ fn refill_edges(lf: levels::LevelFile) -> boolean {
     side = if e.side == "N" { tile_world::NORTH } else { tile_world::WEST };
     want += [(e.x, e.y, e.z, side, rules::edge_id(k, e.what))];
   }
+  // the edges said outright stay where a house's inside is cleared (a court's low wall upstairs)
+  for e in intent::opening_edges(lf.intent) {
+    side = if e.side == "N" { tile_world::NORTH } else { tile_world::WEST };
+    want += [(e.x, e.y, e.z, side, rules::edge_id(k, e.what))];
+  }
   changed = false;
   for b in intent::house_insides(lf.intent) {
     for y in b.1..=b.3 {

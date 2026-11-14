@@ -415,7 +415,9 @@ pub fn sound(g: Game, name: text, volume: float = 0.8) {
 // The level names levels/order.json lists.
 fn level_order(dir: text) -> vector<text> {
   out: vector<text> = [];
-  o = json_parse(file("{dir}/levels/order.json").content() ?? "").field("order");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  o_doc = json_parse(file("{dir}/levels/order.json").content() ?? "");
+  o = o_doc.field("order");
   for i in 0..o.len() { out += [o.item(i).as_text()]; }
   out
 }
@@ -480,7 +482,9 @@ pub struct WorldChoice {
 /// most: the story's world, then the demo village.  Without a list, the one world of `start`.
 pub fn worlds(dir: text) -> vector<WorldChoice> {
   out: vector<WorldChoice> = [];
-  v = json_parse(file("{dir}/levels/order.json").content() ?? "").field("worlds");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  v_doc = json_parse(file("{dir}/levels/order.json").content() ?? "");
+  v = v_doc.field("worlds");
   for i in 0..v.len() {
     e = v.item(i);
     out += [WorldChoice { name: levels::str(e.field("name"), ""), start: levels::str(e.field("start"), "") }];
@@ -499,7 +503,9 @@ pub fn save_dir_of(start: text) -> text {
 /// the places reached from its start place through doors, so another start is another world:
 /// the demo village, with a house for each mechanic's room, stays one beside the game's own.
 pub fn start_place(dir: text) -> text {
-  v = json_parse(file("{dir}/levels/order.json").content() ?? "").field("start");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  v_doc = json_parse(file("{dir}/levels/order.json").content() ?? "");
+  v = v_doc.field("start");
   if v.kind() == "JString" { v.as_text() } else { "demo" }
 }
 
@@ -814,7 +820,9 @@ pub fn read_save(g: Game, dir: text) -> boolean {
   raw = file("{dir}/save.json").content() ?? "";
   if raw == "" { return false; }
   files: vector<(text, text)> = [("save.json", raw)];
-  v = json_parse(raw).field("places");
+  // the parsed text bound first: a field read straight off the call frees its store twice (loft, 2026-11-13)
+  v_doc = json_parse(raw);
+  v = v_doc.field("places");
   for i in 0..v.len() {
     name = v.item(i).as_text();
     files += [("{name}.json", file("{dir}/{name}.json").content() ?? "")];
@@ -2946,6 +2954,13 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
   door = rules::edge_id(w.k, "door");
   window = rules::edge_id(w.k, "window");
   fence = rules::edge_id(w.k, "fence");
+  // the 2D view ends with these (owner, 2026-11-14): plain lines, their look is the 3D view's
+  low_wall = rules::edge_id(w.k, "low_wall");
+  low_hedge = rules::edge_id(w.k, "low_hedge");
+  hedge = rules::edge_id(w.k, "hedge");
+  stone = tiles::rgb(150, 150, 160);
+  leaf = tiles::rgb(60, 140, 60);
+  dark_leaf = tiles::rgb(30, 90, 40);
   body = tiles::rgb(92, 60, 40);
   top = tiles::rgb(176, 128, 88);
   pane = tiles::rgb(150, 200, 230);
@@ -2978,6 +2993,12 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px, py - rise - 2, ts, 2, top);
     } else if n == fence {
       tiles::rect(g.surface, px, py - 5, ts, 2, rail);
+    } else if n == low_wall {
+      tiles::rect(g.surface, px, py - 4, ts, 4, stone);
+    } else if n == low_hedge {
+      tiles::rect(g.surface, px, py - 4, ts, 4, leaf);
+    } else if n == hedge {
+      tiles::rect(g.surface, px, py - rise, ts, rise, dark_leaf);
     }
     v = tile_world::edge(w.w, cx + x, cy + y, z, tile_world::WEST);
     if v == window && open_w {
@@ -2992,6 +3013,12 @@ fn draw_edges(g: Game, w: const rules::Level, cx: integer, cy: integer, y: integ
       tiles::rect(g.surface, px - 1, py + ts - 3, 3, 3, body);
     } else if v == fence {
       tiles::rect(g.surface, px - 1, py - 3, 2, ts, rail);
+    } else if v == low_wall {
+      tiles::rect(g.surface, px - 1, py - 3, 3, ts, stone);
+    } else if v == low_hedge {
+      tiles::rect(g.surface, px - 1, py - 3, 3, ts, leaf);
+    } else if v == hedge {
+      tiles::rect(g.surface, px - 2, py - rise, 4, ts + rise, dark_leaf);
     }
   }
 }

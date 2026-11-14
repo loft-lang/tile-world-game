@@ -14,9 +14,13 @@
 //            (walking into it saves the whole situation: a well — DESIGN.md's clear-area
 //            condition joins it with the enemies, until then the area is always clear).
 //   edges:   walk (crossed freely), opaque, climb (the hero climbs over it, nothing else
-//            crosses: a fence between two cells), slope (a terrace's front the ground slopes
-//            up across: the hero walks up onto the layer above across it, and down off it without
-//            a fall — set on both layers the front stands between).
+//            crosses: a fence between two cells), over (the hero gets over it standing that many
+//            steps high or more, nothing else crosses: a low wall 1, from a chair; a low hedge 2,
+//            from a table; a hedge 4, a layer: a hillside's rise, a table and a chair on it, or
+//            the terrace above it — and a drop of a layer down its far side is a fall), slope
+//            (a terrace's front the ground slopes up across: the hero walks up onto the layer
+//            above across it, and down off it without a fall — set on both layers the front
+//            stands between).
 //   things:  height (steps it adds to its stack), stand (the hero can stand on it), surface
 //            (a lifting thing can rest on it), move ("none", "push", "push_pull"), rails (moves
 //            only along rail terrain), train (a line of them moves as one), lift (pulled up or
@@ -262,6 +266,9 @@ struct EdgeProps {
   opaque: boolean,
   climb: boolean,
   slope: boolean,
+  /// How many steps high the hero stands to get over it (a low wall 1, a low hedge 2, a hedge a
+  /// whole layer); 0: not crossed that way.
+  over: integer,
   glyph: text
 }
 
@@ -500,7 +507,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
     e = ed.field(name);
     k.edges += [EdgeProps {
       id: num(e, "id", 0), name: name, walk: flag(e, "walk"), opaque: flag(e, "opaque"),
-      climb: flag(e, "climb"), slope: flag(e, "slope"), glyph: word(e, "glyph", "|")
+      climb: flag(e, "climb"), slope: flag(e, "slope"), over: num(e, "over", 0), glyph: word(e, "glyph", "|")
     }];
   }
   en = v.field("enemies");
@@ -1257,14 +1264,31 @@ fn blocks_things(l: const Level, kind: integer) -> boolean {
 }
 
 /// Can the hero cross from (x, y, z) to the cell (dx, dy) beside it: no edge between, an edge
-/// that is walked through (a door), or one it climbs over (a fence)?
+/// that is walked through (a door), one it climbs over (a fence), or one it gets over from the
+/// height it stands at there (`over`: a low wall from a chair, a low hedge from a table)?
 pub fn hero_crosses(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> boolean {
+  here = x == l.hero_x && y == l.hero_y && z == l.hero_z;
+  crosses_from(l, x, y, z, dx, dy, if here { l.hero_h } else { 0 })
+}
+
+/// The same for one standing `h` steps over the floor of (x, y, z).
+pub fn crosses_from(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer, h: integer) -> boolean {
   if tile_world::crossable(l.w, x, y, z, dx, dy) { return true; }
   side = if dx > 0 { tile_world::EAST } else if dx < 0 { tile_world::WEST }
          else if dy > 0 { tile_world::SOUTH } else { tile_world::NORTH };
   p = l.k.edges[tile_world::edge(l.w, x, y, z, side)];
   if !p { return false; }
-  p.climb
+  p.climb || (p.over > 0 && h >= p.over)
+}
+
+/// How high the edge from (x, y, z) to the cell (dx, dy) beside it has to be got over (`over`): 0
+/// for none, and for an edge crossed any other way.
+pub fn over_between(l: const Level, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> integer {
+  side = if dx > 0 { tile_world::EAST } else if dx < 0 { tile_world::WEST }
+         else if dy > 0 { tile_world::SOUTH } else { tile_world::NORTH };
+  p = l.k.edges[tile_world::edge(l.w, x, y, z, side)];
+  if !p { return 0; }
+  p.over
 }
 
 /// Is the edge from (x, y, z) to the cell (dx, dy) beside it a terrace's sloping front?
@@ -3665,7 +3689,8 @@ fn climb(l: Level, dx: integer, dy: integer) -> Step? {
     zb = z - 1;
     while zb >= bottom && tile_world::terrain(l.w, tx, ty, zb) == VOID { zb -= 1; }
     if zb < bottom || !walkable(l, tile_world::terrain(l.w, tx, ty, zb)) { return null; }
-    if zb == z - 1 && !hero_crosses(l, l.hero_x, l.hero_y, zb, dx, dy) { return null; }
+    // an edge at the foot (a hedge along a terrace's front) is got over from the height above it
+    if zb == z - 1 && !crosses_from(l, l.hero_x, l.hero_y, zb, dx, dy, up + l.hero_h) { return null; }
     t = tile_world::top(l.w, tx, ty, zb);
     if t != 0 && !standable(l, t) && !item(l, t) { return null; }
     from = (z - zb) * up + l.hero_h;
@@ -3931,7 +3956,15 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
   if sign && sign.tells != "" { return Step.Read; }
   if thing == 0 || item(l, thing) {
     // A rise is stepped like a stack: up one at most.
-    if !reach(l, l.hero_h, height(l, tx, ty, z)) { return Step.Blocked; }
+    if !reach(l, l.hero_h, height(l, tx, ty, z)) {
+      // Over a hedge the hero comes down the far side however deep: a layer or more is a fall.
+      beyond = height(l, tx, ty, z);
+      if over_between(l, l.hero_x, l.hero_y, z, dx, dy) == 0 || beyond > l.hero_h + 1 { return Step.Blocked; }
+      fallen = (l.hero_h - beyond) / l.k.layer_height ?? 0;
+      arrive(l, tx, ty, z);
+      hurt(l, fallen);
+      return Step.Fell;
+    }
     // Stairs take the hero to the same cell a layer up or down, when it can stand there; the
     // stairs it lands on do not take it on.
     to = z + stairs(l, kind);

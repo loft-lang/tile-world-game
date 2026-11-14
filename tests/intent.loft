@@ -246,3 +246,47 @@ fn test_caves_combine_into_one() {
   }
   assert(checked > 100, "one cave: {checked} floor cells");
 }
+
+fn edge_list(it: const intent::Intent) -> text {
+  out = "";
+  for e in intent::opening_edges(it) { out += "{e.x},{e.y}{e.side}{e.what} "; }
+  out
+}
+
+// A yard (owner, 2026-11-14): an edge of its kind along every side but the one against its house
+// and but its gate, each as the north or west edge of a cell.
+fn test_a_yard_is_edged_but_for_its_open_side_and_its_gate() {
+  it = intent::no_intent();
+  it.yards += [intent::Yard { x: 2, y: 3, w: 2, h: 2, z: 0, what: "low_hedge", open: "W",
+                              gates: [intent::Edge { x: 3, y: 4, z: 0, side: "S", what: "" }] }];
+  // north: (2,3)N (3,3)N; south: (2,5)N only, (3,5)N is the gate; east: (4,3)W (4,4)W; west: open
+  assert(edge_list(it) == "2,3Nlow_hedge 2,5Nlow_hedge 3,3Nlow_hedge 4,3Wlow_hedge 4,4Wlow_hedge ", "its edges: {edge_list(it)}");
+  back = intent::intent_from(json_parse(intent::intent_json(it)));
+  assert(edge_list(back) == edge_list(it), "kept through the file: {edge_list(back)}");
+}
+
+fn terrain_of(fills: const vector<intent::Fill>, x: integer, y: integer, z: integer) -> text {
+  for f in fills { if f.x == x && f.y == y && f.z == z { return f.terrain; } }
+  "?"
+}
+
+// A house round a court (owner, 2026-11-14: a cloister): the court paved and open to the sky on
+// every floor, pillars on every other cell of its rim, a low wall along it upstairs; and no thin
+// walls parting the house.  What is laid `over` comes after the houses: a bush on the roof.
+fn test_a_court_is_open_to_the_sky_with_pillars_round_it() {
+  it = intent::no_intent();
+  it.houses += [intent::House { x: 0, y: 0, w: 11, h: 9, z: 0, roof: "house_roof", wall: "stone_wall", door: "stone_door",
+                                door_at: 5, floors: 2, court: [3, 3, 5, 3], turn: 2 }];
+  it.over += [intent::Ground { x: 1, y: 1, w: 1, h: 1, z: 2, what: "bush" }];
+  fills = intent::derive(it, []);
+  assert(terrain_of(fills, 3, 3, 0) == "pillar" && terrain_of(fills, 5, 3, 0) == "pillar" && terrain_of(fills, 7, 5, 0) == "pillar",
+         "pillars at its corners and between");
+  assert(terrain_of(fills, 4, 3, 0) == "paving" && terrain_of(fills, 5, 4, 0) == "paving", "paved between and inside");
+  assert(terrain_of(fills, 5, 4, 1) == "void" && terrain_of(fills, 5, 4, 2) == "void", "open above, to the sky");
+  assert(terrain_of(fills, 2, 2, 2) == "house_roof" && terrain_of(fills, 1, 1, 2) == "bush", "the roof round it, the bush laid over it");
+  assert(len(intent::house_edges(it)) == 0, "the court parts the house");
+  es = edge_list(it);
+  assert(es.contains("3,3Nlow_wall") && es.contains("8,5Wlow_wall"), "a low wall along the court upstairs: {es}");
+  back = intent::intent_from(json_parse(intent::intent_json(it)));
+  assert(intent::court_of(back.houses[0]!).w == 5 && back.houses[0]!.turn == 2 && len(back.over) == 1, "kept through the file");
+}
