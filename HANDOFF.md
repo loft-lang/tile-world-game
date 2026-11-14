@@ -48,7 +48,9 @@
   (`intent.loft` `hall_plan`, `hall_rooms`); the rooms are laid out from them, each with its door
   onto the corridor.  In Orbury: the inn's upper floor, Hollis's ground floor, the second
   well-off house.  The hex town and the game's 3D view draw every house's inner walls and
-  doorways (HY-Inner) — the seed's rooms too, which were not drawn before.
+  doorways (HY-Inner) — the seed's rooms too, which were not drawn before.  Corridors that do not
+  touch are not joined by the planner — rooms between two of them connect only where the layout
+  makes the corridors meet; the owner ruled that limit fine (2026-11-14).
 - **Always push** (owner, the same day: "always push as a safety measurement"): green work is
   committed and pushed every time, unasked.
 

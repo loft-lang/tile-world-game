@@ -108,7 +108,8 @@ pub struct Opening {
 /// A corridor planned in a house (owner, 2026-11-14: plan the corridors before the rooms are laid
 /// out from them): the cells `w` by `h` from (x, y) of its inside, on its floor `floor` counted from
 /// the ground floor (0; -1 the basement), or on every floor (`ALL_FLOORS`).  The rooms are laid out
-/// from the corridors (`hall_rooms`).
+/// from the corridors (`hall_rooms`).  Corridors that do not touch are not joined: the layout makes
+/// them meet where it wants one way through (the owner: that limit is fine).
 pub struct Hall {
   pub x: integer,
   pub y: integer,
