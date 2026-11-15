@@ -1,0 +1,68 @@
+// A picture of the fixed camera's view (fixedview.loft) at a moment of play, and its frame times:
+// the place's start, then the moves walked one frame of 16 ms at a time, each frame drawn as the
+// game draws it.  What the CPU's 3D view shows, checked by eye without a window.
+//
+//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]
+//
+// PLACE is a file in levels/ (without `.json`); OUT a path from this directory (tools/) or a full
+// one; MOVES letters as TW_MOVES takes them (`w` `a` `s` `d`), one step every eight frames.
+use imaging;
+use game;
+use fixedview;
+use raster3d;
+
+fn main() {
+  args = arguments();
+  place = args[0] ?? "";
+  out = args[1] ?? "";
+  moves = args[2] ?? "";
+  if place == "" || out == "" {
+    println("usage: loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]");
+    exit(1);
+  }
+  m = game::new_game("..");
+  if !m { println("the game does not load"); exit(1); }
+  g = m;
+  if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
+  v = fixedview::view();
+  v.on = true;
+  now = 0;
+  frames = 0;
+  spent = 0;
+  worst = 0;
+  steps: vector<text> = [];
+  for c in moves { steps += ["{c}"]; }
+  for f in 0..len(steps) * 8 + 30 {
+    if f % 8 == 0 && f / 8 < len(steps) {
+      d = steps[f / 8] ?? "";
+      if d == "w" { game::move(g, 0, -1, false); }
+      if d == "s" { game::move(g, 0, 1, false); }
+      if d == "a" { game::move(g, -1, 0, false); }
+      if d == "d" { game::move(g, 1, 0, false); }
+    }
+    now += 16;
+    changed = game::update(g, 16, now);
+    at = ticks();
+    fixedview::draw(v, g, changed || f == 0, now);
+    took = ticks() - at;
+    spent += took;
+    if took > worst { worst = took; }
+    frames += 1;
+  }
+  w = raster3d::WIDTH;
+  h = raster3d::HEIGHT;
+  if len(v.px) != w * h { println("no frame was drawn ({len(v.px)} pixels)"); exit(1); }
+  img = imaging::Image { name: place, width: w, height: h, data: [] };
+  for c in v.px {
+    p = c as integer;
+    img.data += [imaging::Pixel {
+      r: ((((p >> 11) & 31) * 255 / 31) ?? 0) & 255,
+      g: ((((p >> 5) & 63) * 255 / 63) ?? 0) & 255,
+      b: (((p & 31) * 255 / 31) ?? 0) & 255,
+      a: 255
+    }];
+  }
+  if !img.save_png(out) { println("could not write {out}"); exit(1); }
+  println("{out}: {place}, hero at ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z}); {frames} frames, "
+          + "{spent / frames} us a frame, the slowest {worst} us");
+}

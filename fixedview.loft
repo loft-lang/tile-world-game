@@ -1,0 +1,258 @@
+// The fixed camera from the south, drawn on a CPU (RENDER_3D.md § The camera and what is seen;
+// BUILD.md Phase E): the landscape round the hero, as render3d builds it, kept as a picture by
+// raster3d and drawn again only where it changes; the hero, the enemies and the people drawn over
+// it as actors every frame, the walls in front of the hero cut away.  A parallel projection
+// (owner, 2026-11-15), so the camera following the hero shifts the kept picture exactly.
+//
+// F5 switches it on and off where the frame is the CPU's (the desktop, the Tanmatsu); TW_VIEW=fixed
+// starts the game in it.  The game's code is the 2D game's: this reads what is there and draws it.
+use tile_world;
+use tiles;
+use rules;
+use theme;
+use game;
+use render3d;
+use raster3d;
+
+/// The cells round the build's centre the landscape covers.  The screen is about 17 x 12 cells
+/// and the camera keeps the hero within FOLLOW cells of its middle, so the hero walks REBUILD
+/// cells from the centre before the landscape is built round it again.
+const REACH = 16;
+const REBUILD = 5;
+/// How far the hero may stand off the middle of the screen (cells) before the camera follows,
+/// and how fast it follows (pixels a frame).
+const FOLLOW = 2;
+const SLIDE = 8;
+/// The least time between two looks at whether the landscape changed (ms): building its faces
+/// is the rules' per-cell work, so it is not done every frame a figure moves.  BUILD.md E1's
+/// change counter, once the rules keep one, replaces this.
+const LOOK_MS = 250;
+/// A figure's card and what it holds, as render3d draws them.
+const FIGURE = 0.85;
+const ITEM = 0.5;
+/// The hero's actor id; the others are numbered from the layer and their place in the list.
+const HERO = 1000000;
+/// F5, in screen's key codes.
+const K_FIXED = 139;
+/// Where nothing is.
+const SKY = 0;
+
+struct Pic {
+  const sprite: integer,
+  index: integer
+}
+
+pub struct FixedView {
+  pub on: boolean = false,
+  scene: integer = 0,
+  place: text = "",
+  z: integer = 0,
+  cx: integer = 0,
+  cy: integer = 0,
+  /// The faces the scene was built from, to tell a change.
+  built: vector<float> = [],
+  looked: integer = 0,
+  /// The pictures, numbered in the order first met; each scene is given them all in that order.
+  pics: hash<Pic[sprite]> = [],
+  sprites: vector<integer> = [],
+  given: integer = 0,
+  scratch: integer = 0,
+  cam_x: integer = 0,
+  cam_y: integer = 0,
+  placed: boolean = false,
+  was: boolean = false,
+  /// The frame, raster3d::WIDTH x raster3d::HEIGHT, for `screen::show`.
+  pub px: vector<i32> = []
+}
+
+/// A view, off.
+pub fn view() -> FixedView {
+  FixedView {}
+}
+
+/// F5 pressed: the view switched.  Answers whether it is on.
+pub fn toggle(v: FixedView, keys: const vector<boolean>) -> boolean {
+  down = keys[K_FIXED] ?? false;
+  if down && !v.was { v.on = !v.on; }
+  v.was = down;
+  v.on
+}
+
+// The picture's number, given to the scene the first time it is met.
+fn pic_of(v: FixedView, g: const game::Game, sprite: integer) -> integer {
+  p = v.pics[sprite];
+  if p { return p.index; }
+  n = len(v.sprites);
+  v.pics += [Pic { sprite: sprite, index: n }];
+  v.sprites += [sprite];
+  n
+}
+
+// The pictures not yet given to the scene, given.
+fn give(v: FixedView, g: const game::Game) {
+  if v.scene == 0 { return; }
+  ts = g.look.tile_size;
+  if v.scratch == 0 { v.scratch = tiles::surface(ts, ts) ?? 0; }
+  while v.given < len(v.sprites) {
+    // `rect`, not `clear`: on the interpreter `tiles::clear` reaches tile_world's native of the
+    // same name (loft#2510).
+    tiles::rect(v.scratch, 0, 0, ts, ts, raster3d::NONE);
+    theme::put(v.scratch, v.sprites[v.given] ?? 0, 0, 0, 0);
+    _ = raster3d::add_picture(v.scene, tiles::pixels(v.scratch, ts, ts));
+    v.given += 1;
+  }
+}
+
+// The layers shown: two below the hero's, and the one above under the open sky only.
+fn layers(g: const game::Game) -> (integer, integer) {
+  w = g.world;
+  (w.hero_z - 2, if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { w.hero_z + 1 } else { w.hero_z })
+}
+
+// The group a face is hidden with: one cell's walls on one layer (what the hero's cut-away takes
+// out), -1 for a floor, a card or a cell outside the build.
+fn group_of(v: const FixedView, f: const render3d::Face, z0: integer) -> integer {
+  n = len(f.at) / 5 ?? 0;
+  x = 1000000.0;
+  zz = 1000000.0;
+  y0 = 1000000.0;
+  y1 = -1000000.0;
+  for c in 0..n {
+    fx = f.at[c * 5] ?? 0.0;
+    fy = f.at[c * 5 + 1] ?? 0.0;
+    fz = f.at[c * 5 + 2] ?? 0.0;
+    if fx < x { x = fx; }
+    if fz < zz { zz = fz; }
+    if fy < y0 { y0 = fy; }
+    if fy > y1 { y1 = fy; }
+  }
+  floor_y = floor(y0 + 0.000001);
+  if y1 - floor_y < 0.5 { return -1; }
+  side = 2 * REACH + 1;
+  gx = (floor(x + 0.001) as integer) - (v.cx - REACH);
+  gz = (floor(zz + 0.001) as integer) - (v.cy - REACH);
+  gl = (floor_y as integer) - z0;
+  if gx < 0 || gz < 0 || gx >= side || gz >= side || gl < 0 { return -1; }
+  (gl * side + gz) * side + gx
+}
+
+// The landscape's faces round the build's centre, as raster3d takes them.
+fn landscape(v: FixedView, g: const game::Game) -> vector<float> {
+  (z0, z1) = layers(g);
+  rv = render3d::view();
+  out: vector<float> = [];
+  for pass in 0..2 {
+    fs = if pass == 0 { render3d::faces_of(g, v.cx, v.cy, REACH, z0, z1) }
+         else { render3d::cards_of(rv, g, 16, v.cx, v.cy, REACH, z0, z1, false) };
+    for f in fs {
+      n = len(f.at) / 5 ?? 0;
+      grp = if pass == 0 { group_of(v, f, z0) } else { -1 };
+      out += [pic_of(v, g, f.sprite) as float, grp as float, n as float];
+      for c in 0..n {
+        i = c * 5;
+        out += [f.at[i] ?? 0.0, f.at[i + 1] ?? 0.0, f.at[i + 2] ?? 0.0, f.at[i + 3] ?? 0.0, f.at[i + 4] ?? 0.0,
+                f.lights[c] ?? f.light];
+      }
+    }
+  }
+  out
+}
+
+fn same(a: const vector<float>, b: const vector<float>) -> boolean {
+  if len(a) != len(b) { return false; }
+  for i in 0..len(a) { if (a[i] ?? 0.0) != (b[i] ?? 0.0) { return false; } }
+  true
+}
+
+// The scene made again from `faces`.
+fn rebuild(v: FixedView, g: const game::Game, faces: const vector<float>) {
+  if v.scene != 0 { raster3d::free_scene(v.scene); }
+  v.scene = raster3d::new_scene(SKY) ?? 0;
+  v.given = 0;
+  give(v, g);
+  raster3d::add_faces(v.scene, faces);
+  raster3d::build_scene(v.scene, v.cx as float, g.world.hero_z as float, v.cy as float);
+  v.built = faces;
+  v.place = g.place;
+  v.z = g.world.hero_z;
+  v.placed = false;
+}
+
+// The landscape as it is now: built again round the hero when it changed place or layer or walked
+// off far, and, at most every LOOK_MS while the world changes, when its faces differ.
+fn keep_up(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
+  w = g.world;
+  away = w.hero_x - v.cx > REBUILD || v.cx - w.hero_x > REBUILD || w.hero_y - v.cy > REBUILD || v.cy - w.hero_y > REBUILD;
+  if v.scene == 0 || g.place != v.place || w.hero_z != v.z || away {
+    v.cx = w.hero_x;
+    v.cy = w.hero_y;
+    v.looked = now;
+    rebuild(v, g, landscape(v, g));
+    return;
+  }
+  if !changed || now - v.looked < LOOK_MS { return; }
+  v.looked = now;
+  faces = landscape(v, g);
+  if !same(faces, v.built) { rebuild(v, g, faces); }
+}
+
+// The camera: kept within FOLLOW cells of the hero, sliding SLIDE pixels a frame; placed on the
+// hero at once after a new scene.
+fn follow(v: FixedView, hero: const game::Figure, z: integer) {
+  tx = (((hero.x as float) + 0.5 + hero.fine.x / 16.0) * (raster3d::WIDE as float)) as integer - raster3d::WIDTH / 2;
+  ty = (((hero.y as float) + 0.5 + hero.fine.y / 16.0) * (raster3d::DEEP as float)
+        - ((z as float) + 0.25 * (hero.h as float)) * (raster3d::TALL as float)) as integer - raster3d::HEIGHT / 2;
+  if !v.placed {
+    v.cam_x = tx;
+    v.cam_y = ty;
+    v.placed = true;
+    return;
+  }
+  v.cam_x = towards(v.cam_x, tx, FOLLOW * raster3d::WIDE);
+  v.cam_y = towards(v.cam_y, ty, FOLLOW * raster3d::DEEP);
+}
+
+// `at` moved at most SLIDE towards `to`, until it is within `slack` of it.
+fn towards(at: integer, to: integer, slack: integer) -> integer {
+  d = to - at;
+  if d > slack { return at + (if d - slack > SLIDE { SLIDE } else { d - slack }); }
+  if d < -slack { return at - (if -slack - d > SLIDE { SLIDE } else { -slack - d }); }
+  at
+}
+
+// The figures on the layers shown, as actors: a body card each and what it holds beside it.
+fn actors(v: FixedView, g: const game::Game) -> vector<float> {
+  w = g.world;
+  (z0, z1) = layers(g);
+  out: vector<float> = [];
+  for z in z0..=z1 {
+    i = 0;
+    for f in game::figures(g, w, z) {
+      id = if f.facing_shown { HERO } else { (z - z0) * 10000 + i * 2 };
+      i += 1;
+      x = (f.x as float) + 0.5 + f.fine.x / 16.0;
+      zz = (f.y as float) + 0.5 + f.fine.y / 16.0;
+      y = (z as float) + 0.25 * (f.h as float) - f.fine.hop / 16.0;
+      light = render3d::light_at(g, f.x, f.y, z);
+      out += [id as float, pic_of(v, g, f.sprite) as float, x, y, zz, FIGURE, light];
+      if f.item != 0 {
+        s = theme::thing_sprite_at(g.look, f.item, w.now, f.low);
+        out += [(id + 1) as float, pic_of(v, g, s) as float, x + 0.3 * (f.face_x as float), y + 0.25, zz + 0.02, ITEM, light];
+      }
+      if f.facing_shown { follow(v, f, z); }
+    }
+  }
+  out
+}
+
+/// This frame into `v.px`: the landscape kept up, the camera on the hero, the figures over it.
+pub fn draw(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
+  keep_up(v, g, changed, now);
+  if v.scene == 0 { return; }
+  if len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { v.px = [0 as i32; raster3d::WIDTH * raster3d::HEIGHT]; }
+  acts = actors(v, g);
+  give(v, g);
+  raster3d::move_camera(v.scene, v.cam_x, v.cam_y);
+  raster3d::set_actors(v.scene, acts, HERO);
+  raster3d::draw_frame(v.scene, v.px);
+}

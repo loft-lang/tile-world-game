@@ -15,9 +15,17 @@ sprites over it; start with the fixed camera and validate its movements).  BUILD
   ten steps and a 32-frame smooth slide; a shift a pixel short, the control, differs); with the
   25° perspective of RENDER_3D.md's defaults a step leaves 10–20 % wrong.  **The owner ruled the
   fixed camera parallel** the same day (RENDER_3D.md § The camera and what is seen).
-- **Next:** the hero's cut-away as a rectangle of B drawn again, the actors over B
-  (`bench/actors.c` joined to it), a landscape change drawn into a rectangle; then the frame
-  calibrated on the device.
+- **Then the engine and the game's view** (owner, the same day: "continue building the parallel
+  camera game with full performance"): `local/raster3d/` (C, libc only, loft bindings; copied into
+  `libs/` by `fetch-libs.sh`) keeps the landscape as a picture, cuts away the walls in front of the
+  hero itself, and draws the actors over it; `bench/frame3d.c` checks 600 frames of a scripted walk
+  against the scene drawn from scratch — 0 differ, in the demo and Orbury's town, on this machine
+  and under the emulator — at 33–51 µs a frame here.  `fixedview.loft` is the game's view on it:
+  **F5** (or `TW_VIEW=fixed`); `tools/fixedshot.loft` takes its picture without a window.
+- **Where the time goes now:** not the engine.  Natively, walking into Orbury, a frame averages
+  22 ms with spikes of 213 ms: building the landscape's faces (`render3d::faces_of`, 69 ms at
+  16 cells each way, `cards_of` 10 ms) on each rebuild and on the 250 ms look for a change.
+  BUILD.md Phase E § raster3d lists what is next.
 
 **loft.**  `../loft` is on `main` (39701d652); the game now builds with the installed
 `~/.local/bin/loft` (2026.11.20261115).  `~/workspace/loft/target/release/loft` (11-13) no longer
@@ -35,10 +43,15 @@ starts: it reads its default library from the updated tree.  What today's loft a
   library's native also has goes to the wrong one: `tiles::clear` runs `tile_world`'s `clear`
   (both export `loft_shared_n_clear`), and `checks/game.loft` aborts with `--interpret`.  Native
   builds are not hit; `tools/scene3d.loft` fills with `tiles::rect` instead.
+- raster3d's functions have names no other library uses (`new_scene`, not `scene`): on the
+  interpreter a library's function can reach another loaded library's of the same name
+  (loft#2507).  The game itself (`main.loft`) aborts on the interpreter for that reason, before
+  and after today; it runs natively, as it is run.
 - A program's relative file paths are read from its own directory: `tools/scene3d.loft` takes a
   full path for what it writes.
 
-**Checked:** 480 tests on the interpreter and native, 37 game checks (native), 8 view checks.
+**Checked:** 480 tests on the interpreter and native, 37 game checks (native), 8 view checks;
+`bench/frame3d.c` 0 of 600 frames differing, both cameras, two places, two machines.
 
 ## State on 2026-11-14
 

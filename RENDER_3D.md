@@ -275,6 +275,16 @@ deep and a layer 48 tall, which is a camera about 40° down, walls a little tall
 ground is deep.  What it gives up is the mild shrinking of far rows.  The first-person view
 stays perspective.
 
+**Built on the CPU (2026-11-15): `fixedview.loft`, F5**, drawn by `raster3d` (BUILD.md Phase E,
+E2 and E3), on the desktop and wherever `screen` shows a frame.  The landscape is kept as a
+picture and drawn again only where it changes; the figures are drawn over it every frame; the
+walls in front of the hero are cut away by the engine, by the rule above (a wall group that
+covers the hero's card and reaches nearer than it), so the cut follows the camera's angle rather
+than the 2D's one cell.  Every frame is the whole scene drawn from scratch, pixel for pixel
+(checked by `bench/frame3d.c`).  Not drawn yet: the turn, lean and mirror of `motion.loft`'s pose
+on a card (the cards stand straight), the held weapon's angle, the shadows and the board's edge
+(§ Everything else: cardboard), talk bubbles and the status line.
+
 **What is seen:** DESIGN.md § What the player sees carries over as rules, not as a look:
 
 - under a ceiling only the hero's layer and those below are drawn; nothing above (roofs vanish

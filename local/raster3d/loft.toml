@@ -1,0 +1,21 @@
+[package]
+name    = "raster3d"
+version = "0.1.0"
+loft    = ">=2026.10.0"
+description = "A 3D landscape kept as a picture and the actors drawn over it every frame, on a CPU: the fixed camera from the south, a parallel projection"
+categories  = ["graphics", "game"]
+
+# ⚠ FIRST release, so both floors are this release itself.
+api_compatible_with  = "0.1.0"   # oldest own release this is a drop-in for
+data_compatible_with = "0.1.0"   # oldest own release whose stored data this reads
+
+# Kept in tile-world-game (local/) until it moves to loft-libs-graphics, where BUILD.md Phase E
+# places it (E2, E3); fetch-libs.sh copies it into libs/ beside the fetched libraries.
+
+[library]
+entry = "src/raster3d.loft"
+
+# The engine is C99 loft builds with `cc`: c/raster3d.c, bound by the `#c` declarations in
+# src/raster3d.loft.  Pure computation, libc only; the frame is handed to a screen as pixels.
+[c]
+shim = "c/raster3d.c"

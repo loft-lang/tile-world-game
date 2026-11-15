@@ -301,7 +301,7 @@ fn sound_events() -> vector<text> {
 // The play keys (owner, 2026-11-07; DESIGN.md @GM-Combat, *The keys*): WASD walk (the arrows too);
 // Q takes a small item or puts the held one down, and held while stepping pulls; E uses (swings,
 // shoots, throws, drinks); Tab aims; Esc quits; F1 the first-person view (render3d.loft), F2 the
-// editor, F3 free roaming, F4 a mark in the play log.  Shift is the built guard (held: block, pressed: parry) until the clash
+// editor, F3 free roaming, F4 a mark in the play log, F5 the fixed 3D view on the CPU (fixedview.loft).  Shift is the built guard (held: block, pressed: parry) until the clash
 // replaces it (BUILD.md B1c step 4).  The editor's keys are read only while editing.
 fn bindings() -> input::Bindings {
   b = input::Bindings {
@@ -2621,25 +2621,26 @@ fn hand(fx: integer, fy: integer) -> (integer, integer) {
 /// Someone drawn as a cut-out (motion.loft): the hero, and every enemy to come.  Its cell and
 /// height, its picture, what it holds (and whether that burns low), the way it faces and its
 /// pose now.
-struct Figure {
-  x: integer,
-  y: integer,
-  h: integer,
-  sprite: integer,
-  item: integer,
-  low: boolean,
-  face_x: integer,
-  face_y: integer,
-  pose: motion::Pose,
-  fine: motion::FinePose,
+/// A figure as it is drawn: its cell and rise, its picture, what it holds, its facing and pose.
+pub struct Figure {
+  pub x: integer,
+  pub y: integer,
+  pub h: integer,
+  pub sprite: integer,
+  pub item: integer,
+  pub low: boolean,
+  pub face_x: integer,
+  pub face_y: integer,
+  pub pose: motion::Pose,
+  pub fine: motion::FinePose,
   /// What is worn on the shoulders (the hero's rope or sack; 0: none), drawn behind the body.
-  shoulder: integer = 0,
+  pub shoulder: integer = 0,
   /// The hero: its facing shown — a lean that way, and its picture mirrored facing west.
-  facing_shown: boolean = false
+  pub facing_shown: boolean = false
 }
 
-// The figures on layer z: the hero and the enemies.
-fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
+/// The figures on layer z: the enemies and people, then the hero (`facing_shown`).
+pub fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figure> {
   out: vector<Figure> = [];
   for e in w.enemies {
     if e.z != z || e.away { continue; }

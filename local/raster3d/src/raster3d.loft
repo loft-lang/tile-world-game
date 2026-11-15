@@ -1,0 +1,90 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// raster3d — a 3D landscape kept as a picture, and the actors drawn over it every frame, on a
+// CPU (@PLN218 in 3D; tile-world-game's BUILD.md Phase E, E2 and E3).
+//
+// The camera is fixed, from the south, and a parallel projection: a cell WIDE pixels across,
+// its ground DEEP pixels deep, a layer TALL pixels tall.  So a camera movement shifts the kept
+// picture by whole pixels and only the strips that come into view are drawn, and every frame is
+// exactly the scene drawn from scratch (c/raster3d.h says how that is held).
+//
+// A scene is a handle.  It is made from pictures (16 x 16 RGB565 texels, 63519 where none) and
+// faces (a picture on 3 to 8 corners), built once, and then each frame given the camera and the
+// actors and asked for the frame.  A change of the landscape is a new scene; a group of faces
+// (one cell's walls) can be hidden and shown without one, which is how the walls in front of the
+// hero are cut away.
+//
+// The frame is WIDTH x HEIGHT RGB565 values, row by row, as `screen::show` takes them; only what
+// changed is written into it, so keep the vector from frame to frame.
+//
+// The functions' names are this library's alone (`new_scene`, not `scene`): on the interpreter a
+// library's function can reach another loaded library's of the same name (loft#2507).
+
+pub const WIDTH = 800;
+pub const HEIGHT = 480;
+pub const WIDE = 48;
+pub const DEEP = 40;
+pub const TALL = 48;
+/// A texel that is not there.
+pub const NONE = 63519;
+
+fn r3h_new(sky: integer) -> integer;
+#c "r3h_new" "int64_t(int32_t)"
+fn r3h_free(h: integer);
+#c "r3h_free" "void(int64_t)"
+fn r3h_picture(h: integer, texels: const vector<i32>) -> integer;
+#c "r3h_picture" "int64_t(int64_t, const int32_t*)"
+fn r3h_faces(h: integer, d: const vector<float>, n: integer);
+#c "r3h_faces" "void(int64_t, const double*, int64_t)"
+fn r3h_build(h: integer, origin: const vector<float>);
+#c "r3h_build" "void(int64_t, const double*)"
+fn r3h_camera(h: integer, px: integer, py: integer);
+#c "r3h_camera" "void(int64_t, int64_t, int64_t)"
+fn r3h_actors(h: integer, d: const vector<float>, n: integer, keep_seen: integer);
+#c "r3h_actors" "void(int64_t, const double*, int64_t, int64_t)"
+fn r3h_frame(h: integer, out: vector<i32>);
+#c "r3h_frame" "void(int64_t, int32_t*)"
+
+/// A new scene, `sky` the colour where nothing is; null when it could not be made.
+pub fn new_scene(sky: integer) -> integer? {
+  h = r3h_new(sky);
+  if h <= 0 { return null; }
+  h
+}
+
+/// The scene freed; its handle names nothing after.
+pub fn free_scene(scene: integer) { r3h_free(scene); }
+
+/// A picture, 16 x 16 texels row by row: its number, for `add_faces`.
+pub fn add_picture(scene: integer, texels: const vector<i32>) -> integer {
+  if len(texels) < 256 { return -1; }
+  r3h_picture(scene, texels)
+}
+
+/// Faces, one after another in `d`: the picture, the group (-1: none), the corners n, then n
+/// times x, y, z, u, v, light — x east, y up in layers, z south, u and v 0 .. 1 over the picture,
+/// light 0 .. 1.
+pub fn add_faces(scene: integer, d: const vector<float>) { r3h_faces(scene, d, len(d)); }
+
+/// Made ready to draw, after the last face; depths count from cell (x, z) on layer y.
+pub fn build_scene(scene: integer, x: float, y: float, z: float) {
+  r3h_build(scene, [x, y, z]);
+}
+
+/// The camera: the screen's top-left at world pixel (px, py), where cell (x, z) on layer y lies
+/// at (x * WIDE, z * DEEP - y * TALL).
+pub fn move_camera(scene: integer, px: integer, py: integer) { r3h_camera(scene, px, py); }
+
+/// This frame's actors, seven numbers each in `d`: an id that names it from frame to frame, the
+/// picture, the bottom middle (x, y, z), its size in cells and its light.  The actor `keep_seen`
+/// is never hidden: the walls in front of it are cut away (-1: none).
+pub fn set_actors(scene: integer, d: const vector<float>, keep_seen: integer = -1) {
+  r3h_actors(scene, d, len(d), keep_seen);
+}
+
+/// The frame into `out` (WIDTH * HEIGHT values), where it changed since the last frame.
+pub fn draw_frame(scene: integer, out: vector<i32>) {
+  if len(out) < WIDTH * HEIGHT { return; }
+  r3h_frame(scene, out);
+}

@@ -410,18 +410,31 @@ fn face_lit(out: vector<Face>, sprite: integer, corners: const vector<(float, fl
   out += [Face { sprite: sprite, at: at, light: lights[0] ?? 1.0, lights: lights }];
 }
 
-// The shades of layer z over the square round (cx, cy), row by row: the rules' light.
-fn shades_of(w: const rules::Level, cx: integer, cy: integer, z: integer) -> vector<integer> {
-  tile_world::shades(w.w, cx - REACH - 1, cy - REACH - 1, cx + REACH + 1, cy + REACH + 1, z,
-                     rules::lights(w, z), rules::light_starts(w, z), !w.night)
+/// The shades of a layer over a square of cells, row by row (the rules' light), and the square.
+struct Shades {
+  x0: integer,
+  y0: integer,
+  side: integer,
+  v: vector<integer>
 }
 
-fn shade_at(sh: const vector<integer>, cx: integer, cy: integer, x: integer, y: integer) -> float {
-  side = 2 * REACH + 3;
-  i = x - (cx - REACH - 1);
-  j = y - (cy - REACH - 1);
-  if i < 0 || j < 0 || i >= side || j >= side { return light_of(7); }
-  light_of(sh[j * side + i] ?? 7)
+// The shades of layer z over the square `reach` cells round (cx, cy), one cell more each way.
+fn shades_of(w: const rules::Level, cx: integer, cy: integer, reach: integer, z: integer) -> Shades {
+  Shades { x0: cx - reach - 1, y0: cy - reach - 1, side: 2 * reach + 3,
+           v: tile_world::shades(w.w, cx - reach - 1, cy - reach - 1, cx + reach + 1, cy + reach + 1, z,
+                                 rules::lights(w, z), rules::light_starts(w, z), !w.night) }
+}
+
+fn shade_at(sh: const Shades, x: integer, y: integer) -> float {
+  i = x - sh.x0;
+  j = y - sh.y0;
+  if i < 0 || j < 0 || i >= sh.side || j >= sh.side { return light_of(7); }
+  light_of(sh.v[j * sh.side + i] ?? 7)
+}
+
+/// The rules' light on cell (x, y, z), as a face's light (1 is full).
+pub fn light_at(g: const game::Game, x: integer, y: integer, z: integer) -> float {
+  shade_at(shades_of(g.world, x, y, 0, z), x, y)
 }
 
 // The corners of cell (x, y) in the four ways, as (x, z): NW, NE, SE, SW.
@@ -442,27 +455,26 @@ fn open_corner(toward: integer) -> integer {
 /// the slanted walls' prisms with the ground and ceiling of their open half, the ceilings at their
 /// drop.  Cards (things, trees, figures) are not faces: `cards` makes them each frame.
 pub fn faces(g: const game::Game) -> vector<Face> {
-  faces_of(g, g.world.hero_z - LAYERS, g.world.hero_z + LAYERS)
+  faces_of(g, g.world.hero_x, g.world.hero_y, REACH, g.world.hero_z - LAYERS, g.world.hero_z + LAYERS)
 }
 
-/// `faces` on the layers z0 ..= z1 only: what a camera that shows fewer layers draws (the fixed
-/// camera from the south: nothing above the hero under a ceiling, BUILD.md Phase E).
-pub fn faces_of(g: const game::Game, z0: integer, z1: integer) -> vector<Face> {
+/// `faces` of the cells `reach` round (cx, cy), on the layers z0 ..= z1 only: what a camera that
+/// shows another part and fewer layers draws (the fixed camera from the south: nothing above the
+/// hero under a ceiling, BUILD.md Phase E).
+pub fn faces_of(g: const game::Game, cx: integer, cy: integer, reach: integer, z0: integer, z1: integer) -> vector<Face> {
   w = g.world;
   out: vector<Face> = [];
-  cx = w.hero_x;
-  cy = w.hero_y;
   for z in z0..=z1 {
-    sh = shades_of(w, cx, cy, z);
-    below = shades_of(w, cx, cy, z - 1);
-    above = shades_of(w, cx, cy, z + 1);
-    for y in cy - REACH..=cy + REACH {
-      for x in cx - REACH..=cx + REACH {
+    sh = shades_of(w, cx, cy, reach, z);
+    below = shades_of(w, cx, cy, reach, z - 1);
+    above = shades_of(w, cx, cy, reach, z + 1);
+    for y in cy - reach..=cy + reach {
+      for x in cx - reach..=cx + reach {
         // The thin walls on its north and west sides (a house's inner walls, its doors, windows).
-        edges(g, w, out, x, y, z, shade_at(sh, cx, cy, x, y));
+        edges(g, w, out, x, y, z, shade_at(sh, x, y));
         k = tile_world::terrain(w.w, x, y, z);
         if k == tile_world::VOID { continue; }
-        here = shade_at(sh, cx, cy, x, y);
+        here = shade_at(sh, x, y);
         // Stairs up: four steps to the layer above.  Stairs down over them: the stairwell, open.
         if k == rules::tr(w, "stairs_up") {
           steps(g, w, out, x, y, z, here);
@@ -476,7 +488,7 @@ pub fn faces_of(g: const game::Game, z0: integer, z1: integer) -> vector<Face> {
           continue;
         }
         if solid(g, w, x, y, z) {
-          walls(g, w, out, x, y, z, sh, below, above, cx, cy);
+          walls(g, w, out, x, y, z, sh, below, above);
           continue;
         }
         fz = z as float;
@@ -770,8 +782,7 @@ fn banks(g: const game::Game, w: const rules::Level, out: vector<Face>, s: integ
 // rock, its top where the layer above is open, its underside over an empty cell at that cell's
 // ceiling drop; a slanted one a prism with its cut face, and the ground and ceiling of its open half.
 fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integer, y: integer, z: integer,
-         sh: const vector<integer>, below: const vector<integer>, above: const vector<integer>,
-         cx: integer, cy: integer) {
+         sh: const Shades, below: const Shades, above: const Shades) {
   side = game::kind_sprite(g, w, x, y, z, false);
   top = game::kind_sprite(g, w, x, y, z, true);
   fz = z as float;
@@ -790,7 +801,7 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
     a = corner_xz(x, y, loop_i);
     b = corner_xz(x, y, j);
     face(out, side, [(a.0, fz + 1.0, a.1, 0.0, 0.0), (b.0, fz + 1.0, b.1, 1.0, 0.0), (b.0, fz, b.1, 1.0, 1.0),
-                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, cx, cy, nx, ny));
+                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, nx, ny));
   }
   // The cut face, along the diagonal between the two corners beside the open one.
   if open >= 0 {
@@ -799,7 +810,7 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
     a = corner_xz(x, y, i);
     b = corner_xz(x, y, j);
     face(out, side, [(a.0, fz + 1.0, a.1, 0.0, 0.0), (b.0, fz + 1.0, b.1, 1.0, 0.0), (b.0, fz, b.1, 1.0, 1.0),
-                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, cx, cy, x, y));
+                     (a.0, fz, a.1, 0.0, 1.0)], shade_at(sh, x, y));
     // The open half: the ground beside under it, the rock above over it.
     o = corner_xz(x, y, open);
     tri = [corner_xz(x, y, j), o, corner_xz(x, y, i)];
@@ -807,14 +818,14 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
     if beside >= 0 {
       corners: vector<(float, float, float, float, float)> = [];
       for each_c in tri { corners += [(each_c.0, fz, each_c.1, each_c.0 - (x as float), each_c.1 - (y as float))]; }
-      face(out, beside, corners, shade_at(sh, cx, cy, x, y));
+      face(out, beside, corners, shade_at(sh, x, y));
     }
     if whole(g, w, x, y, z + 1) {
       corners: vector<(float, float, float, float, float)> = [];
       for loop_c in [tri[2] ?? (0.0, 0.0), tri[1] ?? (0.0, 0.0), tri[0] ?? (0.0, 0.0)] {
         corners += [(loop_c.0, fz + 1.0, loop_c.1, loop_c.0 - (x as float), loop_c.1 - (y as float))];
       }
-      face(out, game::kind_sprite(g, w, x, y, z + 1, true), corners, shade_at(sh, cx, cy, x, y) * 0.8);
+      face(out, game::kind_sprite(g, w, x, y, z + 1, true), corners, shade_at(sh, x, y) * 0.8);
     }
   }
   // The top, where the layer above is open; the underside, over open space below.
@@ -824,7 +835,7 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
       c = corner_xz(x, y, loop_i);
       corners += [(c.0, fz + 1.0, c.1, c.0 - (x as float), c.1 - (y as float))];
     }
-    face(out, top, corners, shade_at(above, cx, cy, x, y));
+    face(out, top, corners, shade_at(above, x, y));
   }
   // Over an empty cell (a dome's open layers) its underside is the ceiling there; over a floor, the
   // floor's own ceiling is (bent at its corners), so this is not drawn twice.
@@ -837,7 +848,7 @@ fn walls(g: const game::Game, w: const rules::Level, out: vector<Face>, x: integ
       corners += [(c.0, fz - drop, c.1, c.0 - (x as float), c.1 - (y as float))];
       i -= 1;
     }
-    face(out, top, corners, shade_at(below, cx, cy, x, y) * 0.8);
+    face(out, top, corners, shade_at(below, x, y) * 0.8);
   }
 }
 
@@ -876,25 +887,25 @@ fn card(out: vector<Face>, sprite: integer, bx: float, by: float, bz: float, yaw
 /// The cards round the hero: what stands up but does not stop sight (a tree, a fence, an open
 /// door), the stacks of things, and the enemies and people, each eased to its cell.  Not the hero.
 pub fn cards(v: View3D, g: const game::Game, ms: integer) -> vector<Face> {
-  cards_of(v, g, ms, g.world.hero_z - LAYERS, g.world.hero_z + LAYERS)
+  cards_of(v, g, ms, g.world.hero_x, g.world.hero_y, REACH, g.world.hero_z - LAYERS, g.world.hero_z + LAYERS, true)
 }
 
-/// `cards` on the layers z0 ..= z1 only, as `faces_of`.
-pub fn cards_of(v: View3D, g: const game::Game, ms: integer, z0: integer, z1: integer) -> vector<Face> {
+/// `cards` of the cells `reach` round (cx, cy) on the layers z0 ..= z1, as `faces_of`; the enemies
+/// and people only when `figures` (a view that draws them apart, as actors, leaves them out).
+pub fn cards_of(v: View3D, g: const game::Game, ms: integer, cx: integer, cy: integer, reach: integer, z0: integer,
+                z1: integer, figures: boolean) -> vector<Face> {
   w = g.world;
   out: vector<Face> = [];
-  cx = w.hero_x;
-  cy = w.hero_y;
   // Each layer's light, kept for its enemies below.
-  layer_sh: vector<vector<integer>> = [];
+  layer_sh: vector<Shades> = [];
   for z in z0..=z1 {
-    sh = shades_of(w, cx, cy, z);
+    sh = shades_of(w, cx, cy, reach, z);
     layer_sh += [sh];
-    for y in cy - REACH..=cy + REACH {
-      for x in cx - REACH..=cx + REACH {
+    for y in cy - reach..=cy + reach {
+      for x in cx - reach..=cx + reach {
         k = tile_world::terrain(w.w, x, y, z);
         if k == tile_world::VOID { continue; }
-        light = shade_at(sh, cx, cy, x, y);
+        light = shade_at(sh, x, y);
         base = hex_y(v, w, x, y, z, (z as float) + STEP * (tile_world::rise(w.w, x, y, z) as float));
         if theme::upright(g.look, k) && !tile_world::opaque(w.w, x, y, z) {
           card(out, game::kind_sprite(g, w, x, y, z, false), (x as float) + 0.5, base, (y as float) + 0.5, v.yaw, light);
@@ -910,6 +921,7 @@ pub fn cards_of(v: View3D, g: const game::Game, ms: integer, z0: integer, z1: in
       }
     }
   }
+  if !figures { return out; }
   // The enemies and people, gliding to their cells as the 2D's do.
   k = ((ms as float) / 140.0)!;
   k = if k > 1.0 { 1.0 } else { k };
@@ -926,9 +938,9 @@ pub fn cards_of(v: View3D, g: const game::Game, ms: integer, z0: integer, z1: in
     }
     at.x += (ex - at.x) * k;
     at.y += (ey - at.y) * k;
-    esh = layer_sh[e.z - z0] ?? [];
+    esh = layer_sh[e.z - z0] ?? Shades { x0: 0, y0: 0, side: 0, v: [] };
     ebase = hex_y(v, w, e.x, e.y, e.z, (e.z as float) + STEP * (tile_world::rise(w.w, e.x, e.y, e.z) as float));
-    card(out, theme::enemy_sprite(g.look, e.kind), at.x + 0.5, ebase, at.y + 0.5, v.yaw, shade_at(esh, cx, cy, e.x, e.y),
+    card(out, theme::enemy_sprite(g.look, e.kind), at.x + 0.5, ebase, at.y + 0.5, v.yaw, shade_at(esh, e.x, e.y),
          FIGURE);
   }
   out

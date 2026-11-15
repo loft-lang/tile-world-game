@@ -649,7 +649,44 @@ renderers do not know which grid they draw.
       nothing of the old picture is in the new one.
     - Not yet in it: the hero's cut-away (a wall in front of the hero taken out: a landscape change
       round the hero at each step, so a rectangle of B drawn again, not all of it), the actors
-      over B (`bench/actors.c`'s part), and a landscape change drawn into a rectangle.
+      over B (`bench/actors.c`'s part), and a landscape change drawn into a rectangle.  All three
+      are in raster3d (below).
+  - **raster3d: the engine, landscape and actors together** (2026-11-15).  `local/raster3d/` (a
+    library kept here until it moves to loft-libs-graphics; `fetch-libs.sh` copies it into
+    `libs/`), C with loft bindings, libc only.  The rasteriser sets up each triangle once, apart
+    from the camera; draws a column as an exact span (no test per pixel), stepping its depth,
+    texture and light in integers (no division, no float per pixel); and finds the triangles
+    under a strip through bins of 64 pixels.  B is shifted when the camera moves; a group of faces
+    (one cell's walls on one layer) is hidden or shown by drawing the rectangle it covered; each
+    frame a framebuffer is made from B where something changed since it was last made, and the
+    actors are drawn there, depth-tested.  An actor drawn exactly as the buffer last drew it costs
+    nothing.  **The hero is never hidden** is the engine's: `r3_uncover` hides every wall group
+    that covers the hero's card and reaches nearer than it, and shows again the ones it no longer
+    covers (RENDER_3D.md § The camera and what is seen).
+    - **Checked: `bench/frame3d.c`** (`bench/run.sh frame3d [PLACE]`): a scripted walk of 600
+      frames — the hero stepping, five figures pacing, wandering and standing, the walls in front
+      of the hero cut away, the camera following a cell at a time or sliding — every frame
+      compared with the whole scene drawn from scratch.  In the demo village and in Orbury's town
+      (3,176 faces): **0 of 600 frames differ**, on this machine and under `qemu-riscv32`, with
+      both cameras; the control (the hero a pixel off after the frame) differs in all 600.
+    - **Measured** (Orbury's town, 2026-11-15): a frame takes 33 µs following a cell at a time
+      and 51 µs sliding on this machine, 0.25 ms and 0.67 ms under the emulator; the whole scene
+      from scratch 1.2 ms here and 9 ms under the emulator (the first bench's rasteriser: 5.3 ms
+      and 168 ms).  A sliding frame copies B whole into the framebuffer (152,000 pixels a frame
+      on average); a following one copies 17,000.  What the device takes waits for a run there.
+  - **In the game: `fixedview.loft`, F5** (2026-11-15; `TW_VIEW=fixed` starts in it;
+    `tools/fixedshot.loft` takes its picture without a window).  The landscape round the hero
+    from `render3d::faces_of` and `cards_of` (16 cells each way, the layers the fixed camera
+    shows), built again when the hero changes place or layer or walks 5 cells from where it was
+    built, and when its faces differ, looked at most every 250 ms while the world changes; the
+    figures (`game::figures`) as actors, a body card and what each holds; the camera sliding to
+    keep the hero within 2 cells of the middle.  The frame goes to `screen::show`, as the 2D's
+    does.
+    - Not yet: the cards turned and leaned as `motion.loft` poses them and mirrored facing west
+      (a card stands straight); the held weapon's angle; talk bubbles and the status line; the
+      change counter E1 names, so the 250 ms look goes; `screen` showing raster3d's own two
+      framebuffers on the Tanmatsu (today the frame is handed over as pixels); a run on the
+      device.
 - **E1. One seam between the game and its drawing** (owner, 2026-11-09: OpenGL and the new code
   must not influence the game logic) ◇.
   - **From the game to a view: what is there, never how to draw it.**  The landscape (the cells,

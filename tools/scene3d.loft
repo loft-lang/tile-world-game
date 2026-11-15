@@ -25,22 +25,6 @@ use render3d;
 
 /// The cells each way from the spot the faces cover.
 const SPAN = 19;
-/// `render3d` builds 12 cells round the hero; a call is kept for the 13 x 13 cells round it.
-const CORE = 6;
-
-// The cell a face belongs to: its corner furthest north-west.
-fn cell_of(f: const render3d::Face) -> (integer, integer) {
-  n = len(f.at) / 5 ?? 0;
-  x = 1000000.0;
-  z = 1000000.0;
-  for c in 0..n {
-    fx = f.at[c * 5] ?? 0.0;
-    fz = f.at[c * 5 + 2] ?? 0.0;
-    if fx < x { x = fx; }
-    if fz < z { z = fz; }
-  }
-  (floor(x + 0.001) as integer, floor(z + 0.001) as integer)
-}
 
 fn line_of(f: const render3d::Face, card: boolean) -> text {
   n = len(f.at) / 5 ?? 0;
@@ -81,33 +65,19 @@ fn main() {
   used: hash<Used[sprite]> = [];
   pics: vector<integer> = [];
   n = 0;
-  step = 2 * CORE + 1;
-  ty = hy - SPAN + CORE;
-  while ty - CORE <= hy + SPAN {
-    tx = hx - SPAN + CORE;
-    while tx - CORE <= hx + SPAN {
-      g.world.hero_x = tx;
-      g.world.hero_y = ty;
-      for pass in 0..2 {
-        fs = if pass == 0 { render3d::faces_of(g, z0, z1) } else { render3d::cards_of(v, g, 16, z0, z1) };
-        for f in fs {
-          c = cell_of(f);
-          if c.0 < tx - CORE || c.0 > tx + CORE || c.1 < ty - CORE || c.1 > ty + CORE { continue; }
-          if !used[f.sprite] {
-            used += [Used { sprite: f.sprite }];
-            pics += [f.sprite];
-          }
-          _ = out.write("f {line_of(f, pass == 1)}\n");
-          n += 1;
-        }
+  // The landscape only: the enemies and people are the bench's actors.
+  for pass in 0..2 {
+    fs = if pass == 0 { render3d::faces_of(g, hx, hy, SPAN, z0, z1) }
+         else { render3d::cards_of(v, g, 16, hx, hy, SPAN, z0, z1, false) };
+    for f in fs {
+      if !used[f.sprite] {
+        used += [Used { sprite: f.sprite }];
+        pics += [f.sprite];
       }
-      println("  round ({tx}, {ty}): {n} faces so far");
-      tx += step;
+      _ = out.write("f {line_of(f, pass == 1)}\n");
+      n += 1;
     }
-    ty += step;
   }
-  g.world.hero_x = hx;
-  g.world.hero_y = hy;
   ts = g.look.tile_size;
   scratch = tiles::surface(ts, ts) ?? 0;
   for s in pics {

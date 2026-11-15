@@ -9,6 +9,8 @@ use audio;
 use input;
 use ui;
 use render3d;
+use fixedview;
+use raster3d;
 use playlog;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
@@ -270,6 +272,9 @@ fn main() {
   // The first-person view (render3d.loft): V in a browser page; what the GPU holds for it.
   v3 = render3d::view();
   gpu = render3d::gpu();
+  // The fixed camera from the south on the CPU (fixedview.loft): F5, or TW_VIEW=fixed to start in it.
+  fv = fixedview::view();
+  if (env_variable("TW_VIEW") ?? "") == "fixed" { fv.on = true; }
   pointing = screen::has_pointer();
   aim(game, view, size);
   game::draw(game);
@@ -289,6 +294,8 @@ fn main() {
         plog.console = !plog.console;
         playlog::write(plog, "clock {game.world.now}  console log {if plog.console { "on" } else { "off" }}");
       }
+      fixed_was = fv.on;
+      if fixedview::toggle(fv, raw) != fixed_was && !fv.on { panel_changed = true; }
       game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, raw), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
     } else {
       game.keys.input_tick_device();
@@ -315,7 +322,16 @@ fn main() {
     changed = game::update(game, now - last, now);
     log_flush(plog, game);
     render3d::after(v3, game);
-    if v3.on && !game.editing {
+    if fv.on && !game.editing {
+      at = ticks();
+      fixedview::draw(fv, game, changed || resized, now);
+      timing.draw += ticks() - at;
+      shown_at = ticks();
+      screen::show(fv.px, raster3d::WIDTH, raster3d::HEIGHT);
+      timing.frames += 1;
+      timing.show += ticks() - shown_at;
+      report(timing, size);
+    } else if v3.on && !game.editing {
       aim(game, view, size);
       render3d::draw(v3, gpu, game, changed || resized, now);
       present(game, size, timing);

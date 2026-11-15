@@ -46,3 +46,11 @@ echo "$LIBS" | while read -r pkg repo ref; do
   cp -r "$tmp/$repo-$ref/$pkg" "libs/$pkg"
   echo "libs/$pkg  <- loft-lang/$repo@$ref"
 done
+# The game's own libraries, kept here until they are published (local/: raster3d).
+for pkg in local/*/; do
+  [ -f "$pkg/loft.toml" ] || continue
+  name=$(basename "$pkg")
+  rm -rf "libs/$name"
+  cp -r "$pkg" "libs/$name"
+  echo "libs/$name  <- $pkg"
+done
