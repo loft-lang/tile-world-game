@@ -1,0 +1,158 @@
+// The torches a GPU lights smoothly (SCENE_CONTRACT.md § Torches; faces3d's torch_data and
+// torch_reach, rules::torches and rules::glow), checked against the light the CPU draws.  A plain
+// program, as checks/view3d.loft is.  Run with `loft --native --lib libs checks/torchlight.loft`.
+//
+// What a GPU is given must light what the CPU lights: the cells' light without the torches, and
+// each torch's reach, give cell by cell the brightest of them, which is the light with the torches.
+// And a torch's glow eases between the steps the CPU's flicker takes, never beyond them.
+use tile_world;
+use rules;
+use game;
+use faces3d;
+
+// `place` at 22:00, the hero holding a burning torch: the night, where the torches are the light.
+fn night_in(place: text) -> game::Game {
+  g = game::new_game("..")!;
+  assert(game::start_world(g, place), "no place {place}");
+  g.clock += (game::DAY_MS * 22 / 24 ?? 0) - (g.clock % game::DAY_MS ?? 0);
+  if g.clock < 0 { g.clock += game::DAY_MS; }
+  _ = game::update(g, 16, 16);
+  g.world.hero_item = rules::th(g.world, "burning_torch");
+  g.world.hero_until = g.world.now + 600000;
+  // Burning torches set down round the hero, their light overlapping its and each other's, one of
+  // them half burnt down (its light reaches less far): on open cells 2 to 5 steps off.
+  w = g.world;
+  torch = rules::th(w, "burning_torch");
+  n = 0;
+  for d in [(2, 1), (-3, 2), (4, -2), (-2, -4), (5, 3)] {
+    x = w.hero_x + d.0;
+    y = w.hero_y + d.1;
+    if tile_world::terrain(w.w, x, y, w.hero_z) == tile_world::VOID || tile_world::opaque(w.w, x, y, w.hero_z) { continue; }
+    tile_world::place(w.w, x, y, w.hero_z, torch);
+    if w.kindled {
+      w.flames += [rules::Flame { x: x, y: y, z: w.hero_z, until: w.now + (if n == 1 { w.k.burn_ms / 2 } else { w.k.burn_ms }) }];
+    }
+    n += 1;
+  }
+  g
+}
+
+// Over the cells R round the hero on its layer and the ones under and over it: the cells whose
+// light with the torches is not the brightest of the light without them and each torch's reach.
+fn differing(g: const game::Game) -> (integer, integer, integer) {
+  w = g.world;
+  r = 16;
+  x0 = w.hero_x - r;
+  y0 = w.hero_y - r;
+  x1 = w.hero_x + r;
+  y1 = w.hero_y + r;
+  z0 = w.hero_z - 1;
+  z1 = w.hero_z + 1;
+  with = faces3d::light_box(g, x0, y0, x1, y1, z0, z1);
+  base = faces3d::light_box(g, x0, y0, x1, y1, z0, z1, false);
+  cells = 0;
+  differ = 0;
+  torches = 0;
+  for z in z0..=z1 {
+    reaches: vector<vector<single>> = [];
+    for t in rules::torches(w, z) {
+      reaches += [faces3d::torch_reach(g, t)];
+      torches += 1;
+    }
+    for y in y0..=y1 {
+      for x in x0..=x1 {
+        want = (faces3d::light_in(with, x, y, z) ?? -1.0f) as float;
+        got = (faces3d::light_in(base, x, y, z) ?? -1.0f) as float;
+        for d in reaches {
+          bx = ((d[2] ?? 0.0f) as float) as integer;
+          by = ((d[3] ?? 0.0f) as float) as integer;
+          side = ((d[4] ?? 0.0f) as float) as integer;
+          i = x - bx;
+          j = y - by;
+          if i < 0 || j < 0 || i >= side || j >= side { continue; }
+          l = (d[6 + j * side + i] ?? 0.0f) as float;
+          if l > got { got = l; }
+        }
+        cells += 1;
+        if want != got { differ += 1; }
+      }
+    }
+  }
+  (cells, differ, torches)
+}
+
+// The flicker held still (no step dims a flame): a torch's reach leaves its flicker out, which a
+// GPU draws as its glow (test_a_flicker_eases), where the CPU dims the light a shade.
+fn test_the_torches_light_what_the_cpu_lights() {
+  for place in ["orbury", "demo"] {
+    g = night_in(place);
+    g.world.k.flicker_odds = 0;
+    (cells, differ, torches) = differing(g);
+    assert(torches > 0, "{place}: no torch");
+    assert(differ == 0, "{place}: {differ} of {cells} cells lit otherwise, {torches} torches");
+    println("  {place} at night: {cells} cells, {torches} torches, the same light");
+  }
+}
+
+// The torches are the lights the CPU is given, one by one: the same places, each starting where
+// its light starts without the flicker.
+fn test_the_torches_are_the_lights() {
+  g = night_in("orbury");
+  w = g.world;
+  ls = rules::lights(w, w.hero_z);
+  starts = rules::light_starts(w, w.hero_z);
+  ts = rules::torches(w, w.hero_z);
+  assert(len(ts) == len(ls), "{len(ts)} torches, {len(ls)} lights");
+  for k in 0..len(ts) {
+    t = ts[k];
+    assert(t.x == ls[k].0 && t.y == ls[k].1, "torch {k} at ({t.x}, {t.y}), the light at ({ls[k].0}, {ls[k].1})");
+    s = starts[k] ?? 0;
+    assert(s == t.start || s == t.start + 1, "torch {k} starts at {t.start}, the light at {s}");
+  }
+  data = faces3d::torch_data(g, w.hero_z, w.hero_z);
+  assert(len(data) == len(ts) * faces3d::TORCH, "{faces3d::TORCH} numbers a torch");
+}
+
+// A flame's glow over four seconds, a frame at a time: never beyond the flicker's two steps, and
+// eased (no frame moves it far); at the start of each of 40 steps what the CPU's flicker says (1
+// full, FLICKER_LOW one shade dimmer).
+fn test_a_flicker_eases() {
+  g = night_in("orbury");
+  w = g.world;
+  ms = w.k.flicker_ms;
+  steps = 0;
+  dips = 0;
+  worst = 0.0;
+  was = -1.0;
+  for f in 0..250 {
+    w.now = 100000 + f * 16;
+    v = rules::glow(w, w.hero_until, w.hero_x, w.hero_y, w.hero_z);
+    assert(v >= rules::FLICKER_LOW - 0.000001 && v <= 1.000001, "glow {v} at {w.now}");
+    if was >= 0.0 {
+      d = if v > was { v - was } else { was - v };
+      if d > worst { worst = d; }
+    }
+    was = v;
+  }
+  // At the start of each step: what the flicker says.
+  for k in 0..40 {
+    w.now = 100000 + k * ms;
+    v = rules::glow(w, w.hero_until, w.hero_x, w.hero_y, w.hero_z);
+    steps += 1;
+    dim = rules::flicker(w, w.hero_until, w.hero_x, w.hero_y, w.hero_z);
+    if dim == 1 { dips += 1; }
+    want = if dim == 1 { rules::FLICKER_LOW } else { 1.0 };
+    assert(v - want < 0.000001 && want - v < 0.000001, "at a step {v}, the flicker says {want}");
+  }
+  assert(dips > 0 && dips < steps, "{steps} steps, {dips} dips");
+  // smoothstep's steepest is 1.5 times the mean: a step of 0.14 over 500 ms, 16 ms a frame
+  assert(worst < 0.01, "a frame moves the glow {worst}");
+  println("  a flame's glow: {steps} steps, {dips} dimmer, at most {worst} a frame");
+}
+
+fn main() {
+  test_the_torches_light_what_the_cpu_lights();
+  test_the_torches_are_the_lights();
+  test_a_flicker_eases();
+  println("checks/torchlight.loft: 3 passed");
+}

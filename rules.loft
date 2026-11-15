@@ -1967,8 +1967,7 @@ fn faded(l: const Level, until: integer) -> integer {
 /// end and its place), so two flames lit together do not flicker together.
 pub fn flicker(l: const Level, until: integer, x: integer, y: integer, z: integer) -> integer {
   if l.k.flicker_ms <= 0 || l.k.flicker_odds <= 0 { return 0; }
-  h = mix((l.now / l.k.flicker_ms ?? 0) * 40503 + until * 7919 + place_key(x, y, z));
-  if (h >> 4) % l.k.flicker_odds == 0 { 1 } else { 0 }
+  flicker_at(l, l.now, until, x, y, z)
 }
 
 // --- The world's fixed choices ---
@@ -2033,6 +2032,91 @@ pub fn light_starts(l: const Level, z: integer) -> vector<integer> {
     }
   }
   out
+}
+
+/// A light as a GPU draws it, a torch of the scene contract (SCENE_CONTRACT.md § Torches): what
+/// `lights` and `light_starts` give, one by one, with its flicker smooth.  `start` is the shade it
+/// starts at without the flicker (a flame burning down, a blast's flash fading), so its reach
+/// changes only as it fades; `glow` is how bright it is now, 1 full, dipping to FLICKER_LOW and
+/// back as `flicker` says, eased between its steps; `colour` 0xRRGGBB.  `id` names it from frame to
+/// frame: its place and kind, under 2^31 (a 32-bit view reads it whole).
+pub struct Torch {
+  pub id: integer,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub start: integer,
+  pub glow: float,
+  pub colour: integer
+}
+
+/// How bright a flame is at the bottom of a flicker: one shade's step, as the CPU's light dims it
+/// (faces3d's light_of: 1.0 to 0.86).
+pub const FLICKER_LOW = 0.86;
+/// A torch's colour: a flame's, a blast's flash, anything else that gives light (a lamp carried).
+pub const FLAME_COLOUR = 0xFFC880;
+pub const FLASH_COLOUR = 0xFFF2D0;
+pub const LAMP_COLOUR = 0xFFFFFF;
+
+/// The lights on layer z as torches, in the order `lights` gives them.
+pub fn torches(l: const Level, z: integer) -> vector<Torch> {
+  out: vector<Torch> = [];
+  if l.hero_item != 0 && gives_light(l, l.hero_item) {
+    flame = is_flame(l, l.hero_item);
+    // On every layer it is asked for, as `lights` gives it: a torch a layer.
+    out += [Torch { id: torch_id(l.hero_x, l.hero_y, z, 2), x: l.hero_x, y: l.hero_y, z: z,
+                    start: if flame { faded(l, l.hero_until) } else { 0 },
+                    glow: if flame { glow(l, l.hero_until, l.hero_x, l.hero_y, l.hero_z) } else { 1.0 },
+                    colour: if flame { FLAME_COLOUR } else { LAMP_COLOUR } }];
+  }
+  if l.kindled {
+    for f in l.flames {
+      if f.z != z { continue; }
+      out += [Torch { id: torch_id(f.x, f.y, f.z, 0), x: f.x, y: f.y, z: f.z, start: faded(l, f.until),
+                      glow: glow(l, f.until, f.x, f.y, f.z), colour: FLAME_COLOUR }];
+    }
+    for b in l.blasts {
+      if b.z != z || !flashing(l, b) { continue; }
+      out += [Torch { id: torch_id(b.x, b.y, b.z, 1), x: b.x, y: b.y, z: b.z,
+                      start: (l.now - b.at) * 4 / l.k.flash_ms ?? 0, glow: 1.0, colour: FLASH_COLOUR }];
+    }
+    return out;
+  }
+  for c in tile_world::stacks(l.w) {
+    if c.2 != z { continue; }
+    for t in tile_world::things(l.w, c.0, c.1, c.2) {
+      if is_flame(l, t) {
+        out += [Torch { id: torch_id(c.0, c.1, c.2, 0), x: c.0, y: c.1, z: c.2, start: 0, glow: 1.0,
+                        colour: FLAME_COLOUR }];
+      }
+    }
+  }
+  out
+}
+
+// A torch's id: its place (12 bits a way) and kind (0 a flame, 1 a blast, 2 what the hero holds).
+fn torch_id(x: integer, y: integer, z: integer, kind: integer) -> integer {
+  (x & 4095) | ((y & 4095) << 12) | ((z & 15) << 24) | (kind << 28)
+}
+
+/// How bright the flame burning until `until` at (x, y, z) is now: `flicker`'s steps (1 full,
+/// FLICKER_LOW one shade dimmer), eased from one step to the next, so at the start of each step it
+/// is what `flicker` says, and the light never jumps.
+pub fn glow(l: const Level, until: integer, x: integer, y: integer, z: integer) -> float {
+  if l.k.flicker_ms <= 0 || l.k.flicker_odds <= 0 { return 1.0; }
+  into = l.now % l.k.flicker_ms ?? 0;
+  if into < 0 { into += l.k.flicker_ms; }
+  a = flicker_at(l, l.now - into, until, x, y, z) as float;
+  b = flicker_at(l, l.now - into + l.k.flicker_ms, until, x, y, z) as float;
+  t = (into as float) / (l.k.flicker_ms as float);
+  e = t * t * (3.0 - 2.0 * t);
+  1.0 - (1.0 - FLICKER_LOW) * (a + (b - a) * e)
+}
+
+// `flicker` at the clock `now`.
+fn flicker_at(l: const Level, now: integer, until: integer, x: integer, y: integer, z: integer) -> integer {
+  h = mix((now / l.k.flicker_ms ?? 0) * 40503 + until * 7919 + place_key(x, y, z));
+  if (h >> 4) % l.k.flicker_odds == 0 { 1 } else { 0 }
 }
 
 // Is blast b still lighting its surroundings?

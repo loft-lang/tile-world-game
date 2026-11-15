@@ -27,7 +27,7 @@ gridmesh           loft-libs-graphics   main
 gpu                loft-libs-graphics   main
 gpu_gl             loft-libs-graphics   main
 gpu_record         loft-libs-graphics   main
-scene3d            loft-libs-graphics   scene3d-depth
+scene3d            loft-libs-graphics   main
 mesh3d             loft-libs-assets     main
 glb                loft-libs-assets     main
 web                loft-libs-net        main

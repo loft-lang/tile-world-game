@@ -375,10 +375,15 @@ pub struct Shades {
 
 // The shades of layer z over cells x0 ..= x1, y0 ..= y1.  A cell's shade does not hang on the box:
 // `tile_world::shades` reads the lights and the cells DARKEST round it.
-fn shades_box(w: const rules::Level, x0: integer, y0: integer, x1: integer, y1: integer, z: integer) -> Shades {
+// Without `torches`, the lights the game gives (rules::lights) are left out: what lights the
+// cells but the torches, for a view that gives its torches apart (§ Torches).
+fn shades_box(w: const rules::Level, x0: integer, y0: integer, x1: integer, y1: integer, z: integer,
+              torches: boolean = true) -> Shades {
   // The shades as this file's integers (0 .. DARKEST): a 64-bit program's tile_world gives them wide.
   v: vector<integer> = [];
-  for d in tile_world::shades(w.w, x0, y0, x1, y1, z, rules::lights(w, z), rules::light_starts(w, z), !w.night) {
+  ds = if torches { tile_world::shades(w.w, x0, y0, x1, y1, z, rules::lights(w, z), rules::light_starts(w, z), !w.night) }
+       else { tile_world::shades(w.w, x0, y0, x1, y1, z, daylight: !w.night) };
+  for d in ds {
     v += [(d & 15) as integer];
   }
   Shades { x0: x0, y0: y0, wd: x1 - x0 + 1, ht: y1 - y0 + 1, z: z, v: v }
@@ -403,11 +408,52 @@ pub struct Light {
   layers: vector<Shades>
 }
 
-/// The light over cells x0 ..= x1, y0 ..= y1 (and one round) on layers z0 ..= z1.
-pub fn light_box(g: const game::Game, x0: integer, y0: integer, x1: integer, y1: integer, z0: integer, z1: integer) -> Light {
+/// The light over cells x0 ..= x1, y0 ..= y1 (and one round) on layers z0 ..= z1.  Without
+/// `torches`: all but the lights the game gives, which a view gives apart as torches (§ Torches).
+pub fn light_box(g: const game::Game, x0: integer, y0: integer, x1: integer, y1: integer, z0: integer, z1: integer,
+                 torches: boolean = true) -> Light {
   lt = Light { z0: z0, layers: [] };
-  for z in z0..=z1 { lt.layers += [shades_box(g.world, x0 - 1, y0 - 1, x1 + 1, y1 + 1, z)]; }
+  for z in z0..=z1 { lt.layers += [shades_box(g.world, x0 - 1, y0 - 1, x1 + 1, y1 + 1, z, torches)]; }
   lt
+}
+
+// --- Torches (SCENE_CONTRACT.md § Torches) ---
+//
+// On a GPU each light the game gives is a torch: lit smoothly within the cells it reaches, its
+// flicker eased.  The cells' light is given without them (`light_box(.., torches: false)`); each
+// torch's reach when it is new or its start changes; the torches every frame.
+
+/// The numbers a torch is given in, every frame.
+pub const TORCH = 9;
+
+/// The torches on layers z0 ..= z1, TORCH numbers each: its id, its place (x, y, z as a face's
+/// corners: x east, y up, z south — the middle of its cell, half a layer up), the shade it starts
+/// at, how bright it is now (`rules::glow`), and its colour's red, green and blue (0 .. 1).
+pub fn torch_data(g: const game::Game, z0: integer, z1: integer) -> vector<float> {
+  out: vector<float> = [];
+  for z in z0..=z1 {
+    for t in rules::torches(g.world, z) {
+      c = t.colour as integer;
+      out += [t.id as float, (t.x as float) + 0.5, (z as float) + 0.5, (t.y as float) + 0.5, t.start as float,
+              t.glow as single, (((c >> 16) & 255) as float) / 255.0, (((c >> 8) & 255) as float) / 255.0,
+              ((c & 255) as float) / 255.0];
+    }
+  }
+  out
+}
+
+/// Torch `t`'s reach as data, as `light_data` gives a layer's light: its id, its layer, the box's
+/// corner (x0, y0), width and height, then the light the torch alone gives each cell (`light_of`
+/// its shade), 0 where it does not reach.
+pub fn torch_reach(g: const game::Game, t: const rules::Torch) -> vector<float> {
+  d = tile_world::DARKEST as integer;
+  side = 2 * d + 1;
+  out: vector<float> = [t.id as float, t.z as float, (t.x - d) as float, (t.y - d) as float, side as float, side as float];
+  for s in tile_world::reach(g.world.w, t.x, t.y, t.z, t.start) {
+    sh = (s & 15) as integer;
+    out += [if sh >= d { 0.0 } else { light_of(sh) }];
+  }
+  out
 }
 
 /// How many layers the light holds.

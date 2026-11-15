@@ -61,9 +61,9 @@ pixel (0, 0) is its top-left.
    - **its group**: a number the cut-away hides it by (one cell's walls on one layer), or none;
    - optionally **its normal**, for an implementation that lights by direction.
 3. **The cells' light**: boxes of cells on a layer, a light each, given whenever they change.
-   Faces lit from those cells are lit again; no face is given again.  Optionally a scene names
-   its **lights** (where, how far, what colour) for an implementation that does more than light a
-   face by its cell; the cells' light is always given too.
+   Faces lit from those cells are lit again; no face is given again.  An implementation that
+   lights by **torches** (§ Torches) is given the lights the game carries and sets down apart, and
+   the cells' light without them.
 4. **Actors**, given every frame, each with an id that names it from frame to frame:
    - a **card**: a picture standing upright facing the camera, its bottom middle at a place,
      its size, turned some degrees about a point of the picture and mirrored or not (the 2D's
@@ -96,6 +96,45 @@ An implementation says which cameras it **offers**, and a view asks before it ch
 - Turning the free camera off on a desktop shows the Tanmatsu's view: the port is tested without
   the device.
 
+## Torches
+
+The lights the game gives — what the hero carries, the flames set down, a blast's flash
+(`rules::torches`) — are the scene's torches.  On the CPU they are part of the cells' light, a
+shade a cell, and a flicker dims a torch's cells a shade.  A GPU lights them smoothly instead:
+each torch fades from its place across the cells it reaches, its flicker eased, its colour its
+own.
+
+An implementation says whether it lights by torches (`offers_torches`).  A view asks, as it asks
+for the free camera, and gives a scene that does:
+
+| What | When | The numbers |
+|---|---|---|
+| The cells' light **without** the torches | as § What a scene holds 3 | as today (`faces3d::light_box(.., false)`) |
+| A torch's **reach** | when it is new, moved, or its `start` changed; dropped by id when it is gone | its id, its layer, the box's corner (x0, y0), width, height, then the light the torch alone gives each cell (0 .. 1), 0 where it does not reach (`faces3d::torch_reach`, from `tile_world::reach`) |
+| The **torches** | every frame | 9 each: its id, its place (x, y, z), the shade it starts at, its glow (1 full, `rules::FLICKER_LOW` at a flicker's bottom), its colour's red, green, blue (0 .. 1) (`faces3d::torch_data`) |
+
+A scene that does not light by torches (raster3d) is given the cells' light with them, as before.
+
+What an implementation that lights by torches keeps:
+1. **What is lit is the CPU's.** A torch lights a cell only where its reach is above 0, so walls,
+   doors and opaque cells stop it as the rules stop it.  The reach is given per torch so the
+   implementation never works it out.
+2. **At a cell, the brightest way.** The light at a point is the brightest of its cell's light and
+   each torch term there, a colour channel at a time, as the CPU takes a cell's light from its
+   brightest light.
+3. **A torch's term** is its colour times its glow times a smooth falloff, brightest at the torch,
+   the cell's reach value at the cell's middle: a cell's light averages the CPU's step for it.
+4. **Two torches a cell.** Where more reach a cell, the two strongest there (reach value times
+   glow) are drawn, so a pixel costs at most two torch terms however many torches are in view.
+   An implementation may draw more, never fewer.
+5. **A flicker is the glow alone**: no reach is given again, and nothing is uploaded but the
+   torches' numbers.
+
+The check: `checks/torchlight.loft` — the cells' light without the torches and each torch's reach,
+the brightest of them cell by cell, equal the cells' light with the torches (the flicker held
+still: the CPU dims a flickering torch a shade, a GPU by its glow); and a glow eases between the
+flicker's steps, equal to them at each step's start.
+
 ## The rules every implementation keeps
 
 1. **What is there is the same everywhere.** The same tiles, actors, cut-away, overlay: the game
@@ -124,7 +163,7 @@ An implementation says which cameras it **offers**, and a view asks before it ch
 | The screen | 800 × 480, RGB565, laid out as the panel's portrait rows | Any window or page, any size |
 | Pictures | Reduced to 16 × 16 RGB565 once, when given (nearest) | Full size, filtered, mipmapped |
 | The camera | Fixed only; the point snapped to whole pixels | Fixed and free; smooth, any zoom |
-| Light | A face lit by its cell's light times its factor | Also by normals, coloured lights, shadows, fog |
+| Light | A face lit by its cell's light times its factor; a torch a shade a cell | Torches smooth and coloured (§ Torches); also by normals, shadows, fog |
 | Actors | Cards; a model is drawn as its stand-in card | Cards and models |
 | The overlay | At the world's pixel size (a cell 16), scaled to the screen | Also at native resolution |
 | Its promise | Every frame equal to a full redraw; only what changed drawn | Every frame drawn whole, fast |
