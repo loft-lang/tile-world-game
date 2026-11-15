@@ -13,6 +13,20 @@ A traversal-puzzle game on the `tile_world` library.  Run it:
 loft --native --lib libs main.loft
 ```
 
+As a program on its own (a Mac's, as the loft stream built and ran it): a shipped program reads its
+files beside itself, not in the working directory, and needs the `web` library's component
+beside it too.
+
+```sh
+loft --native-c --ship --lib libs --out <dir> main.loft    # a 4.6 MB program
+cp <dir>/main ./tile-world                                 # beside the game's files
+cp <loft>/target/components/libloft_net.dylib .            # loft's `make components`
+./tile-world                                               # or TW_VIEW=fixed ./tile-world
+```
+
+F5 switches to the fixed camera's 3D view and back where the frame is the CPU's (the desktop, the
+Tanmatsu); `TW_VIEW=fixed` starts in it.
+
 **Two worlds**, never shipped together, so the game itself does not ask which:
 **Orbury** (`levels/orbury.json`), the story's first place being built — the hill town with its
 terraces, the main road and the stair roads, the market, the houses with rooms inside them, the dry
