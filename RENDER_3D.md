@@ -259,18 +259,18 @@ darker.  It shapes the boxes without lighting anything the rules leave dark.
 draws a cell's ground and a wall's face equally tall: a wall one layer high takes one tile, and
 so does the cell behind it.  That is what a camera looking down at 45° from the south sees, so
 45° is the 2D's own angle; the 3D camera starts a little lower, at 40° (a default), so faces and
-cards stand a little taller than the ground they stand on.  The field is narrow (25°, a default),
-so the perspective stays mild and a row far off is not much smaller than one near.  It follows
+cards stand a little taller than the ground they stand on.  It is a parallel projection (below):
+a row far off is as large as one near, as in 2D.  It follows
 what `camera.loft` follows (`follow`, `rooms`), the same target turned into a point over the
 place, and it does not turn: the pictures are drawn to be seen from the south.
 
-**A parallel projection, proposed (2026-11-15) ◇.**  On a CPU the landscape is kept as a picture
+**A parallel projection (owner, 2026-11-15).**  On a CPU the landscape is kept as a picture
 and a camera movement shifts it, drawing only the strips that come into view (BUILD.md Phase E).
 Measured with `bench/fixedcam.c` in the demo village: with a parallel projection every movement —
 a follow step, a smooth slide, a layer — gives exactly the picture drawn whole, over any number of
 moves; with the 25° perspective a single step leaves 10–20 % of the pixels wrong, and the errors
 add up.  A parallel projection is also the 2D's own, and its textures need no division per pixel.
-So the fixed camera is proposed parallel: a cell 48 pixels wide (the 2D's zoom 3), its ground 40
+So the fixed camera is parallel: a cell 48 pixels wide (the 2D's zoom 3), its ground 40
 deep and a layer 48 tall, which is a camera about 40° down, walls a little taller than the
 ground is deep.  What it gives up is the mild shrinking of far rows.  The first-person view
 stays perspective.
@@ -377,6 +377,8 @@ comparison is not enough.
 - Cardboard for everything that is not the environment, for now; a kind's `shape` swaps it later.
 - Roofs follow the 2D's pictures: one slope facing south, ridge at the north.
 - The hero is never hidden: the 2D's cut-away of the walls in front of it, found by projection.
+- The fixed camera is a parallel projection (2026-11-15), so a movement of it shifts the kept
+  picture exactly (§ The camera and what is seen).
 
 ## Defaults, to change later
 
@@ -391,8 +393,8 @@ Taken as reasonable defaults (owner: change them later).  Each is one named cons
 - **The shadow:** on, a soft ellipse ¾ of a cell wide under each card, darker the nearer the card
   stands to the ground (`SHADOW`).
 - **The ridge:** one layer above the eaves (`RIDGE`).
-- **The camera:** 40° down, a 25° field (`PITCH`, `FIELD`).  **Proposed instead (2026-11-15) ◇: a
-  parallel projection**, a cell 48 pixels wide, its ground 40 deep, a layer 48 tall at the panel's
-  resolution (about 40° down; § The camera and what is seen).
+- **The camera:** a parallel projection, a cell 48 pixels wide, its ground 40 deep, a layer 48
+  tall at the panel's resolution, about 40° down (owner, 2026-11-15, in place of the 40° / 25°
+  perspective first taken here; § The camera and what is seen).
 - **The cut-away:** a wall is cut when it covers any of the hero's card (`CUT_COVER` 0: any part),
   the strictest reading of "never hidden".

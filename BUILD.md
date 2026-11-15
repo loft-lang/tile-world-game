@@ -613,7 +613,7 @@ renderers do not know which grid they draw.
       walking, 197 µs for the busy scene; the copy to the panel alone 230 µs.  What they take on
       the device waits for the calibration run.
     - Not yet in it: figures turned and leaned as `motion.loft` poses them, and B drawn by E2.
-  - **The fixed camera's movements: `bench/fixedcam.c`** (`bench/run.sh fixedcam [PLACE]`) ◇.  A
+  - **The fixed camera's movements: `bench/fixedcam.c`** (`bench/run.sh fixedcam [PLACE]`).  A
     first E2: the landscape's faces and cards as `render3d` builds them (`tools/scene3d.loft`
     writes them out) drawn on the CPU into B, colour and 16-bit depth, at 800 × 480.  The
     rasteriser works in 1/16 pixel with integer edge functions and a fill rule that gives a shared
@@ -637,8 +637,8 @@ renderers do not know which grid they draw.
     | a smooth slide, 32 frames of 4–6 pixels | 0 | — | 1 % of the pixels |
     | the control: a cell east shifted a pixel short | 2.4 % | | |
 
-    - **So the fixed camera is a parallel projection** ◇ (proposed; the 25° perspective was a
-      default, RENDER_3D.md § Defaults).  Every movement of it — a follow step, a smooth slide, a
+    - **So the fixed camera is a parallel projection** (owner, 2026-11-15; the 25° perspective
+      was a default, RENDER_3D.md § Defaults).  Every movement of it — a follow step, a smooth slide, a
       layer — is a shift and a strip, exactly the picture drawn whole, and stays exact over any
       number of moves.  Its texturing is affine and exact too: no division per pixel, as the
       P4 wants.  With the perspective every step leaves a tenth to a fifth of the picture wrong,

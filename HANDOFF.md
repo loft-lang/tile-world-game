@@ -13,8 +13,8 @@ sprites over it; start with the fixed camera and validate its movements).  BUILD
   layers to build.
 - **Found:** with a parallel projection every movement is exact (0 pixels differ, over a walk of
   ten steps and a 32-frame smooth slide; a shift a pixel short, the control, differs); with the
-  25° perspective of RENDER_3D.md's defaults a step leaves 10–20 % wrong.  So the fixed camera is
-  **proposed parallel** ◇ (RENDER_3D.md § The camera and what is seen) — the owner's to rule.
+  25° perspective of RENDER_3D.md's defaults a step leaves 10–20 % wrong.  **The owner ruled the
+  fixed camera parallel** the same day (RENDER_3D.md § The camera and what is seen).
 - **Next:** the hero's cut-away as a rectangle of B drawn again, the actors over B
   (`bench/actors.c` joined to it), a landscape change drawn into a rectangle; then the frame
   calibrated on the device.
@@ -26,12 +26,12 @@ starts: it reads its default library from the updated tree.  What today's loft a
   `formal/binding.md` (B-Scope)): `glb` broke on it, fixed upstream in glb 0.1.8, so `libs/` was
   fetched again (`./fetch-libs.sh`); with it `graphics::Canvas` holds `vector<u32>`
   (`render3d::slot_of`).
-- **A loft defect, not yet reported:** a name bound inside an inner loop and bound again after it
-  in the outer loop's body is "Unknown variable 'd#b0'".  Repro:
-  `for r in 0..2 { near = 9.0; for f in [1.0, 2.0] { d = f * 2.0; if d < near { near = d; } }
-  d = sqrt(near) - 0.75; if d >= 9.0 { continue; } println("{d} {r}"); }`.  The game renames the
-  inner one (`hexterrain.loft` `fd`; `render3d.loft`'s house walls `il`, `rl`, `pl`, `cl`).
-- **A second, not yet reported:** on the interpreter, a library's native reached by a name another
+- **loft#2509:** a name bound inside an inner loop, its value copied out, and bound again after
+  the loop from `sqrt` of it is "Unknown variable 'd#b0'" (one line:
+  `for r in 0..2 { near = 9.0; for f in [1.0] { d = f; near = d; } d = sqrt(near); }`).  The game
+  renames the inner one (`hexterrain.loft` `fd`; `render3d.loft`'s house walls `il`, `rl`, `pl`,
+  `cl`); once fixed they may go back, or stay.
+- **loft#2510:** on the interpreter, a library's native reached by a name another
   library's native also has goes to the wrong one: `tiles::clear` runs `tile_world`'s `clear`
   (both export `loft_shared_n_clear`), and `checks/game.loft` aborts with `--interpret`.  Native
   builds are not hit; `tools/scene3d.loft` fills with `tiles::rect` instead.
