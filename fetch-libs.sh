@@ -8,8 +8,6 @@ set -eu
 cd "$(dirname "$0")"
 
 # package          repository           ref
-# (screen, audio and tiles: the branches with their browser and Tanmatsu sections, until they are published;
-# then main)
 LIBS='
 tile_world         loft-libs-world      main
 hex_grid           loft-libs-world      main
@@ -19,10 +17,10 @@ hex_shape          loft-libs-world      main
 hex_draw           loft-libs-world      main
 hex_way            loft-libs-world      main
 hex_roof           loft-libs-world      main
-audio              loft-libs-game       tuxedo-screen-esp-present
+audio              loft-libs-game       main
 input              loft-libs-game       main
-screen             loft-libs-game       tuxedo-screen-esp-present
-tiles              loft-libs-graphics   tuxedo-native-pixels
+screen             loft-libs-game       main
+tiles              loft-libs-graphics   main
 imaging            loft-libs-graphics   main
 graphics           loft-libs-graphics   main
 gridmesh           loft-libs-graphics   main

@@ -682,7 +682,19 @@ renderers do not know which grid they draw.
     `libs/`), C with loft bindings, libc only.  The rasteriser sets up each triangle once, apart
     from the camera; draws a column as an exact span (no test per pixel), stepping its depth,
     texture and light in integers (no division, no float per pixel); and finds the triangles
-    under a strip through bins of 64 pixels.  B is shifted when the camera moves; a group of faces
+    under a strip through bins of 64 pixels.  **The landscape is kept in tiles** (2026-11-15, as
+    moros's `hex_mesh` keeps its mesh in tiles of 8 hexes and `graphics::GroupVboSet` uploads only
+    the dirty groups): a tile is the faces given under one key (`set_tile`, `drop_tile`), drawn in
+    the order of the keys, and a tile given again is set up and drawn again only where it was and
+    where it is.  Each tile keeps its faces' corners, so a new depth origin (`build_scene`, when the
+    scene has gone far from the old one) sets them up again in C without the game giving them
+    again.  **The light is data** (owner, 2026-11-15): a face says which cell it is lit from and
+    by how much (`r3_face_lit`: cell, layer, factor), the engine keeps the cells' light
+    (`r3_light`, `set_light`), and when a cell's light changes it lights again the triangles lit
+    from it and draws B again where they lie — no face given again.  When a tile is dropped,
+    the light of the cells no tile is lit from any more is forgotten (each tile knows the box of
+    cells its faces name; the store keeps those, a cell round them), so the store holds what the
+    kept tiles read, not every cell the walk ever lit.  B is shifted when the camera moves; a group of faces
     (one cell's walls on one layer) is hidden or shown by drawing the rectangle it covered; each
     frame a framebuffer is made from B where something changed since it was last made, and the
     actors are drawn there, depth-tested.  An actor drawn exactly as the buffer last drew it costs
@@ -694,30 +706,103 @@ renderers do not know which grid they draw.
       of the hero cut away, the camera following a cell at a time or sliding — every frame
       compared with the whole scene drawn from scratch.  In the demo village and in Orbury's town
       (3,176 faces): **0 of 600 frames differ**, on this machine and under `qemu-riscv32`, with
-      both cameras; the control (the hero a pixel off after the frame) differs in all 600.
+      both cameras; the control (the hero a pixel off after the frame) differs in all 600.  The
+      landscape is given in tiles of 8 cells, and in the runs with changes it changes under the
+      walk too — the hero's tile given again with another light, the one beside it dropped and
+      given back, the depth's origin moved, and every 23 frames the light of the cells round the
+      hero — 56 changes, **0 of 600 frames differ**; built with `-DR3_SKIP_DIRTY` (a change not
+      drawn again, the control) 525 do.  Every cell round the place lit, then the tiles west of
+      the hero dropped: of 32,805 cells' light 4,385 kept, and the frame, and the frame after one of
+      them is given back, the scene drawn from scratch.  An empty tile with the camera over the world's origin
+      (where an empty box lies) is drawn round: 0 differ (it crashed the engine before
+      `meets` asked whether a box is empty).
     - **Measured** (Orbury's town, 2026-11-15): a frame takes 33 µs following a cell at a time
       and 51 µs sliding on this machine, 0.25 ms and 0.67 ms under the emulator; the whole scene
       from scratch 1.2 ms here and 9 ms under the emulator (the first bench's rasteriser: 5.3 ms
       and 168 ms).  A sliding frame copies B whole into the framebuffer (152,000 pixels a frame
       on average); a following one copies 17,000.  What the device takes waits for a run there.
   - **In the game: `fixedview.loft`, F5** (2026-11-15; `TW_VIEW=fixed` starts in it;
-    `tools/fixedshot.loft` takes its picture without a window).  The landscape round the hero
-    from `render3d::faces_of` and `cards_of` (16 cells each way, the layers the fixed camera
-    shows), built again when the hero changes place or layer or walks 5 cells from where it was
-    built, and when its faces differ, looked at most every 250 ms while the world changes; the
-    figures (`game::figures`) as actors, a body card and what each holds; the camera sliding to
+    `tools/fixedshot.loft` takes its picture without a window).  The landscape round the hero in
+    tiles of 8 x 8 cells, each `render3d::faces_box` and `cards_box` of its cells on the layers the
+    fixed camera shows: all of them out to 16 cells when the hero comes to a place or a layer (or
+    night falls or day breaks: every tile's light at once), from one read; as the hero walks, the
+    tiles coming into view built at once and the rest ahead of it a few a frame (3 ms of the
+    frame), nearest first, and those left 24 cells behind dropped.  **What changed is told by what
+    changed it** (E1's counter, in `tile_world` 0.10.0: `changes`, `changed_since`), as hex_mesh's
+    editor marks its dirty chunks: a tile whose cells (or the two round them) changed is built
+    again at once; one within 12 cells of a change (its light, a thin wall's picture along its
+    line) is suspected; suspects are looked at while the frame's budget lasts — built again, their
+    light sent, and given to raster3d only when their faces differ, as `mesh_crc` tells two
+    meshes apart (a tile's faces hold no light: each names the cell it is lit from).  A light that
+    moved, dimmed or went out (the rules' light list, compared each frame: a torch carried,
+    burning down, flickering) sends the light of the cells it reaches, its layer only: no tile is
+    built again for it.  And, while the game says something changed, every tile in turn, one every
+    8 frames — what the rules hold and the world does not (a door shut until something holds).
+    **A thing whose picture moves (a flame: `theme::thing_moves`) is an actor** (owner,
+    2026-11-15): its tile leaves it out (`render3d::cards_box`'s `moving`) and keeps its cell, and
+    each frame it is drawn over B as the figures are (`render3d::thing_cards`), so its tile is not
+    built again as it flickers, and an unchanged frame of it costs the engine nothing.
+    **The faces seen only from below are left out** (`faces_box`'s `from_below`): a ceiling, the
+    rock over a slant's open half, the underside of a floor, a wall or a roof.  The camera looks
+    down, so it sees only their backs, and with no culling those were drawn: under rock (the torch
+    room) the room's ceiling lay over it as a lid and hid the hero.  The first-person view keeps
+    them.
+    The figures (`game::figures`) as actors, a body card and what each holds, lit from their
+    tile's kept light (`render3d::light_at` cost 420 µs a figure a frame); the camera sliding to
     keep the hero within 2 cells of the middle.  The frame goes to `screen::show`, as the 2D's
     does.
-    - Not yet: the cards turned and leaned as `motion.loft` poses them and mirrored facing west
-      (a card stands straight); the held weapon's angle; talk bubbles and the status line; the
-      change counter E1 names, so the 250 ms look goes; `screen` showing raster3d's own two
-      framebuffers on the Tanmatsu (today the frame is handed over as pixels); a run on the
-      device.
+    - **render3d reads the cells once** (`render3d::Cells`, as hex_mesh reads its halo grid): a
+      box of cells and two round it, a layer under and over, each cell's kind, what it is (solid,
+      ground, whole, a pitched roof's, upright, with things), its rise, slant and ceiling, and its
+      north and west edges, in one pass; a cell outside the box is read from the world the same
+      way.  A world lookup costs 0.19 µs natively (a chunk's hash) and a vector read 7 ns; a
+      cell's corners, banks and sides asked their neighbours from the world over and over.  The
+      faces are the same: every place's faces and cards at its start, written out whole (1.2 MB,
+      38 places), byte for byte before and after; a cell's rise read with one bit fewer differs.
+      The light is kept the same way (`render3d::Light`, the rules' shades over a box).
+    - **A tile's build, made cheaper** (2026-11-15, measured natively in Orbury's town, 125 faces
+      a tile): the cells read with `tile_world::block` (tile_world 0.11.0: a box read at one chunk
+      lookup a cell) 1.8-2.2 ms → 0.56 ms; the light (`tile_world::shades` reading its window once,
+      0.11.0; and the layer under the lowest shown no longer read, its faces left out) 3.7-4.5 ms
+      → 1.52 ms; the faces (the stairs' kinds looked up once a build, not two or three times a cell
+      at 0.5 us a name; each corner height worked out once, where a bank asked its neighbour's
+      again; `light_of` not making a vector at each call) 3.1-3.7 ms → 1.79 ms.  **A tile: about
+      9.6 ms → 3.9 ms.**  The tiles that come into view in one frame are built together, from one
+      read of their box: a tile's light is mostly its margin (one layer over one tile 0.45 ms, over
+      five in a row 1.0 ms).  Every place's faces and lights, written out whole, unchanged.
+    - **Checked: `tools/fixedshot.loft PLACE OUT.png MOVES [change]`** walks the moves a frame at
+      a time, `change` moving a thing and raising a wall halfway, and at the end compares the
+      frame with the same moment built fresh, every tile from its own read: **0 pixels differ**
+      (the demo village, three walks, one with the change; Orbury).  Its controls: the tiles in
+      view not built ahead, 326,496 pixels differ; a changed tile found but not given again, 7,080
+      differ with the change and 0 without it; with the counter's tiles not built again (and no
+      sweep), 7,080 differ.  `change` also puts a burning torch in the hero's hand: in the torch
+      room 79 light changes, 0 differ; with the light not sent (and no sweep), 44,774 differ.
+    - **The figures posed as the 2D poses them** (2026-11-15): a figure's card turned by its
+      pose's tilt, the hero leaning the way it faces and mirrored facing west (`game::figure_turn`,
+      which `draw_figure` uses too), about the bottom middle of its picture; what it holds in its
+      carried picture at its hand (`game::hand`), turned by the swing about its grip and pushed out
+      by its reach (`theme::held_place`, which `put_held_fine` uses too), behind it facing north;
+      what is on its shoulders behind it.  The engine turns an actor about a point of its picture
+      and mirrors it (`r3_actor_pose`; its sine needs no libm, within 6.3e-9 of libm's); the bench
+      poses the hero and swings what it holds every frame, and every frame is still the scene
+      drawn from scratch.
+    - **The status line and the talk bubbles**, as the 2D draws them (`game::draw_status_on`,
+      `game::talking`, `game::draw_bubble`, which the 2D's `draw` uses too): drawn at the world's
+      pixels on a surface a third of the frame's size, each bubble over its speaker's card as the
+      camera sees it, and laid over the frame three times larger by the engine (`r3_overlay`, NONE
+      where it is clear; where it changed the frame is made again).  The bench's overlay — a
+      growing status bar and a bubble following the hero — keeps every frame the scene drawn from
+      scratch; not drawn again where it changed (the control), 594 of 600 differ.
+    - Not yet: `screen` showing
+      raster3d's own two framebuffers on the Tanmatsu (today the frame is handed over as pixels);
+      a run on the device.
 - **E1. One seam between the game and its drawing** (owner, 2026-11-09: OpenGL and the new code
   must not influence the game logic) ◇.
   - **From the game to a view: what is there, never how to draw it.**  The landscape (the cells,
-    with a counter the rules raise whenever something in it changes: a door, a push, a flame
-    lit), the actors (who, where, facing, the pose `motion.loft` gives, what they carry) and the
+    with a counter raised whenever something in it changes: a door, a push, a flame lit — built
+    2026-11-15 in `tile_world` 0.10.0, owner: every change goes through it, counted by blocks of
+    8 x 8 cells, so a view asks `changed_since` of the box it read; the fixed view uses it), the actors (who, where, facing, the pose `motion.loft` gives, what they carry) and the
     overlays (speech, the cursor, the intent marks).  The landscape and the actors are two lists
     (today the cards are faces drawn with the rest).  A view builds its faces or sprites from
     them on its own side.

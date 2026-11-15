@@ -6,8 +6,8 @@
 
 #define SUB 16   /* subpixel steps a pixel */
 #define FIX 24   /* fractional bits of a stepped attribute */
-#define BIN 64   /* the side of a bin, in pixels */
 #define NA 4     /* attributes: depth, u, v, light */
+#define BIN 64   /* the side of a tile's bins, in pixels */
 
 typedef struct {
     int32_t X[3], Y[3];          /* world subpixels */
@@ -16,14 +16,16 @@ typedef struct {
     int x0, y0, x1, y1;          /* world pixels, half-open, a pixel round */
     int tx0, ty0, tx1, ty1;      /* the same, tight: the pixels the corners reach into */
     int dmin;                    /* its nearest depth */
-    int pic, group;
+    int pic, group, hid;
+    int src;                     /* the face's triangle it was set up from, in its tile */
 } Tri;
 
 typedef struct { Tri *v; int n, cap; } Tris;
 typedef struct { R3Rect *v; int n, cap; } Rects;
+typedef struct { int *v; int n, cap; } Ints;
 
 /* An actor as drawn: what it was asked to be, and where that put it. */
-typedef struct { int id, pic; double x, y, z, size, light; R3Rect rect; int t0, tn; } Shown;
+typedef struct { int id, pic; double x, y, z, size, light, deg, pu, pv; int mirror; R3Rect rect; int t0, tn; } Shown;
 typedef struct { Shown *v; int n, cap; } Showns;
 
 typedef struct {
@@ -34,23 +36,45 @@ typedef struct {
 
 typedef struct { double x, y, z, u, v, l; } Corner;
 
+/* A tile of the landscape: the faces the caller gave under one key (a square of cells), kept as
+ * their triangles' corners — so a new depth origin sets them up again here — and set up. */
+typedef struct {
+    int key, changed;
+    Corner *c;                   /* three corners a triangle */
+    int *pic, *grp, n, cap;
+    int *lx, *ly, *lz;           /* where each triangle's light comes from (lz R3_NO_LIGHT: its own) */
+    double *lk;                  /* ... times this */
+    Tris tris;
+    R3Rect box;                  /* world pixels its triangles cover; empty when none */
+    R3Rect was;                  /* ... before the change being made */
+    /* Its triangles by the BIN x BIN squares of its box they reach: square b's are
+     * bidx[bstart[b] .. bstart[b + 1]], in the order given. */
+    int nbx, nby, *bstart, *bidx, *mark;
+    /* The cells its faces are lit from: (lx0, ly0) .. (lx1, ly1), any layer; none when !lit. */
+    int lit, lx0, ly0, lx1, ly1;
+} Tile;
+
 struct R3 {
     uint16_t sky;
-    Corner *pend;                /* the faces' triangles until r3_build: three corners each */
-    int *pend_pic, *pend_group, npend, cappend;
     uint16_t (*pics)[R3_TS * R3_TS];
     int npics, cappics;
-    Tris land, act;
+    Tile *tiles;                 /* by key, ascending: the order they are drawn in */
+    int ntiles, captiles, cur, pending;
+    int stamp, *pick, cappick;   /* a draw's triangles of one tile, once each */
+    Tris act;
     Showns acts;                 /* this frame's actors: act holds their triangles, two each */
     double ox, oy, oz;           /* the depth's origin */
-    /* bins over the landscape's world pixels */
-    int bx0, by0, nbx, nby;
-    int **bin, *binn;
-    int *mark, stamp, *pick;
-    /* groups */
-    int ngroups;
-    int *gstart, *gtris;
-    uint8_t *hidden;
+    int origin;                  /* ... was given */
+    Ints hid;                    /* the groups hidden */
+    /* The light of cells (`r3_light`): an open hash of (x, y, z) to the light, 0 .. 1. */
+    int64_t *lkey;
+    double *lval;
+    int lcap, ln;
+    int forget;                  /* a tile was dropped: the light no tile is lit from goes at the commit */
+    /* The overlay (r3_overlay): ow x oh pixels, each os x os on the screen, R3_NONE clear. */
+    uint16_t *ov;
+    int ow, oh, os;
+    Rects dirty;                 /* world pixels to draw again when the change is made */
     /* the camera and B */
     int cx, cy, placed;
     uint16_t *b_col, *b_dep, *f_dep, *r_dep;
@@ -58,8 +82,7 @@ struct R3 {
     R3Count cnt;
     Rects made;                  /* the rectangles the last frame made */
     int whole;                   /* ... or all of it */
-    int *uncovered, nuncovered;  /* the groups r3_uncover hid */
-    uint8_t *want;
+    Ints uncovered;              /* the groups r3_uncover hid */
 };
 
 /* Rounding without libm, so the shim links on every target loft builds it for. */
@@ -99,15 +122,20 @@ R3 *r3_new(uint16_t sky) {
     r->f_dep = malloc(sizeof(uint16_t) * R3_SW * R3_SH);
     r->r_dep = malloc(sizeof(uint16_t) * R3_SW * R3_SH);
     r->fb[0].all = r->fb[1].all = 1;
+    r->cur = -1;
     return r;
 }
 
 void r3_free(R3 *r) {
     if (!r) return;
-    for (int i = 0; i < r->nbx * r->nby; i++) free(r->bin[i]);
-    free(r->bin); free(r->binn); free(r->mark); free(r->pick);
-    free(r->gstart); free(r->gtris); free(r->hidden); free(r->want); free(r->uncovered); free(r->made.v);
-    free(r->land.v); free(r->act.v); free(r->acts.v); free(r->pics);
+    for (int i = 0; i < r->ntiles; i++) {
+        Tile *t = &r->tiles[i];
+        free(t->c); free(t->pic); free(t->grp); free(t->tris.v);
+        free(t->lx); free(t->ly); free(t->lz); free(t->lk);
+        free(t->bstart); free(t->bidx); free(t->mark);
+    }
+    free(r->tiles); free(r->pick); free(r->lkey); free(r->lval); free(r->ov); free(r->hid.v); free(r->dirty.v); free(r->uncovered.v); free(r->made.v);
+    free(r->act.v); free(r->acts.v); free(r->pics);
     for (int k = 0; k < 2; k++) { free(r->fb[k].stale.v); free(r->fb[k].shown.v); }
     free(r->b_col); free(r->b_dep); free(r->f_dep); free(r->r_dep);
     free(r);
@@ -237,85 +265,255 @@ static int64_t span(const R3 *r, const Tri *t, R3Rect c, int cx, int cy, uint16_
     return written;
 }
 
-void r3_face(R3 *r, int pic, int n, const double *c, int group) {
-    if (pic < 0 || pic >= r->npics || n < 3) return;
-    const Corner *k = (const Corner *) c;
-    for (int i = 1; i + 1 < n; i++) {
-        if (r->npend == r->cappend) {
-            r->cappend = r->cappend ? r->cappend * 2 : 1024;
-            r->pend = realloc(r->pend, (size_t) r->cappend * 3 * sizeof(Corner));
-            r->pend_pic = realloc(r->pend_pic, (size_t) r->cappend * sizeof(int));
-            r->pend_group = realloc(r->pend_group, (size_t) r->cappend * sizeof(int));
-        }
-        Corner *t = &r->pend[r->npend * 3];
-        t[0] = k[0]; t[1] = k[i]; t[2] = k[i + 1];
-        r->pend_pic[r->npend] = pic;
-        r->pend_group[r->npend] = group;
-        r->npend++;
+/* --- The light of cells --- */
+
+static int64_t cell_key(int x, int y, int z) {
+    return ((int64_t) (z + 32768) << 44) | ((int64_t) (y + (1 << 21)) << 22) | (int64_t) (x + (1 << 21));
+}
+
+static uint64_t mix(int64_t k) {
+    uint64_t h = (uint64_t) k * 0x9E3779B97F4A7C15ull;
+    return h ^ (h >> 29);
+}
+
+/* The light of cell (x, y, z) into *v; 0 when it was never given. */
+static int light_of(const R3 *r, int x, int y, int z, double *v) {
+    if (r->lcap == 0) return 0;
+    int64_t k = cell_key(x, y, z);
+    for (uint64_t i = mix(k) & (uint64_t) (r->lcap - 1);; i = (i + 1) & (uint64_t) (r->lcap - 1)) {
+        if (r->lkey[i] == -1) return 0;
+        if (r->lkey[i] == k) { *v = r->lval[i]; return 1; }
     }
 }
 
-void r3_build(R3 *r, double ox, double oy, double oz) {
-    r->ox = ox; r->oy = oy; r->oz = oz;
-    for (int i = 0; i < r->npend; i++) {
-        Tri *t = push_tri(&r->land);
-        Corner *k = &r->pend[i * 3];
-        if (!set_up(r, t, &k[0], &k[1], &k[2])) { r->land.n--; continue; }
-        t->pic = r->pend_pic[i];
-        t->group = r->pend_group[i];
-    }
-    free(r->pend); free(r->pend_pic); free(r->pend_group);
-    r->pend = NULL; r->pend_pic = r->pend_group = NULL; r->npend = r->cappend = 0;
-    int n = r->land.n;
-    /* Bins over the world pixels the landscape covers. */
-    int x0 = 0, y0 = 0, x1 = 1, y1 = 1;
-    for (int i = 0; i < n; i++) {
-        Tri *t = &r->land.v[i];
-        if (i == 0 || t->x0 < x0) x0 = t->x0;
-        if (i == 0 || t->y0 < y0) y0 = t->y0;
-        if (i == 0 || t->x1 > x1) x1 = t->x1;
-        if (i == 0 || t->y1 > y1) y1 = t->y1;
-    }
-    r->bx0 = (int) floor_div(x0, BIN) * BIN;
-    r->by0 = (int) floor_div(y0, BIN) * BIN;
-    r->nbx = (x1 - r->bx0) / BIN + 1;
-    r->nby = (y1 - r->by0) / BIN + 1;
-    r->bin = calloc((size_t) (r->nbx * r->nby), sizeof(int *));
-    r->binn = calloc((size_t) (r->nbx * r->nby), sizeof(int));
-    int *cap = calloc((size_t) (r->nbx * r->nby), sizeof(int));
-    for (int i = 0; i < n; i++) {
-        Tri *t = &r->land.v[i];
-        for (int by = (t->y0 - r->by0) / BIN; by <= (t->y1 - 1 - r->by0) / BIN; by++)
-            for (int bx = (t->x0 - r->bx0) / BIN; bx <= (t->x1 - 1 - r->bx0) / BIN; bx++) {
-                int b = by * r->nbx + bx;
-                if (r->binn[b] == cap[b]) { cap[b] = cap[b] ? cap[b] * 2 : 8; r->bin[b] = realloc(r->bin[b], (size_t) cap[b] * sizeof(int)); }
-                r->bin[b][r->binn[b]++] = i;
+static void put_light(R3 *r, int x, int y, int z, double v) {
+    if (2 * (r->ln + 1) > r->lcap) {
+        int ocap = r->lcap;
+        int64_t *ok = r->lkey;
+        double *ov = r->lval;
+        r->lcap = ocap ? ocap * 2 : 4096;
+        r->lkey = malloc((size_t) r->lcap * sizeof(int64_t));
+        r->lval = malloc((size_t) r->lcap * sizeof(double));
+        for (int i = 0; i < r->lcap; i++) r->lkey[i] = -1;
+        r->ln = 0;
+        for (int i = 0; i < ocap; i++)
+            if (ok[i] != -1) {
+                uint64_t j = mix(ok[i]) & (uint64_t) (r->lcap - 1);
+                while (r->lkey[j] != -1) j = (j + 1) & (uint64_t) (r->lcap - 1);
+                r->lkey[j] = ok[i];
+                r->lval[j] = ov[i];
+                r->ln++;
             }
+        free(ok);
+        free(ov);
     }
-    free(cap);
-    r->mark = calloc((size_t) n + 1, sizeof(int));
-    r->pick = malloc(((size_t) n + 1) * sizeof(int));
-    /* Groups: each group's triangles, in order. */
-    r->ngroups = 0;
-    for (int i = 0; i < n; i++) if (r->land.v[i].group + 1 > r->ngroups) r->ngroups = r->land.v[i].group + 1;
-    r->gstart = calloc((size_t) r->ngroups + 1, sizeof(int));
-    r->gtris = malloc(((size_t) n + 1) * sizeof(int));
-    r->hidden = calloc((size_t) r->ngroups + 1, 1);
-    r->want = calloc((size_t) r->ngroups + 1, 1);
-    r->uncovered = malloc(((size_t) r->ngroups + 1) * sizeof(int));
-    for (int i = 0; i < n; i++) if (r->land.v[i].group >= 0) r->gstart[r->land.v[i].group + 1]++;
-    for (int g = 0; g < r->ngroups; g++) r->gstart[g + 1] += r->gstart[g];
-    int *fill = calloc((size_t) r->ngroups + 1, sizeof(int));
-    for (int i = 0; i < n; i++) {
-        int g = r->land.v[i].group;
-        if (g >= 0) r->gtris[r->gstart[g] + fill[g]++] = i;
+    int64_t k = cell_key(x, y, z);
+    uint64_t i = mix(k) & (uint64_t) (r->lcap - 1);
+    while (r->lkey[i] != -1 && r->lkey[i] != k) i = (i + 1) & (uint64_t) (r->lcap - 1);
+    if (r->lkey[i] == -1) { r->lkey[i] = k; r->ln++; }
+    r->lval[i] = v;
+}
+
+/* The light of the cells no tile is lit from any more, forgotten: the store kept only the cells
+ * inside a tile's lit box, a cell round it to spare.  A triangle keeps the light its corners were
+ * last given, and a tile built again is given its light before its faces, so nothing drawn
+ * changes. */
+static void sweep_lights(R3 *r) {
+    if (r->lcap == 0) return;
+    int ocap = r->lcap;
+    int64_t *ok = r->lkey;
+    double *ov = r->lval;
+    r->lkey = NULL;
+    r->lval = NULL;
+    r->lcap = r->ln = 0;
+    for (int i = 0; i < ocap; i++) {
+        if (ok[i] == -1) continue;
+        int x = (int) (ok[i] & ((1 << 22) - 1)) - (1 << 21);
+        int y = (int) ((ok[i] >> 22) & ((1 << 22) - 1)) - (1 << 21);
+        int z = (int) (ok[i] >> 44) - 32768;
+        int keep = 0;
+        for (int t = 0; t < r->ntiles && !keep; t++) {
+            const Tile *tl = &r->tiles[t];
+            keep = tl->lit && x >= tl->lx0 - 1 && x <= tl->lx1 + 1 && y >= tl->ly0 - 1 && y <= tl->ly1 + 1;
+        }
+        if (keep) put_light(r, x, y, z, ov[i]);
     }
-    free(fill);
+    free(ok);
+    free(ov);
+}
+
+/* Triangle i of a tile lit from its cell, when it has one and the cell's light was given: its three
+ * corners' light set.  Answers whether that changed them. */
+static int light_corners(const R3 *r, Tile *tl, int i) {
+    if (tl->lz[i] == R3_NO_LIGHT) return 0;
+    double v;
+    if (!light_of(r, tl->lx[i], tl->ly[i], tl->lz[i], &v)) return 0;
+    double l = v * tl->lk[i];
+    Corner *c = &tl->c[i * 3];
+    if (c[0].l == l && c[1].l == l && c[2].l == l) return 0;
+    c[0].l = c[1].l = c[2].l = l;
+    return 1;
+}
+
+/* --- The landscape, in tiles --- */
+
+static int in_ints(const Ints *l, int v) {
+    for (int i = 0; i < l->n; i++) if (l->v[i] == v) return 1;
+    return 0;
+}
+
+static void push_int(Ints *l, int v) {
+    if (l->n == l->cap) { l->cap = l->cap ? l->cap * 2 : 16; l->v = realloc(l->v, (size_t) l->cap * sizeof(int)); }
+    l->v[l->n++] = v;
+}
+
+static int empty(R3Rect b) { return b.x0 >= b.x1 || b.y0 >= b.y1; }
+
+static R3Rect join(R3Rect a, R3Rect b) {
+    if (empty(a)) return b;
+    if (empty(b)) return a;
+    return (R3Rect) { min(a.x0, b.x0), min(a.y0, b.y0), max(a.x1, b.x1), max(a.y1, b.y1) };
+}
+
+/* Do a and b share a pixel?  An empty rectangle shares none, wherever it lies (an empty tile's box
+ * is (0, 0, 0, 0): it has no bins to look in). */
+static int meets(R3Rect a, R3Rect b) {
+    return !empty(a) && !empty(b) && a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+}
+
+/* The index of tile `key`, or where it would go (and *found 0). */
+static int tile_index(const R3 *r, int key, int *found) {
+    int lo = 0, hi = r->ntiles;
+    while (lo < hi) {
+        int m = (lo + hi) / 2;
+        if (r->tiles[m].key < key) lo = m + 1; else hi = m;
+    }
+    *found = lo < r->ntiles && r->tiles[lo].key == key;
+    return lo;
+}
+
+void r3_tile(R3 *r, int key) {
+    int found, i = tile_index(r, key, &found);
+    if (!found) {
+        if (r->ntiles == r->captiles) {
+            r->captiles = r->captiles ? r->captiles * 2 : 64;
+            r->tiles = realloc(r->tiles, (size_t) r->captiles * sizeof(Tile));
+        }
+        memmove(&r->tiles[i + 1], &r->tiles[i], (size_t) (r->ntiles - i) * sizeof(Tile));
+        memset(&r->tiles[i], 0, sizeof(Tile));
+        r->tiles[i].key = key;
+        r->ntiles++;
+    }
+    Tile *t = &r->tiles[i];
+    if (!t->changed) { t->was = t->box; t->changed = 1; }
+    t->n = 0;
+    t->tris.n = 0;
+    t->box = (R3Rect) { 0, 0, 0, 0 };
+    r->cur = i;
+    r->pending = 1;
+}
+
+void r3_drop(R3 *r, int key) {
+    int found, i = tile_index(r, key, &found);
+    if (!found) return;
+    Tile *t = &r->tiles[i];
+    push_rect(&r->dirty, join(t->box, t->changed ? t->was : t->box));
+    free(t->c); free(t->pic); free(t->grp); free(t->tris.v);
+    free(t->lx); free(t->ly); free(t->lz); free(t->lk);
+    free(t->bstart); free(t->bidx); free(t->mark);
+    memmove(&r->tiles[i], &r->tiles[i + 1], (size_t) (r->ntiles - i - 1) * sizeof(Tile));
+    r->ntiles--;
+    r->cur = -1;
+    r->pending = 1;
+    r->forget = 1;
+}
+
+void r3_face(R3 *r, int pic, int n, const double *c, int group) {
+    r3_face_lit(r, pic, n, c, group, 0, 0, R3_NO_LIGHT, 1.0);
+}
+
+void r3_face_lit(R3 *r, int pic, int n, const double *c, int group, int lx, int ly, int lz, double lk) {
+    if (pic < 0 || pic >= r->npics || n < 3) return;
+    if (r->cur < 0) r3_tile(r, 0);
+    Tile *tl = &r->tiles[r->cur];
+    const Corner *k = (const Corner *) c;
+    for (int i = 1; i + 1 < n; i++) {
+        if (tl->n == tl->cap) {
+            tl->cap = tl->cap ? tl->cap * 2 : 64;
+            tl->c = realloc(tl->c, (size_t) tl->cap * 3 * sizeof(Corner));
+            tl->pic = realloc(tl->pic, (size_t) tl->cap * sizeof(int));
+            tl->grp = realloc(tl->grp, (size_t) tl->cap * sizeof(int));
+            tl->lx = realloc(tl->lx, (size_t) tl->cap * sizeof(int));
+            tl->ly = realloc(tl->ly, (size_t) tl->cap * sizeof(int));
+            tl->lz = realloc(tl->lz, (size_t) tl->cap * sizeof(int));
+            tl->lk = realloc(tl->lk, (size_t) tl->cap * sizeof(double));
+        }
+        Corner *t = &tl->c[tl->n * 3];
+        t[0] = k[0]; t[1] = k[i]; t[2] = k[i + 1];
+        tl->pic[tl->n] = pic;
+        tl->grp[tl->n] = group;
+        tl->lx[tl->n] = lx;
+        tl->ly[tl->n] = ly;
+        tl->lz[tl->n] = lz;
+        tl->lk[tl->n] = lk;
+        tl->n++;
+    }
+}
+
+/* A tile's triangles set up from its corners, at the depth's origin. */
+static void set_up_tile(R3 *r, Tile *tl) {
+    tl->tris.n = 0;
+    tl->box = (R3Rect) { 0, 0, 0, 0 };
+    for (int i = 0; i < tl->n; i++) {
+        light_corners(r, tl, i);
+        Tri *t = push_tri(&tl->tris);
+        Corner *k = &tl->c[i * 3];
+        if (!set_up(r, t, &k[0], &k[1], &k[2])) { tl->tris.n--; continue; }
+        t->pic = tl->pic[i];
+        t->group = tl->grp[i];
+        t->src = i;
+        t->hid = t->group >= 0 && in_ints(&r->hid, t->group);
+        tl->box = join(tl->box, (R3Rect) { t->x0, t->y0, t->x1, t->y1 });
+    }
+    tl->lit = 0;
+    for (int i = 0; i < tl->n; i++) {
+        if (tl->lz[i] == R3_NO_LIGHT) continue;
+        if (!tl->lit) { tl->lx0 = tl->lx1 = tl->lx[i]; tl->ly0 = tl->ly1 = tl->ly[i]; tl->lit = 1; }
+        tl->lx0 = min(tl->lx0, tl->lx[i]); tl->lx1 = max(tl->lx1, tl->lx[i]);
+        tl->ly0 = min(tl->ly0, tl->ly[i]); tl->ly1 = max(tl->ly1, tl->ly[i]);
+    }
+    free(tl->bstart); free(tl->bidx); free(tl->mark);
+    tl->bstart = tl->bidx = tl->mark = NULL;
+    tl->nbx = tl->nby = 0;
+    int n = tl->tris.n;
+    if (n == 0) return;
+    tl->nbx = (tl->box.x1 - tl->box.x0 + BIN - 1) / BIN;
+    tl->nby = (tl->box.y1 - tl->box.y0 + BIN - 1) / BIN;
+    int nb = tl->nbx * tl->nby;
+    tl->bstart = calloc((size_t) nb + 1, sizeof(int));
+    for (int pass = 0; pass < 2; pass++) {
+        int *fill = pass ? calloc((size_t) nb, sizeof(int)) : NULL;
+        for (int i = 0; i < n; i++) {
+            const Tri *t = &tl->tris.v[i];
+            for (int by = (t->y0 - tl->box.y0) / BIN; by <= (t->y1 - 1 - tl->box.y0) / BIN; by++)
+                for (int bx = (t->x0 - tl->box.x0) / BIN; bx <= (t->x1 - 1 - tl->box.x0) / BIN; bx++) {
+                    int b = by * tl->nbx + bx;
+                    if (pass == 0) tl->bstart[b + 1]++;
+                    else tl->bidx[tl->bstart[b] + fill[b]++] = i;
+                }
+        }
+        if (pass == 0) {
+            for (int b = 0; b < nb; b++) tl->bstart[b + 1] += tl->bstart[b];
+            tl->bidx = malloc((size_t) tl->bstart[nb] * sizeof(int) + 1);
+        } else free(fill);
+    }
+    tl->mark = calloc((size_t) n, sizeof(int));
 }
 
 static int cmp_int(const void *a, const void *b) { return *(const int *) a - *(const int *) b; }
 
-/* B drawn from scratch inside screen rectangle c. */
+/* B drawn from scratch inside screen rectangle c: the tiles in order, each one's triangles in the
+ * order they were given. */
 static void draw_land(R3 *r, R3Rect c, uint16_t *col, uint16_t *dep) {
     c = clip_screen(c);
     if (c.x0 >= c.x1 || c.y0 >= c.y1) return;
@@ -324,32 +522,80 @@ static void draw_land(R3 *r, R3Rect c, uint16_t *col, uint16_t *dep) {
         for (int y = c.y0; y < c.y1; y++) { cp[y] = r->sky; dp[y] = 65535; }
     }
     r->cnt.b_px += (int64_t) (c.x1 - c.x0) * (c.y1 - c.y0);
-    /* The triangles in the bins under it, once each, in the order they were made. */
-    int wx0 = c.x0 + r->cx - r->bx0, wx1 = c.x1 - 1 + r->cx - r->bx0;
-    int wy0 = c.y0 + r->cy - r->by0, wy1 = c.y1 - 1 + r->cy - r->by0;
-    int bx0 = max(wx0 / BIN - (wx0 < 0), 0), bx1 = min(wx1 < 0 ? -1 : wx1 / BIN, r->nbx - 1);
-    int by0 = max(wy0 / BIN - (wy0 < 0), 0), by1 = min(wy1 < 0 ? -1 : wy1 / BIN, r->nby - 1);
-    r->stamp++;
-    int np = 0;
-    for (int by = by0; by <= by1; by++)
-        for (int bx = bx0; bx <= bx1; bx++) {
-            int b = by * r->nbx + bx;
-            for (int j = 0; j < r->binn[b]; j++) {
-                int i = r->bin[b][j];
-                if (r->mark[i] != r->stamp) { r->mark[i] = r->stamp; r->pick[np++] = i; }
+    R3Rect w = { c.x0 + r->cx, c.y0 + r->cy, c.x1 + r->cx, c.y1 + r->cy };
+    for (int i = 0; i < r->ntiles; i++) {
+        Tile *tl = &r->tiles[i];
+        if (!meets(tl->box, w)) continue;
+        /* The triangles in the tile's bins under w, once each, in the order they were given. */
+        if (r->cappick < tl->tris.n) { r->cappick = tl->tris.n; r->pick = realloc(r->pick, (size_t) r->cappick * sizeof(int)); }
+        int bx0 = max(w.x0 - tl->box.x0, 0) / BIN, bx1 = min(w.x1 - 1 - tl->box.x0, tl->box.x1 - 1 - tl->box.x0) / BIN;
+        int by0 = max(w.y0 - tl->box.y0, 0) / BIN, by1 = min(w.y1 - 1 - tl->box.y0, tl->box.y1 - 1 - tl->box.y0) / BIN;
+        int np = 0;
+        r->stamp++;
+        for (int by = by0; by <= by1; by++)
+            for (int bx = bx0; bx <= bx1; bx++) {
+                int b = by * tl->nbx + bx;
+                for (int k = tl->bstart[b]; k < tl->bstart[b + 1]; k++) {
+                    int j = tl->bidx[k];
+                    if (tl->mark[j] != r->stamp) { tl->mark[j] = r->stamp; r->pick[np++] = j; }
+                }
             }
+        qsort(r->pick, (size_t) np, sizeof(int), cmp_int);
+        for (int k = 0; k < np; k++) {
+            const Tri *t = &tl->tris.v[r->pick[k]];
+            if (t->hid || !meets((R3Rect) { t->x0, t->y0, t->x1, t->y1 }, w)) continue;
+            r->cnt.tris++;
+            span(r, t, c, r->cx, r->cy, col, dep);
         }
-    qsort(r->pick, (size_t) np, sizeof(int), cmp_int);
-    for (int j = 0; j < np; j++) {
-        const Tri *t = &r->land.v[r->pick[j]];
-        if (t->group >= 0 && r->hidden[t->group]) continue;
-        r->cnt.tris++;
-        span(r, t, c, r->cx, r->cy, col, dep);
     }
 }
 
 static void stale_both(R3 *r, R3Rect c) {
     for (int k = 0; k < 2; k++) if (!r->fb[k].all) push_rect(&r->fb[k].stale, c);
+}
+
+/* B drawn again over world rectangle w, and both framebuffers told. */
+static void redraw(R3 *r, R3Rect w) {
+    if (!r->placed || empty(w)) return;
+    R3Rect s = clip_screen((R3Rect) { w.x0 - r->cx, w.y0 - r->cy, w.x1 - r->cx, w.y1 - r->cy });
+    if (empty(s)) return;
+    draw_land(r, s, r->b_col, r->b_dep);
+    stale_both(r, s);
+}
+
+/* The tiles changed since the last time, set up, and B drawn again where they were and are. */
+static void commit(R3 *r) {
+    if (!r->pending) return;
+    r->pending = 0;
+    for (int i = 0; i < r->ntiles; i++) {
+        Tile *tl = &r->tiles[i];
+        if (!tl->changed) continue;
+        set_up_tile(r, tl);
+        push_rect(&r->dirty, join(tl->was, tl->box));
+        tl->changed = 0;
+    }
+    r->cur = -1;
+    if (r->forget) { sweep_lights(r); r->forget = 0; }
+#ifndef R3_SKIP_DIRTY /* the check's control: a change B is not drawn again for */
+    for (int i = 0; i < r->dirty.n; i++) redraw(r, r->dirty.v[i]);
+#endif
+    r->dirty.n = 0;
+}
+
+void r3_build(R3 *r, double ox, double oy, double oz) {
+    static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
+    if (r->origin && ox == r->ox && oy == r->oy && oz == r->oz) { commit(r); return; }
+    r->ox = ox; r->oy = oy; r->oz = oz;
+    r->origin = 1;
+    for (int i = 0; i < r->ntiles; i++) { set_up_tile(r, &r->tiles[i]); r->tiles[i].changed = 0; }
+    r->pending = 0;
+    r->dirty.n = 0;
+    r->cur = -1;
+    if (!r->placed) return;
+    /* Every depth moved by the same whole number, so the picture is the same; drawn again all
+     * the same, so that holds by construction rather than by arithmetic. */
+    draw_land(r, whole, r->b_col, r->b_dep);
+    r->fb[0].all = r->fb[1].all = 1;
 }
 
 static void shift(uint16_t *buf, int dx, int dy) {
@@ -365,6 +611,7 @@ static void shift(uint16_t *buf, int dx, int dy) {
 
 void r3_camera(R3 *r, int px, int py) {
     static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
+    commit(r);
     if (r->placed && px == r->cx && py == r->cy) return;
     int dx = r->cx - px, dy = r->cy - py; /* what was at x is at x + dx */
     int was = r->placed;
@@ -383,43 +630,105 @@ void r3_camera(R3 *r, int px, int py) {
 }
 
 void r3_hide(R3 *r, int group, int hidden) {
-    if (group < 0 || group >= r->ngroups || r->hidden[group] == (hidden != 0)) return;
-    r->hidden[group] = hidden != 0;
+    if (group < 0) return;
+    commit(r);
+    int now = in_ints(&r->hid, group);
+    if (now == (hidden != 0)) return;
+    if (hidden) push_int(&r->hid, group);
+    else for (int i = 0; i < r->hid.n; i++) if (r->hid.v[i] == group) { r->hid.v[i] = r->hid.v[--r->hid.n]; break; }
     R3Rect u = { 0, 0, 0, 0 };
-    int any = 0;
-    for (int j = r->gstart[group]; j < r->gstart[group + 1]; j++) {
-        const Tri *t = &r->land.v[r->gtris[j]];
-        R3Rect b = { t->x0 - r->cx, t->y0 - r->cy, t->x1 - r->cx, t->y1 - r->cy };
-        if (!any) u = b;
-        else { u.x0 = min(u.x0, b.x0); u.y0 = min(u.y0, b.y0); u.x1 = max(u.x1, b.x1); u.y1 = max(u.y1, b.y1); }
-        any = 1;
+    for (int i = 0; i < r->ntiles; i++) {
+        Tile *tl = &r->tiles[i];
+        for (int j = 0; j < tl->tris.n; j++) {
+            Tri *t = &tl->tris.v[j];
+            if (t->group != group) continue;
+            t->hid = hidden != 0;
+            u = join(u, (R3Rect) { t->x0, t->y0, t->x1, t->y1 });
+        }
     }
-    if (!any || !r->placed) return;
-    u = clip_screen(u);
-    draw_land(r, u, r->b_col, r->b_dep);
-    stale_both(r, u);
+    redraw(r, u);
 }
+
+void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const double *v) {
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) put_light(r, x0 + i, y0 + j, z, v[j * w + i]);
+    /* The triangles lit from those cells, lit again where their light changed; B drawn again
+     * where they lie, at the next commit. */
+    for (int ti = 0; ti < r->ntiles; ti++) {
+        Tile *tl = &r->tiles[ti];
+        if (tl->changed) continue; /* set up whole at the commit, with the light as it is then */
+        R3Rect u = { 0, 0, 0, 0 };
+        for (int j = 0; j < tl->tris.n; j++) {
+            Tri *t = &tl->tris.v[j];
+            int s = t->src;
+            if (tl->lz[s] != z || tl->lx[s] < x0 || tl->lx[s] >= x0 + w || tl->ly[s] < y0 || tl->ly[s] >= y0 + h) continue;
+            if (!light_corners(r, tl, s)) continue;
+            Tri keep = *t;
+            Corner *k = &tl->c[s * 3];
+            set_up(r, t, &k[0], &k[1], &k[2]);
+            t->pic = keep.pic;
+            t->group = keep.group;
+            t->hid = keep.hid;
+            t->src = s;
+            u = join(u, (R3Rect) { t->x0, t->y0, t->x1, t->y1 });
+        }
+        if (!empty(u)) { push_rect(&r->dirty, u); r->pending = 1; }
+    }
+}
+
+int r3_light_at(const R3 *r, int x, int y, int z, double *v) { return light_of(r, x, y, z, v); }
 
 /* --- The actors --- */
 
 void r3_actors_begin(R3 *r) { r->act.n = 0; r->acts.n = 0; }
 
+/* sin and cos of d degrees, without libm: the turn reduced to -90 .. 90 and a Taylor series to the
+ * 13th power (an error under 1e-9 there).  Every target computes the same. */
+static void sin_cos(double d, double *sn, double *cs) {
+    double t = d - 360.0 * floor_d(d / 360.0 + 0.5);   /* -180 .. 180 */
+    double sign = 1.0;
+    if (t > 90.0) { t = 180.0 - t; sign = -1.0; }
+    else if (t < -90.0) { t = -180.0 - t; sign = -1.0; }
+    double x = t * 3.14159265358979323846 / 180.0, x2 = x * x;
+    double s = x, c = 1.0, term = x, cterm = 1.0;
+    for (int k = 1; k <= 6; k++) {
+        term *= -x2 / (double) ((2 * k) * (2 * k + 1));
+        cterm *= -x2 / (double) ((2 * k - 1) * (2 * k));
+        s += term;
+        c += cterm;
+    }
+    *sn = s;
+    *cs = c * sign; /* cos(180 - t) = -cos(t); sin(180 - t) = sin(t) */
+}
+
 static R3Rect actor_rect(const R3 *r, const Tri *t);
 
 void r3_actor(R3 *r, int id, int pic, double x, double y, double z, double size, double light) {
+    r3_actor_pose(r, id, pic, x, y, z, size, light, 0.0, 0.5, 1.0, 0);
+}
+
+void r3_actor_pose(R3 *r, int id, int pic, double x, double y, double z, double size, double light, double deg,
+                   double pu, double pv, int mirror) {
     if (pic < 0 || pic >= r->npics) return;
     if (r->acts.n == r->acts.cap) {
         r->acts.cap = r->acts.cap ? r->acts.cap * 2 : 16;
         r->acts.v = realloc(r->acts.v, (size_t) r->acts.cap * sizeof(Shown));
     }
     Shown *s = &r->acts.v[r->acts.n++];
-    *s = (Shown) { id, pic, x, y, z, size, light, { 0, 0, 0, 0 }, 0, 0 };
+    *s = (Shown) { id, pic, x, y, z, size, light, deg, pu, pv, mirror != 0, { 0, 0, 0, 0 }, 0, 0 };
     int first = r->act.n;
-    double h = size / 2;
-    Corner c[4] = {
-        { x - h, y + size, z, 0, 0, light }, { x + h, y + size, z, 1, 0, light },
-        { x + h, y, z, 1, 1, light }, { x - h, y, z, 0, 1, light },
-    };
+    /* The picture's corners about its pivot (pu, pv), turned `deg` clockwise as the camera sees
+     * it: the card's plane faces the camera, and a cell across and a layer up are the same
+     * pixels, so a turn there is the turn on the screen. */
+    double sn = 0.0, cs = 1.0;
+    if (deg != 0.0) sin_cos(deg, &sn, &cs);
+    double bx = x - size / 2 + pu * size, by = y + (1.0 - pv) * size;
+    static const double uv[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+    Corner c[4];
+    for (int k = 0; k < 4; k++) {
+        double px = (uv[k][0] - pu) * size, py = (pv - uv[k][1]) * size;
+        c[k] = (Corner) { bx + px * cs + py * sn, by - px * sn + py * cs, z, mirror ? 1.0 - uv[k][0] : uv[k][0], uv[k][1], light };
+    }
     for (int i = 1; i <= 2; i++) {
         Tri *t = push_tri(&r->act);
         if (!set_up(r, t, &c[0], &c[i], &c[i + 1])) { r->act.n--; continue; }
@@ -443,7 +752,54 @@ static R3Rect actor_rect(const R3 *r, const Tri *t) {
     return clip_screen(b);
 }
 
-/* The framebuffer made from B inside c, and the actors over it. */
+/* The overlay over `buf` inside c (screen pixels), where it is not clear. */
+static void overlay(const R3 *r, uint16_t *buf, R3Rect c) {
+    if (!r->ov) return;
+    for (int x = c.x0; x < c.x1; x++) {
+        int ox = x / r->os;
+        if (ox >= r->ow) break;
+        uint16_t *col = buf + R3_AT(x, 0);
+        for (int y = c.y0; y < c.y1; y++) {
+            int oy = y / r->os;
+            if (oy >= r->oh) break;
+            uint16_t o = r->ov[oy * r->ow + ox];
+            if (o != R3_NONE) col[y] = o;
+        }
+    }
+}
+
+void r3_overlay(R3 *r, const uint16_t *pix, int w, int h, int scale) {
+    static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
+    if (w <= 0 || h <= 0 || scale <= 0 || !pix) {
+        if (r->ov) { free(r->ov); r->ov = NULL; stale_both(r, whole); }
+        return;
+    }
+    if (!r->ov || w != r->ow || h != r->oh || scale != r->os) {
+        free(r->ov);
+        r->ov = malloc((size_t) w * h * sizeof(uint16_t));
+        memcpy(r->ov, pix, (size_t) w * h * sizeof(uint16_t));
+        r->ow = w; r->oh = h; r->os = scale;
+        stale_both(r, whole);
+        return;
+    }
+    /* Where it changed: drawn again there in both framebuffers. */
+    int x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+            if (r->ov[y * w + x] != pix[y * w + x]) {
+                if (x < x0) x0 = x;
+                if (x > x1) x1 = x;
+                if (y < y0) y0 = y;
+                if (y > y1) y1 = y;
+            }
+    if (x1 < 0) return;
+    memcpy(r->ov, pix, (size_t) w * h * sizeof(uint16_t));
+#ifndef R3_SKIP_DIRTY /* the check's control: an overlay change not drawn again */
+    stale_both(r, clip_screen((R3Rect) { x0 * scale, y0 * scale, (x1 + 1) * scale, (y1 + 1) * scale }));
+#endif
+}
+
+/* The framebuffer made from B inside c, and the actors over it, and the overlay over them. */
 static void compose(R3 *r, uint16_t *fb, R3Rect c) {
     c = clip_screen(c);
     if (c.x0 >= c.x1 || c.y0 >= c.y1) return;
@@ -456,15 +812,17 @@ static void compose(R3 *r, uint16_t *fb, R3Rect c) {
     r->cnt.rects++;
     push_rect(&r->made, c);
     for (int i = 0; i < r->act.n; i++) r->cnt.actor_px += span(r, &r->act.v[i], c, r->cx, r->cy, fb, r->f_dep);
+    overlay(r, fb, c);
 }
 
 static int same_actor(const Shown *a, const Shown *b) {
     return a->id == b->id && a->pic == b->pic && a->x == b->x && a->y == b->y && a->z == b->z && a->size == b->size
-           && a->light == b->light;
+           && a->light == b->light && a->deg == b->deg && a->pu == b->pu && a->pv == b->pv && a->mirror == b->mirror;
 }
 
 void r3_frame(R3 *r, uint16_t *fb, int which) {
     static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
+    commit(r);
     Buffer *b = &r->fb[which & 1];
     /* What changed for this buffer: the landscape drawn again since it was made, and each actor
      * that is not as this buffer drew it — where it was, and where it is. */
@@ -505,15 +863,18 @@ void r3_frame(R3 *r, uint16_t *fb, int which) {
 
 void r3_reference(R3 *r, uint16_t *col) {
     static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
+    commit(r);
     R3Count keep = r->cnt; /* the check is not the frame's work */
     draw_land(r, whole, col, r->r_dep);
     for (int i = 0; i < r->act.n; i++) span(r, &r->act.v[i], whole, r->cx, r->cy, col, r->r_dep);
+    overlay(r, col, whole);
     r->cnt = keep;
 }
 
 R3Count r3_count(R3 *r) {
     R3Count c = r->cnt;
-    c.uncovered = r->nuncovered;
+    c.uncovered = r->uncovered.n;
+    c.lights = r->ln;
     memset(&r->cnt, 0, sizeof r->cnt);
     return c;
 }
@@ -521,46 +882,35 @@ R3Count r3_count(R3 *r) {
 /* --- The hero is never hidden --- */
 
 void r3_uncover(R3 *r, int id) {
+    commit(r);
     int first = -1, count = 0;
     for (int i = 0; i < r->acts.n; i++)
         if (r->acts.v[i].id == id) { first = r->acts.v[i].t0; count = r->acts.v[i].tn; break; }
     R3Rect c = { 0, 0, 0, 0 };
     int near = 65535;
-    int found = 0;
     for (int i = first; first >= 0 && i < first + count && i < r->act.n; i++) {
         const Tri *t = &r->act.v[i];
-        R3Rect b = { t->tx0 - r->cx, t->ty0 - r->cy, t->tx1 - r->cx, t->ty1 - r->cy };
-        if (!found) c = b;
-        else { c.x0 = min(c.x0, b.x0); c.y0 = min(c.y0, b.y0); c.x1 = max(c.x1, b.x1); c.y1 = max(c.y1, b.y1); }
+        c = join(c, (R3Rect) { t->tx0, t->ty0, t->tx1, t->ty1 });
         if (t->dmin < near) near = t->dmin;
-        found = 1;
     }
-    memset(r->want, 0, (size_t) r->ngroups + 1);
-    if (found && r->nbx > 0) {
-        /* The wall groups under the actor's rectangle that reach nearer than it. */
-        int wx0 = c.x0 + r->cx - r->bx0, wx1 = c.x1 - 1 + r->cx - r->bx0;
-        int wy0 = c.y0 + r->cy - r->by0, wy1 = c.y1 - 1 + r->cy - r->by0;
-        int bx0 = max(wx0 < 0 ? -1 : wx0 / BIN, 0), bx1 = min(wx1 < 0 ? -1 : wx1 / BIN, r->nbx - 1);
-        int by0 = max(wy0 < 0 ? -1 : wy0 / BIN, 0), by1 = min(wy1 < 0 ? -1 : wy1 / BIN, r->nby - 1);
-        for (int by = by0; by <= by1; by++)
-            for (int bx = bx0; bx <= bx1; bx++) {
-                int b = by * r->nbx + bx;
-                for (int j = 0; j < r->binn[b]; j++) {
-                    const Tri *t = &r->land.v[r->bin[b][j]];
-                    if (t->group < 0 || t->dmin >= near) continue;
-                    if (t->tx1 - r->cx <= c.x0 || t->tx0 - r->cx >= c.x1 || t->ty1 - r->cy <= c.y0 || t->ty0 - r->cy >= c.y1) continue;
-                    r->want[t->group] = 1;
-                }
+    /* The wall groups under the actor's rectangle (world pixels) that reach nearer than it. */
+    Ints want = { 0, 0, 0 };
+    if (!empty(c))
+        for (int i = 0; i < r->ntiles; i++) {
+            const Tile *tl = &r->tiles[i];
+            if (!meets(tl->box, c)) continue;
+            for (int j = 0; j < tl->tris.n; j++) {
+                const Tri *t = &tl->tris.v[j];
+                if (t->group < 0 || t->dmin >= near) continue;
+                if (!meets((R3Rect) { t->tx0, t->ty0, t->tx1, t->ty1 }, c)) continue;
+                if (!in_ints(&want, t->group)) push_int(&want, t->group);
             }
-    }
-    int n = 0;
-    for (int i = 0; i < r->nuncovered; i++) {
-        int g = r->uncovered[i];
-        if (!r->want[g]) r3_hide(r, g, 0);
-    }
-    for (int g = 0; g < r->ngroups; g++)
-        if (r->want[g]) { r3_hide(r, g, 1); r->uncovered[n++] = g; }
-    r->nuncovered = n;
+        }
+    for (int i = 0; i < r->uncovered.n; i++)
+        if (!in_ints(&want, r->uncovered.v[i])) r3_hide(r, r->uncovered.v[i], 0);
+    for (int i = 0; i < want.n; i++) r3_hide(r, want.v[i], 1);
+    free(r->uncovered.v);
+    r->uncovered = want;
 }
 
 /* --- Handles, for loft --- */
@@ -597,17 +947,62 @@ int64_t r3h_picture(int64_t h, const int32_t *texels) {
     return r3_picture(k->r, t);
 }
 
-/* Faces, one after another: picture, group, corners n, then n times x y z u v light. */
+/* Faces, one after another: picture, group, corners n, where the light comes from (x, y, z, k;
+ * z R3_NO_LIGHT: none, the corners' own), then n times x y z u v light. */
 void r3h_faces(int64_t h, const double *d, int64_t len) {
     Handle *k = handle(h);
     if (!k) return;
     int64_t i = 0;
-    while (i + 3 <= len) {
+    while (i + 7 <= len) {
         int pic = (int) d[i], group = (int) d[i + 1], n = (int) d[i + 2];
-        if (n < 3 || n > 8 || i + 3 + n * 6 > len) return;
-        r3_face(k->r, pic, n, d + i + 3, group);
-        i += 3 + n * 6;
+        if (n < 3 || n > 8 || i + 7 + n * 6 > len) return;
+        r3_face_lit(k->r, pic, n, d + i + 7, group, (int) d[i + 3], (int) d[i + 4], (int) d[i + 5], d[i + 6]);
+        i += 7 + n * 6;
     }
+}
+
+void r3h_light(int64_t h, const double *box, const double *v, int64_t len) {
+    Handle *k = handle(h);
+    if (!k) return;
+    int z = (int) box[0], x0 = (int) box[1], y0 = (int) box[2], w = (int) box[3], hh = (int) box[4];
+    if (w <= 0 || hh <= 0 || (int64_t) w * hh > len) return;
+    r3_light(k->r, z, x0, y0, w, hh, v);
+}
+
+/* The overlay: w x hh pixels row by row (R3_NONE clear), each scale x scale on the screen. */
+void r3h_overlay(int64_t h, const int32_t *pix, int64_t w, int64_t hh, int64_t scale) {
+    Handle *k = handle(h);
+    if (!k) return;
+    if (w <= 0 || hh <= 0) { r3_overlay(k->r, NULL, 0, 0, 0); return; }
+    uint16_t *t = malloc((size_t) (w * hh) * sizeof(uint16_t));
+    for (int64_t i = 0; i < w * hh; i++) t[i] = (uint16_t) pix[i];
+    r3_overlay(k->r, t, (int) w, (int) hh, (int) scale);
+    free(t);
+}
+
+int64_t r3h_lights(int64_t h) {
+    Handle *k = handle(h);
+    return k ? k->r->ln : 0;
+}
+
+double r3h_light_at(int64_t h, int64_t x, int64_t y, int64_t z) {
+    Handle *k = handle(h);
+    double v;
+    if (!k || !r3_light_at(k->r, (int) x, (int) y, (int) z, &v)) return -1;
+    return v;
+}
+
+/* Tile `key`'s faces replaced by these (as r3h_faces takes them; none: the tile is empty). */
+void r3h_tile(int64_t h, int64_t key, const double *d, int64_t len) {
+    Handle *k = handle(h);
+    if (!k) return;
+    r3_tile(k->r, (int) key);
+    r3h_faces(h, d, len);
+}
+
+void r3h_drop(int64_t h, int64_t key) {
+    Handle *k = handle(h);
+    if (k) r3_drop(k->r, (int) key);
 }
 
 void r3h_build(int64_t h, const double *origin) {
@@ -620,13 +1015,15 @@ void r3h_camera(int64_t h, int64_t px, int64_t py) {
     if (k) r3_camera(k->r, (int) px, (int) py);
 }
 
-/* Actors: id, picture, x, y, z, size, light each; then the one never hidden (-1: none). */
+/* Actors: id, picture, x, y, z, size, light, degrees, pivot u, pivot v, mirrored each; then the one
+ * never hidden (-1: none). */
 void r3h_actors(int64_t h, const double *d, int64_t len, int64_t keep_seen) {
     Handle *k = handle(h);
     if (!k) return;
     r3_actors_begin(k->r);
-    for (int64_t i = 0; i + 7 <= len; i += 7)
-        r3_actor(k->r, (int) d[i], (int) d[i + 1], d[i + 2], d[i + 3], d[i + 4], d[i + 5], d[i + 6]);
+    for (int64_t i = 0; i + 11 <= len; i += 11)
+        r3_actor_pose(k->r, (int) d[i], (int) d[i + 1], d[i + 2], d[i + 3], d[i + 4], d[i + 5], d[i + 6], d[i + 7], d[i + 8],
+                      d[i + 9], d[i + 10] != 0.0);
     if (keep_seen >= 0) r3_uncover(k->r, (int) keep_seen);
 }
 

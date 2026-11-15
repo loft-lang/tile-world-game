@@ -1,21 +1,53 @@
 // A picture of the fixed camera's view (fixedview.loft) at a moment of play, and its frame times:
 // the place's start, then the moves walked one frame of 16 ms at a time, each frame drawn as the
-// game draws it.  What the CPU's 3D view shows, checked by eye without a window.
+// game draws it.  What the CPU's 3D view shows, checked by eye without a window; and checked
+// against the same moment built fresh (`fixedview::differs_from_fresh`), which must not differ.
 //
-//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]
+//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES [change]]
 //
 // PLACE is a file in levels/ (without `.json`); OUT a path from this directory (tools/) or a full
 // one; MOVES letters as TW_MOVES takes them (`w` `a` `s` `d`), one step every eight frames.
 use imaging;
+use tile_world;
+use rules;
 use game;
 use fixedview;
 use raster3d;
+
+// The world changed by hand, as the rules would change it in play: a thing moved, a wall raised.
+fn change_world(g: game::Game) {
+  w = g.world;
+  hx = w.hero_x;
+  hy = w.hero_y;
+  z = w.hero_z;
+  best = (0, 0, 0);
+  far = 1000000;
+  for c in tile_world::stacks(w.w) {
+    d = (c.0 - hx) * (c.0 - hx) + (c.1 - hy) * (c.1 - hy);
+    if c.2 == z && d < far && d > 0 {
+      far = d;
+      best = c;
+    }
+  }
+  if far < 1000000 {
+    t = tile_world::take(g.world.w, best.0, best.1, best.2);
+    tile_world::place(g.world.w, hx - 2, hy, z, t);
+    println("moved thing {t} from ({best.0}, {best.1}) to ({hx - 2}, {hy})");
+  }
+  tile_world::set_terrain(g.world.w, hx + 2, hy, z, rules::tr(g.world, "wall"));
+  println("a wall at ({hx + 2}, {hy}, {z})");
+  // A burning torch in the hero's hand: a light that walks with it.
+  g.world.hero_item = rules::th(g.world, "burning_torch");
+  g.world.hero_until = g.world.now + 600000;
+  println("the hero holds a burning torch ({g.world.hero_item})");
+}
 
 fn main() {
   args = arguments();
   place = args[0] ?? "";
   out = args[1] ?? "";
   moves = args[2] ?? "";
+  change = (args[3] ?? "") == "change";
   if place == "" || out == "" {
     println("usage: loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]");
     exit(1);
@@ -40,6 +72,7 @@ fn main() {
       if d == "a" { game::move(g, -1, 0, false); }
       if d == "d" { game::move(g, 1, 0, false); }
     }
+    if change && f == len(steps) * 4 { change_world(g); }
     now += 16;
     changed = game::update(g, 16, now);
     at = ticks();
@@ -65,4 +98,13 @@ fn main() {
   if !img.save_png(out) { println("could not write {out}"); exit(1); }
   println("{out}: {place}, hero at ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z}); {frames} frames, "
           + "{spent / frames} us a frame, the slowest {worst} us");
+  sp = v.spent;
+  println("  new scenes {sp.fresh}, {sp.fresh_us / sp.fresh ?? 0} us each; tiles built walking {sp.built}, "
+          + "{sp.built_us / sp.built ?? 0} us each; looked at {sp.looked}, {sp.looked_us / sp.looked ?? 0} us each, "
+          + "{sp.changed} changed; {sp.flames} flames drawn as actors; {sp.shone} lights changed; "
+          + "the light of {sp.lights} cells kept");
+  // The tiles kept up through the walk show what a fresh build shows.
+  d = fixedview::differs_from_fresh(v, g);
+  println("against a fresh build: {d} pixels differ");
+  if d != 0 { exit(1); }
 }

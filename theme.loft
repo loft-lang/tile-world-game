@@ -418,6 +418,14 @@ pub fn thing_sprite(th: const Theme, thing: integer) -> integer {
 
 /// The picture of thing `thing` at the level's clock `now` (its frame), its low one when it
 /// burns `low`; -1 when the theme has none.
+/// Does a thing's picture change with the clock or as a flame burns low (`thing_sprite_at`)?  A
+/// view that keeps it drawn draws it again as the clock goes.
+pub fn thing_moves(th: const Theme, thing: integer) -> boolean {
+  look = th.things[thing];
+  if !look { return false; }
+  len(look.look.frames) > 1 || look.look.low >= 0
+}
+
 pub fn thing_sprite_at(th: const Theme, thing: integer, now: integer, low: boolean) -> integer {
   look = th.things[thing];
   if !look { return -1; }
@@ -513,15 +521,28 @@ pub fn put_scaled(surface: integer, th: const Theme, s: integer, cx: float, cy: 
 /// `reach` the way it points.
 pub fn put_held_fine(surface: integer, th: const Theme, thing: integer, hand_x: float, hand_y: float,
                      angle: float, reach: float, shade: integer, now: integer, low: boolean) {
+  p = held_place(th, thing, hand_x, hand_y, angle, reach, now, low);
+  if p.0 == NO_HELD { return; }
+  put_fine(surface, p.0, p.1, p.2, angle, (p.3, p.4), shade);
+}
+
+/// No carried look for a thing (`held_place`).
+pub const NO_HELD = -2;
+
+/// Where `put_held_fine` puts thing's carried picture for a hand at (hand_x, hand_y), turned
+/// `angle` and pushed `reach` the way it points: its picture (-1 for none), its top-left, and the
+/// pixel within it (its grip, a half pixel in) it turns about.  NO_HELD when the thing has no
+/// carried look.  The 2D draws it so, and so does a 3D view.
+pub fn held_place(th: const Theme, thing: integer, hand_x: float, hand_y: float, angle: float, reach: float,
+                  now: integer, low: boolean) -> (integer, float, float, float, float) {
   look = th.carried[thing];
-  if !look { return; }
+  if !look { return (NO_HELD, 0.0, 0.0, 0.0, 0.0); }
   quarter = ((((round(angle) as integer) % 360) + 360 + 45) % 360) / 90;
   ox = if quarter == 1 { reach } else if quarter == 3 { -reach } else { 0.0 };
   oy = if quarter == 0 { -reach } else if quarter == 2 { reach } else { 0.0 };
   gx = look.grip_x as float;
   gy = look.grip_y as float;
-  put_fine(surface, pick(look.look, now, low), hand_x + ox - gx, hand_y + oy - gy, angle,
-           (gx + 0.5, gy + 0.5), shade);
+  (pick(look.look, now, low), hand_x + ox - gx, hand_y + oy - gy, gx + 0.5, gy + 0.5)
 }
 
 /// The theme's font for the widgets: its digits and letters, and the characters it names.

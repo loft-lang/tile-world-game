@@ -296,7 +296,7 @@ fn main() {
       }
       fixed_was = fv.on;
       if fixedview::toggle(fv, raw) != fixed_was && !fv.on { panel_changed = true; }
-      game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, raw), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
+      game.keys.input_tick_from_state(render3d::keys(v3, gpu, game, raw, screen::program_keys()), at_ptr.0 as float, at_ptr.1 as float, btn, screen::wheel());
     } else {
       game.keys.input_tick_device();
     }

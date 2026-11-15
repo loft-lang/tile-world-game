@@ -10,10 +10,10 @@
 // exactly the scene drawn from scratch (c/raster3d.h says how that is held).
 //
 // A scene is a handle.  It is made from pictures (16 x 16 RGB565 texels, 63519 where none) and
-// faces (a picture on 3 to 8 corners), built once, and then each frame given the camera and the
-// actors and asked for the frame.  A change of the landscape is a new scene; a group of faces
-// (one cell's walls) can be hidden and shown without one, which is how the walls in front of the
-// hero are cut away.
+// faces (a picture on 3 to 8 corners), given in tiles, and then each frame given the camera and
+// the actors and asked for the frame.  A change of the landscape is a tile given again (or
+// dropped): only where it was and is is drawn again.  A group of faces (one cell's walls) can be
+// hidden and shown, which is how the walls in front of the hero are cut away.
 //
 // The frame is WIDTH x HEIGHT RGB565 values, row by row, as `screen::show` takes them; only what
 // changed is written into it, so keep the vector from frame to frame.
@@ -28,6 +28,8 @@ pub const DEEP = 40;
 pub const TALL = 48;
 /// A texel that is not there.
 pub const NONE = 63519;
+/// A face's light that comes from no cell (`add_faces`).
+pub const NO_LIGHT = -1000000;
 
 fn r3h_new(sky: integer) -> integer;
 #c "r3h_new" "int64_t(int32_t)"
@@ -37,6 +39,18 @@ fn r3h_picture(h: integer, texels: const vector<i32>) -> integer;
 #c "r3h_picture" "int64_t(int64_t, const int32_t*)"
 fn r3h_faces(h: integer, d: const vector<float>, n: integer);
 #c "r3h_faces" "void(int64_t, const double*, int64_t)"
+fn r3h_tile(h: integer, key: integer, d: const vector<float>, n: integer);
+#c "r3h_tile" "void(int64_t, int64_t, const double*, int64_t)"
+fn r3h_drop(h: integer, key: integer);
+#c "r3h_drop" "void(int64_t, int64_t)"
+fn r3h_light(h: integer, b: const vector<float>, v: const vector<float>, n: integer);
+#c "r3h_light" "void(int64_t, const double*, const double*, int64_t)"
+fn r3h_light_at(h: integer, x: integer, y: integer, z: integer) -> float;
+#c "r3h_light_at" "double(int64_t, int64_t, int64_t, int64_t)"
+fn r3h_overlay(h: integer, px: const vector<i32>, w: integer, hh: integer, scale: integer);
+#c "r3h_overlay" "void(int64_t, const int32_t*, int64_t, int64_t, int64_t)"
+fn r3h_lights(h: integer) -> integer;
+#c "r3h_lights" "int64_t(int64_t)"
 fn r3h_build(h: integer, origin: const vector<float>);
 #c "r3h_build" "void(int64_t, const double*)"
 fn r3h_camera(h: integer, px: integer, py: integer);
@@ -62,12 +76,43 @@ pub fn add_picture(scene: integer, texels: const vector<i32>) -> integer {
   r3h_picture(scene, texels)
 }
 
-/// Faces, one after another in `d`: the picture, the group (-1: none), the corners n, then n
-/// times x, y, z, u, v, light — x east, y up in layers, z south, u and v 0 .. 1 over the picture,
-/// light 0 .. 1.
+/// Faces, one after another in `d`: the picture, the group (-1: none), the corners n, where its
+/// light comes from (x, y, layer, k: the light `set_light` gave that cell, times k; layer NO_LIGHT:
+/// none, the corners' own), then n times x, y, z, u, v, light — x east, y up in layers, z south,
+/// u and v 0 .. 1 over the picture, light 0 .. 1.
 pub fn add_faces(scene: integer, d: const vector<float>) { r3h_faces(scene, d, len(d)); }
 
-/// Made ready to draw, after the last face; depths count from cell (x, z) on layer y.
+/// Tile `key`'s faces, as `add_faces` takes them, in place of the ones it had (none: it is
+/// empty).  Tiles are drawn in the order of their keys; the change shows from the next frame.
+pub fn set_tile(scene: integer, key: integer, d: const vector<float>) { r3h_tile(scene, key, d, len(d)); }
+
+/// Tile `key` gone.
+pub fn drop_tile(scene: integer, key: integer) { r3h_drop(scene, key); }
+
+/// The light of cells as data: `d` is the layer, the box's corner (x0, y0), its width and height,
+/// then each cell's light (0 .. 1) row by row.  The faces lit from those cells are lit again, and
+/// the picture drawn again where they lie, from the next frame: a light that moves or flickers
+/// costs its triangles, no face given again.
+pub fn set_light(scene: integer, d: const vector<float>) {
+  if len(d) < 5 { return; }
+  r3h_light(scene, d[0..5], d[5..], len(d) - 5);
+}
+
+/// How many cells' light the scene keeps: after a tile is dropped, only those the tiles left are
+/// lit from (a cell round them to spare); the rest is forgotten.
+pub fn lights_kept(scene: integer) -> integer { r3h_lights(scene) }
+
+/// Cell (x, y, z)'s light as `set_light` gave it; null when it gave none (or forgot it: see
+/// `lights_kept`).
+pub fn light_at(scene: integer, x: integer, y: integer, z: integer) -> float? {
+  l = r3h_light_at(scene, x, y, z);
+  if l < 0.0 { return null; }
+  l
+}
+
+/// The depth's origin, cell (x, z) on layer y: set before the first frame, and again when the
+/// scene has gone far from it (depths reach about 40 cells either way).  A new one draws the
+/// picture whole; the same one only makes the changes.
 pub fn build_scene(scene: integer, x: float, y: float, z: float) {
   r3h_build(scene, [x, y, z]);
 }
@@ -76,11 +121,22 @@ pub fn build_scene(scene: integer, x: float, y: float, z: float) {
 /// at (x * WIDE, z * DEEP - y * TALL).
 pub fn move_camera(scene: integer, px: integer, py: integer) { r3h_camera(scene, px, py); }
 
-/// This frame's actors, seven numbers each in `d`: an id that names it from frame to frame, the
-/// picture, the bottom middle (x, y, z), its size in cells and its light.  The actor `keep_seen`
-/// is never hidden: the walls in front of it are cut away (-1: none).
+/// This frame's actors, eleven numbers each in `d`: an id that names it from frame to frame, the
+/// picture, the bottom middle (x, y, z) of the picture as it stands unturned, its size in cells,
+/// its light, how far it is turned (degrees clockwise as the camera sees it), the point of the
+/// picture it turns about (u, v: 0 .. 1 across and down; 0.5, 1 the bottom middle) and whether it
+/// is mirrored (1) or not (0).  The actor `keep_seen` is never hidden: the walls in front of it are
+/// cut away (-1: none).
 pub fn set_actors(scene: integer, d: const vector<float>, keep_seen: integer = -1) {
   r3h_actors(scene, d, len(d), keep_seen);
+}
+
+/// A picture over everything (the status line, talk bubbles): `w` x `h` RGB565 values row by row,
+/// NONE where it is clear, each drawn `scale` x `scale` from the screen's top-left.  Where it
+/// differs from the last one given, the frame is made again; an empty one takes it away.
+pub fn set_overlay(scene: integer, px: const vector<i32>, w: integer, h: integer, scale: integer) {
+  if len(px) < w * h { r3h_overlay(scene, px, 0, 0, 0); return; }
+  r3h_overlay(scene, px, w, h, scale);
 }
 
 /// The frame into `out` (WIDTH * HEIGHT values), where it changed since the last frame.

@@ -2667,7 +2667,8 @@ fn draw_stack(g: Game, w: const rules::Level, x: integer, y: integer, z: integer
 
 // The hero's hand, in its picture's pixels, facing (fx, fy): the right hand facing right, down or
 // up (the weapon arm), the left facing left.
-fn hand(fx: integer, fy: integer) -> (integer, integer) {
+/// Where a figure facing (fx, fy) holds what it carries: the pixel of its picture (16 x 16).
+pub fn hand(fx: integer, fy: integer) -> (integer, integer) {
   if fx > 0 { (13, 11) } else if fx < 0 { (2, 11) } else if fy > 0 { (12, 12) } else { (11, 10) }
 }
 
@@ -2768,19 +2769,29 @@ fn depth_row(g: const Game, f: const Figure) -> integer {
 // way the figure moves).
 // Drawn from the fine pose, in fractions of a pixel and a degree: on a display surface the figure
 // moves smoothly at the display's resolution; on a 1x surface it lands on whole pixels.
+/// How a figure's picture is turned (degrees clockwise, about the bottom middle) and whether it is
+/// mirrored: its pose's tilt, and for the hero its facing shown (owner, 2026-11-07) — a lean the way
+/// it faces, mirrored facing west.  The 2D draws it so (`draw_figure`), and so does a 3D view.
+pub fn figure_turn(f: const Figure) -> (float, boolean) {
+  lean = if f.facing_shown { (f.face_x as float) * motion::FACE_TILT } else { 0.0 };
+  (f.fine.tilt + lean, f.facing_shown && f.face_x < 0)
+}
+
+/// Is what a figure holds drawn behind it (it faces north)?
+pub fn held_behind(f: const Figure) -> boolean {
+  f.face_y < 0 && f.face_x == 0
+}
+
 fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   ts = g.look.tile_size;
   p = f.fine;
-  // The hero's facing shown (owner, 2026-11-07): it leans the way it faces, and facing west its
-  // picture is mirrored.
-  lean = if f.facing_shown { (f.face_x as float) * motion::FACE_TILT } else { 0.0 };
-  mirror = f.facing_shown && f.face_x < 0;
+  turn = figure_turn(f);
   bx = (((f.x - g.cam_x) * ts) as float) + p.x;
   by = (((f.y - g.cam_y) * ts - g.lift - f.h * 4) as float) + p.y;
   hd = hand(f.face_x, f.face_y);
   hx = bx + (hd.0 as float);
   hy = by + (hd.1 as float);
-  behind = f.face_y < 0 && f.face_x == 0;
+  behind = held_behind(f);
   // What is on the shoulders hangs at the back, away from the way the figure faces.
   if f.shoulder != 0 {
     sx = bx - ((f.face_x * 4) as float);
@@ -2790,7 +2801,7 @@ fn draw_figure(g: Game, f: const Figure, now: integer, shade: integer) {
   if f.item != 0 && behind {
     theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
-  theme::put_fine(g.surface, f.sprite, bx, by, p.tilt + lean, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade, mirror);
+  theme::put_fine(g.surface, f.sprite, bx, by, turn.0, ((ts as float) / 2.0 + 0.5, (ts as float) - 0.5), shade, turn.1);
   if f.item != 0 && !behind {
     theme::put_held_fine(g.surface, g.look, f.item, hx, hy, p.weapon, p.reach, shade, now, f.low);
   }
@@ -3289,24 +3300,40 @@ pub fn draw(g: Game) {
   draw_sparks(g, z);
   draw_bow(g);
   draw_talk(g);
+  draw_status_on(g, g.surface, (ROWS - 1) * 16, COLS * 2);
+}
+
+/// The status line drawn on `surface` with its top at y, `line` half cells wide: what the 2D shows
+/// at the bottom of its view — DONE or NO HEARTS when the level is won or lost, else a note (a
+/// signpost's count, SAVED, BACK? B AGAIN) until the next move, or the gold or the move count,
+/// beside the readouts and the hearts.  A 3D view draws it so over its own frame.
+pub fn draw_status_on(g: const Game, surface: integer, y: integer, line: integer) {
+  w = g.world;
   if g.won {
-    write(g, "DONE! N NEXT", 0, (ROWS - 1) * 16);
+    theme::write(surface, g.look, "DONE! N NEXT", 0, y);
   } else if !rules::alive(w) {
-    write(g, "NO HEARTS - R", 0, (ROWS - 1) * 16);
+    theme::write(surface, g.look, "NO HEARTS - R", 0, y);
   } else {
-    // A note (a signpost's count, SAVED, BACK? B AGAIN) takes the line's left until the next
-    // move, beside the hearts; otherwise the move count or the gold, with the readouts.
-    if g.note != "" { status(g, g.note, true); }
-    else if w.money > 0 { status(g, "GOLD {w.money}"); }
-    else { status(g, "MOVES {g.moves}"); }
+    if g.note != "" { status(g, surface, y, line, g.note, true); }
+    else if w.money > 0 { status(g, surface, y, line, "GOLD {w.money}"); }
+    else { status(g, surface, y, line, "MOVES {g.moves}"); }
   }
 }
 
-// What is being said, in a bubble over whoever says it: half-size letters, whole words, at most
-// BUBBLE characters a row; the hero's in its own colour.  Kept inside the view.
-fn draw_talk(g: Game) {
+/// Something being said: who says it (their cell), the rows of the bubble, and whether it is the
+/// hero.
+pub struct Talking {
+  pub x: integer,
+  pub y: integer,
+  pub z: integer,
+  pub rows: vector<text>,
+  pub hero: boolean
+}
+
+/// What is being said on the hero's layer now, by whom: the bubbles a view draws.
+pub fn talking(g: const Game) -> vector<Talking> {
   w = g.world;
-  ts = g.look.tile_size;
+  out: vector<Talking> = [];
   for t in g.file.talks {
     e = talk::owner(t, w);
     if e < 0 { continue; }
@@ -3316,25 +3343,41 @@ fn draw_talk(g: Game) {
     line = if n >= 0 { t.lines[n]! } else { t.barks[b]! };
     p = talk::speaker_of(t, w, e, line.by);
     if p.2 != w.hero_z { continue; }
-    rows = talk::wrap(talk::heard(w, line), BUBBLE);
-    wide = 0;
-    for r in rows { if len(r) > wide { wide = len(r); } }
-    half = ts / 2;
-    bw = wide * half + 6;
-    bh = len(rows) * (half + 1) + 5;
-    x = (p.0 - g.cam_x) * ts + half - bw / 2;
-    y = (p.1 - g.cam_y - p.2) * ts - bh - 1;
-    if x < 0 { x = 0; }
-    if x + bw > W { x = W - bw; }
-    if y < 0 { y = 0; }
-    edge = if line.by == "hero" { HERO_SAYS } else { THEY_SAY };
-    tiles::rect(g.surface, x, y, bw, bh, edge);
-    tiles::rect(g.surface, x + 1, y + 1, bw - 2, bh - 2, BUBBLE_FILL);
-    for r in 0..len(rows) {
-      row = rows[r] ?? "";
-      theme::write_small(g.surface, g.look, row, (x + 3 + (wide - len(row)) * half / 2) as float,
-                         (y + 3 + r * (half + 1)) as float, 0);
-    }
+    out += [Talking { x: p.0, y: p.1, z: p.2, rows: talk::wrap(talk::heard(w, line), BUBBLE), hero: line.by == "hero" }];
+  }
+  out
+}
+
+/// A speech bubble on `surface`: half-size letters, whole words, the hero's edged in its own
+/// colour; centred on x with its bottom at y, kept inside a view `wide` across (and below its top).
+pub fn draw_bubble(g: const Game, surface: integer, t: const Talking, x: integer, y: integer, wide: integer) {
+  ts = g.look.tile_size;
+  most = 0;
+  for r in t.rows { if len(r) > most { most = len(r); } }
+  half = ts / 2;
+  bw = most * half + 6;
+  bh = len(t.rows) * (half + 1) + 5;
+  bx = x - bw / 2;
+  by = y - bh;
+  if bx < 0 { bx = 0; }
+  if bx + bw > wide { bx = wide - bw; }
+  if by < 0 { by = 0; }
+  edge = if t.hero { HERO_SAYS } else { THEY_SAY };
+  tiles::rect(surface, bx, by, bw, bh, edge);
+  tiles::rect(surface, bx + 1, by + 1, bw - 2, bh - 2, BUBBLE_FILL);
+  for r in 0..len(t.rows) {
+    row = t.rows[r] ?? "";
+    theme::write_small(surface, g.look, row, (bx + 3 + (most - len(row)) * half / 2) as float,
+                       (by + 3 + r * (half + 1)) as float, 0);
+  }
+}
+
+// What is being said, in a bubble over whoever says it: half-size letters, whole words, at most
+// BUBBLE characters a row; the hero's in its own colour.  Kept inside the view.
+fn draw_talk(g: Game) {
+  ts = g.look.tile_size;
+  for t in talking(g) {
+    draw_bubble(g, g.surface, t, (t.x - g.cam_x) * ts + ts / 2, (t.y - g.cam_y - t.z) * ts - 1, W);
   }
 }
 
@@ -3342,11 +3385,10 @@ fn draw_talk(g: Game) {
 // left, and at the right the seconds a boost has left and the hero's health, a heart and a
 // number.  With `note` the readouts give way to it, the hearts stay.  `left` is cut short to
 // leave them room.
-fn status(g: Game, left: text, note: boolean = false) {
+fn status(g: const Game, surface: integer, y: integer, line: integer, left: text, note: boolean = false) {
   w = g.world;
   ts = g.look.tile_size;
   half = ts / 2;
-  y = (ROWS - 1) * ts;
   right = if rules::boosted(w) { "+{(w.boost_until - w.now) / 1000} " } else { "" };
   // The time of day (C1), hours and minutes.
   right = "{clock_text(g)} " + right;
@@ -3358,17 +3400,16 @@ fn status(g: Game, left: text, note: boolean = false) {
   // Health, and the temporary health above it ("6+2").
   hearts = if w.spirit > 0 { "{w.health}+{w.spirit}" } else { "{w.health}" };
   if note { right = ""; }
-  // In half cells: the line holds twice COLS; the heart is a full tile, two of them.
-  line = COLS * 2;
+  // In half cells (`line` of them); the heart is a full tile, two of them.
   cells = len(right) + 2 + len(hearts);
   text_y = (y + half / 2) as float;
-  theme::write_small(g.surface, g.look, right, ((line - cells) * half) as float, text_y, 0);
-  theme::put(g.surface, g.look.heart, (line - len(hearts) - 2) * half, y, 0);
-  theme::write_small(g.surface, g.look, hearts, ((line - len(hearts)) * half) as float, text_y, 0);
+  theme::write_small(surface, g.look, right, ((line - cells) * half) as float, text_y, 0);
+  theme::put(surface, g.look.heart, (line - len(hearts) - 2) * half, y, 0);
+  theme::write_small(surface, g.look, hearts, ((line - len(hearts)) * half) as float, text_y, 0);
   room = line - cells - 1;
   // Bound first: a text `if` as a call argument does not compile on --native before loft#2225.
   shown = if len(left) > room { left.char_slice(0, room) } else { left };
-  theme::write_small(g.surface, g.look, shown, 0.0, text_y, 0);
+  theme::write_small(surface, g.look, shown, 0.0, text_y, 0);
 }
 
 // The checks (EDITOR.md § 5) over layer z of the view: the way to a cell goal as dots, a chest

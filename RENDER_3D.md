@@ -275,13 +275,23 @@ deep and a layer 48 tall, which is a camera about 40° down, walls a little tall
 ground is deep.  What it gives up is the mild shrinking of far rows.  The first-person view
 stays perspective.
 
+**A free camera on a full GPU, a limited one on the Tanmatsu** (owner, 2026-11-15, on porting
+dryopea, moros and crawler to the Tanmatsu as well): the games — this one too — get a free camera
+where a GPU draws them, and a limited one on the Tanmatsu: this fixed camera, from which the player
+still looks behind things and into a room through the cut-away.  The engine must not hinder a game
+on a full GPU.  So the view is written against one scene contract that carries a free camera, and
+each implementation says what it offers: raster3d (the CPU, the Tanmatsu) the fixed camera, one on
+`gpu` the free one; the other hex games' meshes are given to it as tiles.
+
 **Built on the CPU (2026-11-15): `fixedview.loft`, F5**, drawn by `raster3d` (BUILD.md Phase E,
 E2 and E3), on the desktop and wherever `screen` shows a frame.  The landscape is kept as a
 picture and drawn again only where it changes; the figures are drawn over it every frame; the
 walls in front of the hero are cut away by the engine, by the rule above (a wall group that
 covers the hero's card and reaches nearer than it), so the cut follows the camera's angle rather
 than the 2D's one cell.  Every frame is the whole scene drawn from scratch, pixel for pixel
-(checked by `bench/frame3d.c`).  Not drawn yet: the turn, lean and mirror of `motion.loft`'s pose
+(checked by `bench/frame3d.c`).  The landscape is kept in tiles of 8 x 8 cells, built as they come
+near and built again when what they show changed; a scene kept up so as the hero walks shows what
+one built fresh shows (checked by `tools/fixedshot.loft`; BUILD.md Phase E).  Not drawn yet: the turn, lean and mirror of `motion.loft`'s pose
 on a card (the cards stand straight), the held weapon's angle, the shadows and the board's edge
 (§ Everything else: cardboard), talk bubbles and the status line.
 

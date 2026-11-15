@@ -4,6 +4,20 @@
 // it as actors every frame, the walls in front of the hero cut away.  A parallel projection
 // (owner, 2026-11-15), so the camera following the hero shifts the kept picture exactly.
 //
+// The landscape is kept in tiles of TILE x TILE cells, as moros's hex_mesh keeps its mesh: a tile
+// is built when it comes near, dropped when it is left far behind, and built again when what it
+// shows changed — and only that tile goes to raster3d again, which draws again only where it was
+// and is.  What changed is told as hex_mesh's editor marks its dirty chunks, by what changed it
+// (BUILD.md E1): the world counts its changes (`tile_world::changes`, `changed_since`), and a tile
+// whose cells changed is built again at once; one within READS of a change (its light, a thin
+// wall's picture along its line) is looked at — built again and compared with the faces it has, as
+// `mesh_crc` tells two meshes apart — and, slowly in turn, every tile: what the rules hold and the
+// world does not (a door shut until something holds) is caught so.  The light is data (owner,
+// 2026-11-15): each face says which cell it is lit from, raster3d keeps the cells' light, and a
+// light that moves, dims or goes out (a torch carried, burning down, flickering) sends the light
+// of the cells it reaches: the triangles lit from them are lit again, no tile built again.  A thing whose picture moves (a flame) is not in its tile: it is
+// an actor, drawn every frame as the figures are, so its tile is not built again as it flickers.
+//
 // F5 switches it on and off where the frame is the CPU's (the desktop, the Tanmatsu); TW_VIEW=fixed
 // starts the game in it.  The game's code is the 2D game's: this reads what is there and draws it.
 use tile_world;
@@ -14,26 +28,48 @@ use game;
 use render3d;
 use raster3d;
 
-/// The cells round the build's centre the landscape covers.  The screen is about 17 x 12 cells
-/// and the camera keeps the hero within FOLLOW cells of its middle, so the hero walks REBUILD
-/// cells from the centre before the landscape is built round it again.
+/// A tile's side in cells.
+const TILE = 8;
+/// The cells round the hero the tiles are kept for: the screen is about 17 x 12 cells, the camera
+/// keeps the hero within FOLLOW cells of its middle and the layers below show lower down, so a tile
+/// comes into view about 11 cells from the hero; the ones out to REACH are built ahead of that, a
+/// few a frame.  A tile more than DROP cells off is dropped.
 const REACH = 16;
-const REBUILD = 5;
+const SEEN_X = 12;
+const SEEN_Y = 11;
+const DROP = 24;
+/// What a frame may spend building tiles that are not in view yet, and looking for changes (us).
+const BUDGET = 3000;
+/// How far round its cells a tile's faces read the world: two cells for its shape (render3d's
+/// HALO), DARKEST for its light, and a thin wall's picture is the first wall along its line, up to
+/// render3d's 12 cells.
+const READS = 12;
+/// How far a light reaches: the shades go one darker a cell.
+const SHINE = tile_world::DARKEST + 1;
+/// Every tile is looked at in turn, one every SWEEP frames the game says something changed.
+const SWEEP = 8;
+/// How far the hero may go from the depth's origin (cells) before it is set again: raster3d's
+/// depths reach about 40 cells.
+const ORIGIN = 20;
 /// How far the hero may stand off the middle of the screen (cells) before the camera follows,
 /// and how fast it follows (pixels a frame).
 const FOLLOW = 2;
 const SLIDE = 8;
-/// The least time between two looks at whether the landscape changed (ms): building its faces
-/// is the rules' per-cell work, so it is not done every frame a figure moves.  BUILD.md E1's
-/// change counter, once the rules keep one, replaces this.
-const LOOK_MS = 250;
-/// A figure's card and what it holds, as render3d draws them.
+/// A figure's card, as render3d draws it; what it holds and wears is drawn at the same scale, as
+/// the 2D draws them.  The point of its picture it turns about: the bottom middle (8.5, 15.5 of 16).
 const FIGURE = 0.85;
-const ITEM = 0.5;
-/// The hero's actor id; the others are numbered from the layer and their place in the list.
+const PIVOT_U = 0.53125;
+const PIVOT_V = 0.96875;
+/// The hero's actor id; the others are numbered from the layer and their place in the list, the
+/// things whose picture moves from FLAME.
 const HERO = 1000000;
+const FLAME = 2000000;
 /// F5, in screen's key codes.
 const K_FIXED = 139;
+/// The status line and the talk bubbles are drawn as the 2D draws them, at the world's pixels (a
+/// cell 16 of them, the frame's 48): on a surface a third of the frame's size, drawn three times
+/// larger over it by raster3d.
+const OVER = 3;
 /// Where nothing is.
 const SKY = 0;
 
@@ -42,25 +78,66 @@ struct Pic {
   index: integer
 }
 
+/// A tile as it went to raster3d: its faces (lit from their cells, so they hold no light), to tell
+/// a change, and the cells with a thing whose picture moves, drawn as actors.
+struct Tile {
+  const key: integer,
+  tx: integer,
+  ty: integer,
+  faces: vector<float>,
+  flames: vector<(integer, integer, integer)>
+}
+
+/// What the view spent its time on, for tools/fixedshot.loft: new scenes, tiles built as the hero
+/// walked, tiles looked at for a change (and how many of those had changed), in us.
+pub struct Spent {
+  pub fresh: integer = 0,
+  pub fresh_us: integer = 0,
+  pub built: integer = 0,
+  pub built_us: integer = 0,
+  pub looked: integer = 0,
+  pub looked_us: integer = 0,
+  pub changed: integer = 0,
+  /// The things whose picture moves drawn as actors in the last frame.
+  pub flames: integer = 0,
+  /// Lights that moved, dimmed or went out, the cells they reach lit again.
+  pub shone: integer = 0,
+  /// The cells whose light raster3d keeps, after the last frame.
+  pub lights: integer = 0
+}
+
 pub struct FixedView {
   pub on: boolean = false,
   scene: integer = 0,
   place: text = "",
   z: integer = 0,
-  cx: integer = 0,
-  cy: integer = 0,
-  /// The faces the scene was built from, to tell a change.
-  built: vector<float> = [],
-  looked: integer = 0,
+  z0: integer = 0,
+  z1: integer = 0,
+  night: boolean = false,
+  /// The depth's origin.
+  ox: integer = 0,
+  oy: integer = 0,
+  tiles: hash<Tile[key]> = [],
+  /// The tiles in the order they are swept, and the next one.
+  all: vector<integer> = [],
+  next: integer = 0,
+  frame: integer = 0,
+  /// The tiles to look at, the world's count when the view last looked, and the lights it saw:
+  /// (x, y, layer, the shade it starts at) each.
+  suspects: vector<integer> = [],
+  seen: integer = 0,
+  lights: vector<(integer, integer, integer, integer)> = [],
   /// The pictures, numbered in the order first met; each scene is given them all in that order.
   pics: hash<Pic[sprite]> = [],
   sprites: vector<integer> = [],
   given: integer = 0,
   scratch: integer = 0,
+  over: integer = 0,
   cam_x: integer = 0,
   cam_y: integer = 0,
   placed: boolean = false,
   was: boolean = false,
+  pub spent: Spent = Spent {},
   /// The frame, raster3d::WIDTH x raster3d::HEIGHT, for `screen::show`.
   pub px: vector<i32> = []
 }
@@ -79,7 +156,7 @@ pub fn toggle(v: FixedView, keys: const vector<boolean>) -> boolean {
 }
 
 // The picture's number, given to the scene the first time it is met.
-fn pic_of(v: FixedView, g: const game::Game, sprite: integer) -> integer {
+fn pic_of(v: FixedView, sprite: integer) -> integer {
   p = v.pics[sprite];
   if p { return p.index; }
   n = len(v.sprites);
@@ -109,9 +186,19 @@ fn layers(g: const game::Game) -> (integer, integer) {
   (w.hero_z - 2, if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { w.hero_z + 1 } else { w.hero_z })
 }
 
+// The tile a cell is in.
+fn tile_of(c: integer) -> integer {
+  if c >= 0 { c / TILE ?? 0 } else { 0 - ((TILE - 1 - c) / TILE ?? 0) }
+}
+
+// A tile's key: raster3d draws the tiles in the order of their keys.
+fn key_of(tx: integer, ty: integer) -> integer {
+  (ty + 4096) * 8192 + (tx + 4096)
+}
+
 // The group a face is hidden with: one cell's walls on one layer (what the hero's cut-away takes
-// out), -1 for a floor, a card or a cell outside the build.
-fn group_of(v: const FixedView, f: const render3d::Face, z0: integer) -> integer {
+// out), -1 for a floor or a card.
+fn group_of(v: const FixedView, f: const render3d::Face) -> integer {
   n = len(f.at) / 5 ?? 0;
   x = 1000000.0;
   zz = 1000000.0;
@@ -128,34 +215,55 @@ fn group_of(v: const FixedView, f: const render3d::Face, z0: integer) -> integer
   }
   floor_y = floor(y0 + 0.000001);
   if y1 - floor_y < 0.5 { return -1; }
-  side = 2 * REACH + 1;
-  gx = (floor(x + 0.001) as integer) - (v.cx - REACH);
-  gz = (floor(zz + 0.001) as integer) - (v.cy - REACH);
-  gl = (floor_y as integer) - z0;
-  if gx < 0 || gz < 0 || gx >= side || gz >= side || gl < 0 { return -1; }
-  (gl * side + gz) * side + gx
+  gx = floor(x + 0.001) as integer;
+  gz = floor(zz + 0.001) as integer;
+  gl = (floor_y as integer) - v.z0 + 4;
+  ((gl & 15) * 2048 + (gz & 2047)) * 2048 + (gx & 2047)
 }
 
-// The landscape's faces round the build's centre, as raster3d takes them.
-fn landscape(v: FixedView, g: const game::Game) -> vector<float> {
-  (z0, z1) = layers(g);
+// The faces and cards of tile (tx, ty), as raster3d takes them, from `cl` and `lt` (which hold
+// the tile, HALO round it, a layer under and over).
+fn tile_faces(v: FixedView, g: const game::Game, cl: const render3d::Cells, lt: const render3d::Light, tx: integer,
+              ty: integer) -> vector<float> {
+  x0 = tx * TILE;
+  y0 = ty * TILE;
+  x1 = x0 + TILE - 1;
+  y1 = y0 + TILE - 1;
   rv = render3d::view();
   out: vector<float> = [];
   for pass in 0..2 {
-    fs = if pass == 0 { render3d::faces_of(g, v.cx, v.cy, REACH, z0, z1) }
-         else { render3d::cards_of(rv, g, 16, v.cx, v.cy, REACH, z0, z1, false) };
+    fs = if pass == 0 { render3d::faces_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, false) }
+         else { render3d::cards_box(rv, g, cl, lt, 16, x0, y0, x1, y1, v.z0, v.z1, false, false) };
     for f in fs {
       n = len(f.at) / 5 ?? 0;
-      grp = if pass == 0 { group_of(v, f, z0) } else { -1 };
-      out += [pic_of(v, g, f.sprite) as float, grp as float, n as float];
+      grp = if pass == 0 { group_of(v, f) } else { -1 };
+      out += [pic_of(v, f.sprite) as float, grp as float, n as float, f.lx as float, f.ly as float, f.lz as float, f.lk];
+      // Lit from its cell, its corners hold no light of their own; else their own.
+      own = f.lz == render3d::NO_LIGHT;
       for c in 0..n {
         i = c * 5;
         out += [f.at[i] ?? 0.0, f.at[i + 1] ?? 0.0, f.at[i + 2] ?? 0.0, f.at[i + 3] ?? 0.0, f.at[i + 4] ?? 0.0,
-                f.lights[c] ?? f.light];
+                if own { f.lights[c] ?? f.light } else { 0.0 }];
       }
     }
   }
   out
+}
+
+// What tile (tx, ty) reads: its cells and its light, read for it alone.
+fn tile_cells(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> render3d::Cells {
+  x0 = tx * TILE;
+  y0 = ty * TILE;
+  render3d::cells(g, x0 - render3d::HALO, y0 - render3d::HALO, x0 + TILE - 1 + render3d::HALO,
+                  y0 + TILE - 1 + render3d::HALO, v.z0 - 1, v.z1 + 1)
+}
+
+// The light a tile's faces are lit from: its layers and the one above (a wall's top); not the one
+// below, which lights only the faces seen from below, left out here.
+fn tile_light(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> render3d::Light {
+  x0 = tx * TILE;
+  y0 = ty * TILE;
+  render3d::light_box(g, x0, y0, x0 + TILE - 1, y0 + TILE - 1, v.z0, v.z1 + 1)
 }
 
 fn same(a: const vector<float>, b: const vector<float>) -> boolean {
@@ -164,36 +272,294 @@ fn same(a: const vector<float>, b: const vector<float>) -> boolean {
   true
 }
 
-// The scene made again from `faces`.
-fn rebuild(v: FixedView, g: const game::Game, faces: const vector<float>) {
+// Tile (tx, ty) given to the scene (again) as `faces`.
+fn put_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer, faces: const vector<float>) {
+  give(v, g);
+  key = key_of(tx, ty);
+  raster3d::set_tile(v.scene, key, faces);
+  flames = moving(v, g, tx, ty);
+  t = v.tiles[key];
+  if t {
+    t.faces = faces;
+    t.flames = flames;
+    return;
+  }
+  v.tiles += [Tile { key: key, tx: tx, ty: ty, faces: faces, flames: flames }];
+  v.all += [key];
+}
+
+// The light `lt` holds, given to the scene as the cells' light.
+fn send_light(v: FixedView, lt: const render3d::Light) {
+  for i in 0..render3d::light_layers(lt) { raster3d::set_light(v.scene, render3d::light_data(lt, i)); }
+}
+
+// The cells of tile (tx, ty) with a thing whose picture moves.
+fn moving(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> vector<(integer, integer, integer)> {
+  w = g.world;
+  out: vector<(integer, integer, integer)> = [];
+  for z in v.z0..=v.z1 {
+    for y in ty * TILE..ty * TILE + TILE {
+      for x in tx * TILE..tx * TILE + TILE {
+        if tile_world::top(w.w, x, y, z) == 0 { continue; }
+        for t in tile_world::things(w.w, x, y, z) {
+          if theme::thing_moves(g.look, t) {
+            out += [(x, y, z)];
+            break;
+          }
+        }
+      }
+    }
+  }
+  out
+}
+
+// Tile (tx, ty) built, from its own cells and light.
+fn build_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer) {
+  at = ticks();
+  cl = tile_cells(v, g, tx, ty);
+  lt = tile_light(v, g, tx, ty);
+  send_light(v, lt);
+  put_tile(v, g, tx, ty, tile_faces(v, g, cl, lt, tx, ty));
+  v.spent.built += 1;
+  v.spent.built_us += ticks() - at;
+}
+
+// A new scene round the hero: every tile out to REACH built, from one read of the cells and the
+// light for them all.
+fn fresh(v: FixedView, g: const game::Game) {
+  at = ticks();
+  w = g.world;
   if v.scene != 0 { raster3d::free_scene(v.scene); }
   v.scene = raster3d::new_scene(SKY) ?? 0;
   v.given = 0;
-  give(v, g);
-  raster3d::add_faces(v.scene, faces);
-  raster3d::build_scene(v.scene, v.cx as float, g.world.hero_z as float, v.cy as float);
-  v.built = faces;
+  v.tiles = [];
+  v.all = [];
+  v.next = 0;
+  v.suspects = [];
+  v.seen = tile_world::changes(w.w);
+  v.lights = lights_of(g, layers(g));
   v.place = g.place;
-  v.z = g.world.hero_z;
+  v.z = w.hero_z;
+  v.night = w.night;
+  (z0, z1) = layers(g);
+  v.z0 = z0;
+  v.z1 = z1;
   v.placed = false;
+  tx0 = tile_of(w.hero_x - REACH);
+  ty0 = tile_of(w.hero_y - REACH);
+  tx1 = tile_of(w.hero_x + REACH);
+  ty1 = tile_of(w.hero_y + REACH);
+  x0 = tx0 * TILE;
+  y0 = ty0 * TILE;
+  x1 = tx1 * TILE + TILE - 1;
+  y1 = ty1 * TILE + TILE - 1;
+  cl = render3d::cells(g, x0 - render3d::HALO, y0 - render3d::HALO, x1 + render3d::HALO, y1 + render3d::HALO, z0 - 1, z1 + 1);
+  lt = render3d::light_box(g, x0, y0, x1, y1, z0, z1 + 1);
+  send_light(v, lt);
+  for ty in ty0..=ty1 {
+    for tx in tx0..=tx1 { put_tile(v, g, tx, ty, tile_faces(v, g, cl, lt, tx, ty)); }
+  }
+  v.ox = w.hero_x;
+  v.oy = w.hero_y;
+  raster3d::build_scene(v.scene, v.ox as float, z1 as float, v.oy as float);
+  v.spent.fresh += 1;
+  v.spent.fresh_us += ticks() - at;
 }
 
-// The landscape as it is now: built again round the hero when it changed place or layer or walked
-// off far, and, at most every LOOK_MS while the world changes, when its faces differ.
-fn keep_up(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
+// The tiles kept up as the hero walks: those coming into view built at once, the rest out to
+// REACH nearest first while the frame's budget lasts, those left far behind dropped.
+fn walk(v: FixedView, g: const game::Game, until: integer) {
   w = g.world;
-  away = w.hero_x - v.cx > REBUILD || v.cx - w.hero_x > REBUILD || w.hero_y - v.cy > REBUILD || v.cy - w.hero_y > REBUILD;
-  if v.scene == 0 || g.place != v.place || w.hero_z != v.z || away {
-    v.cx = w.hero_x;
-    v.cy = w.hero_y;
-    v.looked = now;
-    rebuild(v, g, landscape(v, g));
+  hx = w.hero_x;
+  hy = w.hero_y;
+  // Left behind.
+  gone: vector<integer> = [];
+  for t in v.tiles {
+    cx = t.tx * TILE + TILE / 2;
+    cy = t.ty * TILE + TILE / 2;
+    if cx - hx > DROP || hx - cx > DROP || cy - hy > DROP || hy - cy > DROP { gone += [t.key]; }
+  }
+  for k in gone {
+    raster3d::drop_tile(v.scene, k);
+    v.tiles[k] = null;
+    keep: vector<integer> = [];
+    for d in v.all { if d != k { keep += [d]; } }
+    v.all = keep;
+  }
+  // Missing, nearest first: those in view now, together; the rest while the budget lasts.
+  seen: vector<(integer, integer)> = [];
+  ahead: vector<(integer, integer)> = [];
+  for ring in 0..=(REACH / TILE + 1) {
+    for ty in tile_of(hy) - ring..=tile_of(hy) + ring {
+      for tx in tile_of(hx) - ring..=tile_of(hx) + ring {
+        if tx != tile_of(hx) - ring && tx != tile_of(hx) + ring && ty != tile_of(hy) - ring && ty != tile_of(hy) + ring {
+          continue;
+        }
+        if v.tiles[key_of(tx, ty)] { continue; }
+        // The cells of the tile nearest the hero, each way.
+        nx = if hx < tx * TILE { tx * TILE - hx } else if hx >= tx * TILE + TILE { hx - tx * TILE - TILE + 1 } else { 0 };
+        ny = if hy < ty * TILE { ty * TILE - hy } else if hy >= ty * TILE + TILE { hy - ty * TILE - TILE + 1 } else { 0 };
+        if nx > REACH || ny > REACH { continue; }
+        if nx > SEEN_X || ny > SEEN_Y { ahead += [(tx, ty)]; } else { seen += [(tx, ty)]; }
+      }
+    }
+  }
+  build_tiles(v, g, seen);
+  for t in ahead {
+    if ticks() > until { break; }
+    build_tile(v, g, t.0, t.1);
+  }
+}
+
+// Tiles built together, from one read of the cells and the light of the box round them all: a
+// tile's light is mostly its margin (the shades read DARKEST round the box), so a row of tiles
+// read at once costs about what two read apart do.
+fn build_tiles(v: FixedView, g: const game::Game, ts: const vector<(integer, integer)>) {
+  if len(ts) == 0 { return; }
+  if len(ts) == 1 {
+    build_tile(v, g, (ts[0] ?? (0, 0)).0, (ts[0] ?? (0, 0)).1);
     return;
   }
-  if !changed || now - v.looked < LOOK_MS { return; }
-  v.looked = now;
-  faces = landscape(v, g);
-  if !same(faces, v.built) { rebuild(v, g, faces); }
+  at = ticks();
+  tx0 = 1000000;
+  ty0 = 1000000;
+  tx1 = -1000000;
+  ty1 = -1000000;
+  for t in ts {
+    if t.0 < tx0 { tx0 = t.0; }
+    if t.1 < ty0 { ty0 = t.1; }
+    if t.0 > tx1 { tx1 = t.0; }
+    if t.1 > ty1 { ty1 = t.1; }
+  }
+  x0 = tx0 * TILE;
+  y0 = ty0 * TILE;
+  x1 = tx1 * TILE + TILE - 1;
+  y1 = ty1 * TILE + TILE - 1;
+  h = render3d::HALO;
+  cl = render3d::cells(g, x0 - h, y0 - h, x1 + h, y1 + h, v.z0 - 1, v.z1 + 1);
+  lt = render3d::light_box(g, x0, y0, x1, y1, v.z0, v.z1 + 1);
+  send_light(v, lt);
+  for t in ts { put_tile(v, g, t.0, t.1, tile_faces(v, g, cl, lt, t.0, t.1)); }
+  v.spent.built += len(ts);
+  v.spent.built_us += ticks() - at;
+}
+
+// Tile `key` looked at: built again, and given to raster3d when its faces differ.
+fn look(v: FixedView, g: const game::Game, key: integer) {
+  t = v.tiles[key];
+  if !t { return; }
+  at = ticks();
+  tx = t.tx;
+  ty = t.ty;
+  cl = tile_cells(v, g, tx, ty);
+  lt = tile_light(v, g, tx, ty);
+  faces = tile_faces(v, g, cl, lt, tx, ty);
+  v.spent.looked += 1;
+  // Its light, whether its faces changed or not: raster3d lights again only what differs.
+  send_light(v, lt);
+  if !same(faces, t.faces) {
+    put_tile(v, g, tx, ty, faces);
+    v.spent.changed += 1;
+  }
+  v.spent.looked_us += ticks() - at;
+}
+
+// The lights on the layers a tile's faces read, as `lights` keeps them.
+fn lights_of(g: const game::Game, zs: (integer, integer)) -> vector<(integer, integer, integer, integer)> {
+  w = g.world;
+  out: vector<(integer, integer, integer, integer)> = [];
+  for z in zs.0 - 1..=zs.1 + 1 {
+    starts = rules::light_starts(w, z);
+    i = 0;
+    for l in rules::lights(w, z) {
+      out += [(l.0, l.1, z, starts[i] ?? 0)];
+      i += 1;
+    }
+  }
+  out
+}
+
+fn suspect(v: FixedView, key: integer) {
+  if !v.tiles[key] { return; }
+  for k in v.suspects { if k == key { return; } }
+  v.suspects += [key];
+}
+
+// The cells a light at (x, y) on layer z reaches, their light given again.
+fn shine(v: FixedView, g: const game::Game, x: integer, y: integer, z: integer) {
+  send_light(v, render3d::light_box(g, x - SHINE, y - SHINE, x + SHINE, y + SHINE, z, z));
+  v.spent.shone += 1;
+}
+
+// What changed since the last frame, told: the world's changes (the tiles whose cells changed,
+// answered, to be looked at now; those within READS suspected), the lights that moved, dimmed or
+// went out (the light of the cells they reach given again).
+fn told(v: FixedView, g: const game::Game) -> vector<integer> {
+  w = g.world;
+  now: vector<integer> = [];
+  n = tile_world::changes(w.w);
+  if n != v.seen {
+    for t in v.tiles {
+      x0 = t.tx * TILE;
+      y0 = t.ty * TILE;
+      x1 = x0 + TILE - 1;
+      y1 = y0 + TILE - 1;
+      if !tile_world::changed_since(w.w, x0 - READS, y0 - READS, x1 + READS, y1 + READS, v.z0 - 1, v.z1 + 1, v.seen) {
+        continue;
+      }
+      h = render3d::HALO;
+      if tile_world::changed_since(w.w, x0 - h, y0 - h, x1 + h, y1 + h, v.z0 - 1, v.z1 + 1, v.seen) {
+        now += [t.key];
+      } else {
+        suspect(v, t.key);
+      }
+    }
+    v.seen = n;
+  }
+  ls = lights_of(g, (v.z0, v.z1));
+  if ls != v.lights {
+    for l in ls { if !v.lights.contains(l) { shine(v, g, l.0, l.1, l.2); } }
+    for l in v.lights { if !ls.contains(l) { shine(v, g, l.0, l.1, l.2); } }
+    v.lights = ls;
+  }
+  now
+}
+
+// The landscape as it is now: a new scene when the hero changed place or layer (or the layers
+// shown changed), or night fell or day broke (every tile's light at once: a look a frame would
+// show night and day side by side), or the world is another one (it counts fewer changes than
+// were seen); else the tiles kept up as the hero walks, and those changes touched looked at —
+// the ones whose cells changed first, all of them now, the rest while the frame's budget lasts —
+// and, while the game changes, one tile in turn every SWEEP frames; the depth's origin moved when
+// the hero went far from it.
+fn keep_up(v: FixedView, g: const game::Game, changed: boolean) {
+  w = g.world;
+  (z0, z1) = layers(g);
+  if v.scene == 0 || g.place != v.place || w.hero_z != v.z || z0 != v.z0 || z1 != v.z1 || w.night != v.night
+     || tile_world::changes(w.w) < v.seen {
+    fresh(v, g);
+    return;
+  }
+  until = ticks() + BUDGET;
+  walk(v, g, until);
+  // The tiles whose cells changed: now, whatever the budget; the suspects while it lasts.
+  for k in told(v, g) { look(v, g, k); }
+  while len(v.suspects) > 0 && ticks() <= until {
+    k = v.suspects[0] ?? 0;
+    v.suspects.remove(0);
+    look(v, g, k);
+  }
+  v.frame += 1;
+  n = len(v.all);
+  if changed && n > 0 && v.frame % SWEEP == 0 && ticks() <= until {
+    v.next = (v.next + 1) % n ?? 0;
+    look(v, g, v.all[v.next] ?? 0);
+  }
+  if w.hero_x - v.ox > ORIGIN || v.ox - w.hero_x > ORIGIN || w.hero_y - v.oy > ORIGIN || v.oy - w.hero_y > ORIGIN {
+    v.ox = w.hero_x;
+    v.oy = w.hero_y;
+    raster3d::build_scene(v.scene, v.ox as float, v.z1 as float, v.oy as float);
+  }
 }
 
 // The camera: kept within FOLLOW cells of the hero, sliding SLIDE pixels a frame; placed on the
@@ -220,24 +586,70 @@ fn towards(at: integer, to: integer, slack: integer) -> integer {
   at
 }
 
-// The figures on the layers shown, as actors: a body card each and what it holds beside it.
+// The light on a figure at (x, y, z): its cell's, as raster3d holds it.
+fn light_on(v: const FixedView, g: const game::Game, x: integer, y: integer, z: integer) -> float {
+  l = raster3d::light_at(v.scene, x, y, z);
+  if l { return l!; }
+  render3d::light_at(g, x, y, z)
+}
+
+// The figures on the layers shown, as actors: a body card each and what it holds beside it; and
+// the things whose picture moves, as the tiles that leave them out list them.
 fn actors(v: FixedView, g: const game::Game) -> vector<float> {
   w = g.world;
-  (z0, z1) = layers(g);
   out: vector<float> = [];
-  for z in z0..=z1 {
+  id = FLAME;
+  for k in v.all {
+    t = v.tiles[k];
+    if !t { continue; }
+    for c in t.flames {
+      light = light_on(v, g, c.0, c.1, c.2);
+      for f in render3d::thing_cards(g, c.0, c.1, c.2) {
+        if f.0 < 0 { continue; }
+        out += [id as float, pic_of(v, f.0) as float, (c.0 as float) + 0.5, f.1, (c.1 as float) + 0.5, f.2, light,
+                0.0, 0.5, 1.0, 0.0];
+        id += 1;
+      }
+    }
+  }
+  v.spent.flames = id - FLAME;
+  for z in v.z0..=v.z1 {
     i = 0;
     for f in game::figures(g, w, z) {
-      id = if f.facing_shown { HERO } else { (z - z0) * 10000 + i * 2 };
+      id = if f.facing_shown { HERO } else { (z - v.z0) * 10000 + i * 3 };
       i += 1;
       x = (f.x as float) + 0.5 + f.fine.x / 16.0;
       zz = (f.y as float) + 0.5 + f.fine.y / 16.0;
       y = (z as float) + 0.25 * (f.h as float) - f.fine.hop / 16.0;
-      light = render3d::light_at(g, f.x, f.y, z);
-      out += [id as float, pic_of(v, g, f.sprite) as float, x, y, zz, FIGURE, light];
+      light = light_on(v, g, f.x, f.y, z);
+      // As the 2D poses it (game::figure_turn): turned about the bottom middle of its picture,
+      // mirrored for the hero facing west.
+      turn = game::figure_turn(f);
+      out += [id as float, pic_of(v, f.sprite) as float, x, y, zz, FIGURE, light, turn.0, PIVOT_U, PIVOT_V,
+              if turn.1 { 1.0 } else { 0.0 }];
+      // Its picture's pixels as the card's: 16 of them across FIGURE.
+      k = FIGURE / 16.0;
+      left = x - FIGURE / 2.0;
+      top = y + FIGURE;
+      // What is on the shoulders hangs at the back, away from the way it faces.
+      if f.shoulder != 0 {
+        sx = left - ((f.face_x * 4) as float) * k + FIGURE / 2.0;
+        sy = top + ((f.face_y * 3 + 2) as float) * k - FIGURE;
+        out += [(id + 2) as float, pic_of(v, theme::thing_sprite(g.look, f.shoulder)) as float, sx, sy, zz - 0.03, FIGURE,
+                light, f.fine.tilt, PIVOT_U, PIVOT_V, 0.0];
+      }
+      // What it holds: its carried picture at the hand, turned as the swing turns it about its
+      // grip and pushed out by its reach (theme::held_place), behind it facing north.
       if f.item != 0 {
-        s = theme::thing_sprite_at(g.look, f.item, w.now, f.low);
-        out += [(id + 1) as float, pic_of(v, g, s) as float, x + 0.3 * (f.face_x as float), y + 0.25, zz + 0.02, ITEM, light];
+        hd = game::hand(f.face_x, f.face_y);
+        p = theme::held_place(g.look, f.item, hd.0 as float, hd.1 as float, f.fine.weapon, f.fine.reach, w.now, f.low);
+        if p.0 >= 0 {
+          ix = left + p.1 * k + FIGURE / 2.0;
+          iy = top - p.2 * k - FIGURE;
+          iz = if game::held_behind(f) { zz - 0.02 } else { zz + 0.02 };
+          out += [(id + 1) as float, pic_of(v, p.0) as float, ix, iy, iz, FIGURE, light, f.fine.weapon, p.3 / 16.0,
+                  p.4 / 16.0, 0.0];
+        }
       }
       if f.facing_shown { follow(v, f, z); }
     }
@@ -245,14 +657,76 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
   out
 }
 
-/// This frame into `v.px`: the landscape kept up, the camera on the hero, the figures over it.
+// The status line along the bottom and a bubble over whoever speaks, as the 2D draws them
+// (`game::draw_status_on`, `game::draw_bubble`), over the frame.
+fn overlay(v: FixedView, g: const game::Game) {
+  w = (raster3d::WIDTH + OVER - 1) / OVER ?? 0;
+  h = raster3d::HEIGHT / OVER ?? 0;
+  ts = g.look.tile_size;
+  if v.over == 0 { v.over = tiles::surface(w, h) ?? 0; }
+  if v.over == 0 { return; }
+  tiles::rect(v.over, 0, 0, w, h, raster3d::NONE);
+  game::draw_status_on(g, v.over, h - ts, (w * 2 / ts) ?? 0);
+  for t in game::talking(g) {
+    // Over the speaker's card as the camera sees it: its cell's middle, a figure's height up.
+    sx = (((t.x as float) + 0.5) * (raster3d::WIDE as float)) as integer - v.cam_x;
+    sy = (((t.y as float) + 0.5) * (raster3d::DEEP as float)
+          - ((t.z as float) + FIGURE) * (raster3d::TALL as float)) as integer - v.cam_y;
+    game::draw_bubble(g, v.over, t, sx / OVER ?? 0, (sy / OVER ?? 0) - 1, w);
+  }
+  raster3d::set_overlay(v.scene, tiles::pixels(v.over, w, h), w, h, OVER);
+}
+
+/// This frame into `v.px`: the landscape kept up, the camera on the hero, the figures over it, the
+/// status line and what is said over them.
 pub fn draw(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
-  keep_up(v, g, changed, now);
+  keep_up(v, g, changed);
   if v.scene == 0 { return; }
   if len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { v.px = [0 as i32; raster3d::WIDTH * raster3d::HEIGHT]; }
   acts = actors(v, g);
   give(v, g);
   raster3d::move_camera(v.scene, v.cam_x, v.cam_y);
   raster3d::set_actors(v.scene, acts, HERO);
+  overlay(v, g);
   raster3d::draw_frame(v.scene, v.px);
+  v.spent.lights = raster3d::lights_kept(v.scene);
+}
+
+/// The check (tools/fixedshot.loft): how many pixels of this view's last frame differ from the same
+/// moment drawn by a view built fresh — every tile at once — with the same camera.  The tiles kept
+/// up as the hero walked, dropped, built ahead and looked at must show what a new build shows: 0.
+pub fn differs_from_fresh(v: const FixedView, g: const game::Game) -> integer {
+  // Not `fresh`, which reads the cells and the light once for all its tiles: each tile from its
+  // own reads, as `walk` and `look` build them, so the one read is checked too.
+  w = g.world;
+  f = view();
+  f.on = true;
+  f.scene = raster3d::new_scene(SKY) ?? 0;
+  f.place = g.place;
+  f.z = w.hero_z;
+  f.night = w.night;
+  (z0, z1) = layers(g);
+  f.z0 = z0;
+  f.z1 = z1;
+  for ty in tile_of(w.hero_y - REACH)..=tile_of(w.hero_y + REACH) {
+    for tx in tile_of(w.hero_x - REACH)..=tile_of(w.hero_x + REACH) { build_tile(f, g, tx, ty); }
+  }
+  raster3d::build_scene(f.scene, w.hero_x as float, z1 as float, w.hero_y as float);
+  if f.scene == 0 || len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { return -1; }
+  f.px = [0 as i32; raster3d::WIDTH * raster3d::HEIGHT];
+  f.placed = true;
+  f.cam_x = v.cam_x;
+  f.cam_y = v.cam_y;
+  acts = actors(f, g);
+  f.cam_x = v.cam_x;
+  f.cam_y = v.cam_y;
+  give(f, g);
+  raster3d::move_camera(f.scene, f.cam_x, f.cam_y);
+  raster3d::set_actors(f.scene, acts, HERO);
+  overlay(f, g);
+  raster3d::draw_frame(f.scene, f.px);
+  raster3d::free_scene(f.scene);
+  d = 0;
+  for i in 0..len(f.px) { if (f.px[i] ?? 0) != (v.px[i] ?? 0) { d += 1; } }
+  d
 }

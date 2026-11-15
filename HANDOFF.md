@@ -22,10 +22,47 @@ sprites over it; start with the fixed camera and validate its movements).  BUILD
   against the scene drawn from scratch — 0 differ, in the demo and Orbury's town, on this machine
   and under the emulator — at 33–51 µs a frame here.  `fixedview.loft` is the game's view on it:
   **F5** (or `TW_VIEW=fixed`); `tools/fixedshot.loft` takes its picture without a window.
-- **Where the time goes now:** not the engine.  Natively, walking into Orbury, a frame averages
-  22 ms with spikes of 213 ms: building the landscape's faces (`render3d::faces_of`, 69 ms at
-  16 cells each way, `cards_of` 10 ms) on each rebuild and on the 250 ms look for a change.
-  BUILD.md Phase E § raster3d lists what is next.
+- **Then full performance** (owner, the same day: "optimize engine", "inspect how the hex-mesh library
+  does it", then each step below by name).  Natively, walking into Orbury, a frame averages
+  **2.08 ms** (22 ms in the morning), the slowest 70 ms (a new scene at a layer change, 52 ms);
+  every walk's last frame equals the same moment built fresh, pixel for pixel
+  (`tools/fixedshot.loft PLACE OUT MOVES change`, which also moves a thing, raises a wall and puts
+  a burning torch in the hero's hand).  BUILD.md Phase E, raster3d and the fixed view, has each:
+  - **Tiles** (as moros's hex_mesh): raster3d keeps the landscape in tiles given and dropped by key,
+    drawn again only where one was and is; the view builds tiles of 8 x 8 cells as they come near,
+    together when several come into view, and drops them behind.
+  - **The world counts its changes** (E1, loft-libs-world#44, tile_world 0.10.0: `changes`,
+    `changed_since` by blocks of 8 x 8): a tile whose cells changed is built again at once, one
+    within 12 cells looked at (built and compared), every tile slowly in turn for what the rules
+    hold and the world does not.
+  - **The light is data**: a face names the cell it is lit from; raster3d keeps the cells' light,
+    lights again the triangles a change reaches, and forgets the light of dropped tiles.  A torch
+    carried or flickering builds no tile.  Flames are actors.
+  - **Cheaper builds**: `render3d::Cells` (a halo grid read once), `tile_world::block` and shades
+    read through their window (tile_world 0.11.0, loft-libs-world#45): a tile 9.6 → 3.9 ms.
+  - **Fixed on the way**: the faces seen only from below (ceilings, undersides) are left out of the
+    fixed view — under rock they lay over the room as a lid and hid the hero (the torch room); an
+    empty tile at the world's origin crashed raster3d (`meets` never asked if a box was empty).
+  - **Drawn now**: the figures turned, leaned and mirrored as the 2D poses them, what they hold at
+    the hand turned by the swing; the status line and the talk bubbles, the 2D's own drawing
+    (`game::draw_status_on`, `talking`, `draw_bubble`) laid over the frame by raster3d.
+  - Every face and light of 38 places, written out whole, was byte for byte the same before and
+    after each change to render3d; each check named was falsified (a break that must fail did).
+- **Merged in**: the arena branch (`ccr-0cdce633-v9vy6v`: a human swordsman, the fight's moves on
+  whole cells, `tests/arena.loft`) and the loft stream's handoff (`HANDOFF_FROM_LOFT.md`): `audio`,
+  `screen` and `tiles` are fetched from `main`; the first-person view opens where
+  `screen::program_keys()` (a Mac), asked by `main.loft` — render3d does not use `screen`, whose
+  natives collide with tile_world's on the interpreter (loft#2510).
+- **Owner's rulings for what comes next** (2026-11-15; RENDER_3D.md): the games — this one,
+  dryopea, moros, crawler — get a free camera on a full GPU and a limited one on the Tanmatsu (the
+  fixed camera with the cut-away); the engine must not hinder a game on a full GPU.  Proposed, not
+  started: one scene contract carrying a free camera, each implementation saying what it offers —
+  raster3d (CPU, Tanmatsu) the fixed camera, its CPU limits kept inside it (pictures any size, the
+  screen and camera from the host, actors a card or a model); one on loft-libs-graphics' `gpu`
+  (`gpu`, `gpu_gl`, `gpu_paint`, `gpu_record`, merged today) the free one; then a dryopea spike (one
+  map through its chunk mesher into raster3d, timed here and under the emulator).
+- **Not yet**: `screen` showing raster3d's two framebuffers on the Tanmatsu; a run on the device;
+  raster3d moved to loft-libs-graphics (the loft stream's, once its API settles).
 
 **loft.**  `../loft` is on `main` (39701d652); the game now builds with the installed
 `~/.local/bin/loft` (2026.11.20261115).  `~/workspace/loft/target/release/loft` (11-13) no longer
@@ -50,8 +87,11 @@ starts: it reads its default library from the updated tree.  What today's loft a
 - A program's relative file paths are read from its own directory: `tools/scene3d.loft` takes a
   full path for what it writes.
 
-**Checked:** 480 tests on the interpreter and native, 37 game checks (native), 8 view checks;
-`bench/frame3d.c` 0 of 600 frames differing, both cameras, two places, two machines.
+**Checked:** 500 tests on the interpreter and native, 37 game checks (native), 8 view checks;
+`bench/frame3d.c` 0 of 600 frames differing, both cameras, with 56 landscape, light and overlay
+changes, here and under `qemu-riscv32` (controls: 600 and 594 of 600 differ); the fixed view's
+walks in the demo, the torch room and Orbury equal to a fresh build; tile_world's 43 tests on both
+backends.
 
 ## State on 2026-11-14
 
