@@ -794,6 +794,11 @@ renderers do not know which grid they draw.
       where it is clear; where it changed the frame is made again).  The bench's overlay — a
       growing status bar and a bubble following the hero — keeps every frame the scene drawn from
       scratch; not drawn again where it changed (the control), 594 of 600 differ.
+    - **The scene contract** (SCENE_CONTRACT.md, a proposal, owner 2026-11-15): the view written
+      once against a scene — tiles of faces lit from cells, the cells' light, groups, posed actors
+      (cards or models), the overlay, a camera — drawn by raster3d on the CPU (the fixed camera
+      only, the Tanmatsu) or by an implementation on `gpu` (the free camera too); what raster3d's
+      binding changes to meet it.
     - Not yet: `screen` showing
       raster3d's own two framebuffers on the Tanmatsu (today the frame is handed over as pixels);
       a run on the device.

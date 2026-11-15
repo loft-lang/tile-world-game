@@ -56,7 +56,7 @@ sprites over it; start with the fixed camera and validate its movements).  BUILD
 - **Owner's rulings for what comes next** (2026-11-15; RENDER_3D.md): the games — this one,
   dryopea, moros, crawler — get a free camera on a full GPU and a limited one on the Tanmatsu (the
   fixed camera with the cut-away); the engine must not hinder a game on a full GPU.  Proposed, not
-  started: one scene contract carrying a free camera, each implementation saying what it offers —
+  started: one scene contract (written: SCENE_CONTRACT.md) carrying a free camera, each implementation saying what it offers —
   raster3d (CPU, Tanmatsu) the fixed camera, its CPU limits kept inside it (pictures any size, the
   screen and camera from the host, actors a card or a model); one on loft-libs-graphics' `gpu`
   (`gpu`, `gpu_gl`, `gpu_paint`, `gpu_record`, merged today) the free one; then a dryopea spike (one

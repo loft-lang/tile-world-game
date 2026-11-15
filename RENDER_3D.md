@@ -281,7 +281,8 @@ where a GPU draws them, and a limited one on the Tanmatsu: this fixed camera, fr
 still looks behind things and into a room through the cut-away.  The engine must not hinder a game
 on a full GPU.  So the view is written against one scene contract that carries a free camera, and
 each implementation says what it offers: raster3d (the CPU, the Tanmatsu) the fixed camera, one on
-`gpu` the free one; the other hex games' meshes are given to it as tiles.
+`gpu` the free one; the other hex games' meshes are given to it as tiles.  The contract:
+SCENE_CONTRACT.md.
 
 **Built on the CPU (2026-11-15): `fixedview.loft`, F5**, drawn by `raster3d` (BUILD.md Phase E,
 E2 and E3), on the desktop and wherever `screen` shows a frame.  The landscape is kept as a
