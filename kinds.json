@@ -120,11 +120,41 @@
     "neighbour": { "hp": 3, "bite": 0, "move_ms": 1800, "chase_ms": 1800, "bite_ms": 1000, "sight": 0, "roam": 1, "heal_ms": 4000, "talks": true },
     "horse": { "hp": 5, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 1, "heal_ms": 4000, "talks": true },
     "urgha": { "hp": 8, "bite": 0, "move_ms": 2000, "chase_ms": 2000, "bite_ms": 1000, "sight": 0, "roam": 1, "heal_ms": 4000, "talks": true },
-    "rival": { "hp": 3, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "talks": true }
+    "rival": { "hp": 3, "bite": 0, "move_ms": 500, "chase_ms": 500, "bite_ms": 1000, "sight": 0, "roam": 0, "heal_ms": 4000, "talks": true },
+    "swordsman": { "hp": 12, "bite": 1, "move_ms": 400, "chase_ms": 300, "bite_ms": 900, "sight": 8, "dark_sight": 8, "roam": 2, "heal_ms": 60000, "brave": true, "holds": "sword", "windup_ms": 400, "fences": true,
+      "templates": "st_close st_swing st_heavy | pf_close pf_hold pf_punish pf_feint pf_back_out pf_wait | dg_close dg_dodge dg_flank dg_cut" }
   },
   "templates": {
     "swoop": { "type": "aggressive", "apart_min": 3, "apart_max": 6, "rest_ms": 2000, "steps": [
       { "do": "cry" }, { "do": "side", "ms": 120 }, { "do": "back", "ms": 120 }, { "do": "aim" },
-      { "do": "dive", "ms": 100, "n": 5 }, { "do": "nip", "n": 1, "ms": 100 }, { "do": "away", "ms": 120, "n": 3 } ] }
+      { "do": "dive", "ms": 100, "n": 5 }, { "do": "nip", "n": 1, "ms": 100 }, { "do": "away", "ms": 120, "n": 3 } ] },
+    "st_close": { "type": "aggressive", "apart_min": 2, "apart_max": 8, "rest_ms": 0, "steps": [
+      { "do": "in", "ms": 300, "n": 4 } ] },
+    "st_swing": { "type": "aggressive", "apart_min": 1, "apart_max": 1, "rest_ms": 400, "steps": [
+      { "do": "draw", "ms": 400 }, { "do": "strike", "n": 1, "ms": 100 }, { "do": "wait", "ms": 400 } ] },
+    "st_heavy": { "type": "aggressive", "apart_min": 1, "apart_max": 1, "rest_ms": 1500, "when": "guarding", "steps": [
+      { "do": "draw", "ms": 700 }, { "do": "heavy", "n": 2, "ms": 200 }, { "do": "wait", "ms": 900 } ] },
+    "pf_close": { "type": "defensive", "apart_min": 4, "apart_max": 8, "rest_ms": 0, "steps": [
+      { "do": "in", "ms": 300, "n": 1 } ] },
+    "pf_hold": { "type": "defensive", "apart_min": 2, "apart_max": 3, "rest_ms": 0, "when": "ready", "steps": [
+      { "do": "guard", "ms": 600 } ] },
+    "pf_punish": { "type": "aggressive", "apart_min": 1, "apart_max": 2, "rest_ms": 800, "when": "drawn", "steps": [
+      { "do": "lunge", "n": 1, "ms": 100 }, { "do": "away", "ms": 200, "n": 1 }, { "do": "guard", "ms": 400 } ] },
+    "pf_feint": { "type": "aggressive", "apart_min": 2, "apart_max": 3, "rest_ms": 3000, "when": "ready", "steps": [
+      { "do": "draw", "ms": 150 }, { "do": "lower" }, { "do": "guard", "ms": 600 } ] },
+    "pf_back_out": { "type": "defensive", "apart_min": 1, "apart_max": 1, "rest_ms": 800, "when": "ready", "steps": [
+      { "do": "away", "ms": 200, "n": 2 }, { "do": "guard", "ms": 400 } ] },
+    "pf_wait": { "type": "defensive", "apart_min": 1, "apart_max": 3, "rest_ms": 0, "when": "guarding", "steps": [
+      { "do": "guard", "ms": 400 } ] },
+    "dg_close": { "type": "aggressive", "apart_min": 2, "apart_max": 8, "rest_ms": 0, "steps": [
+      { "do": "in", "ms": 250, "n": 3 } ] },
+    "dg_dodge": { "type": "defensive", "apart_min": 1, "apart_max": 2, "rest_ms": 600, "when": "drawn", "steps": [
+      { "do": "side", "ms": 100 }, { "do": "flank", "ms": 140 }, { "do": "draw", "ms": 200 },
+      { "do": "strike", "n": 1, "ms": 100 }, { "do": "wait", "ms": 400 } ] },
+    "dg_flank": { "type": "aggressive", "apart_min": 1, "apart_max": 1, "rest_ms": 600, "when": "guarding", "steps": [
+      { "do": "side", "ms": 100 }, { "do": "flank", "ms": 140 }, { "do": "draw", "ms": 250 },
+      { "do": "strike", "n": 1, "ms": 100 }, { "do": "wait", "ms": 400 } ] },
+    "dg_cut": { "type": "aggressive", "apart_min": 1, "apart_max": 1, "rest_ms": 1200, "when": "ready", "steps": [
+      { "do": "draw", "ms": 300 }, { "do": "strike", "n": 1, "ms": 100 }, { "do": "side", "ms": 120 }, { "do": "wait", "ms": 400 } ] }
   }
 }

@@ -189,7 +189,10 @@ pub struct Template {
   pub apart_min: integer,
   pub apart_max: integer,
   pub rest_ms: integer,
-  pub steps: vector<TStep>
+  pub steps: vector<TStep>,
+  /// What must hold of the hero, besides the distance (`hero_holds`): "" anything, "drawn" a swing
+  /// drawn back, "guarding" the guard up, "ready" armed with neither.
+  pub when: text = ""
 }
 
 struct EnemyProps {
@@ -256,7 +259,11 @@ struct EnemyProps {
   sweep: boolean = false,
   poise: boolean = false,
   /// Its templates (TEMPLATES.md), by name, separated by spaces: "" for none — then it acts as built.
-  templates: text = ""
+  templates: text = "",
+  /// It fences (the swordsman): its templates run beside the hero too, where another kind bites as
+  /// built.  Its `templates` may come in phases, separated by `|`: the set it fights with changes as
+  /// it loses health (`phase_set`).
+  fences: boolean = false
 }
 
 struct EdgeProps {
@@ -525,7 +532,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
       out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
       sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"), haunts: flag(e, "haunts"),
-      meat: word(e, "meat", ""), templates: word(e, "templates", "")
+      meat: word(e, "meat", ""), templates: word(e, "templates", ""), fences: flag(e, "fences")
     }];
   }
   tp = v.field("templates");
@@ -540,7 +547,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       }
       k.templates += [Template { name: name, aggressive: word(e, "type", "aggressive") == "aggressive",
                                  apart_min: num(e, "apart_min", 1), apart_max: num(e, "apart_max", 1),
-                                 rest_ms: num(e, "rest_ms", 3000), steps: steps }];
+                                 rest_ms: num(e, "rest_ms", 3000), steps: steps, when: word(e, "when", "") }];
     }
   }
   th = v.field("things");
@@ -908,6 +915,13 @@ pub struct Level {
   pub stepped_at: integer = -1000000,
   pub step_x: integer = 0,
   pub step_y: integer = 0,
+  /// Since when the hero has a swing drawn back (the game sets it while the swing key is held
+  /// with a weapon; -1: not drawing).  A fencer's templates read it (`hero_holds`).
+  pub drawing_since: integer = -1,
+  /// How many times a fencer changed phase (heard: a cry), and how many of the hero's blows a
+  /// fencer's guard took.
+  pub phases: integer = 0,
+  pub guarded: integer = 0,
   /// How many blows enemies have wound up, struck, missed, had parried and had blocked, and how
   /// many ripostes the hero struck (the game plays and draws them).
   pub winds: integer = 0,
@@ -1082,7 +1096,11 @@ pub struct Enemy {
   pub tpl_side: integer = 1,
   pub tpl_count: integer = 0,
   pub tpl_last: integer = -1,
-  pub tpl_rest: integer = 0
+  pub tpl_rest: integer = 0,
+  /// Fencing (the swordsman): its guard up until this moment (a light blow on it from the front is
+  /// halved), and the phase of its templates it fights in (`phase_set`).
+  pub guard_until: integer = 0,
+  pub phase: integer = 0
 }
 
 // No enemy: what a missing index reads as.
@@ -1533,6 +1551,16 @@ fn land(l: Level, dx: integer, dy: integer, heavy: boolean) -> Step {
     riposte = e.open_until > l.now;
     n = blow_on(l, foe);
     if heavy || lunge || side { n += 1; }
+    // A fencer's guard (TEMPLATES.md § The swordsman): up and facing the hero, it halves a light
+    // blow; a heavy swing breaks it.  A riposte gets through.
+    if e.guard_until > l.now && e.x + e.face_x == l.hero_x && e.y + e.face_y == l.hero_y && !riposte {
+      if heavy {
+        l.enemies[foe].guard_until = 0;
+      } else {
+        n = n / 2 ?? 0;
+        l.guarded += 1;
+      }
+    }
     if riposte {
       n *= 2;
       l.ripostes += 1;
@@ -6135,6 +6163,17 @@ fn guard_act(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 //   (dodged otherwise) — parried or blocked as a wound-up blow is; then `ms` to recover;
 // - `away`: steps away from the hero, `ms` each, `n` of them;
 // - `wait`: `ms`.
+// A fencer's (the swordsman's, `fences`) are the hero's own moves:
+// - `in`: steps towards the hero, `ms` each, until beside it or `n` taken;
+// - `flank`: a step, `ms`, into a cell beside the hero that is not before it (its side);
+// - `draw`: the swing drawn back (a wind-up, seen), aimed at the hero's cell, for `ms`;
+// - `lower`: the drawn swing let go of nothing (a feint);
+// - `strike` / `heavy`: the blow, `n`, on the cell the draw aimed at; a heavy one not halved by the
+//   hero's guard; then `ms` to recover;
+// - `lunge`: no draw: a step in where the hero is two away and the blow at once on its cell;
+// - `guard`: the guard up, facing the hero, for `ms` (a light blow from the front halved).
+// A template may ask of the hero's state too (`when`: drawn, guarding, ready), and a kind may fight
+// in phases, its `templates` split by `|`, the set changing as it loses health (`phase_set`).
 
 /// How many templates the kinds have (TEMPLATES.md).
 pub fn template_count(l: const Level) -> integer {
@@ -6154,11 +6193,12 @@ fn choose_template(l: Level, i: integer, e: const Enemy, p: const EnemyProps) ->
   if e.z != l.hero_z || !alive(l) { return false; }
   apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
   allowed: vector<integer> = [];
-  for name in p.templates.split(' ') {
+  for name in phase_set(p, e).split(' ') {
     t = template_of(l, name.trim());
     if t < 0 { continue; }
     tp = l.k.templates[t] ?? continue;
     if apart < tp.apart_min || apart > tp.apart_max { continue; }
+    if !hero_holds(l, tp.when) { continue; }
     if t == e.tpl_last && e.due < e.tpl_rest { continue; }
     allowed += [t];
   }
@@ -6183,7 +6223,7 @@ fn hold_off(l: Level, i: integer, e: const Enemy, p: const EnemyProps) -> boolea
   if e.z != l.hero_z { return false; }
   near = 99;
   far = 0;
-  for name in p.templates.split(' ') {
+  for name in phase_set(p, e).split(' ') {
     t = template_of(l, name.trim());
     if t < 0 { continue; }
     tp = l.k.templates[t] ?? continue;
@@ -6209,6 +6249,43 @@ fn hold_off(l: Level, i: integer, e: const Enemy, p: const EnemyProps) -> boolea
 
 fn sign_of(n: integer) -> integer {
   if n > 0 { 1 } else if n < 0 { -1 } else { 0 }
+}
+
+// The templates enemy e fights with now: its kind's `templates`, or, written in phases separated
+// by `|`, the phase it is in (TEMPLATES.md § The swordsman).
+fn phase_set(p: const EnemyProps, e: const Enemy) -> text {
+  if !p.templates.contains("|") { return p.templates; }
+  parts = p.templates.split('|');
+  at = if e.phase < 0 { 0 } else if e.phase >= len(parts) { len(parts) - 1 } else { e.phase };
+  parts[at] ?? ""
+}
+
+// Enemy i's phase follows the health it has lost: of n phases, the first at full health, the last
+// from its last n-th.  A change is heard (a cry) and ends the template it ran.
+fn follow_phase(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
+  if !p.templates.contains("|") || p.hp <= 0 { return; }
+  n = len(p.templates.split('|'));
+  lost = p.hp - e.hp;
+  at = lost * n / p.hp ?? 0;
+  if at >= n { at = n - 1; }
+  if at < 0 { at = 0; }
+  if at == e.phase { return; }
+  l.enemies[i].phase = at;
+  l.phases += 1;
+  l.cries += 1;
+  log_line(l, e.due, "{e.kind}#{e.id} fights in phase {at}");
+  if e.tpl >= 0 { end_template(l, i); }
+}
+
+/// Does the hero's state hold what a template asks (`Template.when`): "" anything; "drawn" a swing
+/// drawn back; "guarding" the guard up; "ready" armed, neither drawing nor guarding.
+pub fn hero_holds(l: const Level, when: text) -> boolean {
+  if when == "" { return true; }
+  drawn = l.drawing_since >= 0;
+  if when == "drawn" { return drawn; }
+  if when == "guarding" { return l.blocking; }
+  if when == "ready" { return armed(l) && !drawn && !l.blocking; }
+  false
 }
 
 // A step that takes enemy e further from the hero (straight away first), or (0, 0).
@@ -6345,7 +6422,7 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
     on_aim = l.hero_x == e.aim_x && l.hero_y == e.aim_y && l.hero_z == e.z;
     if on_aim && beside_hero(l, l.enemies[i] ?? e) {
       log_line(l, e.due, "{e.kind}#{e.id} {s.act}s for {s.n} on ({e.aim_x},{e.aim_y}): the hero is there");
-      template_blow(l, i, p, s.n, e.due);
+      template_blow(l, i, p, s.n, e.due, false);
     } else {
       log_line(l, e.due, "{e.kind}#{e.id} {s.act}s on ({e.aim_x},{e.aim_y}): missed, the hero at ({l.hero_x},{l.hero_y})");
       l.misses += 1;
@@ -6367,6 +6444,97 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
     enemy_step(l, i, d.0, d.1, s.ms);
     return true;
   }
+  // A fencer's moves (TEMPLATES.md § The swordsman): the hero's own.
+  if s.act == "in" {
+    // Steps towards the hero, `ms` each, until beside it or `n` taken.
+    if beside_hero(l, e) || e.tpl_n >= s.n {
+      next_step(l, i);
+      return false;
+    }
+    w = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, e.z, false, no_shades());
+    if w.2 > 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) {
+      l.enemies[i].tpl_n = e.tpl_n + 1;
+      enemy_step(l, i, w.0, w.1, s.ms);
+      return true;
+    }
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "flank" {
+    // One step, `ms`, into a cell beside the hero that is not before it: its side, where its guard
+    // and its swing do not reach.  None to step into: the template goes on.
+    next_step(l, i);
+    for d in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
+      cx = e.x + d.0;
+      cy = e.y + d.1;
+      if steps_apart(cx, cy, l.hero_x, l.hero_y) != 1 { continue; }
+      if cx == l.hero_x + l.face_x && cy == l.hero_y + l.face_y { continue; }
+      if enemy_can(l, p, e.x, e.y, e.z, d.0, d.1) {
+        enemy_step(l, i, d.0, d.1, s.ms);
+        return true;
+      }
+    }
+    return false;
+  }
+  if s.act == "draw" {
+    // A swing drawn back (seen: the wind-up), aimed at the hero's cell, for `ms`.
+    l.enemies[i].aim_x = l.hero_x;
+    l.enemies[i].aim_y = l.hero_y;
+    l.enemies[i].face_x = mx;
+    l.enemies[i].face_y = my;
+    l.enemies[i].guard_until = 0;
+    l.enemies[i].wind_until = e.due + s.ms;
+    l.enemies[i].due = e.due + s.ms;
+    l.winds += 1;
+    next_step(l, i);
+    return true;
+  }
+  if s.act == "lower" {
+    // A feint: the drawn swing let go of nothing.
+    l.enemies[i].wind_until = 0;
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "strike" || s.act == "heavy" || s.act == "lunge" {
+    // The blow, `n` damage, then `ms` to recover.  A strike or a heavy one lands on the cell the
+    // draw aimed at, so a hero who stepped off it is missed; a heavy one is not halved by the
+    // guard.  A lunge has no draw: one step in where the hero is two away, and the blow at once
+    // on the hero's cell — the answer to a hero who drew back its swing.
+    l.enemies[i].wind_until = 0;
+    l.enemies[i].guard_until = 0;
+    next_step(l, i);
+    if s.act == "lunge" {
+      l.enemies[i].aim_x = l.hero_x;
+      l.enemies[i].aim_y = l.hero_y;
+      if !beside_hero(l, e) {
+        w = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, e.z, false, no_shades());
+        // The step and the blow are one move: its time is the blow's recovery, set below.
+        if w.2 == 2 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) { enemy_step(l, i, w.0, w.1, 0); }
+      }
+    }
+    now_e = l.enemies[i] ?? e;
+    l.enemies[i].face_x = sign_of(now_e.aim_x - now_e.x);
+    l.enemies[i].face_y = if now_e.aim_x != now_e.x { 0 } else { sign_of(now_e.aim_y - now_e.y) };
+    on_aim = l.hero_x == now_e.aim_x && l.hero_y == now_e.aim_y && l.hero_z == e.z;
+    if on_aim && beside_hero(l, now_e) {
+      log_line(l, e.due, "{e.kind}#{e.id} {s.act}s for {s.n} on ({now_e.aim_x},{now_e.aim_y}): the hero is there");
+      template_blow(l, i, p, s.n, e.due, s.act == "heavy");
+    } else {
+      log_line(l, e.due, "{e.kind}#{e.id} {s.act}s on ({now_e.aim_x},{now_e.aim_y}): missed, the hero at ({l.hero_x},{l.hero_y})");
+      l.misses += 1;
+    }
+    l.enemies[i].due = e.due + s.ms;
+    return true;
+  }
+  if s.act == "guard" {
+    // The guard up, facing the hero, for `ms`: a light blow from the front is halved.
+    l.enemies[i].face_x = mx;
+    l.enemies[i].face_y = my;
+    l.enemies[i].guard_until = e.due + s.ms;
+    l.enemies[i].due = e.due + s.ms;
+    next_step(l, i);
+    return true;
+  }
   if s.act == "wait" {
     next_step(l, i);
     l.enemies[i].due = e.due + s.ms;
@@ -6380,7 +6548,7 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
 // A template's blow of `damage` on the hero, landing at `at` (@GM-Combat): facing the enemy, the
 // hero who pressed parry within the last PARRY_MS turns it aside (the enemy open); blocking, it
 // takes half (a point of a 1 every other time); else all of it.
-fn template_blow(l: Level, i: integer, p: const EnemyProps, damage: integer, at: integer) {
+fn template_blow(l: Level, i: integer, p: const EnemyProps, damage: integer, at: integer, heavy: boolean) {
   e = l.enemies[i] ?? return;
   l.enemies[i].face_x = sign_of(l.hero_x - e.x);
   l.enemies[i].face_y = sign_of(l.hero_y - e.y);
@@ -6389,7 +6557,7 @@ fn template_blow(l: Level, i: integer, p: const EnemyProps, damage: integer, at:
     l.enemies[i].open_until = at + p.bite_ms;
     return;
   }
-  if l.blocking && faces(l, e) {
+  if l.blocking && faces(l, e) && !heavy {
     l.blocks += 1;
     total = damage + l.block_carry;
     l.block_carry = total % 2 ?? 0;
@@ -6624,9 +6792,10 @@ fn enemy_act(l: Level, i: integer) {
   }
   // An enemy with templates (TEMPLATES.md) chooses one whose conditions hold; with none to choose
   // it keeps its distance for one (`hold_off`) — beside the hero, it bites as built.
-  if seen && p.templates != "" && !beside_hero(l, e) {
-    if choose_template(l, i, e, p) { return; }
-    if hold_off(l, i, e, p) { return; }
+  if seen && p.templates != "" && (!beside_hero(l, e) || p.fences) {
+    follow_phase(l, i, e, p);
+    if choose_template(l, i, l.enemies[i] ?? e, p) { return; }
+    if hold_off(l, i, l.enemies[i] ?? e, p) { return; }
   }
   if seen {
     if beside_hero(l, e) {

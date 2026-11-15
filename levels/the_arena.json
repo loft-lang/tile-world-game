@@ -1,0 +1,44 @@
+{
+  "name": "the arena",
+  "camera": "follow",
+  "legend": { ".": "floor", "#": "wall", "d": "open_door" },
+  "ground": [ ],
+  "chunks": [
+    { "cx": 0, "cy": 0, "z": 0, "rows": [
+      "###########",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#.........#",
+      "#####d#####"
+    ] }
+  ],
+  "things": [
+    { "at": [5, 10, 0], "stack": ["sword"] },
+    { "at": [1, 11, 0], "stack": ["health_potion"] },
+    { "at": [9, 11, 0], "stack": ["health_potion"] }
+  ],
+  "tiles": [ ],
+  "edges": [ ],
+  "rises": [ ],
+  "enemies": [ ["swordsman", 5, 2, 0] ],
+  "intent": { "seed": 23, "rooms": [
+    { "x": 0, "y": 0, "w": 11, "h": 13, "z": 0, "words": [] } ], "corridors": [ ], "trails": [
+    { "points": [[5, 12]], "z": 0, "as": "open_door" } ], "items": [
+    { "at": [5, 10], "z": 0, "stack": ["sword"] },
+    { "at": [1, 11], "z": 0, "stack": ["health_potion"] },
+    { "at": [9, 11], "z": 0, "stack": ["health_potion"] } ] },
+  "adjusted": [ ],
+  "doors": [
+    { "at": [5, 12, 0], "to": "demo", "door": "the_arena" }
+  ],
+  "start": [5, 11, 0],
+  "goal": { "type": "" }
+}

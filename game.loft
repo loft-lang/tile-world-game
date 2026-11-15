@@ -1940,6 +1940,8 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   hy = g.world.hero_y;
   winds = g.world.winds;
   cries = g.world.cries;
+  phases = g.world.phases;
+  guarded = g.world.guarded;
   parries = g.world.parries;
   misses = g.world.misses;
   blocks = g.world.blocks;
@@ -1953,7 +1955,10 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   // is a swish.  While any enemy winds up, the picture moves.
   if g.world.winds != winds { sound(g, "grab", 0.35); }
   // A template's cry (TEMPLATES.md): a bat's chirp as it begins its swoop.
-  if g.world.cries != cries { sound(g, "point", 0.5); }
+  // A fencer changing its style (TEMPLATES.md § The swordsman) is a shout, not a chirp; its guard
+  // taking a blow is the dull knock of the hero's own.
+  if g.world.phases != phases { sound(g, "spotted"); } else if g.world.cries != cries { sound(g, "point", 0.5); }
+  if g.world.guarded != guarded { sound(g, "block"); }
   if g.world.misses != misses { sound(g, "bump", 0.4); }
   // A parry (@GM-Combat): a bright ring and a big spark where the weapons meet; the enemy's blow
   // turned aside flings it back twice as hard as a hit, and it is left open (drawn so).
@@ -2072,11 +2077,14 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
       return true;
     }
     g.swing_down_at = now;
+    // The swing drawn back is seen: a fencer answers it (TEMPLATES.md § The swordsman).
+    g.world.drawing_since = g.world.now;
     return true;
   }
   if !g.won && g.swing_down_at >= 0 && !g.keys.is_action_pressed("swing") {
     held = now - g.swing_down_at;
     g.swing_down_at = -1;
+    g.world.drawing_since = -1;
     if held >= HEAVY_HOLD_MS { heavy_swing(g); } else { swing(g); }
     return true;
   }

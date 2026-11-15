@@ -416,7 +416,7 @@ flees hurt, scared by blasts, hunts other enemies when no hero is seen (built); 
 | **hunt** | peace | no hero seen, another enemy seen (built) | **shoot** it, or go after it | — | — |
 | **keeps apart** | peace | in the village | stands at the edge of things, leaning, watching; turns his back on villagers | — | — |
 
-### The swordsman (no kind yet)
+### The swordsman (kind `swordsman`, in the arena)
 
 A human swordsman, the profile the fight rooms are tuned on (BUILD.md B1c step 6: the rat and a
 swordsman first).  No one in the story fights so yet; Sergeant Voss's Wardens, Sable, or the Kharn
@@ -431,6 +431,39 @@ with blades may.  Health 4, a sword, no shield; patience 3000 (trained).
 | **feint** | aggr. | the hero holding the standoff 3000 or more | `draw 150` → let go of nothing → `guard` | a short draw | a lunge drawn, met by a clash |
 | **circle** | def. | `apart 3`, the hero turning slowly (a heavy weapon) | `dodge` to the hero's side (out of balance 500) | a step aside | — |
 | **back out** | def. | the hero inside | `step back` (guard up) | — | — |
+
+#### In the arena (kind `swordsman`, built)
+
+The arena of the demo village (`levels/the_arena.json`; owner, 2026-11-15) holds a swordsman who
+fights with the hero's moves in **three phases**, each a style of the hero's test players below:
+the set of templates he chooses from changes as he loses health (kinds.json `templates`, split by
+`|`; a third of his health per phase), and each change is heard (a shout).  Health 12 (two sword
+blows a phase), a sword, brave (he does not go home hurt), `fences`: his templates run beside the
+hero too.  The standoff, the point and the clash are not built (BUILD.md B1c steps 3–4), so his
+blows meet the hero's built guard and parry (Shift), and his lunge reaches from two tiles.
+*Built* (`tests/arena.loft`); every number proposed.
+
+| Phase | Style | Template | When | Steps |
+|---|---|---|---|---|
+| 1 (12–9) | **the striker** | st_close | `apart 2–8` | `in 300` ×4 |
+| | | st_swing | `apart 1` | `draw 400` → `strike` 1 (100) → `wait 400` |
+| | | st_heavy | `apart 1`, the hero guarding | `draw 700` → `heavy` 2 (200) → `wait 900` |
+| 2 (8–5) | **the patient fencer** | pf_close | `apart 4–8` | `in 300` |
+| | | pf_hold | `apart 2–3`, the hero ready | `guard 600` |
+| | | pf_punish | `apart 1–2`, the hero drawn back | `lunge` 1 (100) → `away 200` → `guard 400` |
+| | | pf_feint | `apart 2–3`, the hero ready | `draw 150` → `lower` → `guard 600` |
+| | | pf_back_out | `apart 1`, the hero ready | `away 200` ×2 → `guard 400` |
+| | | pf_wait | `apart 1–3`, the hero guarding | `guard 400` |
+| 3 (4–1) | **the dodger** | dg_close | `apart 2–8` | `in 250` ×3 |
+| | | dg_dodge | `apart 1–2`, the hero drawn back | `side 100` → `flank 140` → `draw 200` → `strike` 1 (100) → `wait 400` |
+| | | dg_flank | `apart 1`, the hero guarding | `side 100` → `flank 140` → `draw 250` → `strike` 1 (100) → `wait 400` |
+| | | dg_cut | `apart 1`, the hero ready | `draw 300` → `strike` 1 (100) → `side 120` → `wait 400` |
+
+What each style asks of the player: the striker trades blows and breaks a guard with his heavy
+one, so stepping out of his draw and striking back wins; the patient fencer never starts, feints,
+and lunges into a swing drawn too early, so the hero must bait him or wait; the dodger leaves the
+line of a drawn swing and comes round a guard to the hero's side, so the hero has to turn with him.
+His own guard (`guard`) halves a light blow from the front; a heavy swing breaks it.
 
 ## The people
 

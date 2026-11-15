@@ -126,7 +126,11 @@ its tests on both backends.
      kind naming its own), chosen by distance and seeded, run step by step, broken by a blow or a
      scare, a kind keeping its distance while one rests — and the bat's swoop.  The rat's leap
      next; this runs before steps 0 and 2–5, so a template's blow still meets the built parry and
-     block.
+     block.  **The swordsman built** (2026-11-15, owner; `tests/arena.loft`, TEMPLATES.md § The
+     swordsman): the demo village's arena, a human opponent with the hero's moves (`in`, `flank`,
+     `draw`, `lower`, `strike`, `heavy`, `lunge`, `guard`), templates that read the hero's state
+     (drawn back, guarding, ready), and three phases by his health, each a test player's style —
+     the striker, the patient fencer, the dodger.
   7. **The off hand and the profiles**: the knife and the shield, the spear (an enemy with one in a
      fight room), a corridor room and an open one.  Red: the base sword wins every room with
      skill (growth is never necessary).
