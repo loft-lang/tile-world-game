@@ -27,15 +27,15 @@ fn at(w: const rules::Level) -> text {
 }
 
 // The hero on (2, 2) with a sword, facing east; the swordsman on (sx, 2) in phase `phase` (his health
-// what that phase starts at: 12, 8, 4).
+// what that phase starts at: 15, 10, 5).
 fn duel(sx: integer, phase: integer) -> rules::Level {
-  w = room(10, 5);
+  w = room(12, 5);
   rules::put_hero(w, 2, 2, 0);
   w.hero_item = rules::th(w, "sword");
   w.face_x = 1;
   w.face_y = 0;
   _ = rules::add_enemy(w, "swordsman", sx, 2, 0);
-  w.enemies[0].hp = 12 - phase * 4;
+  w.enemies[0].hp = 15 - phase * 5;
   w.enemies[0].phase = phase;
   w
 }
@@ -49,38 +49,47 @@ fn main() {
   assert(w.enemies[0]!.kind == "swordsman", "a swordsman");
 }
 
-// The striker (phase 0): he closes in, a step every 300 ms from 400 — (5, 2), (4, 2), and beside
-// the hero on (3, 2) at 1000 — and at his next act, 1300, draws back for 400: the blow lands at
-// 1700, for 1.
-fn test_the_striker_closes_and_swings() {
+// --- His styles, each alone against a still hero ---
+
+// The striker (phase 0) comes to the standoff and rushes in: from (6, 2) a step at 400 to (5, 2),
+// three away; at 700 he draws his swing and steps in with it drawn, (4, 2) at 700 and (3, 2) at 900,
+// 200 each, and at 1100 the blow lands, for 1.
+fn test_the_striker_rushes_in_from_the_standoff() {
   w = duel(6, 0);
-  until(w, 1000);
-  assert(at(w) == "3,2", "1000: beside the hero: {at(w)}");
-  until(w, 1300);
-  assert(w.enemies[0]!.wind_until == 1700, "1300: drawn back until 1700: {w.enemies[0]!.wind_until}");
-  until(w, 1699);
-  assert(w.health == 6, "1699: not yet: {w.health}");
-  until(w, 1700);
-  assert(w.health == 5, "1700: struck for 1: {w.health}");
+  until(w, 400);
+  assert(at(w) == "5,2", "400: at the standoff: {at(w)}");
+  until(w, 700);
+  assert(at(w) == "4,2" && w.enemies[0]!.wind_until == 900, "700: stepping in, drawn: {at(w)}, {w.enemies[0]!.wind_until}");
+  until(w, 900);
+  assert(at(w) == "3,2", "900: beside the hero: {at(w)}");
+  until(w, 1099);
+  assert(w.health == 6, "1099: not yet: {w.health}");
+  until(w, 1100);
+  assert(w.health == 5, "1100: struck for 1: {w.health}");
 }
 
-// Against the hero's guard the striker's light blow is nothing (half of 1, paid on the next), so he
-// draws the heavy one: 700 from 1300, landing at 2000 for 2, the guard no help.
+// Against the guard his light blows come through at half (1 at 1100 kept over, paid with the next at
+// 2000), so beside a guarding hero at 2500 he draws the heavy one, 700: at 3200 it lands for 2, the
+// guard no help.
 fn test_the_striker_breaks_a_guard_with_a_heavy_blow() {
   w = duel(6, 0);
   w.blocking = true;
-  until(w, 1300);
-  assert(w.enemies[0]!.wind_until == 2000, "1300: drawn back long, until 2000: {w.enemies[0]!.wind_until}");
-  until(w, 1999);
-  assert(w.health == 6, "1999: not yet: {w.health}");
   until(w, 2000);
-  assert(w.health == 4, "2000: the heavy blow through the guard, 2: {w.health}");
+  assert(w.health == 5, "2000: two light blows on the guard cost 1: {w.health}");
+  until(w, 2500);
+  assert(w.enemies[0]!.wind_until == 3200 && w.enemies[0]!.drawn_heavy, "2500: drawn back long, until 3200");
+  until(w, 3199);
+  assert(w.health == 5, "3199: not yet: {w.health}");
+  until(w, 3200);
+  assert(w.health == 3, "3200: the heavy blow through the guard, 2: {w.health}");
 }
 
-// The patient fencer (phase 1) keeps three away from a hero who is ready: he steps in once, to
-// (5, 2), and then holds — his guard up and a feint now and then — never striking.
-fn test_the_patient_fencer_holds_the_distance() {
+// The patient fencer (phase 1) holds the standoff against a hero whose point is ready: he steps in
+// once, to (5, 2), three away, and then keeps there, his guard up and a feint now and then, never
+// striking.
+fn test_the_patient_fencer_holds_the_standoff() {
   w = duel(6, 1);
+  _ = rules::lock_next(w);
   near = 99;
   guarded = false;
   while w.now < 6000 {
@@ -94,33 +103,34 @@ fn test_the_patient_fencer_holds_the_distance() {
   assert(guarded && w.winds > 0, "his guard up, and feints drawn: {w.winds}");
 }
 
-// A hero who draws back its swing is out of line: the fencer two away lunges at his first act, 400 —
-// a step in to (3, 2) and the blow at once, no draw, for 1 — then backs off a cell.
+// A hero who draws back its swing has its point out of line: at 700, three away, the fencer lunges —
+// a thrust in flight for 100 — and at 800 it lands, for 1; he settles back on his own cell.
 fn test_the_patient_fencer_lunges_into_a_drawn_swing() {
-  w = duel(4, 1);
+  w = duel(6, 1);
+  _ = rules::lock_next(w);
   w.drawing_since = 0;
-  until(w, 399);
-  assert(w.health == 6 && at(w) == "4,2", "399: not yet: {w.health}, {at(w)}");
-  until(w, 400);
-  assert(w.health == 5 && at(w) == "3,2", "400: lunged in and struck: {w.health}, {at(w)}");
-  until(w, 500);
-  assert(at(w) == "4,2", "500: backed off: {at(w)}");
+  until(w, 700);
+  assert(w.enemies[0]!.wind_until == 800 && at(w) == "5,2", "700: the lunge in flight: {at(w)}");
+  until(w, 799);
+  assert(w.health == 6, "799: not yet: {w.health}");
+  until(w, 800);
+  assert(w.health == 5 && at(w) == "5,2", "800: struck from three away, settled back: {w.health}, {at(w)}");
 }
 
-// The dodger (phase 2) does not meet a guard: beside the hero on (3, 2) at 900, at 1150 he steps
-// aside to (3, 1), at 1250 round to the hero's side (2, 1), draws 250 there and strikes at 1640 —
-// from the side, where the guard does not face, for the full 1.
-fn test_the_dodger_takes_the_side_of_a_guard() {
+// The dodger (phase 2) goes round the point: from (6, 2) he circles to a cell beside the hero that is
+// not before it, a step every 250 — (6, 3) at 400 on to (2, 3) at 1400, the hero's south side — and
+// from the side, where its guard does not face, his blow at 2090 costs the full 1.
+fn test_the_dodger_comes_round_to_the_side() {
   w = duel(6, 2);
   w.blocking = true;
-  until(w, 900);
-  assert(at(w) == "3,2", "900: before the hero: {at(w)}");
-  until(w, 1250);
-  assert(at(w) == "2,1", "1250: at the hero's side: {at(w)}");
-  until(w, 1639);
-  assert(w.health == 6, "1639: not yet: {w.health}");
-  until(w, 1640);
-  assert(w.health == 5, "1640: struck from the side through no guard: {w.health}");
+  until(w, 400);
+  assert(at(w) == "6,3", "400: off the line: {at(w)}");
+  until(w, 1400);
+  assert(at(w) == "2,3", "1400: at the hero's side: {at(w)}");
+  until(w, 2089);
+  assert(w.health == 6, "2089: not yet: {w.health}");
+  until(w, 2090);
+  assert(w.health == 5, "2090: struck from the side through no guard: {w.health}");
 }
 
 // His guard takes the hero's light blow from the front at half (the sword's 2 to 1); a heavy swing
@@ -131,24 +141,201 @@ fn test_his_guard_halves_a_light_blow() {
   w.enemies[0].face_y = 0;
   w.enemies[0].guard_until = 100000;
   assert(rules::swing(w) == rules::Step.Attacked, "struck");
-  assert(w.enemies[0]!.hp == 7 && w.guarded == 1, "the guard took half: {w.enemies[0]!.hp}");
+  assert(w.enemies[0]!.hp == 9 && w.guarded == 1, "the guard took half: {w.enemies[0]!.hp}");
   w.now = 2000;
   assert(rules::heavy(w) == rules::Step.Attacked, "struck heavy");
-  assert(w.enemies[0]!.hp == 4 && w.enemies[0]!.guard_until == 0, "the heavy blow broke the guard: {w.enemies[0]!.hp}");
+  assert(w.enemies[0]!.hp == 6 && w.enemies[0]!.guard_until == 0, "the heavy blow broke the guard: {w.enemies[0]!.hp}");
 }
 
-// His phase follows the health he has lost: at full health the striker; 4 lost, the patient fencer;
-// 8 lost, the dodger.  Each change is heard (a cry) at his next act.
+// His phase follows the health he has lost, a third each: at full health the striker; 5 lost, the
+// patient fencer; 10 lost, the dodger.  Each change is heard (a cry) at his next act.
 fn test_his_style_changes_with_his_health() {
   w = duel(6, 0);
   until(w, 500);
   assert(w.enemies[0]!.phase == 0 && w.phases == 0, "full health: the striker");
-  w.enemies[0].hp = 8;
+  w.enemies[0].hp = 10;
   until(w, 1500);
-  assert(w.enemies[0]!.phase == 1 && w.phases == 1, "4 lost: the patient fencer: {w.enemies[0]!.phase}");
-  w.enemies[0].hp = 4;
+  assert(w.enemies[0]!.phase == 1 && w.phases == 1, "5 lost: the patient fencer: {w.enemies[0]!.phase}");
+  w.enemies[0].hp = 5;
   until(w, 3000);
-  assert(w.enemies[0]!.phase == 2 && w.phases == 2, "8 lost: the dodger: {w.enemies[0]!.phase}");
+  assert(w.enemies[0]!.phase == 2 && w.phases == 2, "10 lost: the dodger: {w.enemies[0]!.phase}");
+}
+
+// Beaten to 2 or less he gives up the fight: he backs away, turned to the hero with his guard up, and
+// strikes no more.  One blow never does it: from full health a sword's 3 leaves him fighting.
+fn test_he_gives_up_but_not_after_one_blow() {
+  w = duel(3, 0);
+  w.now = 0;
+  assert(rules::heavy(w) == rules::Step.Attacked && w.enemies[0]!.hp == 12, "one heavy blow: 12 left");
+  until(w, 2000);
+  assert(!w.enemies[0]!.yielded, "one blow: still fighting");
+  w = duel(4, 2);
+  w.enemies[0].hp = 2;
+  until(w, 3000);
+  e = w.enemies[0]!;
+  assert(e.yielded && w.yields == 1 && w.health == 6, "given up: no blow struck: {w.health}");
+  assert(e.x > 4 && e.face_x == -1 && e.guard_until > 0, "backed away east, turned to the hero, guard up: {at(w)}");
+}
+
+// --- The hero's moves (@GM-Combat, *Locked on*) ---
+
+// Tab with a sword locks the nearest within 4, then the next; past the last it lets go.  A rat on
+// (3, 2) is 1 away, one on (5, 2) 3, one on (8, 2) 6 — too far to lock.
+fn test_tab_locks_the_nearest_then_the_next() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "sword");
+  a = rules::add_enemy(w, "rat", 3, 2, 0);
+  b = rules::add_enemy(w, "rat", 5, 2, 0);
+  _ = rules::add_enemy(w, "rat", 8, 2, 0);
+  assert(rules::lock_next(w) && w.lock_id == a, "the nearest first");
+  assert(rules::lock_next(w) && w.lock_id == b, "then the next");
+  assert(!rules::lock_next(w) && w.lock_id == 0, "past the last: let go");
+}
+
+// Locked, the point turns to its target at the sword's speed: the target gone round to the hero's
+// south, the hero still faces east 199 ms on and south at 200, its point not ready meanwhile.
+fn test_the_point_turns_at_the_swords_speed() {
+  w = duel(5, 1);
+  _ = rules::lock_next(w);
+  assert(rules::point_ready(w), "facing it: ready");
+  w.enemies[0].x = 2;
+  w.enemies[0].y = 4;
+  w.enemies[0].due = 100000;
+  rules::tick(w, 0);
+  assert(!rules::point_ready(w), "turning: not ready");
+  until(w, 199);
+  assert(w.face_x == 1 && w.face_y == 0, "199: still east");
+  until(w, 200);
+  assert(w.face_x == 0 && w.face_y == 1 && rules::point_ready(w), "200: turned south, ready");
+}
+
+// W from the standoff into a ready point is a step in: the fencer at 900 has his guard up, three
+// away; the hero runs onto his point — 1, open until 1300 — and stays where it was.
+fn test_a_lunge_into_a_ready_point() {
+  w = duel(6, 1);
+  _ = rules::lock_next(w);
+  until(w, 900);
+  assert(rules::walk(w, 1, 0) == rules::Step.Pointed, "onto his point");
+  assert(w.health == 5 && w.hero_open_until == 1300 && w.hero_x == 2, "hurt 1, open, not moved: {w.health}");
+}
+
+// W into a swing being wound up lunges home: the striker at 710 is rushing in, drawn, two away; the
+// point reaches him for the sword's 2 + 1, breaking his rush, and the hero recovers 400.
+fn test_a_lunge_into_a_wind_up() {
+  w = duel(6, 0);
+  _ = rules::lock_next(w);
+  until(w, 710);
+  assert(rules::walk(w, 1, 0) == rules::Step.Attacked && w.lunges == 1, "lunged");
+  e = w.enemies[0]!;
+  assert(e.hp == 12 && e.wind_until == 0 && e.tpl < 0, "3, his rush broken: {e.hp}");
+  assert(w.blow_until == 1110 && w.hero_x == 2, "recovering until 1110, settled back");
+}
+
+// No lunge beside an enemy: the sword is stuck there.
+fn test_no_lunge_beside_the_target() {
+  w = duel(3, 1);
+  _ = rules::lock_next(w);
+  assert(rules::walk(w, 1, 0) == rules::Step.Blocked && w.enemies[0]!.hp == 10, "W beside: nothing");
+}
+
+// S steps back, still facing the target, the guard up.
+fn test_a_step_back_with_the_guard_up() {
+  w = duel(4, 1);
+  _ = rules::lock_next(w);
+  assert(rules::walk(w, -1, 0) == rules::Step.Walked, "stepped back");
+  assert(w.hero_x == 1 && w.face_x == 1 && w.blocking && w.guard_back, "facing it still, guarding");
+}
+
+// A swing meeting his rush in flight is a clash: at 900 the striker, drawn since 700, is beside;
+// the hero lets go of a swing drawn 100.  Both stop: the hero ready at 900 + 100 + 200 = 1200, he at
+// 900 + 400 + 200 = 1500, and open until then — so the hero's next blow, at 1200, is a riposte:
+// the sword's 2 doubled.
+fn test_a_clash_and_the_riposte() {
+  w = duel(6, 0);
+  _ = rules::lock_next(w);
+  until(w, 900);
+  w.drawing_since = 800;
+  assert(rules::swing(w) == rules::Step.Clashed && w.clashes == 1, "a clash");
+  w.drawing_since = -1;
+  e = w.enemies[0]!;
+  assert(w.blow_until == 1200 && e.due == 1500 && e.open_until == 1500 && e.hp == 15, "both stopped, he open");
+  until(w, 1200);
+  assert(rules::swing(w) == rules::Step.Attacked && w.enemies[0]!.hp == 11, "the riposte: 4: {w.enemies[0]!.hp}");
+}
+
+// A heavy swing met late, incoming, goes through: the striker draws his heavy one from 2500 to 3200;
+// at 3100 the hero's swing meets it — the guard's damage, half of 2, and the hero staggered until
+// 3500.  Met early, outgoing, at 2600, it is turned aside like any other.
+fn test_a_heavy_swing_met_late_goes_through() {
+  w = duel(6, 0);
+  w.blocking = true;
+  until(w, 3100);
+  w.drawing_since = 3000;
+  assert(rules::swing(w) == rules::Step.Clashed, "they meet");
+  assert(w.health == 4 && w.hero_open_until == 3500, "through: 1, staggered: {w.health}");
+  w = duel(6, 0);
+  w.blocking = true;
+  until(w, 2600);
+  w.drawing_since = 2500;
+  assert(rules::swing(w) == rules::Step.Clashed && w.health == 5, "turned aside: nothing: {w.health}");
+  assert(w.blow_until == 2900 && w.enemies[0]!.due == 3500, "the hero ready at 2900, he at 3500");
+}
+
+// A dodge (A or D) leaves the cell a blow was aimed at and the hero out of balance for 500; out of
+// balance, a second step aside is no dodge: the blow follows it to its new cell.
+fn test_a_dodge_and_the_balance() {
+  w = duel(3, 1);
+  _ = rules::lock_next(w);
+  w.enemies[0].wind_until = 1000;
+  w.enemies[0].aim_x = 2;
+  w.enemies[0].aim_y = 2;
+  w.enemies[0].due = 1000;
+  assert(rules::walk(w, 0, 1) == rules::Step.Walked && w.unbalanced_until == 500 && w.dodges == 1, "a dodge");
+  assert(w.enemies[0]!.aim_y == 2, "the blow still aimed at the cell left");
+  w = duel(3, 1);
+  _ = rules::lock_next(w);
+  w.unbalanced_until = 500;
+  w.enemies[0].wind_until = 1000;
+  w.enemies[0].aim_x = 2;
+  w.enemies[0].aim_y = 2;
+  w.enemies[0].due = 1000;
+  w.enemies[0].x = 2;
+  w.enemies[0].y = 1;
+  _ = rules::walk(w, 1, 0);
+  assert(w.dodges == 0 && w.enemies[0]!.aim_x == 3, "out of balance: the blow follows: {w.enemies[0]!.aim_x}");
+  until(w, 1000);
+  assert(w.health == 5, "1000: it lands across the corner: {w.health}");
+}
+
+// A ready point fills the tile before the hero: a rat coming at it straight runs onto it — 1, flung
+// back out, open — where a hero with no lock is simply bitten at.
+fn test_a_rat_runs_onto_the_point() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "sword");
+  w.face_x = 1;
+  w.face_y = 0;
+  _ = rules::add_enemy(w, "rat", 5, 2, 0);
+  _ = rules::lock_next(w);
+  while w.now < 4000 && w.enemy_pointed == 0 { rules::tick(w, 10); }
+  rules::tick(w, 0);
+  e = w.enemies[0]!;
+  assert(w.enemy_pointed == 1 && e.hp == 2 && e.x == 4, "onto the point, flung back to (4, 2): {at(w)}, {e.hp}");
+}
+
+// The heavy swing is wider (owner): it sweeps the cells beside the hero too, where a light one does
+// not reach.  A rat at the hero's south side, the hero facing east.
+fn test_the_heavy_swing_is_wider() {
+  w = room(12, 5);
+  rules::put_hero(w, 2, 2, 0);
+  w.hero_item = rules::th(w, "sword");
+  w.face_x = 1;
+  w.face_y = 0;
+  _ = rules::add_enemy(w, "rat", 2, 3, 0);
+  assert(rules::swing(w) == rules::Step.Swung && w.enemies[0]!.hp == 3, "a light swing: past it");
+  w.now = 1000;
+  assert(rules::heavy(w) == rules::Step.Attacked && len(w.enemies) == 0, "a heavy one: struck, 3, gone");
 }
 
 // The arena loads, its swordsman inside and a sword by the door, and a door joins it to the demo

@@ -244,7 +244,9 @@ blocking and dodging are what comes naturally in a fight.
 timing and position, both sides moving by the same rules.  It replaces the moves built in B1b (*What
 is built*, below).  What the owner ruled is marked (owner); the rest is proposed, every number to be
 found by playing in the fight rooms.  Being built (BUILD.md B1c): the keys and the bat's swoop
-are built (2026-11-07); the rest is designed.
+are built (2026-11-07); the lock, the moves against a target, the point, the lunge, the clash, the
+guard on S, dodging's balance and a swordsman to try them on — the demo village's arena — are built
+on whole cells (2026-11-15; BUILD.md B1c steps 2–5 say where it differs from what is written here).
 
 *The keys* (owner)
 - **WASD** walk.  **Q** takes a small item and puts it down; held while stepping, it pulls (a cart,
@@ -310,8 +312,9 @@ north-east: north, north-east and east).  Proposed: a diagonal swing or lunge do
 between two walls that meet at a corner.
 
 *The swing* (owner): E pressed starts the swing, drawn back; held longer it becomes a heavy swing
-(500 ms, as built); let go, it strikes.  **Swinging opens the swinger to lunges** (owner): while it
-is drawn back, its point is out of line.
+(500 ms, as built); let go, it strikes.  **Held longer, it swings wider** (owner, 2026-11-15): a
+heavy swing sweeps the cells beside the swinger as well as the three before it.  **Swinging opens
+the swinger to lunges** (owner): while it is drawn back, its point is out of line.
 - Proposed: a swing travels from the release to where it lands (light 100 ms, heavy 200 ms).  Early
   in its flight it is *outgoing*, late *incoming* (*The clash*).
 

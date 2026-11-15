@@ -1505,11 +1505,19 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
 pub fn heavy_swing(g: Game) {
   if g.won { return; }
   step = rules::heavy(g.world);
+  if step == rules::Step.Clashed { clashed(g); return; }
   if step == rules::Step.Attacked || step == rules::Step.Swung || step == rules::Step.Chopped {
     g.moves += 1;
     motion::swing(g.motion, g.world.now);
     sound(g, if step == rules::Step.Attacked { "hit_enemy" } else { "sword" }, 0.9);
   }
+}
+
+// Two swords met in flight (@GM-Combat, *The clash*): the ring of a parry and its spark.
+fn clashed(g: Game) {
+  g.moves += 1;
+  motion::swing(g.motion, g.world.now);
+  sound(g, "parry");
 }
 
 /// The hero swings what it holds at the cell it faces (rules::swing): a blow or a swing through
@@ -1550,6 +1558,7 @@ pub fn swing(g: Game) {
     sound(g, "potion");
     return;
   }
+  if step == rules::Step.Clashed { clashed(g); return; }
   if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     g.moves += 1;
     motion::swing(g.motion, g.world.now);
@@ -1566,6 +1575,10 @@ fn animate(g: Game, step: rules::Step, ox: integer, oy: integer, oz: integer, oh
   now = w.now;
   if step == rules::Step.Blocked {
     motion::stagger(g.motion, now, -dx, -dy, 0, 0, w.face_x, w.face_y);
+  } else if step == rules::Step.Pointed {
+    // Run onto a ready point (@GM-Combat): hurt, and flung back out.
+    motion::stagger(g.motion, now, -dx, -dy, 0, 0, w.face_x, w.face_y);
+    sound(g, "hit_hero", 0.8);
   } else if step == rules::Step.Chopped || step == rules::Step.Swung || step == rules::Step.Attacked {
     motion::swing(g.motion, now);
     if step == rules::Step.Attacked { sound(g, "hit_enemy", 0.8); }
@@ -1651,6 +1664,18 @@ fn aim(g: Game) {
     // A raised layer is drawn a row up per layer: the view may go that much higher.
     g.cam_y = camera::follow(g.cam_y, w.hero_y - w.hero_z, rows, g.area.1 - w.hero_z, g.area.3);
   }
+}
+
+// Is the way (dx, dy) held on the keys?
+fn held_way(g: const Game, dx: integer, dy: integer) -> boolean {
+  (dx < 0 && g.keys.is_action_pressed("left")) || (dx > 0 && g.keys.is_action_pressed("right"))
+    || (dy < 0 && g.keys.is_action_pressed("up")) || (dy > 0 && g.keys.is_action_pressed("down"))
+}
+
+// Was a direction pressed this very tick (not held from before)?
+fn first_press(g: const Game) -> boolean {
+  g.keys.is_action_just_pressed("left") || g.keys.is_action_just_pressed("right")
+    || g.keys.is_action_just_pressed("up") || g.keys.is_action_just_pressed("down")
 }
 
 // The direction held this tick, (0, 0) when none or when a held one is waiting to repeat:
@@ -1942,6 +1967,8 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   cries = g.world.cries;
   phases = g.world.phases;
   guarded = g.world.guarded;
+  pointed = g.world.enemy_pointed + g.world.hero_pointed;
+  yields = g.world.yields;
   parries = g.world.parries;
   misses = g.world.misses;
   blocks = g.world.blocks;
@@ -1949,6 +1976,13 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   rules::tick(g.world, ms);
   g.clock += ms;
   keep_time(g);
+  // The lock comes by itself (@GM-Combat, *Locked on*): a wind-up aimed at the hero, or a blow
+  // that hurt it, with nothing locked, locks on to the one who did it.
+  rules::lock_threat(g.world, g.world.health + g.world.spirit < health);
+  // Running onto a ready point is the knock of a blade met; one who gives up drops its guard's
+  // shout to a grunt.
+  if g.world.enemy_pointed + g.world.hero_pointed != pointed { sound(g, "block"); }
+  if g.world.yields != yields { sound(g, "weak"); }
   if rest_urn(g) { changed = true; }
   if step_talks(g) { changed = true; }
   // Combat's tells (@GM-Combat): a wind-up is heard as it starts; a parry rings; a blow that misses
@@ -2066,7 +2100,10 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   g.was_moving = moving;
   if !g.won && g.keys.is_action_just_pressed("back") { return back(g); }
   if !g.won && g.keys.is_action_just_pressed("aim") {
-    if rules::aim_next(g.world) { sound(g, "point", 0.3); }
+    // With a sword, Tab locks on (@GM-Combat, *Locked on*); with the bow it aims, as built.
+    if rules::sword_in_hand(g.world) {
+      if rules::lock_next(g.world) { sound(g, "point", 0.3); }
+    } else if rules::aim_next(g.world) { sound(g, "point", 0.3); }
     return true;
   }
   // The swing (@GM-Combat): a bow shoots and a bomb is thrown on the press; a weapon swings when the
@@ -2084,8 +2121,9 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   if !g.won && g.swing_down_at >= 0 && !g.keys.is_action_pressed("swing") {
     held = now - g.swing_down_at;
     g.swing_down_at = -1;
-    g.world.drawing_since = -1;
+    // The swing reads how long it was drawn (a clash: each side recovers for its draw).
     if held >= HEAVY_HOLD_MS { heavy_swing(g); } else { swing(g); }
+    g.world.drawing_since = -1;
     return true;
   }
   if g.swing_down_at >= 0 { changed = true; }
@@ -2094,7 +2132,12 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   still = !g.keys.is_action_pressed("left") && !g.keys.is_action_pressed("right")
           && !g.keys.is_action_pressed("up") && !g.keys.is_action_pressed("down");
   guarding = g.world.blocking;
-  g.world.blocking = still && g.keys.is_action_pressed("guard");
+  // The guard: the guard key held standing still (as built), or, locked on, the step back held (S
+  // keeps the guard up while held, @GM-Combat).
+  lw = rules::locked_way(g.world);
+  back_held = (lw.0 != 0 || lw.1 != 0) && held_way(g, -lw.0, -lw.1);
+  if !back_held { g.world.guard_back = false; }
+  g.world.blocking = (still && g.keys.is_action_pressed("guard")) || (g.world.guard_back && back_held);
   if g.world.blocking != guarding { changed = true; }
   if !g.won && still && g.keys.is_action_just_pressed("guard") {
     rules::parry(g.world);
@@ -2126,6 +2169,8 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   if g.free { return roam(g, ms) || changed; }
   d = direction(g, now);
   if d.0 == 0 && d.1 == 0 { return changed; }
+  // Locked on, S steps back once; held, it keeps the guard up rather than stepping again.
+  if g.world.guard_back && back_held && d.0 == -lw.0 && d.1 == -lw.1 && !first_press(g) { return changed; }
   pulling = g.take_down && g.keys.is_action_pressed("take");
   if pulling { g.take_stepped = true; }
   move(g, d.0, d.1, pulling);
@@ -2688,6 +2733,12 @@ pub fn figures(g: const Game, w: const rules::Level, z: integer) -> vector<Figur
     // Guarding (@GM-Combat): the weapon across the body, held through a blow's push (a brace).
     braced = g.motion.act == motion::Act.Brace || !motion::busy(g.motion, w.now);
     if w.blocking && braced { motion::guard(fine, w.face_x, w.face_y); }
+    // With no target the sword is held at the hero's right, its point down (owner): raised to a
+    // target only when locked on (@GM-Combat, *Locked on*).
+    if rules::sword_in_hand(w) && rules::locked(w) < 0 && !w.blocking && w.drawing_since < 0
+        && !motion::busy(g.motion, w.now) {
+      fine.weapon = if w.face_x < 0 { 200.0 } else { 160.0 };
+    }
     if hurt(w.health, w.k.health) { motion::wounded(fine, w.now, !motion::busy(g.motion, w.now)); }
     // Facing north the hero shows its back (owner, 2026-11-07; the game's own sheet, world:96).
     look = if w.face_y < 0 && w.face_x == 0 && g.look.hero_back >= 0 { g.look.hero_back } else { g.look.hero };
@@ -3068,6 +3119,13 @@ fn draw_bow(g: Game) {
     z = w.hero_z;
     theme::put(g.surface, g.look.aim, (w.aim_x - g.cam_x) * ts,
                (w.aim_y - g.cam_y) * ts - z * ts - tile_world::rise(w.w, w.aim_x, w.aim_y, z) * 4, 0);
+  }
+  // The sword's lock (@GM-Combat, *Locked on*): the same mark, on the one it follows.
+  li = rules::locked(g.world);
+  if li >= 0 {
+    t = w.enemies[li]!;
+    theme::put(g.surface, g.look.aim, (t.x - g.cam_x) * ts,
+               (t.y - g.cam_y) * ts - t.z * ts - tile_world::rise(w.w, t.x, t.y, t.z) * 4, 0);
   }
   for s in w.shots {
     e = w.now - s.at;

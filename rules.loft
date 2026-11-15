@@ -177,7 +177,9 @@ struct TerrainProps {
 pub struct TStep {
   pub act: text,
   pub ms: integer,
-  pub n: integer
+  pub n: integer,
+  /// For `in` and `rush`: the distance to the hero it stops at (1: beside it; 3: the standoff).
+  pub to: integer = 1
 }
 
 /// A template (DESIGN.md @GM-Combat, *Enemies by templates*; owner, 2026-11-07): a set of specific
@@ -263,7 +265,10 @@ struct EnemyProps {
   /// It fences (the swordsman): its templates run beside the hero too, where another kind bites as
   /// built.  Its `templates` may come in phases, separated by `|`: the set it fights with changes as
   /// it loses health (`phase_set`).
-  fences: boolean = false
+  fences: boolean = false,
+  /// At this health or less it gives up the fight (the swordsman): it no longer attacks and backs
+  /// away from the hero, its guard up, fighting again only when cornered.  0: it never does.
+  gives_up: integer = 0
 }
 
 struct EdgeProps {
@@ -532,7 +537,8 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       windup_ms: num(e, "windup_ms", 300), sweep: flag(e, "sweep"), poise: flag(e, "poise"),
       out_by: word(e, "out_by", ""), thief: flag(e, "thief"), near_water: num(e, "near_water", 0),
       sideways: flag(e, "sideways"), swallows: flag(e, "swallows"), passes_walls: flag(e, "passes_walls"), haunts: flag(e, "haunts"),
-      meat: word(e, "meat", ""), templates: word(e, "templates", ""), fences: flag(e, "fences")
+      meat: word(e, "meat", ""), templates: word(e, "templates", ""), fences: flag(e, "fences"),
+      gives_up: num(e, "gives_up", 0)
     }];
   }
   tp = v.field("templates");
@@ -543,7 +549,7 @@ pub fn kinds_from_json(raw: text) -> Kinds? {
       st = e.field("steps");
       for si in 0..st.len() {
         s = st.item(si);
-        steps += [TStep { act: word(s, "do", ""), ms: num(s, "ms", 0), n: num(s, "n", 0) }];
+        steps += [TStep { act: word(s, "do", ""), ms: num(s, "ms", 0), n: num(s, "n", 0), to: num(s, "to", 1) }];
       }
       k.templates += [Template { name: name, aggressive: word(e, "type", "aggressive") == "aggressive",
                                  apart_min: num(e, "apart_min", 1), apart_max: num(e, "apart_max", 1),
@@ -922,6 +928,27 @@ pub struct Level {
   /// fencer's guard took.
   pub phases: integer = 0,
   pub guarded: integer = 0,
+  /// Locked on (@GM-Combat, *Locked on*): the id of the enemy the hero's sword is locked on (0:
+  /// none; the bow keeps its own aim); until when its point is still turning to it (0: not turning);
+  /// out of balance after a dodge until; open (a point run onto, a clash lost) until; the guard held
+  /// up by a step back (S) rather than the guard key; and whether a step keeps the hero's facing.
+  pub lock_id: integer = 0,
+  pub turn_due: integer = 0,
+  pub unbalanced_until: integer = 0,
+  pub hero_open_until: integer = 0,
+  pub guard_back: boolean = false,
+  pub keep_face: boolean = false,
+  /// How many lunges the hero struck, dodges it took, clashes there were, ready points run onto by
+  /// the hero and by enemies, and fighters who gave up.
+  pub lunges: integer = 0,
+  pub dodges: integer = 0,
+  pub clashes: integer = 0,
+  pub hero_pointed: integer = 0,
+  pub enemy_pointed: integer = 0,
+  pub yields: integer = 0,
+  /// The enemies (by id) that ran onto the hero's point this moment: struck 1 by the world's
+  /// step (`point_blows`), never inside an enemy's own step, which may not remove one.
+  pub point_hits: vector<integer> = [],
   /// How many blows enemies have wound up, struck, missed, had parried and had blocked, and how
   /// many ripostes the hero struck (the game plays and draws them).
   pub winds: integer = 0,
@@ -1100,7 +1127,18 @@ pub struct Enemy {
   /// Fencing (the swordsman): its guard up until this moment (a light blow on it from the front is
   /// halved), and the phase of its templates it fights in (`phase_set`).
   pub guard_until: integer = 0,
-  pub phase: integer = 0
+  pub phase: integer = 0,
+  /// When its swing in hand began (a draw or a lunge in flight), whether the blow it leads to is a
+  /// heavy one, and whether it has given up the fight (`gives_up`).
+  pub drawn_at: integer = 0,
+  pub drawn_heavy: boolean = false,
+  pub yielded: boolean = false,
+  /// Its draw is a feint (a `draw` with `n` 1): its point stays in line, so a lunge drawn by it
+  /// runs onto that point.
+  pub feint: boolean = false,
+  /// Its wound-up blow follows the hero out of balance (*Dodging*): it lands on the cell aimed at
+  /// from beside or across a corner, as a swing sweeps.
+  pub follows: boolean = false
 }
 
 // No enemy: what a missing index reads as.
@@ -1203,7 +1241,10 @@ pub enum Step {
   Struggled,
   /// A blow pressed while the hero recovers from the last: it lands when that is over, unless
   /// the hero does something else first.
-  Readying
+  Readying,
+  /// The hero ran onto a ready point: hurt, flung back, open.  Its swing met another: a clash.
+  Pointed,
+  Clashed
 }
 
 /// An empty level whose world knows the kinds: what is walked on, what stops sight and light,
@@ -1484,6 +1525,9 @@ pub fn swing(l: Level) -> Step {
     return Step.Drank;
   }
   if !alive(l) || !armed(l) { return Step.Blocked; }
+  l.blocking = false;
+  l.guard_back = false;
+  if clash(l, if l.drawing_since >= 0 { l.now - l.drawing_since } else { 100 }) { return Step.Clashed; }
   hero_blow(l, l.face_x, l.face_y, true)
 }
 
@@ -1513,6 +1557,9 @@ pub fn heavy(l: Level) -> Step {
   l.queued = false;
   if !alive(l) || !armed(l) { return Step.Blocked; }
   if l.now < l.blow_until { return Step.Readying; }
+  l.blocking = false;
+  l.guard_back = false;
+  if clash(l, if l.drawing_since >= 0 { l.now - l.drawing_since } else { 500 }) { return Step.Clashed; }
   land(l, l.face_x, l.face_y, true)
 }
 
@@ -1539,6 +1586,10 @@ fn land(l: Level, dx: integer, dy: integer, heavy: boolean) -> Step {
   faced = tile_world::terrain(l.w, tx, ty, z);
   if l.hero_item != 0 && !lunge && hero_crosses(l, l.hero_x, l.hero_y, z, dx, dy) && !opaque_terrain(l, faced) {
     cells += [(tx - dy, ty + dx), (tx + dy, ty - dx)];
+  }
+  // A heavy swing is wider (owner, 2026-11-15): it sweeps the cells beside the hero as well.
+  if heavy && l.hero_item != 0 {
+    cells += [(l.hero_x - dy, l.hero_y + dx), (l.hero_x + dy, l.hero_y - dx)];
   }
   hit = false;
   for c in cells {
@@ -3348,6 +3399,8 @@ pub fn tick(l: Level, ms: integer) {
 // Everything due by now: rolling carts, bombs and fuses, arrows, enemies, flames burning out.
 fn step_world(l: Level) {
   if alive(l) { notice_stay(l); }
+  point_blows(l);
+  turn_point(l);
   works_due(l);
   tribes_due(l);
   start_rolls(l);
@@ -3779,7 +3832,12 @@ pub fn walk(l: Level, dx: integer, dy: integer) -> Step {
   l.pulling = false;
   tx = l.hero_x + dx;
   ty = l.hero_y + dy;
-  step = walk_step(l, dx, dy);
+  // Locked on (@GM-Combat): near its target the keys are moves against it.
+  ls = locked_step(l, dx, dy);
+  step = if ls != null { ls ?? Step.Blocked } else { walk_step(l, dx, dy) };
+  if ls == null { l.guard_back = false; }
+  // Stepped onto a fencer's ready point: hurt, flung back, open.
+  if step == Step.Walked && hero_met_point(l, dx, dy) { step = Step.Pointed; }
   notice_stay(l);
   // The same blocked try again and again (C2c).
   if step == Step.Blocked {
@@ -3822,7 +3880,7 @@ fn walk_step(l: Level, dx: integer, dy: integer) -> Step {
     l.step_x = dx;
     l.step_y = dy;
   }
-  if into_foe || !in_stance(l) {
+  if !l.keep_face && (into_foe || !in_stance(l)) {
     l.face_x = dx;
     l.face_y = dy;
   }
@@ -6010,6 +6068,8 @@ fn enemy_step(l: Level, i: integer, dx: integer, dy: integer, wait: integer) {
   l.enemies[i].face_y = dy;
   l.enemies[i].steps = (l.enemies[i].steps ?? 0) + 1;
   l.enemies[i].due = (l.enemies[i].due ?? l.now) + wait;
+  // Into the hero's ready point (@GM-Combat, *The point and the standoff*).
+  met_hero_point(l, i, dx, dy);
 }
 
 // Enemy i, beside the hero, winds up a blow (@GM-Combat): it faces the hero and draws back for its
@@ -6164,13 +6224,17 @@ fn guard_act(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
 // - `away`: steps away from the hero, `ms` each, `n` of them;
 // - `wait`: `ms`.
 // A fencer's (the swordsman's, `fences`) are the hero's own moves:
-// - `in`: steps towards the hero, `ms` each, until beside it or `n` taken;
+// - `in`: steps towards the hero, `ms` each, until `to` away (1 beside it, 3 the standoff) or `n`
+//   taken; `rush` the same with its swing drawn all the way (the way in that meets as a clash);
+// - `circle`: steps, `ms` each, `n` at most, round the hero's point to a cell at its side;
 // - `flank`: a step, `ms`, into a cell beside the hero that is not before it (its side);
-// - `draw`: the swing drawn back (a wind-up, seen), aimed at the hero's cell, for `ms`;
+// - `draw`: the swing drawn back (a wind-up, seen), aimed at the hero's cell, for `ms`; with `n` 1
+//   a feint, its point kept in line;
 // - `lower`: the drawn swing let go of nothing (a feint);
 // - `strike` / `heavy`: the blow, `n`, on the cell the draw aimed at; a heavy one not halved by the
 //   hero's guard; then `ms` to recover;
-// - `lunge`: no draw: a step in where the hero is two away and the blow at once on its cell;
+// - `lunge`: no draw: a thrust in flight for `ms` at the hero's cell, from two or three away;
+//   `thrust`: where it lands, `n`, settling back — into the hero's ready point it runs onto it;
 // - `guard`: the guard up, facing the hero, for `ms` (a light blow from the front halved).
 // A template may ask of the hero's state too (`when`: drawn, guarding, ready), and a kind may fight
 // in phases, its `templates` split by `|`, the set changing as it loses health (`phase_set`).
@@ -6251,6 +6315,33 @@ fn sign_of(n: integer) -> integer {
   if n > 0 { 1 } else if n < 0 { -1 } else { 0 }
 }
 
+// Enemy i has given up the fight (`gives_up`): it no longer attacks.  It backs away from the hero
+// a step at its chasing pace, turned to it with its guard up; with no step away and the hero beside
+// it, cornered, it fights again (a wind-up blow, as built); else it stands, guarding.
+fn give_up(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
+  if !e.yielded {
+    l.enemies[i].yielded = true;
+    l.yields += 1;
+    log_line(l, e.due, "{e.kind}#{e.id} gives up the fight");
+    if e.tpl >= 0 { end_template(l, i); }
+  }
+  d = step_away(l, e, p);
+  if d.0 != 0 || d.1 != 0 {
+    enemy_step(l, i, d.0, d.1, p.chase_ms);
+    now_e = l.enemies[i] ?? e;
+    l.enemies[i].face_x = -d.0;
+    l.enemies[i].face_y = -d.1;
+    l.enemies[i].guard_until = now_e.due;
+    return;
+  }
+  if beside_hero(l, e) {
+    bite(l, i, p);
+    return;
+  }
+  l.enemies[i].guard_until = e.due + p.chase_ms;
+  l.enemies[i].due = e.due + p.chase_ms;
+}
+
 // The templates enemy e fights with now: its kind's `templates`, or, written in phases separated
 // by `|`, the phase it is in (TEMPLATES.md § The swordsman).
 fn phase_set(p: const EnemyProps, e: const Enemy) -> text {
@@ -6275,6 +6366,367 @@ fn follow_phase(l: Level, i: integer, e: const Enemy, p: const EnemyProps) {
   l.cries += 1;
   log_line(l, e.due, "{e.kind}#{e.id} fights in phase {at}");
   if e.tpl >= 0 { end_template(l, i); }
+}
+
+// --- Fencing by moving (@GM-Combat, *Locked on*, *The point and the standoff*, *The lunge*,
+// *The clash*, *Dodging*; owner, 2026-11-07 and 2026-11-15) ---
+//
+// On whole cells: the hero's sword locks on to an enemy, its point then turns to it at the sword's
+// speed and, ready, fills the tile in front; W lunges from the standoff, S steps back with the guard
+// up, A and D dodge out of balance; a swing meeting a fencer's swing in flight is a clash.  The bow
+// keeps its own aim (`aim_next`).
+
+/// Within this many steps a lock holds; further, it is lost.
+pub const LOCK_RANGE = 4;
+/// Within this many steps of its target, WASD are moves against it; further they walk.
+pub const MOVES_RANGE = 3;
+/// A sword's point turns 45 degrees in this many ms (a quarter turn twice that).
+pub const TURN_MS = 100;
+/// A dodge leaves the dodger out of balance this long: no second dodge, and blows follow it.
+pub const BALANCE_MS = 500;
+/// A ready point run onto: 1, flung back a cell, and open this long.
+pub const POINT_OPEN_MS = 400;
+/// After a clash each side recovers for as long as its swing was drawn, and this more.
+pub const CLASH_MS = 200;
+
+// Does the hero hold a sword (a weapon that swings, not a bow)?
+fn sword_held(l: const Level) -> boolean {
+  armed(l) && !armed_with_bow(l)
+}
+
+// Does enemy e hold a weapon that swings (a sword, an axe)?
+fn foe_armed(l: const Level, e: const Enemy) -> boolean {
+  p = l.k.things[e.item];
+  if !p { return false; }
+  p.swings
+}
+
+/// The enemy the hero's sword is locked on, by index (-1 none): one on its layer, there, within
+/// LOCK_RANGE steps, the sword in hand.
+pub fn locked(l: const Level) -> integer {
+  if l.lock_id == 0 || !sword_held(l) { return -1; }
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i];
+    if e.id != l.lock_id || e.away || e.z != l.hero_z { continue; }
+    if steps_apart(e.x, e.y, l.hero_x, l.hero_y) > LOCK_RANGE { return -1; }
+    return i;
+  }
+  -1
+}
+
+// The way from the hero to enemy e along its main axis (the way a locked point faces).
+fn way_to(l: const Level, e: const Enemy) -> (integer, integer) {
+  lx = e.x - l.hero_x;
+  ly = e.y - l.hero_y;
+  if (if lx < 0 { -lx } else { lx }) >= (if ly < 0 { -ly } else { ly }) { (sign_of(lx), 0) } else { (0, sign_of(ly)) }
+}
+
+/// Tab with a sword (@GM-Combat, *Locked on*): lock the nearest enemy that fights, within
+/// LOCK_RANGE steps on the hero's layer (nearest first, then by id); locked already, the next one;
+/// past the last, let go.  Answers whether one is locked.
+pub fn lock_next(l: Level) -> boolean {
+  best: vector<(integer, integer)> = [];
+  for e in l.enemies {
+    p = enemy_props(l, e.kind);
+    if e.away || e.z != l.hero_z || p.talks || p.guard { continue; }
+    d = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+    if d > LOCK_RANGE { continue; }
+    best += [(d * 100000 + e.id, e.id)];
+  }
+  ordered: vector<integer> = [];
+  for n in 0..LOCK_RANGE + 1 {
+    for c in best { if c.0 / 100000 == n { ordered += [c.1]; } }
+  }
+  at = -1;
+  for k in 0..len(ordered) { if (ordered[k] ?? 0) == l.lock_id { at = k; } }
+  if len(ordered) == 0 || at == len(ordered) - 1 {
+    l.lock_id = 0;
+    return false;
+  }
+  l.lock_id = ordered[at + 1] ?? 0;
+  l.turn_due = 0;
+  true
+}
+
+/// Does the hero hold a sword (a weapon that swings, not a bow)?  Tab then locks (`lock_next`).
+pub fn sword_in_hand(l: const Level) -> boolean {
+  sword_held(l)
+}
+
+/// The way to the locked target while its moves hold (within MOVES_RANGE), else (0, 0): the game
+/// keeps the guard of a step back (S) up while that way's opposite is held.
+pub fn locked_way(l: const Level) -> (integer, integer) {
+  i = locked(l);
+  if i < 0 { return (0, 0); }
+  e = l.enemies[i]!;
+  if steps_apart(e.x, e.y, l.hero_x, l.hero_y) > MOVES_RANGE { return (0, 0); }
+  way_to(l, e)
+}
+
+/// The lock comes by itself (@GM-Combat, *Locked on*; owner: hit with no target, the lock turns
+/// onto the attacker): with nothing locked, the nearest enemy winding up a blow at the hero's cell,
+/// or — `hit` — the nearest beside it.  The game calls it after the clock moves.
+pub fn lock_threat(l: Level, hit: boolean) {
+  if l.lock_id != 0 || !sword_held(l) { return; }
+  best = -1;
+  near = 99;
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i] ?? continue;
+    if e.away || e.z != l.hero_z || enemy_props(l, e.kind).talks { continue; }
+    d = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+    threat = (e.wind_until > 0 && e.aim_x == l.hero_x && e.aim_y == l.hero_y) || (hit && d == 1);
+    if threat && d < near {
+      near = d;
+      best = i;
+    }
+  }
+  if best >= 0 { lock_on(l, best); }
+}
+
+/// With nothing locked, lock on to enemy i (the game: one that hit the hero, or winds up at it).
+pub fn lock_on(l: Level, i: integer) {
+  if l.lock_id != 0 || !sword_held(l) { return; }
+  e = l.enemies[i] ?? return;
+  l.lock_id = e.id;
+  l.turn_due = 0;
+}
+
+/// The hero's locked point turns to its target at TURN_MS a 45 degrees: the way it faces changes
+/// once the turn is done, and until then its point is not ready.  A lock lost is let go.
+fn turn_point(l: Level) {
+  i = locked(l);
+  if i < 0 {
+    l.lock_id = 0;
+    l.turn_due = 0;
+    return;
+  }
+  e = l.enemies[i] ?? return;
+  w = way_to(l, e);
+  if w.0 == l.face_x && w.1 == l.face_y {
+    l.turn_due = 0;
+    return;
+  }
+  if l.turn_due == 0 {
+    half = l.face_x == -w.0 && l.face_y == -w.1;
+    l.turn_due = l.now + (if half { 4 * TURN_MS } else { 2 * TURN_MS });
+    return;
+  }
+  if l.now >= l.turn_due {
+    l.face_x = w.0;
+    l.face_y = w.1;
+    l.turn_due = 0;
+  }
+}
+
+/// Is the hero's point ready (@GM-Combat, *The point and the standoff*): locked on, turned to its
+/// target, its swing not drawn back, recovered from its last blow, and not open.
+pub fn point_ready(l: const Level) -> boolean {
+  i = locked(l);
+  if i < 0 { return false; }
+  e = l.enemies[i]!;
+  w = way_to(l, e);
+  w.0 == l.face_x && w.1 == l.face_y && l.turn_due == 0 && l.drawing_since < 0
+    && l.now >= l.blow_until && l.now >= l.hero_open_until
+}
+
+// Is a fencer's point ready: it fences with a weapon in hand, has given nothing up, no swing in
+// hand, and is not open.
+fn foe_point_ready(l: const Level, e: const Enemy, p: const EnemyProps) -> boolean {
+  p.fences && foe_armed(l, e) && !e.yielded && (e.wind_until == 0 || e.feint) && e.open_until <= l.now
+}
+
+// Enemy i ran onto the hero's ready point, stepping (dx, dy): it is hurt 1 first, flung back out
+// to where it came from, and open; its template is over.
+fn onto_point(l: Level, i: integer, dx: integer, dy: integer) {
+  e = l.enemies[i] ?? return;
+  l.enemies[i].x = e.x - dx;
+  l.enemies[i].y = e.y - dy;
+  l.enemies[i].open_until = l.now + POINT_OPEN_MS;
+  l.enemies[i].wind_until = 0;
+  l.enemy_pointed += 1;
+  log_line(l, l.now, "{e.kind}#{e.id} runs onto the hero's point at ({e.x},{e.y})");
+  if e.tpl >= 0 { end_template(l, i); }
+  l.point_hits += [e.id];
+}
+
+// The blows of the hero's point, dealt at the world's step: 1 to each that ran onto it.
+fn point_blows(l: Level) {
+  if len(l.point_hits) == 0 { return; }
+  ids = l.point_hits;
+  l.point_hits = [];
+  for id in ids {
+    k = enemy_index(l, id);
+    if k >= 0 { strike_enemy(l, k, 1); }
+  }
+}
+
+// After enemy i stepped (dx, dy): into the tile the hero's ready point fills, or — a fencer, its own
+// point ready — so that its point fills that tile too (blades crossed from the standoff), it ran
+// onto it.  Stepping in with a swing in hand is not running onto a point: that meets as a clash.
+fn met_hero_point(l: Level, i: integer, dx: integer, dy: integer) {
+  if !point_ready(l) || (dx == 0 && dy == 0) { return; }
+  e = l.enemies[i] ?? return;
+  if e.z != l.hero_z || e.wind_until > 0 { return; }
+  p = enemy_props(l, e.kind);
+  px = l.hero_x + l.face_x;
+  py = l.hero_y + l.face_y;
+  into = e.x == px && e.y == py;
+  crossed = foe_point_ready(l, e, p) && e.x + dx == px && e.y + dy == py;
+  if into || crossed { onto_point(l, i, dx, dy); }
+}
+
+// The hero stepped (dx, dy) and stands now where a fencer's ready point is — in the tile before it,
+// or, its own point ready, with the two points in one tile: it ran onto it, hurt 1, flung back, and
+// open.  Answers whether it did.
+fn hero_met_point(l: Level, dx: integer, dy: integer) -> boolean {
+  for e in l.enemies {
+    p = enemy_props(l, e.kind);
+    if e.away || e.z != l.hero_z || !foe_point_ready(l, e, p) { continue; }
+    ex = e.x + e.face_x;
+    ey = e.y + e.face_y;
+    into = l.hero_x == ex && l.hero_y == ey;
+    crossed = point_ready(l) && l.hero_x + l.face_x == ex && l.hero_y + l.face_y == ey;
+    if !into && !crossed { continue; }
+    l.hero_x -= dx;
+    l.hero_y -= dy;
+    l.hero_open_until = l.now + POINT_OPEN_MS;
+    l.hero_pointed += 1;
+    harm(l, 1);
+    log_line(l, l.now, "the hero runs onto {e.kind}#{e.id}'s point");
+    return true;
+  }
+  false
+}
+
+// WASD locked on enemy i (@GM-Combat, *Locked on*): W towards it lunges (*The lunge*), S away steps
+// back with the guard up, A and D across dodge (*Dodging*).  Answers the step taken, or null when
+// the keys walk as always (no lock, or the target further than MOVES_RANGE).
+fn locked_step(l: Level, dx: integer, dy: integer) -> Step? {
+  i = locked(l);
+  if i < 0 || riding(l) >= 0 || l.held_by != 0 { return null; }
+  e = l.enemies[i] ?? return null;
+  apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  if apart > MOVES_RANGE { return null; }
+  w = way_to(l, e);
+  if dx == w.0 && dy == w.1 { return lunge(l, i); }
+  l.keep_face = true;
+  step = walk_step(l, dx, dy);
+  l.keep_face = false;
+  if dx == -w.0 && dy == -w.1 {
+    // S: the guard up, with no room behind kept where the hero stands.
+    l.blocking = true;
+    l.guard_back = true;
+    return step;
+  }
+  l.guard_back = false;
+  l.blocking = false;
+  if step != Step.Walked { return step; }
+  if l.now >= l.unbalanced_until {
+    // A dodge: off the cell a blow was aimed at, and out of balance after.
+    l.unbalanced_until = l.now + BALANCE_MS;
+    l.dodges += 1;
+    return step;
+  }
+  // Out of balance, no dodge: a wound-up blow follows the hero to its new cell — still within the
+  // sweep of a blade beside it or across a corner.
+  for k in 0..len(l.enemies) {
+    f = l.enemies[k] ?? continue;
+    near = (if f.x > l.hero_x { f.x - l.hero_x } else { l.hero_x - f.x }) <= 1
+           && (if f.y > l.hero_y { f.y - l.hero_y } else { l.hero_y - f.y }) <= 1;
+    if f.wind_until > 0 && f.aim_x == l.hero_x - dx && f.aim_y == l.hero_y - dy && near {
+      l.enemies[k].aim_x = l.hero_x;
+      l.enemies[k].aim_y = l.hero_y;
+      l.enemies[k].follows = true;
+    }
+  }
+  step
+}
+
+// W against enemy i (@GM-Combat, *The lunge*): from two or three away the hero lunges — its point
+// reaches, for the weapon's damage +1, breaking a wind-up (poise excepted) — and settles back on its
+// cell.  Into a ready point it is a step in: the hero runs onto it.  Beside the target the sword is
+// stuck: no lunge.
+fn lunge(l: Level, i: integer) -> Step {
+  e = l.enemies[i] ?? return Step.Blocked;
+  p = enemy_props(l, e.kind);
+  apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+  w = way_to(l, e);
+  l.face_x = w.0;
+  l.face_y = w.1;
+  l.turn_due = 0;
+  if apart <= 1 || l.now < l.blow_until || l.now < l.hero_open_until { return Step.Blocked; }
+  // The line to it: the point reaches only along a clear one.
+  if e.x != l.hero_x && e.y != l.hero_y { return Step.Blocked; }
+  x = l.hero_x;
+  y = l.hero_y;
+  for _ in 1..apart {
+    if !tile_world::see_through(l.w, x, y, l.hero_z, w.0, w.1) { return Step.Blocked; }
+    x += w.0;
+    y += w.1;
+    if enemy_at(l, x, y, l.hero_z) >= 0 { return Step.Blocked; }
+  }
+  if !tile_world::see_through(l.w, x, y, l.hero_z, w.0, w.1) { return Step.Blocked; }
+  if foe_point_ready(l, e, p) && e.face_x == -w.0 && e.face_y == -w.1 {
+    l.hero_open_until = l.now + POINT_OPEN_MS;
+    l.hero_pointed += 1;
+    harm(l, 1);
+    log_line(l, l.now, "the hero lunges onto {e.kind}#{e.id}'s ready point");
+    return Step.Pointed;
+  }
+  n = blow_on(l, i) + 1;
+  if e.open_until > l.now {
+    n *= 2;
+    l.ripostes += 1;
+    l.enemies[i].open_until = 0;
+  }
+  if e.wind_until > 0 && !p.poise {
+    l.enemies[i].wind_until = 0;
+    l.enemies[i].due = l.now + p.bite_ms;
+    if e.tpl >= 0 { end_template(l, i); }
+  }
+  l.blow_until = l.now + recovery(l);
+  l.lunges += 1;
+  log_line(l, l.now, "the hero lunges at {e.kind}#{e.id} for {n}");
+  strike_enemy(l, i, n);
+  Step.Attacked
+}
+
+// The hero lets go of a swing drawn `drawn` ms (`heavy` or not) with a fencer's swing in flight
+// at it within reach: the weapons meet (@GM-Combat, *The clash*).  A heavy swing met late (incoming,
+// its last two thirds) goes through: half its blow, the hero staggered (open).  Any other is turned
+// aside: both stop, each recovers for as long as its swing was drawn and CLASH_MS more, and the one
+// ready first may riposte (the other is open until it is ready).  Answers whether there was one.
+fn clash(l: Level, drawn: integer) -> boolean {
+  for i in 0..len(l.enemies) {
+    e = l.enemies[i] ?? continue;
+    p = enemy_props(l, e.kind);
+    if !p.fences || !foe_armed(l, e) || e.wind_until <= l.now || e.z != l.hero_z { continue; }
+    if e.aim_x != l.hero_x || e.aim_y != l.hero_y { continue; }
+    apart = steps_apart(e.x, e.y, l.hero_x, l.hero_y);
+    if apart > 2 || (e.x != l.hero_x && e.y != l.hero_y) { continue; }
+    theirs = e.wind_until - e.drawn_at;
+    late = (l.now - e.drawn_at) * 3 >= theirs;
+    l.clashes += 1;
+    l.enemies[i].wind_until = 0;
+    if e.tpl >= 0 { end_template(l, i); }
+    if e.drawn_heavy && late {
+      // It goes through: the guard's damage, the hero staggered.
+      harm(l, (p.bite + 1) / 2 ?? 0);
+      l.hero_open_until = l.now + POINT_OPEN_MS;
+      l.blow_until = l.now + POINT_OPEN_MS;
+      l.enemies[i].due = l.now + p.bite_ms;
+      log_line(l, l.now, "a clash: {e.kind}#{e.id}'s heavy swing goes through");
+      return true;
+    }
+    hero_ready = l.now + drawn + CLASH_MS;
+    foe_ready = l.now + theirs + CLASH_MS;
+    l.blow_until = hero_ready;
+    l.enemies[i].due = foe_ready;
+    if hero_ready < foe_ready { l.enemies[i].open_until = foe_ready; } else if foe_ready < hero_ready { l.hero_open_until = hero_ready; }
+    log_line(l, l.now, "a clash with {e.kind}#{e.id}: the hero ready at {hero_ready}, it at {foe_ready}");
+    return true;
+  }
+  false
 }
 
 /// Does the hero's state hold what a template asks (`Template.when`): "" anything; "drawn" a swing
@@ -6445,14 +6897,49 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
     return true;
   }
   // A fencer's moves (TEMPLATES.md § The swordsman): the hero's own.
-  if s.act == "in" {
-    // Steps towards the hero, `ms` each, until beside it or `n` taken.
-    if beside_hero(l, e) || e.tpl_n >= s.n {
+  if s.act == "in" || s.act == "rush" {
+    // Steps towards the hero, `ms` each, until `to` away (1: beside it) or `n` taken.  A rush steps
+    // in with its swing drawn (*The point and the standoff*: the way in that is a clash, not a
+    // point): drawn back all the way, aimed at the hero's cell.
+    if steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= s.to || e.tpl_n >= s.n {
       next_step(l, i);
       return false;
     }
     w = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, e.z, false, no_shades());
     if w.2 > 1 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) {
+      l.enemies[i].tpl_n = e.tpl_n + 1;
+      if s.act == "rush" {
+        // The swing drawn as it starts in: seen and heard, as a draw is.
+        if e.wind_until == 0 {
+          l.enemies[i].drawn_at = e.due;
+          l.enemies[i].drawn_heavy = false;
+          l.winds += 1;
+        }
+        l.enemies[i].wind_until = e.due + s.ms;
+        l.enemies[i].aim_x = l.hero_x;
+        l.enemies[i].aim_y = l.hero_y;
+      }
+      enemy_step(l, i, w.0, w.1, s.ms);
+      if s.act == "rush" {
+        l.enemies[i].aim_x = l.hero_x;
+        l.enemies[i].aim_y = l.hero_y;
+      }
+      return true;
+    }
+    next_step(l, i);
+    return false;
+  }
+  if s.act == "circle" {
+    // Steps, `ms` each, `n` at most, towards a cell beside the hero that is not before it — round
+    // its point to its side — until it is there.
+    sides = [(l.hero_x - l.face_y, l.hero_y + l.face_x), (l.hero_x + l.face_y, l.hero_y - l.face_x)];
+    if e.tpl_n >= s.n { next_step(l, i); return false; }
+    for c in sides { if e.x == c.0 && e.y == c.1 { next_step(l, i); return false; } }
+    a = sides[0] ?? (l.hero_x, l.hero_y);
+    b = sides[1] ?? (l.hero_x, l.hero_y);
+    to = if steps_apart(e.x, e.y, a.0, a.1) <= steps_apart(e.x, e.y, b.0, b.1) { a } else { b };
+    w = enemy_way(l, p, e.x, e.y, e.z, to.0, to.1, e.z, false, no_shades());
+    if w.2 > 0 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) {
       l.enemies[i].tpl_n = e.tpl_n + 1;
       enemy_step(l, i, w.0, w.1, s.ms);
       return true;
@@ -6484,39 +6971,71 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
     l.enemies[i].face_y = my;
     l.enemies[i].guard_until = 0;
     l.enemies[i].wind_until = e.due + s.ms;
+    l.enemies[i].drawn_at = e.due;
+    l.enemies[i].drawn_heavy = s.ms >= 500;
+    l.enemies[i].feint = s.n == 1;
     l.enemies[i].due = e.due + s.ms;
     l.winds += 1;
     next_step(l, i);
     return true;
   }
+  if s.act == "lunge" {
+    // A lunge (*The lunge*): no draw — a thrust in flight for `ms` at the hero's cell, from two or
+    // three away; `thrust` is where it lands.  Met in flight by the hero's swing, it is a clash.
+    l.enemies[i].aim_x = l.hero_x;
+    l.enemies[i].aim_y = l.hero_y;
+    l.enemies[i].face_x = mx;
+    l.enemies[i].face_y = my;
+    l.enemies[i].guard_until = 0;
+    l.enemies[i].wind_until = e.due + s.ms;
+    l.enemies[i].drawn_at = e.due;
+    l.enemies[i].drawn_heavy = false;
+    l.enemies[i].due = e.due + s.ms;
+    next_step(l, i);
+    return true;
+  }
+  if s.act == "thrust" {
+    // The lunge lands, `n`, on the hero's cell along a clear line within three (it settles back on
+    // its own cell); into the hero's ready point it runs onto it instead.  Then `ms` to recover.
+    l.enemies[i].wind_until = 0;
+    next_step(l, i);
+    in_line = (e.x == l.hero_x || e.y == l.hero_y) && steps_apart(e.x, e.y, l.hero_x, l.hero_y) <= 3;
+    on_aim = l.hero_x == e.aim_x && l.hero_y == e.aim_y && l.hero_z == e.z;
+    if on_aim && in_line && point_ready(l) && l.face_x == -mx && l.face_y == -my {
+      onto_point(l, i, 0, 0);
+      return true;
+    }
+    if on_aim && in_line {
+      log_line(l, e.due, "{e.kind}#{e.id} thrusts for {s.n} on ({e.aim_x},{e.aim_y}): the hero is there");
+      template_blow(l, i, p, s.n, e.due, false);
+    } else {
+      log_line(l, e.due, "{e.kind}#{e.id} thrusts on ({e.aim_x},{e.aim_y}): missed, the hero at ({l.hero_x},{l.hero_y})");
+      l.misses += 1;
+    }
+    l.enemies[i].due = e.due + s.ms;
+    return true;
+  }
   if s.act == "lower" {
     // A feint: the drawn swing let go of nothing.
     l.enemies[i].wind_until = 0;
+    l.enemies[i].feint = false;
     next_step(l, i);
     return false;
   }
-  if s.act == "strike" || s.act == "heavy" || s.act == "lunge" {
-    // The blow, `n` damage, then `ms` to recover.  A strike or a heavy one lands on the cell the
-    // draw aimed at, so a hero who stepped off it is missed; a heavy one is not halved by the
-    // guard.  A lunge has no draw: one step in where the hero is two away, and the blow at once
-    // on the hero's cell — the answer to a hero who drew back its swing.
+  if s.act == "strike" || s.act == "heavy" {
+    // The blow, `n` damage, then `ms` to recover, on the cell the draw aimed at: a hero who stepped
+    // off it is missed (unless it stepped out of balance: then the blow followed it).  A heavy one
+    // is not halved by the guard.
     l.enemies[i].wind_until = 0;
+    l.enemies[i].feint = false;
     l.enemies[i].guard_until = 0;
     next_step(l, i);
-    if s.act == "lunge" {
-      l.enemies[i].aim_x = l.hero_x;
-      l.enemies[i].aim_y = l.hero_y;
-      if !beside_hero(l, e) {
-        w = enemy_way(l, p, e.x, e.y, e.z, l.hero_x, l.hero_y, e.z, false, no_shades());
-        // The step and the blow are one move: its time is the blow's recovery, set below.
-        if w.2 == 2 && enemy_can(l, p, e.x, e.y, e.z, w.0, w.1) { enemy_step(l, i, w.0, w.1, 0); }
-      }
-    }
     now_e = l.enemies[i] ?? e;
     l.enemies[i].face_x = sign_of(now_e.aim_x - now_e.x);
     l.enemies[i].face_y = if now_e.aim_x != now_e.x { 0 } else { sign_of(now_e.aim_y - now_e.y) };
     on_aim = l.hero_x == now_e.aim_x && l.hero_y == now_e.aim_y && l.hero_z == e.z;
-    if on_aim && beside_hero(l, now_e) {
+    l.enemies[i].follows = false;
+    if on_aim && (beside_hero(l, now_e) || now_e.follows) {
       log_line(l, e.due, "{e.kind}#{e.id} {s.act}s for {s.n} on ({now_e.aim_x},{now_e.aim_y}): the hero is there");
       template_blow(l, i, p, s.n, e.due, s.act == "heavy");
     } else {
@@ -6550,6 +7069,8 @@ fn template_step(l: Level, i: integer, e: const Enemy, p: const EnemyProps, s: c
 // takes half (a point of a 1 every other time); else all of it.
 fn template_blow(l: Level, i: integer, p: const EnemyProps, damage: integer, at: integer, heavy: boolean) {
   e = l.enemies[i] ?? return;
+  // On a hero left open (a point run onto, a clash lost) the blow is a riposte: double.
+  if l.hero_open_until > at { damage *= 2; }
   l.enemies[i].face_x = sign_of(l.hero_x - e.x);
   l.enemies[i].face_y = sign_of(l.hero_y - e.y);
   if !p.sweep && faces(l, e) && l.parry_at >= at - PARRY_MS && l.parry_at <= at {
@@ -6792,6 +7313,11 @@ fn enemy_act(l: Level, i: integer) {
   }
   // An enemy with templates (TEMPLATES.md) chooses one whose conditions hold; with none to choose
   // it keeps its distance for one (`hold_off`) — beside the hero, it bites as built.
+  // Beaten to `gives_up` or less, a fighter gives up: it backs away, its guard up (`give_up`).
+  if seen && p.gives_up > 0 && e.hp <= p.gives_up {
+    give_up(l, i, e, p);
+    return;
+  }
   if seen && p.templates != "" && (!beside_hero(l, e) || p.fences) {
     follow_phase(l, i, e, p);
     if choose_template(l, i, l.enemies[i] ?? e, p) { return; }

@@ -117,6 +117,28 @@ its tests on both backends.
      of the clash table, both ways.
   5. **Balance and dodging**: out of balance after a dodge, a point's turning speed, armour's
      weight.  Red: a second dodge refused, a blow following the fighter out of balance.
+
+     **Steps 2–5 built on whole cells** (2026-11-15, owner; `tests/arena.loft`, rules.loft § Fencing
+     by moving), tried on the arena's swordsman.  Built: Tab locks a sword on the nearest enemy
+     within 4, then the next, past the last letting go; the lock follows its target and is lost
+     past 4; in the game a wind-up aimed at the hero or a blow that hurt it locks on to the one who
+     did it.  Locked, the point turns at the sword's 100 ms a 45°; within 3, W lunges, S steps back
+     with the guard up (held, it stays up and does not step again), A and D dodge, out of balance
+     500 ms after (a second step aside is no dodge, and a wound-up blow follows it).  A ready point
+     fills the tile before its holder: run onto it (a step into it, or from the standoff into the
+     crossed blades), 1, flung back, open 400.  The lunge reaches from 2 or 3 for the weapon's +1 and
+     breaks a wind-up; into a ready point it is the hero who runs onto it; beside its target, none.
+     A swing meeting a fencer's swing in flight is a clash: each recovers for its draw and 200 ms
+     more and the one ready first may riposte; a heavy swing met in its last two thirds goes
+     through for half, the hero staggered.  The heavy swing is wider (owner, 2026-11-15).  The
+     sword is carried at the side unlocked, its point raised locked on (drawing only).
+     Where it differs from DESIGN.md, so far: the four ways only, no diagonals; Tab picks by
+     distance, not within the arc; the lunge does not carry the body between tiles — it reaches and
+     the hero stays on its cell (the settling back the design describes for an equal distance); the
+     point and the clash are a fencer's (`fences`) only, so the cyclops's sweep, the rats and the
+     built fight rooms play as before (a rat does run onto a ready point); E with no lock does not
+     yet turn to the nearest; a walk into an enemy unlocked is still a blow; the Shift parry and
+     block stay beside S until the clash has been played.
   6. **Enemies by templates** (TEMPLATES.md): the templates' file and their choosing, the rat's and a human
      swordsman's first (the two profiles), then each kind's; patience, the cornered animal.  Red:
      each template alone against a still hero, timed by hand; every opening its own; every
