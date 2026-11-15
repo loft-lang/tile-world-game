@@ -2,6 +2,9 @@
 #include "raster3d.h"
 
 #include <stdlib.h>
+#ifdef R3_CHECK_SPAN
+#include <stdio.h>
+#endif
 #include <string.h>
 
 #define SUB 16   /* subpixel steps a pixel */
@@ -18,6 +21,12 @@ typedef struct {
     int dmin;                    /* its nearest depth */
     int pic, group, hid;
     int src;                     /* the face's triangle it was set up from, in its tile */
+    /* Each edge's bound on a column's rows, carried from column to column with no division:
+     * at world column x0 the bound is the quotient q (with remainder r) of a numerator over
+     * den; a column on adds sq and sr.  kind: 1 the rows from the bound (ceil), -1 the rows up
+     * to it (floor), 0 a level edge (q holds its value, sq its step: rows when q <= 0). */
+    int kind[3];
+    int64_t den[3], q[3], r[3], sq[3], sr[3];
 } Tri;
 
 typedef struct { Tri *v; int n, cap; } Tris;
@@ -198,6 +207,22 @@ static int set_up(const R3 *r, Tri *t, const Corner *c0, const Corner *c1, const
     t->y0 = (int) floor_div(my, SUB) - 1;
     t->x1 = (int) floor_div(Mx, SUB) + 2;
     t->y1 = (int) floor_div(My, SUB) + 2;
+    /* The edges' bounds at the first column, and their step a column on (the span loop's rows,
+     * worked out here once so the loop divides nothing). */
+    for (int i = 0; i < 3; i++) {
+        int64_t pcx0 = (int64_t) t->x0 * SUB + SUB / 2;
+        int64_t rr0 = -(t->ea[i] * pcx0 + t->ec[i] + t->eb[i] * (SUB / 2));
+        int64_t step = -t->ea[i] * SUB;          /* rr a column on */
+        int64_t d = t->eb[i] * SUB;
+        if (d == 0) { t->kind[i] = 0; t->q[i] = rr0; t->sq[i] = step; t->den[i] = 1; t->r[i] = t->sr[i] = 0; continue; }
+        int64_t num = d > 0 ? rr0 : -rr0, sn = d > 0 ? step : -step, den = d > 0 ? d : -d;
+        t->kind[i] = d > 0 ? 1 : -1;
+        t->den[i] = den;
+        t->q[i] = floor_div(num, den);
+        t->r[i] = num - t->q[i] * den;
+        t->sq[i] = floor_div(sn, den);
+        t->sr[i] = sn - t->sq[i] * den;
+    }
     t->tx0 = (int) floor_div(mx, SUB);
     t->ty0 = (int) floor_div(my, SUB);
     t->tx1 = (int) floor_div(Mx + SUB - 1, SUB);
@@ -225,16 +250,36 @@ static int64_t span(const R3 *r, const Tri *t, R3Rect c, int cx, int cy, uint16_
     if (sx0 >= sx1 || sy0 >= sy1) return 0;
     const uint16_t *pic = r->pics[t->pic];
     int64_t written = 0;
+    /* Each edge's bound, walked from the triangle's first column to this rectangle's: additions
+     * only (a 64-bit division is a library call on a 32-bit core, and it was three a column). */
+    int64_t q[3], rm[3];
+    for (int i = 0; i < 3; i++) { q[i] = t->q[i]; rm[i] = t->r[i]; }
+    for (int n = sx0 + cx - t->x0; n > 0; n--)
+        for (int i = 0; i < 3; i++) {
+            q[i] += t->sq[i];
+            rm[i] += t->sr[i];
+            if (rm[i] >= t->den[i]) { rm[i] -= t->den[i]; q[i]++; }
+        }
     for (int sx = sx0; sx < sx1; sx++) {
         int64_t pcx = (int64_t) (sx + cx) * SUB + SUB / 2;
         /* The rows inside: each edge bounds them from one side. */
         int64_t lo = (int64_t) sy0 + cy, hi = (int64_t) sy1 - 1 + cy;
-        for (int i = 0; i < 3 && lo <= hi; i++) {
-            int64_t k = t->ea[i] * pcx + t->ec[i];
-            int64_t d = t->eb[i] * SUB, rr = -(k + t->eb[i] * (SUB / 2));
-            if (d > 0) { int64_t q = -floor_div(-rr, d); if (q > lo) lo = q; }
-            else if (d < 0) { int64_t q = floor_div(rr, d); if (q < hi) hi = q; }
-            else if (rr > 0) hi = lo - 1;
+        for (int i = 0; i < 3; i++) {
+            if (t->kind[i] > 0) { int64_t b = q[i] + (rm[i] != 0); if (b > lo) lo = b; }
+            else if (t->kind[i] < 0) { if (q[i] < hi) hi = q[i]; }
+            else if (q[i] > 0) hi = lo - 1;
+#ifdef R3_CHECK_SPAN /* the bound as it was worked out by dividing, column by column: the same */
+            {
+                int64_t k = t->ea[i] * pcx + t->ec[i];
+                int64_t d = t->eb[i] * SUB, rr = -(k + t->eb[i] * (SUB / 2));
+                int64_t want = d > 0 ? -floor_div(-rr, d) : d < 0 ? floor_div(rr, d) : rr;
+                int64_t got = t->kind[i] > 0 ? q[i] + (rm[i] != 0) : q[i];
+                if (want != got) { fprintf(stderr, "span: edge %d column %d: %lld, divided %lld\n", i, sx + cx, (long long) got, (long long) want); abort(); }
+            }
+#endif
+            q[i] += t->sq[i];
+            rm[i] += t->sr[i];
+            if (rm[i] >= t->den[i]) { rm[i] -= t->den[i]; q[i]++; }
         }
         if (lo > hi) continue;
         int64_t pcy = lo * SUB + SUB / 2;

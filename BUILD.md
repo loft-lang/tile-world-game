@@ -799,10 +799,14 @@ renderers do not know which grid they draw.
       floats"; the Tanmatsu's FPU is single precision only, loft's WIDTH32.md):
       - raster3d's C holds no double: compiled for the device's ISA (RV32IMAFC, `ilp32f`) it has
         no double instruction and calls no software-double helper (196 single-precision
-        instructions); `-Wdouble-promotion` finds none.  What it still asks of software is 64-bit
-        integer work: float to `int64` in a triangle's setup (12 places) and an `int64` division
-        in `floor_div`, which the span loop calls per edge per column — the next cost on a 32-bit
-        core.
+        instructions); `-Wdouble-promotion` finds none.  **The span loop divides nothing**: each
+        edge's bound on a column's rows is carried from column to column by additions (a quotient
+        and a remainder, worked out once per triangle at its setup), where it was an `int64`
+        division (a library call on a 32-bit core) for each edge of each column.  A check build
+        (`-DR3_CHECK_SPAN`) works the old division out beside it on every column and aborts at a
+        difference: none, over every frame of the bench, here and under `qemu-riscv32`.  Under the
+        emulator a frame 456 → 323 µs following, 853 → 684 µs sliding, the whole scene 8.7 → 6.0
+        ms.  The engine's `int64` divisions are now only in a triangle's setup.
       - Its binding, `fixedview.loft` and the faces are 32-bit loft (`#width 32`): `integer` an
         `i32`, `float` a `single`, on every build.  The faces left render3d for their own module,
         `faces3d.loft` (E1's split: what is seen, apart from the GPU's drawing of it), which uses no

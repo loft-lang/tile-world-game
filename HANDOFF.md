@@ -64,9 +64,10 @@ sprites over it; start with the fixed camera and validate its movements).  BUILD
 - **No doubles, 32-bit loft** (owner, the same day): raster3d's C is single precision only
   (checked on the device's ISA: no double instruction, no software-double call); its binding,
   fixedview and the faces (now `faces3d.loft`, split from render3d) are `#width 32`; tile_world
-  0.12.0 is 32-bit clean.  The 32-bit view draws the same pixels as the 64-bit one.  Still 64-bit:
-  the game logic (narrowed where it enters the view); 64-bit integer work left in the engine's span
-  loop (`floor_div`).
+  0.12.0 is 32-bit clean.  The 32-bit view draws the same pixels as the 64-bit one.  The span loop
+  divides nothing any more (each edge's bound carried by additions; checked against dividing on
+  every column): under qemu-riscv32 a frame 456 → 323 µs.  Still 64-bit: the game logic (narrowed
+  where it enters the view).
 - **Not yet**: `screen` showing raster3d's two framebuffers on the Tanmatsu; a run on the device;
   raster3d moved to loft-libs-graphics (the loft stream's, once its API settles).
 
