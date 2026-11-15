@@ -1,5 +1,45 @@
 # Handoff — the tile_world game, its libraries, and the loft work around them
 
+## State on 2026-11-15
+
+**The fixed camera on a CPU, its movements checked** (owner, the same day: develop @PLN218's
+landscape-and-actors split here, with occasional updates of the 3D landscape and the actors as
+sprites over it; start with the fixed camera and validate its movements).  BUILD.md Phase E, E0:
+- `tools/scene3d.loft` writes a place's landscape as `render3d` builds it (faces and cards, on the
+  layers the fixed camera shows, and their pictures); `bench/fixedcam.c` draws it on the CPU at
+  800 × 480 into B (colour and depth) and checks every camera movement made by shifting B and
+  drawing the new strips against the picture drawn whole.  `bench/run.sh fixedcam [PLACE]` runs
+  it on this machine and under `qemu-riscv32`.  `render3d::faces_of` / `cards_of` take the
+  layers to build.
+- **Found:** with a parallel projection every movement is exact (0 pixels differ, over a walk of
+  ten steps and a 32-frame smooth slide; a shift a pixel short, the control, differs); with the
+  25° perspective of RENDER_3D.md's defaults a step leaves 10–20 % wrong.  So the fixed camera is
+  **proposed parallel** ◇ (RENDER_3D.md § The camera and what is seen) — the owner's to rule.
+- **Next:** the hero's cut-away as a rectangle of B drawn again, the actors over B
+  (`bench/actors.c` joined to it), a landscape change drawn into a rectangle; then the frame
+  calibrated on the device.
+
+**loft.**  `../loft` is on `main` (39701d652); the game now builds with the installed
+`~/.local/bin/loft` (2026.11.20261115).  `~/workspace/loft/target/release/loft` (11-13) no longer
+starts: it reads its default library from the updated tree.  What today's loft asked of the game:
+- **A local bound in a block ends with the block** (`local-out-of-scope`, loft's
+  `formal/binding.md` (B-Scope)): `glb` broke on it, fixed upstream in glb 0.1.8, so `libs/` was
+  fetched again (`./fetch-libs.sh`); with it `graphics::Canvas` holds `vector<u32>`
+  (`render3d::slot_of`).
+- **A loft defect, not yet reported:** a name bound inside an inner loop and bound again after it
+  in the outer loop's body is "Unknown variable 'd#b0'".  Repro:
+  `for r in 0..2 { near = 9.0; for f in [1.0, 2.0] { d = f * 2.0; if d < near { near = d; } }
+  d = sqrt(near) - 0.75; if d >= 9.0 { continue; } println("{d} {r}"); }`.  The game renames the
+  inner one (`hexterrain.loft` `fd`; `render3d.loft`'s house walls `il`, `rl`, `pl`, `cl`).
+- **A second, not yet reported:** on the interpreter, a library's native reached by a name another
+  library's native also has goes to the wrong one: `tiles::clear` runs `tile_world`'s `clear`
+  (both export `loft_shared_n_clear`), and `checks/game.loft` aborts with `--interpret`.  Native
+  builds are not hit; `tools/scene3d.loft` fills with `tiles::rect` instead.
+- A program's relative file paths are read from its own directory: `tools/scene3d.loft` takes a
+  full path for what it writes.
+
+**Checked:** 480 tests on the interpreter and native, 37 game checks (native), 8 view checks.
+
 ## State on 2026-11-14
 
 **The owner's rulings today** (DESIGN.md § The world and § What the player sees, LOCATIONS.md § 1):

@@ -215,8 +215,8 @@ pub fn seat(g: Ground, cells: hex_field::HexSet, height: float, m: const Measure
       (x, y) = centre(q, r);
       near = 1000000.0;
       for f in foot {
-        d = (f.0 - x) * (f.0 - x) + (f.1 - y) * (f.1 - y);
-        if d < near { near = d; }
+        fd = (f.0 - x) * (f.0 - x) + (f.1 - y) * (f.1 - y);
+        if fd < near { near = fd; }
       }
       d = sqrt(near) - 0.75;
       if d >= m.blend { continue; }

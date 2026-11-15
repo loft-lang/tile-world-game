@@ -264,6 +264,17 @@ so the perspective stays mild and a row far off is not much smaller than one nea
 what `camera.loft` follows (`follow`, `rooms`), the same target turned into a point over the
 place, and it does not turn: the pictures are drawn to be seen from the south.
 
+**A parallel projection, proposed (2026-11-15) ◇.**  On a CPU the landscape is kept as a picture
+and a camera movement shifts it, drawing only the strips that come into view (BUILD.md Phase E).
+Measured with `bench/fixedcam.c` in the demo village: with a parallel projection every movement —
+a follow step, a smooth slide, a layer — gives exactly the picture drawn whole, over any number of
+moves; with the 25° perspective a single step leaves 10–20 % of the pixels wrong, and the errors
+add up.  A parallel projection is also the 2D's own, and its textures need no division per pixel.
+So the fixed camera is proposed parallel: a cell 48 pixels wide (the 2D's zoom 3), its ground 40
+deep and a layer 48 tall, which is a camera about 40° down, walls a little taller than the
+ground is deep.  What it gives up is the mild shrinking of far rows.  The first-person view
+stays perspective.
+
 **What is seen:** DESIGN.md § What the player sees carries over as rules, not as a look:
 
 - under a ceiling only the hero's layer and those below are drawn; nothing above (roofs vanish
@@ -380,6 +391,8 @@ Taken as reasonable defaults (owner: change them later).  Each is one named cons
 - **The shadow:** on, a soft ellipse ¾ of a cell wide under each card, darker the nearer the card
   stands to the ground (`SHADOW`).
 - **The ridge:** one layer above the eaves (`RIDGE`).
-- **The camera:** 40° down, a 25° field (`PITCH`, `FIELD`).
+- **The camera:** 40° down, a 25° field (`PITCH`, `FIELD`).  **Proposed instead (2026-11-15) ◇: a
+  parallel projection**, a cell 48 pixels wide, its ground 40 deep, a layer 48 tall at the panel's
+  resolution (about 40° down; § The camera and what is seen).
 - **The cut-away:** a wall is cut when it covers any of the hero's card (`CUT_COVER` 0: any part),
   the strictest reading of "never hidden".

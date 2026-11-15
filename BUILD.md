@@ -508,9 +508,9 @@ The columns overlap, so they do not add up.  What it shows:
 - **When B is drawn again**: the rules say the landscape changed (a door, a push, a flame lit or
   out), or the camera moved too far.  How far is too far depends on the camera:
   - **the fixed camera from the south** (RENDER_3D.md § The camera, decided 2026-11-05, not yet
-    built): it never turns and looks at a narrow angle, so walking shifts the picture almost as
-    the 2D scrolls.  B is drawn a margin larger than the screen and slid; it is drawn again
-    about once a cell step;
+    built): it never turns, so walking shifts the picture as the 2D scrolls — exactly, when its
+    projection is parallel (measured, E0 below).  B is shifted and only the strips that come
+    into view are drawn; it is drawn whole only when the place or the layers shown change;
   - **the first-person view** (built, in the browser): every step and every turn changes the
     whole picture, so B would be drawn again every frame while the hero moves, about 100 ms at
     800 × 480.
@@ -562,8 +562,10 @@ renderers do not know which grid they draw.
     near uncovers what was behind it);
   - **the actors stay exact**: drawn every frame where they are, so the hero and the monsters
     never lag.  Only the background is approximate, until the next B arrives.
-- **The fixed camera from the south** needs only the slide above: it never turns, and its
-  narrow field makes walking nearly a shift.
+- **The fixed camera from the south** needs only a slide: it never turns.  **Measured
+  (2026-11-15, `bench/fixedcam.c`, below): with a parallel projection the slide is exact; with the
+  perspective of RENDER_3D.md's defaults it is not**, however narrow the field (near rows move
+  further than far ones).
 
 - **E0. The test routine** (owner).  The demo village in 3D, run on the desktop and on the
   Tanmatsu.  A scripted path holds still, turns on the spot, walks a street and enters a house
@@ -611,6 +613,43 @@ renderers do not know which grid they draw.
       walking, 197 µs for the busy scene; the copy to the panel alone 230 µs.  What they take on
       the device waits for the calibration run.
     - Not yet in it: figures turned and leaned as `motion.loft` poses them, and B drawn by E2.
+  - **The fixed camera's movements: `bench/fixedcam.c`** (`bench/run.sh fixedcam [PLACE]`) ◇.  A
+    first E2: the landscape's faces and cards as `render3d` builds them (`tools/scene3d.loft`
+    writes them out) drawn on the CPU into B, colour and 16-bit depth, at 800 × 480.  The
+    rasteriser works in 1/16 pixel with integer edge functions and a fill rule that gives a shared
+    edge to one triangle, so what it draws at a pixel depends only on where the pixel lies against
+    the triangle: drawing a strip draws exactly what the whole picture has there.  Each camera
+    movement is made by shifting B and drawing the strips that came into view, then compared
+    pixel for pixel, colour and depth, with the picture drawn whole where the camera went.  Two
+    projections: **parallel**, a cell 48 pixels wide, its ground 40 deep, a layer 48 tall (the
+    2D's zoom 3, the ground a little shallower than a wall is tall: about the 40° of RENDER_3D.md
+    § The camera), the camera's place a whole number of pixels; and the **perspective** of
+    RENDER_3D.md's defaults (40° down, a 25° field).  In the demo village (994 faces), on this
+    machine and under `qemu-riscv32` alike (2026-11-15):
+
+    | Movement | Parallel: pixels that differ | Perspective: pixels that differ | Parallel: cost against drawing B whole (emulator) |
+    |---|---|---|---|
+    | a cell east or west | 0 | 10 % | 9–10 % |
+    | a cell north or south | 0 | 17–20 % | 3–14 % |
+    | a cell diagonally | 0 | 20 % | 21 % |
+    | a layer up or down (the view rises with the hero's layer, as in 2D) | 0 | 12–14 % | 4–17 % |
+    | ten follow steps one after another, B never drawn whole | 0 | up to 30 %, growing | 287,360 pixels drawn, 7.5 % of drawing each picture whole |
+    | a smooth slide, 32 frames of 4–6 pixels | 0 | — | 1 % of the pixels |
+    | the control: a cell east shifted a pixel short | 2.4 % | | |
+
+    - **So the fixed camera is a parallel projection** ◇ (proposed; the 25° perspective was a
+      default, RENDER_3D.md § Defaults).  Every movement of it — a follow step, a smooth slide, a
+      layer — is a shift and a strip, exactly the picture drawn whole, and stays exact over any
+      number of moves.  Its texturing is affine and exact too: no division per pixel, as the
+      P4 wants.  With the perspective every step leaves a tenth to a fifth of the picture wrong,
+      and the errors add up.
+    - Drawing B whole: 5 ms on this machine, 168 ms under the emulator (its floats are software
+      calls; the P4 has an FPU); what the device takes waits for the calibration run.
+    - **A rooms flip, a door, a change of the layers shown** (stepping under a roof) draw B whole:
+      nothing of the old picture is in the new one.
+    - Not yet in it: the hero's cut-away (a wall in front of the hero taken out: a landscape change
+      round the hero at each step, so a rectangle of B drawn again, not all of it), the actors
+      over B (`bench/actors.c`'s part), and a landscape change drawn into a rectangle.
 - **E1. One seam between the game and its drawing** (owner, 2026-11-09: OpenGL and the new code
   must not influence the game logic) ◇.
   - **From the game to a view: what is there, never how to draw it.**  The landscape (the cells,

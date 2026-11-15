@@ -1,0 +1,128 @@
+// A place's landscape as the 3D view builds it, written out for the CPU renderer's bench
+// (bench/fixedcam.c, BUILD.md Phase E, E0 and E2): every face and card `render3d` makes round a
+// spot, on the layers the fixed camera from the south shows, and the pictures they use.
+//
+//   loft --interpret --lib libs tools/scene3d.loft PLACE OUT [X Y Z]
+//
+// PLACE is a file in levels/ (without `.json`); OUT a path from this directory (tools/) or a full
+// one; X Y Z the spot (the place's start when left out).
+// The faces cover the spot and SPAN cells each way, so the camera can move over them.
+//
+// OUT is text, one record a line, written as it is made:
+//   scene3d 1
+//   spot X Y Z
+//   f ID CARD N        a face: its picture, whether it is a card, then N corners `x y z u v light`
+//   p ID               a picture: then its 16 x 16 RGB565 texels, row by row (63519: none)
+//   end
+// x is east, y up in layers, z south (RENDER_3D.md § Units and axes); a card is a picture that
+// stands up (a tree, a fence, a thing, a figure), the rest the environment's geometry.
+use tile_world;
+use tiles;
+use rules;
+use theme;
+use game;
+use render3d;
+
+/// The cells each way from the spot the faces cover.
+const SPAN = 19;
+/// `render3d` builds 12 cells round the hero; a call is kept for the 13 x 13 cells round it.
+const CORE = 6;
+
+// The cell a face belongs to: its corner furthest north-west.
+fn cell_of(f: const render3d::Face) -> (integer, integer) {
+  n = len(f.at) / 5 ?? 0;
+  x = 1000000.0;
+  z = 1000000.0;
+  for c in 0..n {
+    fx = f.at[c * 5] ?? 0.0;
+    fz = f.at[c * 5 + 2] ?? 0.0;
+    if fx < x { x = fx; }
+    if fz < z { z = fz; }
+  }
+  (floor(x + 0.001) as integer, floor(z + 0.001) as integer)
+}
+
+fn line_of(f: const render3d::Face, card: boolean) -> text {
+  n = len(f.at) / 5 ?? 0;
+  out = "{f.sprite} {if card { 1 } else { 0 }} {n}";
+  for c in 0..n {
+    i = c * 5;
+    l = f.lights[c] ?? f.light;
+    out += " {f.at[i] ?? 0.0} {f.at[i + 1] ?? 0.0} {f.at[i + 2] ?? 0.0} {f.at[i + 3] ?? 0.0} {f.at[i + 4] ?? 0.0} {l}";
+  }
+  out
+}
+
+fn main() {
+  args = arguments();
+  place = args[0] ?? "";
+  out_path = args[1] ?? "";
+  if place == "" || out_path == "" {
+    println("usage: loft --lib libs tools/scene3d.loft PLACE OUT [X Y Z]");
+    exit(1);
+  }
+  m = game::new_game("..");
+  if !m { println("the game does not load"); exit(1); }
+  g = m;
+  if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
+  if len(args) >= 5 {
+    rules::put_hero(g.world, (args[2] ?? "0") as integer ?? 0, (args[3] ?? "0") as integer ?? 0,
+                    (args[4] ?? "0") as integer ?? 0);
+  }
+  hx = g.world.hero_x;
+  hy = g.world.hero_y;
+  hz = g.world.hero_z;
+  // The fixed camera's layers: two below, and the one above under the open sky only.
+  z0 = hz - 2;
+  z1 = if tile_world::open_sky(g.world.w, hx, hy, hz) { hz + 1 } else { hz };
+  out = file(out_path);
+  if !out.write("scene3d 1\nspot {hx} {hy} {hz}\n").ok() { println("cannot write {out_path}"); exit(1); }
+  v = render3d::view();
+  used: hash<Used[sprite]> = [];
+  pics: vector<integer> = [];
+  n = 0;
+  step = 2 * CORE + 1;
+  ty = hy - SPAN + CORE;
+  while ty - CORE <= hy + SPAN {
+    tx = hx - SPAN + CORE;
+    while tx - CORE <= hx + SPAN {
+      g.world.hero_x = tx;
+      g.world.hero_y = ty;
+      for pass in 0..2 {
+        fs = if pass == 0 { render3d::faces_of(g, z0, z1) } else { render3d::cards_of(v, g, 16, z0, z1) };
+        for f in fs {
+          c = cell_of(f);
+          if c.0 < tx - CORE || c.0 > tx + CORE || c.1 < ty - CORE || c.1 > ty + CORE { continue; }
+          if !used[f.sprite] {
+            used += [Used { sprite: f.sprite }];
+            pics += [f.sprite];
+          }
+          _ = out.write("f {line_of(f, pass == 1)}\n");
+          n += 1;
+        }
+      }
+      println("  round ({tx}, {ty}): {n} faces so far");
+      tx += step;
+    }
+    ty += step;
+  }
+  g.world.hero_x = hx;
+  g.world.hero_y = hy;
+  ts = g.look.tile_size;
+  scratch = tiles::surface(ts, ts) ?? 0;
+  for s in pics {
+    // `rect`, not `clear`: in the interpreter `tiles::clear` reaches tile_world's native of the
+    // same name (both libraries export `loft_shared_n_clear`).
+    tiles::rect(scratch, 0, 0, ts, ts, 63519);
+    theme::put(scratch, s, 0, 0, 0);
+    row = "p {s}";
+    for p in tiles::pixels(scratch, ts, ts) { row += " {p}"; }
+    _ = out.write(row + "\n");
+  }
+  if !out.write("end\n").ok() { println("cannot write {out_path}"); exit(1); }
+  println("{place} at ({hx}, {hy}, {hz}), layers {z0} .. {z1}: {n} faces, {len(pics)} pictures");
+}
+
+struct Used {
+  sprite: integer
+}
