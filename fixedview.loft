@@ -1,3 +1,4 @@
+#width 32
 // The fixed camera from the south, drawn on a CPU (RENDER_3D.md § The camera and what is seen;
 // BUILD.md Phase E): the landscape round the hero, as render3d builds it, kept as a picture by
 // raster3d and drawn again only where it changes; the hero, the enemies and the people drawn over
@@ -25,7 +26,7 @@ use tiles;
 use rules;
 use theme;
 use game;
-use render3d;
+use faces3d;
 use raster3d;
 
 /// A tile's side in cells.
@@ -183,7 +184,8 @@ fn give(v: FixedView, g: const game::Game) {
 // The layers shown: two below the hero's, and the one above under the open sky only.
 fn layers(g: const game::Game) -> (integer, integer) {
   w = g.world;
-  (w.hero_z - 2, if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { w.hero_z + 1 } else { w.hero_z })
+  hz: integer = w.hero_z;
+  (hz - 2, if tile_world::open_sky(w.w, w.hero_x, w.hero_y, w.hero_z) { hz + 1 } else { hz })
 }
 
 // The tile a cell is in.
@@ -198,7 +200,7 @@ fn key_of(tx: integer, ty: integer) -> integer {
 
 // The group a face is hidden with: one cell's walls on one layer (what the hero's cut-away takes
 // out), -1 for a floor or a card.
-fn group_of(v: const FixedView, f: const render3d::Face) -> integer {
+fn group_of(v: const FixedView, f: const faces3d::Face) -> integer {
   n = len(f.at) / 5 ?? 0;
   x = 1000000.0;
   zz = 1000000.0;
@@ -223,23 +225,22 @@ fn group_of(v: const FixedView, f: const render3d::Face) -> integer {
 
 // The faces and cards of tile (tx, ty), as raster3d takes them, from `cl` and `lt` (which hold
 // the tile, HALO round it, a layer under and over).
-fn tile_faces(v: FixedView, g: const game::Game, cl: const render3d::Cells, lt: const render3d::Light, tx: integer,
+fn tile_faces(v: FixedView, g: const game::Game, cl: const faces3d::Cells, lt: const faces3d::Light, tx: integer,
               ty: integer) -> vector<float> {
   x0 = tx * TILE;
   y0 = ty * TILE;
   x1 = x0 + TILE - 1;
   y1 = y0 + TILE - 1;
-  rv = render3d::view();
   out: vector<float> = [];
   for pass in 0..2 {
-    fs = if pass == 0 { render3d::faces_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, false) }
-         else { render3d::cards_box(rv, g, cl, lt, 16, x0, y0, x1, y1, v.z0, v.z1, false, false) };
+    fs = if pass == 0 { faces3d::faces_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, false) }
+         else { faces3d::cards_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, 0.0, false) };
     for f in fs {
       n = len(f.at) / 5 ?? 0;
       grp = if pass == 0 { group_of(v, f) } else { -1 };
       out += [pic_of(v, f.sprite) as float, grp as float, n as float, f.lx as float, f.ly as float, f.lz as float, f.lk];
       // Lit from its cell, its corners hold no light of their own; else their own.
-      own = f.lz == render3d::NO_LIGHT;
+      own = f.lz == faces3d::NO_LIGHT;
       for c in 0..n {
         i = c * 5;
         out += [f.at[i] ?? 0.0, f.at[i + 1] ?? 0.0, f.at[i + 2] ?? 0.0, f.at[i + 3] ?? 0.0, f.at[i + 4] ?? 0.0,
@@ -251,19 +252,19 @@ fn tile_faces(v: FixedView, g: const game::Game, cl: const render3d::Cells, lt: 
 }
 
 // What tile (tx, ty) reads: its cells and its light, read for it alone.
-fn tile_cells(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> render3d::Cells {
+fn tile_cells(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> faces3d::Cells {
   x0 = tx * TILE;
   y0 = ty * TILE;
-  render3d::cells(g, x0 - render3d::HALO, y0 - render3d::HALO, x0 + TILE - 1 + render3d::HALO,
-                  y0 + TILE - 1 + render3d::HALO, v.z0 - 1, v.z1 + 1)
+  faces3d::cells(g, x0 - faces3d::HALO, y0 - faces3d::HALO, x0 + TILE - 1 + faces3d::HALO,
+                  y0 + TILE - 1 + faces3d::HALO, v.z0 - 1, v.z1 + 1)
 }
 
 // The light a tile's faces are lit from: its layers and the one above (a wall's top); not the one
 // below, which lights only the faces seen from below, left out here.
-fn tile_light(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> render3d::Light {
+fn tile_light(v: const FixedView, g: const game::Game, tx: integer, ty: integer) -> faces3d::Light {
   x0 = tx * TILE;
   y0 = ty * TILE;
-  render3d::light_box(g, x0, y0, x0 + TILE - 1, y0 + TILE - 1, v.z0, v.z1 + 1)
+  faces3d::light_box(g, x0, y0, x0 + TILE - 1, y0 + TILE - 1, v.z0, v.z1 + 1)
 }
 
 fn same(a: const vector<float>, b: const vector<float>) -> boolean {
@@ -289,8 +290,8 @@ fn put_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer, faces: 
 }
 
 // The light `lt` holds, given to the scene as the cells' light.
-fn send_light(v: FixedView, lt: const render3d::Light) {
-  for i in 0..render3d::light_layers(lt) { raster3d::set_light(v.scene, render3d::light_data(lt, i)); }
+fn send_light(v: FixedView, lt: const faces3d::Light) {
+  for i in 0..faces3d::light_layers(lt) { raster3d::set_light(v.scene, faces3d::light_data(lt, i)); }
 }
 
 // The cells of tile (tx, ty) with a thing whose picture moves.
@@ -353,8 +354,8 @@ fn fresh(v: FixedView, g: const game::Game) {
   y0 = ty0 * TILE;
   x1 = tx1 * TILE + TILE - 1;
   y1 = ty1 * TILE + TILE - 1;
-  cl = render3d::cells(g, x0 - render3d::HALO, y0 - render3d::HALO, x1 + render3d::HALO, y1 + render3d::HALO, z0 - 1, z1 + 1);
-  lt = render3d::light_box(g, x0, y0, x1, y1, z0, z1 + 1);
+  cl = faces3d::cells(g, x0 - faces3d::HALO, y0 - faces3d::HALO, x1 + faces3d::HALO, y1 + faces3d::HALO, z0 - 1, z1 + 1);
+  lt = faces3d::light_box(g, x0, y0, x1, y1, z0, z1 + 1);
   send_light(v, lt);
   for ty in ty0..=ty1 {
     for tx in tx0..=tx1 { put_tile(v, g, tx, ty, tile_faces(v, g, cl, lt, tx, ty)); }
@@ -435,9 +436,9 @@ fn build_tiles(v: FixedView, g: const game::Game, ts: const vector<(integer, int
   y0 = ty0 * TILE;
   x1 = tx1 * TILE + TILE - 1;
   y1 = ty1 * TILE + TILE - 1;
-  h = render3d::HALO;
-  cl = render3d::cells(g, x0 - h, y0 - h, x1 + h, y1 + h, v.z0 - 1, v.z1 + 1);
-  lt = render3d::light_box(g, x0, y0, x1, y1, v.z0, v.z1 + 1);
+  h = faces3d::HALO;
+  cl = faces3d::cells(g, x0 - h, y0 - h, x1 + h, y1 + h, v.z0 - 1, v.z1 + 1);
+  lt = faces3d::light_box(g, x0, y0, x1, y1, v.z0, v.z1 + 1);
   send_light(v, lt);
   for t in ts { put_tile(v, g, t.0, t.1, tile_faces(v, g, cl, lt, t.0, t.1)); }
   v.spent.built += len(ts);
@@ -487,7 +488,7 @@ fn suspect(v: FixedView, key: integer) {
 
 // The cells a light at (x, y) on layer z reaches, their light given again.
 fn shine(v: FixedView, g: const game::Game, x: integer, y: integer, z: integer) {
-  send_light(v, render3d::light_box(g, x - SHINE, y - SHINE, x + SHINE, y + SHINE, z, z));
+  send_light(v, faces3d::light_box(g, x - SHINE, y - SHINE, x + SHINE, y + SHINE, z, z));
   v.spent.shone += 1;
 }
 
@@ -507,7 +508,7 @@ fn told(v: FixedView, g: const game::Game) -> vector<integer> {
       if !tile_world::changed_since(w.w, x0 - READS, y0 - READS, x1 + READS, y1 + READS, v.z0 - 1, v.z1 + 1, v.seen) {
         continue;
       }
-      h = render3d::HALO;
+      h = faces3d::HALO;
       if tile_world::changed_since(w.w, x0 - h, y0 - h, x1 + h, y1 + h, v.z0 - 1, v.z1 + 1, v.seen) {
         now += [t.key];
       } else {
@@ -590,7 +591,7 @@ fn towards(at: integer, to: integer, slack: integer) -> integer {
 fn light_on(v: const FixedView, g: const game::Game, x: integer, y: integer, z: integer) -> float {
   l = raster3d::light_at(v.scene, x, y, z);
   if l { return l!; }
-  render3d::light_at(g, x, y, z)
+  faces3d::light_at(g, x, y, z)
 }
 
 // The figures on the layers shown, as actors: a body card each and what it holds beside it; and
@@ -604,7 +605,7 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
     if !t { continue; }
     for c in t.flames {
       light = light_on(v, g, c.0, c.1, c.2);
-      for f in render3d::thing_cards(g, c.0, c.1, c.2) {
+      for f in faces3d::thing_cards(g, c.0, c.1, c.2) {
         if f.0 < 0 { continue; }
         out += [id as float, pic_of(v, f.0) as float, (c.0 as float) + 0.5, f.1, (c.1 as float) + 0.5, f.2, light,
                 0.0, 0.5, 1.0, 0.0];
@@ -618,14 +619,17 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
     for f in game::figures(g, w, z) {
       id = if f.facing_shown { HERO } else { (z - v.z0) * 10000 + i * 3 };
       i += 1;
-      x = (f.x as float) + 0.5 + f.fine.x / 16.0;
-      zz = (f.y as float) + 0.5 + f.fine.y / 16.0;
-      y = (z as float) + 0.25 * (f.h as float) - f.fine.hop / 16.0;
+      // The pose in this file's single precision: the game's numbers are 64-bit, narrowed once here.
+      fine = (f.fine.x as single, f.fine.y as single, f.fine.hop as single, f.fine.tilt as single,
+              f.fine.weapon as single, f.fine.reach as single);
+      x = (f.x as float) + 0.5 + fine.0 / 16.0;
+      zz = (f.y as float) + 0.5 + fine.1 / 16.0;
+      y = (z as float) + 0.25 * (f.h as float) - fine.2 / 16.0;
       light = light_on(v, g, f.x, f.y, z);
       // As the 2D poses it (game::figure_turn): turned about the bottom middle of its picture,
       // mirrored for the hero facing west.
       turn = game::figure_turn(f);
-      out += [id as float, pic_of(v, f.sprite) as float, x, y, zz, FIGURE, light, turn.0, PIVOT_U, PIVOT_V,
+      out += [id as float, pic_of(v, f.sprite) as float, x, y, zz, FIGURE, light, turn.0 as single, PIVOT_U, PIVOT_V,
               if turn.1 { 1.0 } else { 0.0 }];
       // Its picture's pixels as the card's: 16 of them across FIGURE.
       k = FIGURE / 16.0;
@@ -636,19 +640,19 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
         sx = left - ((f.face_x * 4) as float) * k + FIGURE / 2.0;
         sy = top + ((f.face_y * 3 + 2) as float) * k - FIGURE;
         out += [(id + 2) as float, pic_of(v, theme::thing_sprite(g.look, f.shoulder)) as float, sx, sy, zz - 0.03, FIGURE,
-                light, f.fine.tilt, PIVOT_U, PIVOT_V, 0.0];
+                light, fine.3, PIVOT_U, PIVOT_V, 0.0];
       }
       // What it holds: its carried picture at the hand, turned as the swing turns it about its
       // grip and pushed out by its reach (theme::held_place), behind it facing north.
       if f.item != 0 {
         hd = game::hand(f.face_x, f.face_y);
-        p = theme::held_place(g.look, f.item, hd.0 as float, hd.1 as float, f.fine.weapon, f.fine.reach, w.now, f.low);
+        p = theme::held_place(g.look, f.item, hd.0 as f64, hd.1 as f64, f.fine.weapon, f.fine.reach, w.now, f.low);
         if p.0 >= 0 {
-          ix = left + p.1 * k + FIGURE / 2.0;
-          iy = top - p.2 * k - FIGURE;
+          ix = left + (p.1 as single) * k + FIGURE / 2.0;
+          iy = top - (p.2 as single) * k - FIGURE;
           iz = if game::held_behind(f) { zz - 0.02 } else { zz + 0.02 };
-          out += [(id + 1) as float, pic_of(v, p.0) as float, ix, iy, iz, FIGURE, light, f.fine.weapon, p.3 / 16.0,
-                  p.4 / 16.0, 0.0];
+          out += [(id + 1) as float, pic_of(v, p.0) as float, ix, iy, iz, FIGURE, light, fine.4, (p.3 as single) / 16.0,
+                  (p.4 as single) / 16.0, 0.0];
         }
       }
       if f.facing_shown { follow(v, f, z); }

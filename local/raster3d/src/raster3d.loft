@@ -1,3 +1,4 @@
+#width 32
 // Copyright (c) 2026 Jurjen Stellingwerff
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
@@ -20,6 +21,11 @@
 //
 // The functions' names are this library's alone (`new_scene`, not `scene`): on the interpreter a
 // library's function can reach another loaded library's of the same name (loft#2507).
+//
+// 32-bit loft (`#width 32`, loft's WIDTH32.md), as the Tanmatsu runs it: an `integer` here is an
+// `i32` and a `float` a `single`, and the engine's C holds no double (the device's FPU is single
+// precision only).  Faces, light and actors are given as `vector<single>`, so the same binding
+// serves a 64-bit caller, which hands it single-precision numbers too.
 
 pub const WIDTH = 800;
 pub const HEIGHT = 480;
@@ -37,26 +43,26 @@ fn r3h_free(h: integer);
 #c "r3h_free" "void(int64_t)"
 fn r3h_picture(h: integer, texels: const vector<i32>) -> integer;
 #c "r3h_picture" "int64_t(int64_t, const int32_t*)"
-fn r3h_faces(h: integer, d: const vector<float>, n: integer);
-#c "r3h_faces" "void(int64_t, const double*, int64_t)"
-fn r3h_tile(h: integer, key: integer, d: const vector<float>, n: integer);
-#c "r3h_tile" "void(int64_t, int64_t, const double*, int64_t)"
+fn r3h_faces(h: integer, d: const vector<single>, n: integer);
+#c "r3h_faces" "void(int64_t, const float*, int64_t)"
+fn r3h_tile(h: integer, key: integer, d: const vector<single>, n: integer);
+#c "r3h_tile" "void(int64_t, int64_t, const float*, int64_t)"
 fn r3h_drop(h: integer, key: integer);
 #c "r3h_drop" "void(int64_t, int64_t)"
-fn r3h_light(h: integer, b: const vector<float>, v: const vector<float>, n: integer);
-#c "r3h_light" "void(int64_t, const double*, const double*, int64_t)"
-fn r3h_light_at(h: integer, x: integer, y: integer, z: integer) -> float;
-#c "r3h_light_at" "double(int64_t, int64_t, int64_t, int64_t)"
+fn r3h_light(h: integer, b: const vector<single>, v: const vector<single>, n: integer);
+#c "r3h_light" "void(int64_t, const float*, const float*, int64_t)"
+fn r3h_light_at(h: integer, x: integer, y: integer, z: integer) -> single;
+#c "r3h_light_at" "float(int64_t, int64_t, int64_t, int64_t)"
 fn r3h_overlay(h: integer, px: const vector<i32>, w: integer, hh: integer, scale: integer);
 #c "r3h_overlay" "void(int64_t, const int32_t*, int64_t, int64_t, int64_t)"
 fn r3h_lights(h: integer) -> integer;
 #c "r3h_lights" "int64_t(int64_t)"
-fn r3h_build(h: integer, origin: const vector<float>);
-#c "r3h_build" "void(int64_t, const double*)"
+fn r3h_build(h: integer, origin: const vector<single>);
+#c "r3h_build" "void(int64_t, const float*)"
 fn r3h_camera(h: integer, px: integer, py: integer);
 #c "r3h_camera" "void(int64_t, int64_t, int64_t)"
-fn r3h_actors(h: integer, d: const vector<float>, n: integer, keep_seen: integer);
-#c "r3h_actors" "void(int64_t, const double*, int64_t, int64_t)"
+fn r3h_actors(h: integer, d: const vector<single>, n: integer, keep_seen: integer);
+#c "r3h_actors" "void(int64_t, const float*, int64_t, int64_t)"
 fn r3h_frame(h: integer, out: vector<i32>);
 #c "r3h_frame" "void(int64_t, int32_t*)"
 
@@ -80,11 +86,11 @@ pub fn add_picture(scene: integer, texels: const vector<i32>) -> integer {
 /// light comes from (x, y, layer, k: the light `set_light` gave that cell, times k; layer NO_LIGHT:
 /// none, the corners' own), then n times x, y, z, u, v, light — x east, y up in layers, z south,
 /// u and v 0 .. 1 over the picture, light 0 .. 1.
-pub fn add_faces(scene: integer, d: const vector<float>) { r3h_faces(scene, d, len(d)); }
+pub fn add_faces(scene: integer, d: const vector<single>) { r3h_faces(scene, d, len(d)); }
 
 /// Tile `key`'s faces, as `add_faces` takes them, in place of the ones it had (none: it is
 /// empty).  Tiles are drawn in the order of their keys; the change shows from the next frame.
-pub fn set_tile(scene: integer, key: integer, d: const vector<float>) { r3h_tile(scene, key, d, len(d)); }
+pub fn set_tile(scene: integer, key: integer, d: const vector<single>) { r3h_tile(scene, key, d, len(d)); }
 
 /// Tile `key` gone.
 pub fn drop_tile(scene: integer, key: integer) { r3h_drop(scene, key); }
@@ -93,7 +99,7 @@ pub fn drop_tile(scene: integer, key: integer) { r3h_drop(scene, key); }
 /// then each cell's light (0 .. 1) row by row.  The faces lit from those cells are lit again, and
 /// the picture drawn again where they lie, from the next frame: a light that moves or flickers
 /// costs its triangles, no face given again.
-pub fn set_light(scene: integer, d: const vector<float>) {
+pub fn set_light(scene: integer, d: const vector<single>) {
   if len(d) < 5 { return; }
   r3h_light(scene, d[0..5], d[5..], len(d) - 5);
 }
@@ -127,7 +133,7 @@ pub fn move_camera(scene: integer, px: integer, py: integer) { r3h_camera(scene,
 /// picture it turns about (u, v: 0 .. 1 across and down; 0.5, 1 the bottom middle) and whether it
 /// is mirrored (1) or not (0).  The actor `keep_seen` is never hidden: the walls in front of it are
 /// cut away (-1: none).
-pub fn set_actors(scene: integer, d: const vector<float>, keep_seen: integer = -1) {
+pub fn set_actors(scene: integer, d: const vector<single>, keep_seen: integer = -1) {
   r3h_actors(scene, d, len(d), keep_seen);
 }
 

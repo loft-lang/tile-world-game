@@ -40,7 +40,7 @@ static double now_us(void) {
 
 /* --- The scene --- */
 
-typedef struct { int id, card, n; double c[8][6]; } Face;
+typedef struct { int id, card, n; float c[8][6]; } Face;
 static Face *faces;
 static int nfaces;
 typedef struct { int id; uint16_t t[R3_TS * R3_TS]; } Pic;
@@ -69,7 +69,7 @@ static void load(const char *path) {
             Face *f = &faces[nfaces++];
             f->id = rd_int(); f->card = rd_int(); f->n = rd_int();
             if (f->n > 8) { fprintf(stderr, "a face of %d corners\n", f->n); exit(1); }
-            for (int c = 0; c < f->n; c++) for (int k = 0; k < 6; k++) f->c[c][k] = rd_dbl();
+            for (int c = 0; c < f->n; c++) for (int k = 0; k < 6; k++) f->c[c][k] = (float) rd_dbl();
         } else if (!strcmp(tag, "p")) {
             if (npics == cp) { cp *= 2; pics = realloc(pics, (size_t) cp * sizeof(Pic)); }
             pics[npics].id = rd_int();
@@ -92,15 +92,15 @@ static int group_of(int cx, int cz) { return (cz + GW / 2) * GW + (cx + GW / 2);
 
 static int wall_group(const Face *f) {
     if (f->card) return -1;
-    double x = 1e9, z = 1e9, y0 = 1e9, y1 = -1e9;
+    float x = 1e9f, z = 1e9f, y0 = 1e9f, y1 = -1e9f;
     for (int c = 0; c < f->n; c++) {
         if (f->c[c][0] < x) x = f->c[c][0];
         if (f->c[c][2] < z) z = f->c[c][2];
         if (f->c[c][1] < y0) y0 = f->c[c][1];
         if (f->c[c][1] > y1) y1 = f->c[c][1];
     }
-    if (y1 - floor(y0 + 1e-6) < 0.5) return -1; /* a floor, not a wall */
-    int cx = (int) floor(x + 1e-3) - spot[0], cz = (int) floor(z + 1e-3) - spot[1];
+    if (y1 - floorf(y0 + 1e-6f) < 0.5f) return -1; /* a floor, not a wall */
+    int cx = (int) floorf(x + 1e-3f) - spot[0], cz = (int) floorf(z + 1e-3f) - spot[1];
     if (cx < -GW / 2 || cx >= GW / 2 || cz < -GW / 2 || cz >= GW / 2) return -1;
     return group_of(cx, cz);
 }
@@ -111,34 +111,34 @@ static int tile_key(int tx, int tz) { return (tz + 512) * 1024 + (tx + 512); }
 
 /* The tile a face is given in: the one holding its corners' west-north-most cell. */
 static int face_tile(const Face *f) {
-    double x = 1e9, z = 1e9;
+    float x = 1e9f, z = 1e9f;
     for (int c = 0; c < f->n; c++) {
         if (f->c[c][0] < x) x = f->c[c][0];
         if (f->c[c][2] < z) z = f->c[c][2];
     }
-    return tile_key(floor_div8((int) floor(x + 1e-3)), floor_div8((int) floor(z + 1e-3)));
+    return tile_key(floor_div8((int) floorf(x + 1e-3f)), floor_div8((int) floorf(z + 1e-3f)));
 }
 
 /* The cell a face is lit from: its corners' west-north-most cell, on the layer of its lowest. */
 static void face_cell(const Face *f, int *x, int *y, int *z) {
-    double mx = 1e9, mz = 1e9, my = 1e9;
+    float mx = 1e9f, mz = 1e9f, my = 1e9f;
     for (int c = 0; c < f->n; c++) {
         if (f->c[c][0] < mx) mx = f->c[c][0];
         if (f->c[c][2] < mz) mz = f->c[c][2];
         if (f->c[c][1] < my) my = f->c[c][1];
     }
-    *x = (int) floor(mx + 1e-3);
-    *y = (int) floor(mz + 1e-3);
-    *z = (int) floor(my + 1e-3);
+    *x = (int) floorf(mx + 1e-3f);
+    *y = (int) floorf(mz + 1e-3f);
+    *z = (int) floorf(my + 1e-3f);
 }
 
 /* Tile `key` given (again), its faces' light times `light`, each lit from its cell (until the
  * cell's light is given, by its own corners' light). */
-static void give_tile(R3 *r, int key, double light) {
+static void give_tile(R3 *r, int key, float light) {
     r3_tile(r, key);
     for (int i = 0; i < nfaces; i++) {
         if (face_tile(&faces[i]) != key) continue;
-        double c[8][6];
+        float c[8][6];
         memcpy(c, faces[i].c, sizeof c);
         for (int k = 0; k < faces[i].n; k++) c[k][5] *= light;
         int lx, ly, lz;
@@ -171,14 +171,14 @@ static const int path[][2] = { /* the hero's steps, in cells */
 };
 #define NPATH ((int) (sizeof path / sizeof path[0]))
 
-typedef struct { double x, z; } P2;
+typedef struct { float x, z; } P2;
 
 static P2 hero_at(int f) {
     P2 p = { spot[0] + 0.5, spot[1] + 0.5 };
     int s = f / STEP;
     for (int i = 0; i < s && i < NPATH; i++) { p.x += path[i][0]; p.z += path[i][1]; }
     if (s < NPATH) {
-        double t = (double) (f % STEP) / STEP;
+        float t = (float) (f % STEP) / STEP;
         p.x += path[s][0] * t;
         p.z += path[s][1] * t;
     }
@@ -189,22 +189,22 @@ static int hero_pic, fig_pic[5];
 
 static void actors(R3 *r, int f, int moved_control) {
     P2 h = hero_at(f);
-    double y = spot[2];
+    float y = (float) spot[2];
     r3_actors_begin(r);
     /* The hero posed as motion.loft poses it: leaning the way it walks, mirrored facing west, a
      * wobble as it steps; what it holds swung about its grip. */
     int s = f / STEP < NPATH ? f / STEP : NPATH - 1;
     int west = path[s][0] < 0;
-    double lean = path[s][0] * 6.0 + 4.0 * sin(f * 0.7);
-    r3_actor_pose(r, 0, hero_pic, h.x + (moved_control ? 1.0 / 48 : 0), y, h.z, 0.85, 1.0, lean, 8.5 / 16, 15.5 / 16, west);
-    r3_actor_pose(r, 6, fig_pic[4], h.x + 0.3, y + 0.25, h.z + 0.02, 0.85, 1.0, fmod(f * 9.0, 360.0), 0.5, 0.9, 0);
+    float lean = path[s][0] * 6.0f + 4.0f * sinf(f * 0.7f);
+    r3_actor_pose(r, 0, hero_pic, h.x + (moved_control ? 1.0f / 48 : 0), y, h.z, 0.85f, 1.0f, lean, 8.5f / 16, 15.5f / 16, west);
+    r3_actor_pose(r, 6, fig_pic[4], h.x + 0.3f, y + 0.25f, h.z + 0.02f, 0.85f, 1.0f, fmodf(f * 9.0f, 360.0f), 0.5f, 0.9f, 0);
     /* Two pacing three cells and back, one wandering, two standing. */
-    double pace = fabs(fmod(f / 40.0, 6.0) - 3.0);
-    r3_actor(r, 1, fig_pic[0], spot[0] - 3.5 + pace, y, spot[1] + 2.5, 0.85, 1.0);
-    r3_actor(r, 2, fig_pic[1], spot[0] + 4.5, y, spot[1] - 1.5 + pace * 0.5, 0.85, 0.9);
-    r3_actor(r, 3, fig_pic[2], spot[0] + 2.5 + sin(f / 25.0) * 2, y, spot[1] + 1.5 + cos(f / 31.0), 0.85, 1.0);
-    r3_actor(r, 4, fig_pic[3], spot[0] - 2.5, y, spot[1] - 2.5, 0.85, 1.0);
-    r3_actor(r, 5, fig_pic[4], spot[0] + 6.5, y, spot[1] + 3.5, 0.5, 0.8);
+    float pace = fabsf(fmodf(f / 40.0f, 6.0f) - 3.0f);
+    r3_actor(r, 1, fig_pic[0], spot[0] - 3.5f + pace, y, spot[1] + 2.5f, 0.85f, 1.0f);
+    r3_actor(r, 2, fig_pic[1], spot[0] + 4.5f, y, spot[1] - 1.5f + pace * 0.5f, 0.85f, 0.9f);
+    r3_actor(r, 3, fig_pic[2], spot[0] + 2.5f + sinf(f / 25.0f) * 2, y, spot[1] + 1.5f + cosf(f / 31.0f), 0.85f, 1.0f);
+    r3_actor(r, 4, fig_pic[3], spot[0] - 2.5f, y, spot[1] - 2.5f, 0.85f, 1.0f);
+    r3_actor(r, 5, fig_pic[4], spot[0] + 6.5f, y, spot[1] + 3.5f, 0.5f, 0.8f);
 }
 
 typedef struct { double mean_us, max_us; int differ_frames; int64_t differ_px, fb_px, b_px, actor_px, rects; int cut_frames, changes; } Result;
@@ -237,7 +237,7 @@ static int change(R3 *r, int f) {
     if (f == 300) { r3_build(r, spot[0] + 3, spot[2], spot[1] - 2); return 1; }
     /* The light of the cells round the hero, as a torch carried and flickering gives it. */
     if (f % 23 == 5) {
-        double v[9 * 9];
+        float v[9 * 9];
         for (int i = 0; i < 81; i++) v[i] = (f / 23) % 2 ? 0.35 + 0.05 * (i % 9) : 1.0;
         for (int z = spot[2] - 2; z <= spot[2] + 1; z++) r3_light(r, z, (int) h.x - 4, (int) h.z - 4, 9, 9, v);
         return 1;
@@ -363,8 +363,8 @@ int main(int argc, char **argv) {
         R3 *e = scene();
         P2 h = hero_at(0);
         r3_camera(e, (int) lround(h.x * R3_PX) - R3_SW / 2, (int) lround(h.z * R3_PZ - spot[2] * R3_PY) - R3_SH / 2);
-        static double lv[81 * 81];
-        for (int i = 0; i < 81 * 81; i++) lv[i] = 0.4 + 0.6 * (double) ((i * 7) % 10) / 10.0;
+        static float lv[81 * 81];
+        for (int i = 0; i < 81 * 81; i++) lv[i] = 0.4f + 0.6f * (float) ((i * 7) % 10) / 10.0f;
         for (int z = spot[2] - 3; z <= spot[2] + 1; z++) r3_light(e, z, spot[0] - 40, spot[1] - 40, 81, 81, lv);
         actors(e, 0, 0);
         r3_frame(e, fb[0], 0);

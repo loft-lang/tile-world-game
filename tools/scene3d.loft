@@ -22,17 +22,18 @@ use rules;
 use theme;
 use game;
 use render3d;
+use faces3d;
 
 /// The cells each way from the spot the faces cover.
 const SPAN = 19;
 
-fn line_of(f: const render3d::Face, card: boolean) -> text {
+fn line_of(f: const faces3d::Face, card: boolean) -> text {
   n = len(f.at) / 5 ?? 0;
   out = "{f.sprite} {if card { 1 } else { 0 }} {n}";
   for c in 0..n {
     i = c * 5;
     l = f.lights[c] ?? f.light;
-    out += " {f.at[i] ?? 0.0} {f.at[i + 1] ?? 0.0} {f.at[i + 2] ?? 0.0} {f.at[i + 3] ?? 0.0} {f.at[i + 4] ?? 0.0} {l}";
+    out += " {((f.at[i] ?? 0.0f) as float)} {((f.at[i + 1] ?? 0.0f) as float)} {((f.at[i + 2] ?? 0.0f) as float)} {((f.at[i + 3] ?? 0.0f) as float)} {((f.at[i + 4] ?? 0.0f) as float)} {l}";
   }
   out
 }

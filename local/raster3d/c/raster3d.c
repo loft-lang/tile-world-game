@@ -25,7 +25,7 @@ typedef struct { R3Rect *v; int n, cap; } Rects;
 typedef struct { int *v; int n, cap; } Ints;
 
 /* An actor as drawn: what it was asked to be, and where that put it. */
-typedef struct { int id, pic; double x, y, z, size, light, deg, pu, pv; int mirror; R3Rect rect; int t0, tn; } Shown;
+typedef struct { int id, pic; float x, y, z, size, light, deg, pu, pv; int mirror; R3Rect rect; int t0, tn; } Shown;
 typedef struct { Shown *v; int n, cap; } Showns;
 
 typedef struct {
@@ -34,7 +34,7 @@ typedef struct {
     Showns shown; /* its actors, as it last drew them */
 } Buffer;
 
-typedef struct { double x, y, z, u, v, l; } Corner;
+typedef struct { float x, y, z, u, v, l; } Corner;
 
 /* A tile of the landscape: the faces the caller gave under one key (a square of cells), kept as
  * their triangles' corners — so a new depth origin sets them up again here — and set up. */
@@ -43,7 +43,7 @@ typedef struct {
     Corner *c;                   /* three corners a triangle */
     int *pic, *grp, n, cap;
     int *lx, *ly, *lz;           /* where each triangle's light comes from (lz R3_NO_LIGHT: its own) */
-    double *lk;                  /* ... times this */
+    float *lk;                  /* ... times this */
     Tris tris;
     R3Rect box;                  /* world pixels its triangles cover; empty when none */
     R3Rect was;                  /* ... before the change being made */
@@ -63,12 +63,12 @@ struct R3 {
     int stamp, *pick, cappick;   /* a draw's triangles of one tile, once each */
     Tris act;
     Showns acts;                 /* this frame's actors: act holds their triangles, two each */
-    double ox, oy, oz;           /* the depth's origin */
+    float ox, oy, oz;           /* the depth's origin */
     int origin;                  /* ... was given */
     Ints hid;                    /* the groups hidden */
     /* The light of cells (`r3_light`): an open hash of (x, y, z) to the light, 0 .. 1. */
     int64_t *lkey;
-    double *lval;
+    float *lval;
     int lcap, ln;
     int forget;                  /* a tile was dropped: the light no tile is lit from goes at the commit */
     /* The overlay (r3_overlay): ow x oh pixels, each os x os on the screen, R3_NONE clear. */
@@ -86,8 +86,8 @@ struct R3 {
 };
 
 /* Rounding without libm, so the shim links on every target loft builds it for. */
-static int64_t round_ll(double x) { return x < 0 ? -(int64_t) (-x + 0.5) : (int64_t) (x + 0.5); }
-static double floor_d(double x) { double i = (double) (int64_t) x; return i > x ? i - 1 : i; }
+static int64_t round_ll(float x) { return x < 0 ? -(int64_t) (-x + 0.5f) : (int64_t) (x + 0.5f); }
+static float floor_d(float x) { float i = (float) (int64_t) x; return i > x ? i - 1 : i; }
 
 static int min(int a, int b) { return a < b ? a : b; }
 static int max(int a, int b) { return a > b ? a : b; }
@@ -153,17 +153,17 @@ int r3_picture(R3 *r, const uint16_t *texels) {
 /* --- Triangles --- */
 
 /* The corner's place in world subpixels and its attributes: depth, u and v in texels, light. */
-static void place(const R3 *r, const Corner *c, int32_t *X, int32_t *Y, double *a) {
+static void place(const R3 *r, const Corner *c, int32_t *X, int32_t *Y, float *a) {
     *X = (int32_t) round_ll(c->x * R3_PX * SUB);
     *Y = (int32_t) round_ll((c->z * R3_PZ - c->y * R3_PY) * SUB);
-    a[0] = 32768.0 - 16.0 * ((c->y - r->oy) * R3_PZ + (c->z - r->oz) * R3_PY);
+    a[0] = 32768.0f - 16.0f * ((c->y - r->oy) * R3_PZ + (c->z - r->oz) * R3_PY);
     a[1] = c->u * R3_TS;
     a[2] = c->v * R3_TS;
-    a[3] = (c->l < 0 ? 0 : c->l > 1 ? 1 : c->l) * 256.0;
+    a[3] = (c->l < 0 ? 0 : c->l > 1 ? 1 : c->l) * 256.0f;
 }
 
 static int set_up(const R3 *r, Tri *t, const Corner *c0, const Corner *c1, const Corner *c2) {
-    double a[3][NA];
+    float a[3][NA];
     place(r, c0, &t->X[0], &t->Y[0], a[0]);
     place(r, c1, &t->X[1], &t->Y[1], a[1]);
     place(r, c2, &t->X[2], &t->Y[2], a[2]);
@@ -172,7 +172,7 @@ static int set_up(const R3 *r, Tri *t, const Corner *c0, const Corner *c1, const
     if (area < 0) { /* one winding, so inside is every edge >= 0 */
         int32_t tx = t->X[1], ty = t->Y[1];
         t->X[1] = t->X[2]; t->Y[1] = t->Y[2]; t->X[2] = tx; t->Y[2] = ty;
-        for (int k = 0; k < NA; k++) { double s = a[1][k]; a[1][k] = a[2][k]; a[2][k] = s; }
+        for (int k = 0; k < NA; k++) { float s = a[1][k]; a[1][k] = a[2][k]; a[2][k] = s; }
     }
     for (int i = 0; i < 3; i++) {
         int ia = (i + 1) % 3, ib = (i + 2) % 3; /* edge i runs from the corner after i to the next */
@@ -183,14 +183,14 @@ static int set_up(const R3 *r, Tri *t, const Corner *c0, const Corner *c1, const
         int64_t bias = (dy > 0 || (dy == 0 && dx > 0)) ? 0 : -1;
         t->ec[i] = dy * t->X[ia] - dx * t->Y[ia] + bias;
     }
-    double x1 = t->X[1] - t->X[0], y1 = t->Y[1] - t->Y[0], x2 = t->X[2] - t->X[0], y2 = t->Y[2] - t->Y[0];
-    double det = x1 * y2 - x2 * y1;
+    float x1 = t->X[1] - t->X[0], y1 = t->Y[1] - t->Y[0], x2 = t->X[2] - t->X[0], y2 = t->Y[2] - t->Y[0];
+    float det = x1 * y2 - x2 * y1;
     for (int k = 0; k < NA; k++) {
-        double d1 = a[1][k] - a[0][k], d2 = a[2][k] - a[0][k];
-        double gx = (d1 * y2 - d2 * y1) / det, gy = (d2 * x1 - d1 * x2) / det;
-        t->base[k] = round_ll(a[0][k] * (double) (1 << FIX));
-        t->gx[k] = round_ll(gx * (double) (1 << FIX));
-        t->gy[k] = round_ll(gy * (double) (1 << FIX));
+        float d1 = a[1][k] - a[0][k], d2 = a[2][k] - a[0][k];
+        float gx = (d1 * y2 - d2 * y1) / det, gy = (d2 * x1 - d1 * x2) / det;
+        t->base[k] = round_ll(a[0][k] * (float) (1 << FIX));
+        t->gx[k] = round_ll(gx * (float) (1 << FIX));
+        t->gy[k] = round_ll(gy * (float) (1 << FIX));
     }
     int mx = min(t->X[0], min(t->X[1], t->X[2])), Mx = max(t->X[0], max(t->X[1], t->X[2]));
     int my = min(t->Y[0], min(t->Y[1], t->Y[2])), My = max(t->Y[0], max(t->Y[1], t->Y[2]));
@@ -202,7 +202,7 @@ static int set_up(const R3 *r, Tri *t, const Corner *c0, const Corner *c1, const
     t->ty0 = (int) floor_div(my, SUB);
     t->tx1 = (int) floor_div(Mx + SUB - 1, SUB);
     t->ty1 = (int) floor_div(My + SUB - 1, SUB);
-    double dm = a[0][0];
+    float dm = a[0][0];
     if (a[1][0] < dm) dm = a[1][0];
     if (a[2][0] < dm) dm = a[2][0];
     t->dmin = (int) floor_d(dm);
@@ -277,7 +277,7 @@ static uint64_t mix(int64_t k) {
 }
 
 /* The light of cell (x, y, z) into *v; 0 when it was never given. */
-static int light_of(const R3 *r, int x, int y, int z, double *v) {
+static int light_of(const R3 *r, int x, int y, int z, float *v) {
     if (r->lcap == 0) return 0;
     int64_t k = cell_key(x, y, z);
     for (uint64_t i = mix(k) & (uint64_t) (r->lcap - 1);; i = (i + 1) & (uint64_t) (r->lcap - 1)) {
@@ -286,14 +286,14 @@ static int light_of(const R3 *r, int x, int y, int z, double *v) {
     }
 }
 
-static void put_light(R3 *r, int x, int y, int z, double v) {
+static void put_light(R3 *r, int x, int y, int z, float v) {
     if (2 * (r->ln + 1) > r->lcap) {
         int ocap = r->lcap;
         int64_t *ok = r->lkey;
-        double *ov = r->lval;
+        float *ov = r->lval;
         r->lcap = ocap ? ocap * 2 : 4096;
         r->lkey = malloc((size_t) r->lcap * sizeof(int64_t));
-        r->lval = malloc((size_t) r->lcap * sizeof(double));
+        r->lval = malloc((size_t) r->lcap * sizeof(float));
         for (int i = 0; i < r->lcap; i++) r->lkey[i] = -1;
         r->ln = 0;
         for (int i = 0; i < ocap; i++)
@@ -322,7 +322,7 @@ static void sweep_lights(R3 *r) {
     if (r->lcap == 0) return;
     int ocap = r->lcap;
     int64_t *ok = r->lkey;
-    double *ov = r->lval;
+    float *ov = r->lval;
     r->lkey = NULL;
     r->lval = NULL;
     r->lcap = r->ln = 0;
@@ -346,9 +346,9 @@ static void sweep_lights(R3 *r) {
  * corners' light set.  Answers whether that changed them. */
 static int light_corners(const R3 *r, Tile *tl, int i) {
     if (tl->lz[i] == R3_NO_LIGHT) return 0;
-    double v;
+    float v;
     if (!light_of(r, tl->lx[i], tl->ly[i], tl->lz[i], &v)) return 0;
-    double l = v * tl->lk[i];
+    float l = v * tl->lk[i];
     Corner *c = &tl->c[i * 3];
     if (c[0].l == l && c[1].l == l && c[2].l == l) return 0;
     c[0].l = c[1].l = c[2].l = l;
@@ -428,11 +428,11 @@ void r3_drop(R3 *r, int key) {
     r->forget = 1;
 }
 
-void r3_face(R3 *r, int pic, int n, const double *c, int group) {
-    r3_face_lit(r, pic, n, c, group, 0, 0, R3_NO_LIGHT, 1.0);
+void r3_face(R3 *r, int pic, int n, const float *c, int group) {
+    r3_face_lit(r, pic, n, c, group, 0, 0, R3_NO_LIGHT, 1.0f);
 }
 
-void r3_face_lit(R3 *r, int pic, int n, const double *c, int group, int lx, int ly, int lz, double lk) {
+void r3_face_lit(R3 *r, int pic, int n, const float *c, int group, int lx, int ly, int lz, float lk) {
     if (pic < 0 || pic >= r->npics || n < 3) return;
     if (r->cur < 0) r3_tile(r, 0);
     Tile *tl = &r->tiles[r->cur];
@@ -446,7 +446,7 @@ void r3_face_lit(R3 *r, int pic, int n, const double *c, int group, int lx, int 
             tl->lx = realloc(tl->lx, (size_t) tl->cap * sizeof(int));
             tl->ly = realloc(tl->ly, (size_t) tl->cap * sizeof(int));
             tl->lz = realloc(tl->lz, (size_t) tl->cap * sizeof(int));
-            tl->lk = realloc(tl->lk, (size_t) tl->cap * sizeof(double));
+            tl->lk = realloc(tl->lk, (size_t) tl->cap * sizeof(float));
         }
         Corner *t = &tl->c[tl->n * 3];
         t[0] = k[0]; t[1] = k[i]; t[2] = k[i + 1];
@@ -582,7 +582,7 @@ static void commit(R3 *r) {
     r->dirty.n = 0;
 }
 
-void r3_build(R3 *r, double ox, double oy, double oz) {
+void r3_build(R3 *r, float ox, float oy, float oz) {
     static const R3Rect whole = { 0, 0, R3_SW, R3_SH };
     if (r->origin && ox == r->ox && oy == r->oy && oz == r->oz) { commit(r); return; }
     r->ox = ox; r->oy = oy; r->oz = oz;
@@ -649,7 +649,7 @@ void r3_hide(R3 *r, int group, int hidden) {
     redraw(r, u);
 }
 
-void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const double *v) {
+void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const float *v) {
     for (int j = 0; j < h; j++)
         for (int i = 0; i < w; i++) put_light(r, x0 + i, y0 + j, z, v[j * w + i]);
     /* The triangles lit from those cells, lit again where their light changed; B drawn again
@@ -676,7 +676,7 @@ void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const double *v) {
     }
 }
 
-int r3_light_at(const R3 *r, int x, int y, int z, double *v) { return light_of(r, x, y, z, v); }
+int r3_light_at(const R3 *r, int x, int y, int z, float *v) { return light_of(r, x, y, z, v); }
 
 /* --- The actors --- */
 
@@ -684,16 +684,16 @@ void r3_actors_begin(R3 *r) { r->act.n = 0; r->acts.n = 0; }
 
 /* sin and cos of d degrees, without libm: the turn reduced to -90 .. 90 and a Taylor series to the
  * 13th power (an error under 1e-9 there).  Every target computes the same. */
-static void sin_cos(double d, double *sn, double *cs) {
-    double t = d - 360.0 * floor_d(d / 360.0 + 0.5);   /* -180 .. 180 */
-    double sign = 1.0;
-    if (t > 90.0) { t = 180.0 - t; sign = -1.0; }
-    else if (t < -90.0) { t = -180.0 - t; sign = -1.0; }
-    double x = t * 3.14159265358979323846 / 180.0, x2 = x * x;
-    double s = x, c = 1.0, term = x, cterm = 1.0;
+static void sin_cos(float d, float *sn, float *cs) {
+    float t = d - 360.0f * floor_d(d / 360.0f + 0.5f);   /* -180 .. 180 */
+    float sign = 1.0f;
+    if (t > 90.0f) { t = 180.0f - t; sign = -1.0f; }
+    else if (t < -90.0f) { t = -180.0f - t; sign = -1.0f; }
+    float x = t * 3.14159265358979323846f / 180.0f, x2 = x * x;
+    float s = x, c = 1.0f, term = x, cterm = 1.0f;
     for (int k = 1; k <= 6; k++) {
-        term *= -x2 / (double) ((2 * k) * (2 * k + 1));
-        cterm *= -x2 / (double) ((2 * k - 1) * (2 * k));
+        term *= -x2 / (float) ((2 * k) * (2 * k + 1));
+        cterm *= -x2 / (float) ((2 * k - 1) * (2 * k));
         s += term;
         c += cterm;
     }
@@ -703,12 +703,12 @@ static void sin_cos(double d, double *sn, double *cs) {
 
 static R3Rect actor_rect(const R3 *r, const Tri *t);
 
-void r3_actor(R3 *r, int id, int pic, double x, double y, double z, double size, double light) {
-    r3_actor_pose(r, id, pic, x, y, z, size, light, 0.0, 0.5, 1.0, 0);
+void r3_actor(R3 *r, int id, int pic, float x, float y, float z, float size, float light) {
+    r3_actor_pose(r, id, pic, x, y, z, size, light, 0.0f, 0.5f, 1.0f, 0);
 }
 
-void r3_actor_pose(R3 *r, int id, int pic, double x, double y, double z, double size, double light, double deg,
-                   double pu, double pv, int mirror) {
+void r3_actor_pose(R3 *r, int id, int pic, float x, float y, float z, float size, float light, float deg,
+                   float pu, float pv, int mirror) {
     if (pic < 0 || pic >= r->npics) return;
     if (r->acts.n == r->acts.cap) {
         r->acts.cap = r->acts.cap ? r->acts.cap * 2 : 16;
@@ -720,14 +720,14 @@ void r3_actor_pose(R3 *r, int id, int pic, double x, double y, double z, double 
     /* The picture's corners about its pivot (pu, pv), turned `deg` clockwise as the camera sees
      * it: the card's plane faces the camera, and a cell across and a layer up are the same
      * pixels, so a turn there is the turn on the screen. */
-    double sn = 0.0, cs = 1.0;
-    if (deg != 0.0) sin_cos(deg, &sn, &cs);
-    double bx = x - size / 2 + pu * size, by = y + (1.0 - pv) * size;
-    static const double uv[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+    float sn = 0.0f, cs = 1.0f;
+    if (deg != 0.0f) sin_cos(deg, &sn, &cs);
+    float bx = x - size / 2 + pu * size, by = y + (1.0f - pv) * size;
+    static const float uv[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
     Corner c[4];
     for (int k = 0; k < 4; k++) {
-        double px = (uv[k][0] - pu) * size, py = (pv - uv[k][1]) * size;
-        c[k] = (Corner) { bx + px * cs + py * sn, by - px * sn + py * cs, z, mirror ? 1.0 - uv[k][0] : uv[k][0], uv[k][1], light };
+        float px = (uv[k][0] - pu) * size, py = (pv - uv[k][1]) * size;
+        c[k] = (Corner) { bx + px * cs + py * sn, by - px * sn + py * cs, z, mirror ? 1.0f - uv[k][0] : uv[k][0], uv[k][1], light };
     }
     for (int i = 1; i <= 2; i++) {
         Tri *t = push_tri(&r->act);
@@ -949,7 +949,7 @@ int64_t r3h_picture(int64_t h, const int32_t *texels) {
 
 /* Faces, one after another: picture, group, corners n, where the light comes from (x, y, z, k;
  * z R3_NO_LIGHT: none, the corners' own), then n times x y z u v light. */
-void r3h_faces(int64_t h, const double *d, int64_t len) {
+void r3h_faces(int64_t h, const float *d, int64_t len) {
     Handle *k = handle(h);
     if (!k) return;
     int64_t i = 0;
@@ -961,7 +961,7 @@ void r3h_faces(int64_t h, const double *d, int64_t len) {
     }
 }
 
-void r3h_light(int64_t h, const double *box, const double *v, int64_t len) {
+void r3h_light(int64_t h, const float *box, const float *v, int64_t len) {
     Handle *k = handle(h);
     if (!k) return;
     int z = (int) box[0], x0 = (int) box[1], y0 = (int) box[2], w = (int) box[3], hh = (int) box[4];
@@ -985,15 +985,15 @@ int64_t r3h_lights(int64_t h) {
     return k ? k->r->ln : 0;
 }
 
-double r3h_light_at(int64_t h, int64_t x, int64_t y, int64_t z) {
+float r3h_light_at(int64_t h, int64_t x, int64_t y, int64_t z) {
     Handle *k = handle(h);
-    double v;
+    float v;
     if (!k || !r3_light_at(k->r, (int) x, (int) y, (int) z, &v)) return -1;
     return v;
 }
 
 /* Tile `key`'s faces replaced by these (as r3h_faces takes them; none: the tile is empty). */
-void r3h_tile(int64_t h, int64_t key, const double *d, int64_t len) {
+void r3h_tile(int64_t h, int64_t key, const float *d, int64_t len) {
     Handle *k = handle(h);
     if (!k) return;
     r3_tile(k->r, (int) key);
@@ -1005,7 +1005,7 @@ void r3h_drop(int64_t h, int64_t key) {
     if (k) r3_drop(k->r, (int) key);
 }
 
-void r3h_build(int64_t h, const double *origin) {
+void r3h_build(int64_t h, const float *origin) {
     Handle *k = handle(h);
     if (k) r3_build(k->r, origin[0], origin[1], origin[2]);
 }
@@ -1017,13 +1017,13 @@ void r3h_camera(int64_t h, int64_t px, int64_t py) {
 
 /* Actors: id, picture, x, y, z, size, light, degrees, pivot u, pivot v, mirrored each; then the one
  * never hidden (-1: none). */
-void r3h_actors(int64_t h, const double *d, int64_t len, int64_t keep_seen) {
+void r3h_actors(int64_t h, const float *d, int64_t len, int64_t keep_seen) {
     Handle *k = handle(h);
     if (!k) return;
     r3_actors_begin(k->r);
     for (int64_t i = 0; i + 11 <= len; i += 11)
         r3_actor_pose(k->r, (int) d[i], (int) d[i + 1], d[i + 2], d[i + 3], d[i + 4], d[i + 5], d[i + 6], d[i + 7], d[i + 8],
-                      d[i + 9], d[i + 10] != 0.0);
+                      d[i + 9], d[i + 10] != 0.0f);
     if (keep_seen >= 0) r3_uncover(k->r, (int) keep_seen);
 }
 

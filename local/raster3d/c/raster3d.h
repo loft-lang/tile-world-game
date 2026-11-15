@@ -63,7 +63,7 @@ void r3_drop(R3 *r, int key);
 /* A landscape face, of the tile being given: picture `pic`, n corners of (x, y, z, u, v, light)
  * — x east, y up in layers, z south, u and v 0 .. 1 over the picture, light 0 .. 1 — and the
  * group it is hidden with (any number, -1: none; a group's faces may lie in many tiles). */
-void r3_face(R3 *r, int pic, int n, const double *corners, int group);
+void r3_face(R3 *r, int pic, int n, const float *corners, int group);
 
 /* The light of cells as data (owner, 2026-11-15): a face may say where its light comes from —
  * cell (lx, ly) on layer lz, times lk (a side a little darker) — and then it is lit from the light
@@ -71,18 +71,18 @@ void r3_face(R3 *r, int pic, int n, const double *corners, int group);
  * changes, the triangles lit from it are lit again and B is drawn again where they lie, with no
  * face given again: a torch carried or flickering costs its triangles, not their tiles. */
 #define R3_NO_LIGHT (-1000000)
-void r3_face_lit(R3 *r, int pic, int n, const double *corners, int group, int lx, int ly, int lz, double lk);
+void r3_face_lit(R3 *r, int pic, int n, const float *corners, int group, int lx, int ly, int lz, float lk);
 /* The light (0 .. 1) of cells x0 .. x0 + w - 1, y0 .. y0 + h - 1 on layer z, row by row. */
-void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const double *v);
+void r3_light(R3 *r, int z, int x0, int y0, int w, int h, const float *v);
 /* Cell (x, y, z)'s light into *v; 0 when none was given.  When a tile is dropped, the light of
  * the cells no tile is lit from any more is forgotten (at the next camera, frame or build): the
  * store holds what the kept tiles read, a cell round them, not every cell the scene ever lit. */
-int r3_light_at(const R3 *r, int x, int y, int z, double *v);
+int r3_light_at(const R3 *r, int x, int y, int z, float *v);
 
 /* The depth's origin, the cell (ox, oz, layer oy): set before the first frame, and set again when
  * the scene has gone far from it (a depth is 16 bits, about 40 cells either way).  A new origin
  * sets every tile up again and draws B whole; the same one only makes the changes. */
-void r3_build(R3 *r, double ox, double oy, double oz);
+void r3_build(R3 *r, float ox, float oy, float oz);
 
 /* The camera: the screen's top-left at these world pixels.  The first call draws B whole; each
  * later one shifts B and draws the strips. */
@@ -95,13 +95,13 @@ void r3_hide(R3 *r, int group, int hidden);
  * camera, its bottom middle at (x, y, z), `size` cells wide and tall, its light.  `id` names the
  * actor from frame to frame: one drawn exactly as a framebuffer last drew it costs nothing. */
 void r3_actors_begin(R3 *r);
-void r3_actor(R3 *r, int id, int pic, double x, double y, double z, double size, double light);
+void r3_actor(R3 *r, int id, int pic, float x, float y, float z, float size, float light);
 /* An actor posed: its picture turned `deg` degrees clockwise (as the camera sees it) about its
  * point (pu, pv) — 0 .. 1 across and down the picture; r3_actor's is (0.5, 1), the bottom middle,
  * unturned — and mirrored left to right when `mirror`.  (x, y, z) is still the bottom middle of the
  * picture as it stands unturned. */
-void r3_actor_pose(R3 *r, int id, int pic, double x, double y, double z, double size, double light, double deg,
-                   double pu, double pv, int mirror);
+void r3_actor_pose(R3 *r, int id, int pic, float x, float y, float z, float size, float light, float deg,
+                   float pu, float pv, int mirror);
 
 /* The actor `id` is never hidden: every wall group that covers its rectangle and reaches nearer
  * than it is hidden, and those it hid before that no longer do are shown again.  Call it after
@@ -126,16 +126,16 @@ R3Count r3_count(R3 *r); /* since the last call */
 int64_t r3h_new(int32_t sky);
 void r3h_free(int64_t h);
 int64_t r3h_picture(int64_t h, const int32_t *texels);
-void r3h_faces(int64_t h, const double *d, int64_t len);
-void r3h_tile(int64_t h, int64_t key, const double *d, int64_t len);
-void r3h_light(int64_t h, const double *box, const double *v, int64_t len);
-double r3h_light_at(int64_t h, int64_t x, int64_t y, int64_t z);
+void r3h_faces(int64_t h, const float *d, int64_t len);
+void r3h_tile(int64_t h, int64_t key, const float *d, int64_t len);
+void r3h_light(int64_t h, const float *box, const float *v, int64_t len);
+float r3h_light_at(int64_t h, int64_t x, int64_t y, int64_t z);
 int64_t r3h_lights(int64_t h);
 void r3h_overlay(int64_t h, const int32_t *pix, int64_t w, int64_t hh, int64_t scale);
 void r3h_drop(int64_t h, int64_t key);
-void r3h_build(int64_t h, const double *origin);
+void r3h_build(int64_t h, const float *origin);
 void r3h_camera(int64_t h, int64_t px, int64_t py);
-void r3h_actors(int64_t h, const double *d, int64_t len, int64_t keep_seen);
+void r3h_actors(int64_t h, const float *d, int64_t len, int64_t keep_seen);
 void r3h_frame(int64_t h, int32_t *out);
 
 #endif

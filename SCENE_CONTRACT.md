@@ -132,6 +132,9 @@ An implementation says which cameras it **offers**, and a view asks before it ch
 
 ## The CPU implementation: raster3d as it stands
 
+It is single precision and 32-bit loft throughout, as the Tanmatsu runs it: its C holds no double,
+and its binding takes `vector<single>` (BUILD.md Phase E).
+
 `local/raster3d` (BUILD.md Phase E, raster3d), measured:
 - the landscape kept as a picture B, shifted when the camera moves, tiles drawn again only where
   one was and is (binned for strips), groups hidden by the rectangle they covered;

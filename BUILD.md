@@ -794,6 +794,26 @@ renderers do not know which grid they draw.
       where it is clear; where it changed the frame is made again).  The bench's overlay — a
       growing status bar and a bubble following the hero — keeps every frame the scene drawn from
       scratch; not drawn again where it changed (the control), 594 of 600 differ.
+    - **No doubles in the port, and 32-bit loft** (owner, 2026-11-15: "remove as much doubles from
+      the port as possible … we need 32 bits loft too and that defaults to single precision
+      floats"; the Tanmatsu's FPU is single precision only, loft's WIDTH32.md):
+      - raster3d's C holds no double: compiled for the device's ISA (RV32IMAFC, `ilp32f`) it has
+        no double instruction and calls no software-double helper (196 single-precision
+        instructions); `-Wdouble-promotion` finds none.  What it still asks of software is 64-bit
+        integer work: float to `int64` in a triangle's setup (12 places) and an `int64` division
+        in `floor_div`, which the span loop calls per edge per column — the next cost on a 32-bit
+        core.
+      - Its binding, `fixedview.loft` and the faces are 32-bit loft (`#width 32`): `integer` an
+        `i32`, `float` a `single`, on every build.  The faces left render3d for their own module,
+        `faces3d.loft` (E1's split: what is seen, apart from the GPU's drawing of it), which uses no
+        graphics library; render3d's first-person view (64-bit, OpenGL) builds on it.  The split
+        alone left every place's faces byte for byte the same; the 32-bit view draws the demo's
+        and the torch room's walks exactly as the 64-bit one did (0 of 384,000 pixels differ).
+      - tile_world 0.12.0 (loft-libs-world#46) is 32-bit clean: a cell's word read in its 31
+        bits, `block` two numbers a cell (a 32-bit integer holds 31 bits).
+      - Not yet 32-bit: the game itself (`game.loft`, the rules, theme, motion, talk), whose
+        numbers the view narrows where they enter; and the libraries the device does not use
+        (`graphics`, `audio`'s desktop part), which do not compile under `LOFT_WIDTH=32`.
     - **The scene contract** (SCENE_CONTRACT.md, a proposal, owner 2026-11-15): the view written
       once against a scene — tiles of faces lit from cells, the cells' light, groups, posed actors
       (cards or models), the overlay, a camera — drawn by raster3d on the CPU (the fixed camera
