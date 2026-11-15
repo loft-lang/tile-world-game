@@ -10,12 +10,11 @@ gives (a scene), what every implementation draws from it, and what an implementa
 better or must do less.  A game writes its view once, against this; it runs drawn on the CPU on
 the Tanmatsu and on a GPU on a desktop or in a page.
 
-**Status.** A proposal (owner, 2026-11-15: "write the contract").  Its first implementation
-exists: `local/raster3d` (C, the CPU), whose API today is this contract's starting point and is
-not yet reshaped to it (§ From today's raster3d).  The second, on loft-libs-graphics' `gpu`, is
-not started.  Where it lives and what it is called are the loft stream's to settle
-(HANDOFF_FROM_LOFT.md § 5: the game proves a library first, the stream publishes it); `scene3d`
-below is a working name.
+**Status.** Two implementations draw the game's fixed view: `local/raster3d` (C, the CPU), whose
+API is this contract's starting point and is not yet reshaped to it (§ From today's raster3d),
+and `scene3d` (loft-libs-graphics, on `gpu`), the loft stream's.  `fixedview.loft` gives its
+scene to `scene3d` in the device's own window where a GPU opens, and to `raster3d` through
+`screen` where none does (`TW_GPU=0`); its § What draws is the one place that tells them apart.
 
 ## The owner's rulings it rests on (2026-11-15)
 
@@ -168,9 +167,11 @@ Its tests need no display: `gpu_record` writes down every call (§ Checks).
   from scratch, both cameras, with tiles, light and overlay changing; controls that must differ),
   and `tools/fixedshot.loft` (a walk's last frame against the same moment built fresh).
 - **The GPU implementation**: `gpu_record`'s log for what it asks of a backend, on every machine;
-  and its picture against the CPU's, the same scene, the fixed camera at the CPU's resolution,
-  within a stated number of pixels (BUILD.md E2's check: what one rasteriser rounds otherwise
-  than the other).
+  and its picture against the CPU's, the same scene, the fixed camera at the CPU's resolution:
+  `xvfb-run loft --native --lib libs tools/fixedshot.loft orbury OUT.png "s d d" change night gpu`.
+  Orbury by day and at night by the hero's torch: 27 of 384,000 pixels differ by more than one
+  RGB565 step.  Most of the rest differ by exactly one step: the GPU rounds the light's product,
+  the CPU truncates it.
 - **The contract**: one scene script — `tools/scene3d.loft`'s files, which `bench/frame3d.c` reads —
   played through every implementation, the same tiles, light, actors and overlay; what differs
   must be what § What an implementation may do more, or less allows.

@@ -24,8 +24,10 @@ cp <loft>/target/components/libloft_net.dylib .            # loft's `make compon
 ./tile-world                                               # or TW_VIEW=fixed ./tile-world
 ```
 
-F5 switches to the fixed camera's 3D view and back where the frame is the CPU's (the desktop, the
-Tanmatsu); `TW_VIEW=fixed` starts in it.
+F5 switches to the fixed camera's 3D view and back; `TW_VIEW=fixed` starts in it.  Where a GPU
+opens (OpenGL, `scene3d`) the view is drawn in a window of its own, beside the 2D one, and reads its
+keys there too; elsewhere, and with `TW_GPU=0`, it is drawn on the CPU (`raster3d`, the Tanmatsu's
+view) and shown in the 2D window.
 
 **Two worlds**, never shipped together, so the game itself does not ask which:
 **Orbury** (`levels/orbury.json`), the story's first place being built — the hill town with its

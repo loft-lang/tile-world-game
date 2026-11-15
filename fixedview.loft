@@ -19,8 +19,13 @@
 // of the cells it reaches: the triangles lit from them are lit again, no tile built again.  A thing whose picture moves (a flame) is not in its tile: it is
 // an actor, drawn every frame as the figures are, so its tile is not built again as it flickers.
 //
-// F5 switches it on and off where the frame is the CPU's (the desktop, the Tanmatsu); TW_VIEW=fixed
-// starts the game in it.  The game's code is the 2D game's: this reads what is there and draws it.
+// What draws it is the scene contract's (SCENE_CONTRACT.md): `raster3d` on the CPU, the frame shown
+// through `screen` (the Tanmatsu, or a desktop without a GPU); or `scene3d` on a GPU, in the
+// device's own window, its keys read from the device (loft's FOR_THE_GAME.md § which window).  The
+// view builds the same scene for either; § What draws holds the only place that tells them apart.
+//
+// F5 switches it on and off; TW_VIEW=fixed starts the game in it.  The game's code is the 2D game's:
+// this reads what is there and draws it.
 use tile_world;
 use tiles;
 use rules;
@@ -28,6 +33,8 @@ use theme;
 use game;
 use faces3d;
 use raster3d;
+use gpu;
+use scene3d;
 
 /// A tile's side in cells.
 const TILE = 8;
@@ -71,8 +78,12 @@ const K_FIXED = 139;
 /// cell 16 of them, the frame's 48): on a surface a third of the frame's size, drawn three times
 /// larger over it by raster3d.
 const OVER = 3;
-/// Where nothing is.
+/// Where nothing is: RGB565 for raster3d, 0xAARRGGBB for scene3d.
 const SKY = 0;
+const SKY_ARGB = 0xFF000000l;
+/// The device's window, as large as the CPU's frame: the fixed camera draws a cell 48 pixels across
+/// on either, so the same cells are seen.
+const TITLE = "tile_world - the fixed view";
 
 struct Pic {
   const sprite: integer,
@@ -109,7 +120,13 @@ pub struct Spent {
 
 pub struct FixedView {
   pub on: boolean = false,
+  /// The CPU's scene (raster3d's handle), 0: none.
   scene: integer = 0,
+  /// The GPU backend's table (`gpu_gl::table()`), 0: draw on the CPU; its device and the scene on
+  /// it, while the view is on.
+  table: i64 = 0l,
+  dev: gpu::Device? = null,
+  gs: scene3d::Scene? = null,
   place: text = "",
   z: integer = 0,
   z0: integer = 0,
@@ -134,12 +151,14 @@ pub struct FixedView {
   given: integer = 0,
   scratch: integer = 0,
   over: integer = 0,
+  over_w: integer = 0,
+  over_h: integer = 0,
   cam_x: integer = 0,
   cam_y: integer = 0,
   placed: boolean = false,
   was: boolean = false,
   pub spent: Spent = Spent {},
-  /// The frame, raster3d::WIDTH x raster3d::HEIGHT, for `screen::show`.
+  /// The CPU's frame, raster3d::WIDTH x raster3d::HEIGHT, for `screen::show`.
   pub px: vector<i32> = []
 }
 
@@ -148,12 +167,129 @@ pub fn view() -> FixedView {
   FixedView {}
 }
 
-/// F5 pressed: the view switched.  Answers whether it is on.
+/// Draw on a GPU through the backend whose table is `table` (a backend library's `table()`), where
+/// its window opens; the CPU where it does not.
+pub fn use_gpu(v: FixedView, table: i64) {
+  v.table = table;
+}
+
+/// F5 pressed: the view switched.  Answers whether it is on.  Switched off, the device's window
+/// closes.
 pub fn toggle(v: FixedView, keys: const vector<boolean>) -> boolean {
   down = keys[K_FIXED] ?? false;
-  if down && !v.was { v.on = !v.on; }
+  if down && !v.was {
+    v.on = !v.on;
+    if !v.on { close(v); }
+  }
   v.was = down;
   v.on
+}
+
+/// The keys of this frame: `raw` (screen's), and while the device's window is open the keys
+/// pressed in it, in the same codes.  The window closed by its owner switches the view off.
+pub fn keys(v: FixedView, raw: const vector<boolean>) -> vector<boolean> {
+  if !v.dev { return raw; }
+  if !v.dev!.poll() {
+    close(v);
+    v.on = false;
+    return raw;
+  }
+  dk = v.dev!.keys();
+  [for i in 0..len(raw) { (raw[i] ?? false) || (dk[i] ?? false) }]
+}
+
+/// The frame drawn by `draw` shown in the device's window: false when it is the CPU's, in `v.px`,
+/// for `screen::show`.
+pub fn present(v: FixedView) -> boolean {
+  if !v.dev || !v.gs { return false; }
+  v.dev!.present();
+  true
+}
+
+// --- What draws: raster3d on the CPU, or scene3d on a GPU (SCENE_CONTRACT.md) ---
+
+// The device's window closed, and the scene on it gone with it: a new one when the view is on again.
+fn close(v: FixedView) {
+  v.gs = null;
+  v.dev = null;
+}
+
+// A scene to draw in: the device's window opened where there is a GPU (once, while the view is on),
+// the CPU's scene where there is none or it does not open.
+fn new_scene(v: FixedView) {
+  if v.table != 0l && !v.dev {
+    v.dev = gpu::open(v.table, raster3d::WIDTH, raster3d::HEIGHT, TITLE);
+    if !v.dev { v.table = 0l; }
+  }
+  if v.dev {
+    v.gs = scene3d::new_scene(v.dev!, gpu::INTO_WINDOW, SKY_ARGB);
+    if v.gs { return; }
+    close(v);
+    v.table = 0l;
+  }
+  if v.scene != 0 { raster3d::free_scene(v.scene); }
+  v.scene = raster3d::new_scene(SKY) ?? 0;
+}
+
+// Whether there is a scene to give things to.
+fn live(v: const FixedView) -> boolean {
+  if v.gs { true } else { v.scene != 0 }
+}
+
+// The screen's size: the device's window, or the CPU's frame.
+fn screen_size(v: const FixedView) -> (integer, integer) {
+  if v.dev && v.gs { (v.dev!.width(), v.dev!.height()) } else { (raster3d::WIDTH, raster3d::HEIGHT) }
+}
+
+fn e_picture(v: FixedView, px: const vector<i32>) {
+  if v.gs { _ = v.gs!.add_picture(px); } else { _ = raster3d::add_picture(v.scene, px); }
+}
+
+fn e_tile(v: FixedView, key: integer, faces: const vector<float>) {
+  if v.gs { v.gs!.set_tile(v.dev!, key, faces); } else { raster3d::set_tile(v.scene, key, faces); }
+}
+
+fn e_drop(v: FixedView, key: integer) {
+  if v.gs { v.gs!.drop_tile(key); } else { raster3d::drop_tile(v.scene, key); }
+}
+
+fn e_light(v: FixedView, d: const vector<float>) {
+  if v.gs { v.gs!.set_light(d); } else { raster3d::set_light(v.scene, d); }
+}
+
+// The depth's origin: the CPU's own (its depths are kept near it); a GPU has none to set.
+fn e_origin(v: FixedView, x: integer, y: integer, z: integer) {
+  if !v.gs { raster3d::build_scene(v.scene, x as float, y as float, z as float); }
+}
+
+// A cell's light as the scene holds it; null where it holds none (and on a GPU, which keeps it on
+// the GPU): the caller reads the world's.
+fn e_light_at(v: const FixedView, x: integer, y: integer, z: integer) -> float? {
+  if v.gs { return null; }
+  raster3d::light_at(v.scene, x, y, z)
+}
+
+fn e_overlay(v: FixedView, px: const vector<i32>, w: integer, h: integer) {
+  if v.gs { v.gs!.set_overlay(v.dev!, px, w, h, OVER); } else { raster3d::set_overlay(v.scene, px, w, h, OVER); }
+}
+
+// The frame: the camera at (cam_x, cam_y), the actors, drawn — into the device's window (shown by
+// `present`) or into `v.px`.
+fn e_frame(v: FixedView, acts: const vector<float>) {
+  if v.gs {
+    size = screen_size(v);
+    v.gs!.resize(size.0, size.1);
+    v.gs!.fixed_camera(v.cam_x, v.cam_y);
+    v.gs!.set_actors(acts, HERO);
+    v.gs!.draw(v.dev!);
+    v.spent.lights = 0;
+    return;
+  }
+  if len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { v.px = [0 as i32; raster3d::WIDTH * raster3d::HEIGHT]; }
+  raster3d::move_camera(v.scene, v.cam_x, v.cam_y);
+  raster3d::set_actors(v.scene, acts, HERO);
+  raster3d::draw_frame(v.scene, v.px);
+  v.spent.lights = raster3d::lights_kept(v.scene);
 }
 
 // The picture's number, given to the scene the first time it is met.
@@ -168,7 +304,7 @@ fn pic_of(v: FixedView, sprite: integer) -> integer {
 
 // The pictures not yet given to the scene, given.
 fn give(v: FixedView, g: const game::Game) {
-  if v.scene == 0 { return; }
+  if !live(v) { return; }
   ts = g.look.tile_size;
   if v.scratch == 0 { v.scratch = tiles::surface(ts, ts) ?? 0; }
   while v.given < len(v.sprites) {
@@ -176,7 +312,7 @@ fn give(v: FixedView, g: const game::Game) {
     // same name (loft#2510).
     tiles::rect(v.scratch, 0, 0, ts, ts, raster3d::NONE);
     theme::put(v.scratch, v.sprites[v.given] ?? 0, 0, 0, 0);
-    _ = raster3d::add_picture(v.scene, tiles::pixels(v.scratch, ts, ts));
+    e_picture(v, tiles::pixels(v.scratch, ts, ts));
     v.given += 1;
   }
 }
@@ -277,7 +413,7 @@ fn same(a: const vector<float>, b: const vector<float>) -> boolean {
 fn put_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer, faces: const vector<float>) {
   give(v, g);
   key = key_of(tx, ty);
-  raster3d::set_tile(v.scene, key, faces);
+  e_tile(v, key, faces);
   flames = moving(v, g, tx, ty);
   t = v.tiles[key];
   if t {
@@ -291,7 +427,7 @@ fn put_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer, faces: 
 
 // The light `lt` holds, given to the scene as the cells' light.
 fn send_light(v: FixedView, lt: const faces3d::Light) {
-  for i in 0..faces3d::light_layers(lt) { raster3d::set_light(v.scene, faces3d::light_data(lt, i)); }
+  for i in 0..faces3d::light_layers(lt) { e_light(v, faces3d::light_data(lt, i)); }
 }
 
 // The cells of tile (tx, ty) with a thing whose picture moves.
@@ -330,8 +466,7 @@ fn build_tile(v: FixedView, g: const game::Game, tx: integer, ty: integer) {
 fn fresh(v: FixedView, g: const game::Game) {
   at = ticks();
   w = g.world;
-  if v.scene != 0 { raster3d::free_scene(v.scene); }
-  v.scene = raster3d::new_scene(SKY) ?? 0;
+  new_scene(v);
   v.given = 0;
   v.tiles = [];
   v.all = [];
@@ -362,7 +497,7 @@ fn fresh(v: FixedView, g: const game::Game) {
   }
   v.ox = w.hero_x;
   v.oy = w.hero_y;
-  raster3d::build_scene(v.scene, v.ox as float, z1 as float, v.oy as float);
+  e_origin(v, v.ox, z1, v.oy);
   v.spent.fresh += 1;
   v.spent.fresh_us += ticks() - at;
 }
@@ -381,7 +516,7 @@ fn walk(v: FixedView, g: const game::Game, until: integer) {
     if cx - hx > DROP || hx - cx > DROP || cy - hy > DROP || hy - cy > DROP { gone += [t.key]; }
   }
   for k in gone {
-    raster3d::drop_tile(v.scene, k);
+    e_drop(v, k);
     v.tiles[k] = null;
     keep: vector<integer> = [];
     for d in v.all { if d != k { keep += [d]; } }
@@ -536,7 +671,7 @@ fn told(v: FixedView, g: const game::Game) -> vector<integer> {
 fn keep_up(v: FixedView, g: const game::Game, changed: boolean) {
   w = g.world;
   (z0, z1) = layers(g);
-  if v.scene == 0 || g.place != v.place || w.hero_z != v.z || z0 != v.z0 || z1 != v.z1 || w.night != v.night
+  if !live(v) || g.place != v.place || w.hero_z != v.z || z0 != v.z0 || z1 != v.z1 || w.night != v.night
      || tile_world::changes(w.w) < v.seen {
     fresh(v, g);
     return;
@@ -559,16 +694,17 @@ fn keep_up(v: FixedView, g: const game::Game, changed: boolean) {
   if w.hero_x - v.ox > ORIGIN || v.ox - w.hero_x > ORIGIN || w.hero_y - v.oy > ORIGIN || v.oy - w.hero_y > ORIGIN {
     v.ox = w.hero_x;
     v.oy = w.hero_y;
-    raster3d::build_scene(v.scene, v.ox as float, v.z1 as float, v.oy as float);
+    e_origin(v, v.ox, v.z1, v.oy);
   }
 }
 
 // The camera: kept within FOLLOW cells of the hero, sliding SLIDE pixels a frame; placed on the
 // hero at once after a new scene.
 fn follow(v: FixedView, hero: const game::Figure, z: integer) {
-  tx = (((hero.x as float) + 0.5 + hero.fine.x / 16.0) * (raster3d::WIDE as float)) as integer - raster3d::WIDTH / 2;
+  size = screen_size(v);
+  tx = (((hero.x as float) + 0.5 + hero.fine.x / 16.0) * (raster3d::WIDE as float)) as integer - size.0 / 2;
   ty = (((hero.y as float) + 0.5 + hero.fine.y / 16.0) * (raster3d::DEEP as float)
-        - ((z as float) + 0.25 * (hero.h as float)) * (raster3d::TALL as float)) as integer - raster3d::HEIGHT / 2;
+        - ((z as float) + 0.25 * (hero.h as float)) * (raster3d::TALL as float)) as integer - size.1 / 2;
   if !v.placed {
     v.cam_x = tx;
     v.cam_y = ty;
@@ -589,7 +725,7 @@ fn towards(at: integer, to: integer, slack: integer) -> integer {
 
 // The light on a figure at (x, y, z): its cell's, as raster3d holds it.
 fn light_on(v: const FixedView, g: const game::Game, x: integer, y: integer, z: integer) -> float {
-  l = raster3d::light_at(v.scene, x, y, z);
+  l = e_light_at(v, x, y, z);
   if l { return l!; }
   faces3d::light_at(g, x, y, z)
 }
@@ -664,10 +800,19 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
 // The status line along the bottom and a bubble over whoever speaks, as the 2D draws them
 // (`game::draw_status_on`, `game::draw_bubble`), over the frame.
 fn overlay(v: FixedView, g: const game::Game) {
-  w = (raster3d::WIDTH + OVER - 1) / OVER ?? 0;
-  h = raster3d::HEIGHT / OVER ?? 0;
+  size = screen_size(v);
+  w = (size.0 + OVER - 1) / OVER ?? 0;
+  h = size.1 / OVER ?? 0;
   ts = g.look.tile_size;
-  if v.over == 0 { v.over = tiles::surface(w, h) ?? 0; }
+  if v.over != 0 && (w != v.over_w || h != v.over_h) {
+    tiles::free_surface(v.over);
+    v.over = 0;
+  }
+  if v.over == 0 {
+    v.over = tiles::surface(w, h) ?? 0;
+    v.over_w = w;
+    v.over_h = h;
+  }
   if v.over == 0 { return; }
   tiles::rect(v.over, 0, 0, w, h, raster3d::NONE);
   game::draw_status_on(g, v.over, h - ts, (w * 2 / ts) ?? 0);
@@ -678,22 +823,18 @@ fn overlay(v: FixedView, g: const game::Game) {
           - ((t.z as float) + FIGURE) * (raster3d::TALL as float)) as integer - v.cam_y;
     game::draw_bubble(g, v.over, t, sx / OVER ?? 0, (sy / OVER ?? 0) - 1, w);
   }
-  raster3d::set_overlay(v.scene, tiles::pixels(v.over, w, h), w, h, OVER);
+  e_overlay(v, tiles::pixels(v.over, w, h), w, h);
 }
 
-/// This frame into `v.px`: the landscape kept up, the camera on the hero, the figures over it, the
-/// status line and what is said over them.
+/// This frame: the landscape kept up, the camera on the hero, the figures over it, the status line
+/// and what is said over them — into the device's window (`present` shows it) or into `v.px`.
 pub fn draw(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
   keep_up(v, g, changed);
-  if v.scene == 0 { return; }
-  if len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { v.px = [0 as i32; raster3d::WIDTH * raster3d::HEIGHT]; }
+  if !live(v) { return; }
   acts = actors(v, g);
   give(v, g);
-  raster3d::move_camera(v.scene, v.cam_x, v.cam_y);
-  raster3d::set_actors(v.scene, acts, HERO);
   overlay(v, g);
-  raster3d::draw_frame(v.scene, v.px);
-  v.spent.lights = raster3d::lights_kept(v.scene);
+  e_frame(v, acts);
 }
 
 /// The check (tools/fixedshot.loft): how many pixels of this view's last frame differ from the same
@@ -733,4 +874,31 @@ pub fn differs_from_fresh(v: const FixedView, g: const game::Game) -> integer {
   d = 0;
   for i in 0..len(f.px) { if (f.px[i] ?? 0) != (v.px[i] ?? 0) { d += 1; } }
   d
+}
+
+/// The GPU's check (tools/fixedshot.loft, `gpu`; SCENE_CONTRACT.md § Checks): the moment `v` last
+/// drew on the CPU, drawn on a GPU through `table` from a scene built fresh, with the same camera,
+/// and read back from the device's window as RGB565.  Empty where no device opens.
+pub fn gpu_frame(v: const FixedView, g: const game::Game, table: i64) -> vector<i32> {
+  f = view();
+  f.on = true;
+  f.table = table;
+  fresh(f, g);
+  if !f.gs { return []; }
+  f.placed = true;
+  f.cam_x = v.cam_x;
+  f.cam_y = v.cam_y;
+  acts = actors(f, g);
+  f.cam_x = v.cam_x;
+  f.cam_y = v.cam_y;
+  give(f, g);
+  overlay(f, g);
+  e_frame(f, acts);
+  out: vector<i32> = [];
+  for c in f.dev!.capture() {
+    // 0xAARRGGBB is above 2^31: read as an i64, its top bits left behind.
+    p = (c as i64 & 16777215l) as integer;
+    out += [((((p >> 19) & 31) << 11) | (((p >> 10) & 63) << 5) | ((p >> 3) & 31)) as i32];
+  }
+  out
 }

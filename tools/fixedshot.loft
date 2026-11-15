@@ -3,16 +3,22 @@
 // game draws it.  What the CPU's 3D view shows, checked by eye without a window; and checked
 // against the same moment built fresh (`fixedview::differs_from_fresh`), which must not differ.
 //
-//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES [change]]
+//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES [change] [night] [gpu]]
 //
 // PLACE is a file in levels/ (without `.json`); OUT a path from this directory (tools/) or a full
-// one; MOVES letters as TW_MOVES takes them (`w` `a` `s` `d`), one step every eight frames.
+// one; MOVES letters as TW_MOVES takes them (`w` `a` `s` `d`), one step every eight frames.  `night`
+// starts at 22:00, where what lights the place is its lights and what the hero carries.  With
+// `gpu` the last moment is drawn again on the GPU (scene3d, in a window of the CPU's size: under
+// `xvfb-run` where there is no display), saved beside OUT as OUT-gpu.png, and its pixels counted
+// against the CPU's: those that differ, and those that differ by more than one step of RGB565 in
+// a channel — what the two rasterisers round otherwise.
 use imaging;
 use tile_world;
 use rules;
 use game;
 use fixedview;
 use raster3d;
+use gpu_gl;
 
 // The world changed by hand, as the rules would change it in play: a thing moved, a wall raised.
 fn change_world(g: game::Game) {
@@ -47,7 +53,14 @@ fn main() {
   place = args[0] ?? "";
   out = args[1] ?? "";
   moves = args[2] ?? "";
-  change = (args[3] ?? "") == "change";
+  change = false;
+  on_gpu = false;
+  night = false;
+  for a in 3..len(args) {
+    if (args[a] ?? "") == "change" { change = true; }
+    if (args[a] ?? "") == "gpu" { on_gpu = true; }
+    if (args[a] ?? "") == "night" { night = true; }
+  }
   if place == "" || out == "" {
     println("usage: loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]");
     exit(1);
@@ -56,6 +69,11 @@ fn main() {
   if !m { println("the game does not load"); exit(1); }
   g = m;
   if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
+  if night {
+    // The clock to 22:00 of the same day.
+    g.clock += (game::DAY_MS * 22 / 24 ?? 0) - (g.clock % game::DAY_MS ?? 0);
+    if g.clock < 0 { g.clock += game::DAY_MS; }
+  }
   v = fixedview::view();
   v.on = true;
   now = 0;
@@ -85,17 +103,7 @@ fn main() {
   w = raster3d::WIDTH;
   h = raster3d::HEIGHT;
   if len(v.px) != w * h { println("no frame was drawn ({len(v.px)} pixels)"); exit(1); }
-  img = imaging::Image { name: place, width: w, height: h, data: [] };
-  for c in v.px {
-    p = c as integer;
-    img.data += [imaging::Pixel {
-      r: ((((p >> 11) & 31) * 255 / 31) ?? 0) & 255,
-      g: ((((p >> 5) & 63) * 255 / 63) ?? 0) & 255,
-      b: (((p & 31) * 255 / 31) ?? 0) & 255,
-      a: 255
-    }];
-  }
-  if !img.save_png(out) { println("could not write {out}"); exit(1); }
+  if !save(place, v.px, out) { println("could not write {out}"); exit(1); }
   println("{out}: {place}, hero at ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z}); {frames} frames, "
           + "{spent / frames} us a frame, the slowest {worst} us");
   sp = v.spent;
@@ -107,4 +115,42 @@ fn main() {
   d = fixedview::differs_from_fresh(v, g);
   println("against a fresh build: {d} pixels differ");
   if d != 0 { exit(1); }
+  if on_gpu {
+    gp = fixedview::gpu_frame(v, g, gpu_gl::table());
+    if len(gp) != w * h { println("on the GPU: no device opened ({len(gp)} pixels)"); exit(1); }
+    shot = out.replace(".png", "") + "-gpu.png";
+    if !save(place, gp, shot) { println("could not write {shot}"); exit(1); }
+    exact = 0;
+    beyond = 0;
+    for i in 0..len(gp) {
+      a = (v.px[i] ?? 0) as integer;
+      b = (gp[i] ?? 0) as integer;
+      if a != b {
+        exact += 1;
+        if step(a >> 11, b >> 11, 31) || step(a >> 5, b >> 5, 63) || step(a, b, 31) { beyond += 1; }
+      }
+    }
+    println("{shot}: on the GPU, {exact} of {w * h} pixels differ from the CPU's, {beyond} by more than one step");
+  }
+}
+
+// Whether two channels (masked by `mask`) differ by more than one step.
+fn step(a: integer, b: integer, mask: integer) -> boolean {
+  d = (a & mask) - (b & mask);
+  d > 1 || d < -1
+}
+
+// An RGB565 frame of the CPU's size saved as a PNG.
+fn save(name: text, px: const vector<i32>, out: text) -> boolean {
+  img = imaging::Image { name: name, width: raster3d::WIDTH, height: raster3d::HEIGHT, data: [] };
+  for c in px {
+    p = c as integer;
+    img.data += [imaging::Pixel {
+      r: ((((p >> 11) & 31) * 255 / 31) ?? 0) & 255,
+      g: ((((p >> 5) & 63) * 255 / 63) ?? 0) & 255,
+      b: (((p & 31) * 255 / 31) ?? 0) & 255,
+      a: 255
+    }];
+  }
+  img.save_png(out)
 }

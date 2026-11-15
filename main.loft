@@ -11,6 +11,7 @@ use ui;
 use render3d;
 use fixedview;
 use raster3d;
+use gpu_gl;
 use playlog;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
@@ -272,9 +273,12 @@ fn main() {
   // The first-person view (render3d.loft): V in a browser page; what the GPU holds for it.
   v3 = render3d::view();
   gpu = render3d::gpu();
-  // The fixed camera from the south on the CPU (fixedview.loft): F5, or TW_VIEW=fixed to start in it.
+  // The fixed camera from the south (fixedview.loft): F5, or TW_VIEW=fixed to start in it.
   fv = fixedview::view();
   if (env_variable("TW_VIEW") ?? "") == "fixed" { fv.on = true; }
+  // Drawn on the GPU in the device's own window where it opens (scene3d), on the CPU through
+  // screen where it does not; TW_GPU=0 keeps the CPU, the Tanmatsu's view (SCENE_CONTRACT.md).
+  if (env_variable("TW_GPU") ?? "") != "0" { fixedview::use_gpu(fv, gpu_gl::table()); }
   pointing = screen::has_pointer();
   aim(game, view, size);
   game::draw(game);
@@ -289,7 +293,7 @@ fn main() {
     btn = screen::buttons();
     typed_now = screen::typed();
     if window_keys {
-      raw = screen::keys();
+      raw = fixedview::keys(fv, screen::keys());
       if playlog::keys(plog, game.world.now, raw, K_LOG) {
         plog.console = !plog.console;
         playlog::write(plog, "clock {game.world.now}  console log {if plog.console { "on" } else { "off" }}");
@@ -327,7 +331,7 @@ fn main() {
       fixedview::draw(fv, game, changed || resized, now);
       timing.draw += ticks() - at;
       shown_at = ticks();
-      screen::show(fv.px, raster3d::WIDTH, raster3d::HEIGHT);
+      if !fixedview::present(fv) { screen::show(fv.px, raster3d::WIDTH, raster3d::HEIGHT); }
       timing.frames += 1;
       timing.show += ticks() - shown_at;
       report(timing, size);
