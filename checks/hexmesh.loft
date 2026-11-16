@@ -7,6 +7,10 @@ use rules;
 use game;
 use render3d;
 use faces3d;
+use hexwalls;
+use hexterrain;
+use hextown;
+use hexscene;
 
 fn orbury() -> game::Game {
   g = game::new_game("..")!;
@@ -43,7 +47,8 @@ fn main() {
   test_the_night_is_the_day_dimmed();
   test_a_chunk_alone_is_the_chunk_of_the_whole();
   test_the_ground_is_whole();
-  println("checks/hexmesh.loft: 3 passed");
+  test_a_large_place();
+  println("checks/hexmesh.loft: 4 passed");
 }
 
 fn same(a: float, b: float) -> boolean { a - b < 0.000001 && b - a < 0.000001 }
@@ -106,7 +111,12 @@ fn test_a_chunk_alone_is_the_chunk_of_the_whole() {
 fn test_the_ground_is_whole() {
   g = orbury();
   keys: vector<integer> = [];
-  chunks = render3d::hex_faces(render3d::view(), g, false, keys);
+  whole(render3d::hex_faces(render3d::view(), g, false, keys), 20000);
+}
+
+/// No two of the ground's triangles in `chunks` stand at two heights where they meet; `least`
+/// places at least.
+fn whole(chunks: const vector<vector<faces3d::Face>>, least: integer) {
   // every corner of every ground triangle, by its place to the millimetre: the lowest and
   // highest it stands at, and how many triangles meet there
   lows: hash<Spot[key]> = [];
@@ -143,7 +153,103 @@ fn test_the_ground_is_whole() {
     if lo.n > 1 { met += 1; }
     assert(hi.y - lo.y < 0.0001, "the ground at ({lo.x}, {lo.z}) stands at {lo.y} and at {hi.y}: a crack");
   }
-  assert(places > 20000 && met > places / 2, "{places} places, triangles meeting at {met} of them");
+  assert(places > least && met > places / 2, "{places} places, triangles meeting at {met} of them");
+}
+
+// At size (HEX_LIBRARIES.md § Tests at size): a place of 256 x 256 cells made by a routine
+// (hextown::large) — two hills, a terrace with cliffs, a road, over 200 houses at every angle and
+// two stretches of yard side to each — given to the view as its hex version.  Its 1 024 chunks
+// build; the night is the day dimmed; a chunk built alone is the chunk of the whole build; the
+// ground is whole; and every house's faces stand between its walls' foot and its roof, with no
+// face across the middle of any of its doors and windows.
+fn test_a_large_place() {
+  g = orbury();
+  sz = hexwalls::sizes_file("../hexsizes.json");
+  m = hexterrain::measures_file("../hexsizes.json");
+  town = hextown::large(sz, m);
+  text = hextown::level_json("large", town, sz, m);
+  v = render3d::view();
+  assert(render3d::hex_given(v, g, text), "the large place given to the view");
+  keys: vector<integer> = [];
+  t0 = ticks();
+  day = render3d::hex_faces(v, g, false, keys);
+  built_ms = (ticks() - t0) / 1000;
+  faces = 0;
+  for ch in day { faces += len(ch); }
+  println("  the large place: {len(town.houses)} houses, {len(town.fences)} yard sides, {len(day)} chunks, {faces} faces, built in {built_ms} ms");
+  assert(len(town.houses) >= 200 && len(town.fences) >= 400, "over 200 houses and 400 yard sides");
+  assert(len(day) == 1024, "32 x 32 chunks of 8 x 8 cells: {len(day)}");
+  assert(faces > 400000, "six triangles a cell and the houses: {faces}");
+  // the night is the day dimmed
+  nk: vector<integer> = [];
+  night = render3d::hex_faces(v, g, true, nk);
+  assert(nk == keys, "the same chunks by night");
+  ci = 0;
+  while ci < len(day) {
+    assert(len(day[ci]!) == len(night[ci]!), "chunk {ci}: as many faces by night");
+    for fi in 0..len(day[ci]!) {
+      a = day[ci]![fi]!;
+      b = night[ci]![fi]!;
+      assert(a.sprite == b.sprite && a.at == b.at && same(b.light, a.light * render3d::NIGHT_LIGHT), "chunk {ci} face {fi}: the day's, dimmed");
+    }
+    ci += 5;
+  }
+  // a chunk alone is the chunk of the whole
+  ci = 3;
+  while ci < len(day) {
+    alone = render3d::hex_faces_of(v, g, false, keys[ci] ?? -1);
+    assert(len(alone) == len(day[ci]!), "chunk {ci}: as many faces alone");
+    for fi in 0..len(alone) {
+      a = alone[fi]!;
+      b = day[ci]![fi]!;
+      assert(a.sprite == b.sprite && a.at == b.at && a.light == b.light && a.lights == b.lights, "chunk {ci} face {fi}: the same alone");
+    }
+    ci += 97;
+  }
+  whole(day, 150000);
+  // every house: its faces between its walls' foot and its roof, none across an opening's middle
+  s = hexscene::load(text)!;
+  openings = 0;
+  for hi in 0..len(s.houses) {
+    h = s.houses[hi]!;
+    fs = render3d::hex_house_faces(v, g, hi, false);
+    assert(len(fs) > 20, "house {hi}: its faces, {len(fs)}");
+    low = 1000000.0;
+    high = -1000000.0;
+    for f in fs {
+      for c in 0..len(f.at) / 5 ?? 0 {
+        y = ((f.at[c * 5 + 1] ?? 0.0f) as float) * 1.5;
+        if y < low { low = y; }
+        if y > high { high = y; }
+      }
+    }
+    assert(low > h.base - 0.01 && low < h.base + 0.01, "house {hi}: its walls go down to their foot, {low} against {h.base}");
+    assert(high >= h.top - 0.01 && high < h.top + 12.0, "house {hi}: its roof on its walls, {high} over eaves at {h.top}");
+    for gp in h.gaps {
+      // the middle of the opening, half way up it: 1.05 m up a door, 1.45 m up a window
+      px = ((gp.ax + gp.bx) * 0.5) / 1.5 + 0.5;
+      pz = -((gp.ay + gp.by) * 0.5) / 1.5 + 0.5;
+      py = (h.floor + (if gp.kind == 1 { 1.05 } else { 1.45 })) / 1.5;
+      for f in fs {
+        lo = (1000000.0, 1000000.0, 1000000.0);
+        up = (-1000000.0, -1000000.0, -1000000.0);
+        for c in 0..len(f.at) / 5 ?? 0 {
+          x = (f.at[c * 5] ?? 0.0f) as float;
+          y = (f.at[c * 5 + 1] ?? 0.0f) as float;
+          z = (f.at[c * 5 + 2] ?? 0.0f) as float;
+          lo = (if x < lo.0 { x } else { lo.0 }, if y < lo.1 { y } else { lo.1 }, if z < lo.2 { z } else { lo.2 });
+          up = (if x > up.0 { x } else { up.0 }, if y > up.1 { y } else { up.1 }, if z > up.2 { z } else { up.2 });
+        }
+        // a face of the wall there would hold the point within its box (a hair's room each way);
+        // the roof and the floors lie above and below it
+        e = 0.01;
+        across = px > lo.0 - e && px < up.0 + e && py > lo.1 + e && py < up.1 - e && pz > lo.2 - e && pz < up.2 + e;
+        assert(!across, "house {hi}: a face across the middle of its opening on wall {gp.wall}");
+      }
+      openings += 1;
+    }
+  }
+  assert(openings >= 2 * len(s.houses), "a door and a window a house: {openings}");
 }
 
 struct Spot {

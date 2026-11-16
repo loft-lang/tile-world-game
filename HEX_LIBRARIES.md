@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — the merge is done: phases 0 to 10 have landed, and the round and eight-sided
-structures can start.  What each phase left undone is listed under it — chiefly the generated large scene for the meshes.
+structures can start.  What each phase left undone is listed under it — chiefly nothing that holds the next work up.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -356,8 +356,15 @@ different routine.
   - `checks/hexmesh.loft`: the night is the day dimmed (every face); a chunk built alone is the
     chunk of the whole build; the ground is whole (29 965 places where its triangles meet, none
     at two heights, across chunks too).  With `dump` it prints every face and the build's time.
-  - **Not done:** the scene of 256 × 256 cells with 200 houses, made by a routine; a house's
-    faces checked (no wall face in an opening, the roof on the walls); `bench/` entries.
+  - **The large place** (`hextown::large`, made by a routine, no file): 256 × 256 cells, two hills,
+    a terrace with cliffs, a road, 247 houses at every angle in turn and 494 stretches of yard
+    side.  Given to the view (`render3d::hex_given`) it is 1 024 chunks and 516 915 faces, built in
+    1.4 s.  The check holds of it what it holds of Orbury — the night the day dimmed, a chunk alone
+    the chunk of the whole, the ground whole (over 150 000 places) — and of every house: its
+    faces between its walls' foot and its roof, and no face across the middle of any of its 494
+    doors and windows.  The town's writer went from the tool into `hextown.loft` for it
+    (`scene_json`, `level_json`); what the tool prints is the same bytes.
+  - **Not done:** `bench/` entries here for the mesh build (the check's `dump` prints its time).
 
 ### Tests at size
 

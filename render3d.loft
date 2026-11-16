@@ -700,6 +700,32 @@ pub fn hex_faces(v: View3D, g: const game::Game, night: boolean, keys: vector<in
   out
 }
 
+/// For the checks: the hex version of the game's place given as text, in place of the one read
+/// from the place's file (none when the text holds none).  Then `hex_faces` and the rest draw it.
+pub fn hex_given(v: View3D, g: const game::Game, text: text) -> boolean {
+  v.hex_place = g.place;
+  v.hex = [];
+  v.hex_field = [];
+  v.hex_chunks = [];
+  v.hex_groups = [];
+  v.hex_house_ck = [];
+  v.hex_fence_ck = [];
+  v.hex_canopy_ck = [];
+  v.hex_stand = [];
+  sc = hexscene::load(text);
+  if sc != null { v.hex += [sc!]; }
+  len(v.hex) > 0
+}
+
+/// For the checks: the faces of house `i` of the hex version alone.
+pub fn hex_house_faces(v: View3D, g: const game::Game, i: integer, night: boolean) -> vector<faces3d::Face> {
+  out: vector<faces3d::Face> = [];
+  if !hex_loaded(v, g) || i < 0 || i >= len(v.hex[0]!.houses) { return out; }
+  s = v.hex[0]!;
+  house_faces(out, g, s, s.houses[i], night);
+  out
+}
+
 /// For the checks: the faces of the one chunk `ck`, built on its own as a chunk marked dirty is.
 pub fn hex_faces_of(v: View3D, g: const game::Game, night: boolean, ck: integer) -> vector<faces3d::Face> {
   if !hex_loaded(v, g) { return []; }

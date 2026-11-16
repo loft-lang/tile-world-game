@@ -1011,6 +1011,108 @@ fn outside(hull: const vector<(float, float)>, a: (float, float), b: (float, flo
    (a.0 + (b.0 - a.0) * (hi as float) / 40.0, a.1 + (b.1 - a.1) * (hi as float) / 40.0))
 }
 
+// ── a town written out ───────────────────────────────────────────────────────
+
+/// Metres per world unit, as the houses' walls are written out.
+const M = 0.8660254037844386;
+
+/// A town as the JSON the game's 3D view reads (hexscene.loft) and tools/hextown.py draws: the
+/// ground (its window, and per cell its height in metres, its surface kind and its level), the
+/// cliffs, each house (its angle, the heights of its walls' foot, its floor and its eaves, its
+/// outline as the straight walls' corners in metres, its doors and windows, its parts), the things
+/// on the surface and what stands along the yards.
+pub fn scene_json(name: text, town: Town) -> text {
+  g = town.ground;
+  hs = "";
+  ks = "";
+  ls = "";
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
+      if len(hs) > 0 { hs += ","; ks += ","; ls += ","; }
+      hs += "{round(hex_field::height_get(g.gr_heights, q, r) * 1000.0) / 1000.0}";
+      ks += "{hex_field::label_get(g.gr_kinds, q, r)}";
+      ls += "{hex_field::label_get(town.levels, q, r)}";
+    }
+  }
+  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.gr_q0}, \"r0\": {g.gr_r0}, \"w\": {g.gr_w}, \"h\": {g.gr_h}, \"heights\": [{hs}], \"kinds\": [{ks}], \"levels\": [{ls}]}}, \"cliffs\": [";
+  for i in 0..len(town.cliffs) {
+    c = town.cliffs[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"level\": {c.gc_level}, \"a\": [{c.gc_ax}, {c.gc_ay}], \"b\": [{c.gc_bx}, {c.gc_by}]}}";
+  }
+  out += "], \"houses\": [";
+  for i in 0..len(town.houses) {
+    p = town.houses[i];
+    cs = "";
+    for c in p.built.corners {
+      if len(cs) > 0 { cs += ", "; }
+      cs += "[{c.0 * M}, {c.1 * M}]";
+    }
+    ops = "";
+ for oi in 0..len(p.built.openings) {
+      o = p.built.openings[oi];
+      if len(ops) > 0 { ops += ", "; }
+      // a bay window: kind 3
+      ops += "{{\"kind\": {if p.bays.contains(oi) { 3 } else { o.kind }}, \"wall\": {o.wall}, \"a\": [{o.ax * M}, {o.ay * M}], \"b\": [{o.bx * M}, {o.by * M}]}}";
+    }
+    if i > 0 { out += ", "; }
+    ct = "";
+    for c in p.court {
+      if len(ct) > 0 { ct += ", "; }
+      ct += "[{c.0}, {c.1}]";
+    }
+    parts = "";
+    for b in p.parts {
+      if len(parts) > 0 { parts += ", "; }
+      bc = "";
+      for j in 0..4 {
+        if j > 0 { bc += ", "; }
+        bc += "[{b.xs[j] ?? 0.0}, {b.ys[j] ?? 0.0}]";
+      }
+      ds = "";
+      for dv in b.dormers { ds += if ds == "" { "{dv}" } else { ", {dv}" }; }
+      parts += "{{\"corners\": [{bc}], \"top\": {b.top}, \"roof\": {b.roof}, \"dormers\": [{ds}]}}";
+    }
+    tops = "";
+    rims = "";
+    for j in 0..len(p.tops) {
+      if j > 0 { tops += ", "; rims += ", "; }
+      tops += "{p.tops[j] ?? p.top}";
+      rims += "{p.rims[j] ?? 0.0}";
+    }
+    rises = "";
+    for rs in p.rises {
+      if len(rises) > 0 { rises += ", "; }
+      rises += "{{\"a\": [{rs.ax}, {rs.ay}], \"b\": [{rs.bx}, {rs.by}], \"z0\": {rs.z0}, \"z1\": {rs.z1}}}";
+    }
+    inner = "";
+    for rs in p.inner {
+      if len(inner) > 0 { inner += ", "; }
+      inner += "{{\"a\": [{round(rs.ax * 1000.0) / 1000.0}, {round(rs.ay * 1000.0) / 1000.0}], \"b\": [{round(rs.bx * 1000.0) / 1000.0}, {round(rs.by * 1000.0) / 1000.0}], \"z\": {rs.z0}, \"door\": {rs.z1 as integer}}}";
+    }
+    out += "{{\"turn\": {p.turn}, \"base\": {p.base}, \"floor\": {p.floor}, \"top\": {p.top}, \"roof\": {p.roof}, \"corners\": [{cs}], \"court\": [{ct}], \"openings\": [{ops}], \"parts\": [{parts}], \"tops\": [{tops}], \"rims\": [{rims}], \"rises\": [{rises}], \"inner\": [{inner}]}}";
+  }
+  out += "], \"things\": [";
+  for i in 0..len(town.things) {
+    t = town.things[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"kind\": \"{t.kind}\", \"x\": {t.x}, \"y\": {t.y}, \"z\": {t.z}, \"size\": {t.size}}}";
+  }
+  out += "], \"fences\": [";
+  for i in 0..len(town.fences) {
+    f = town.fences[i];
+    if i > 0 { out += ", "; }
+    out += "{{\"kind\": {f.kind}, \"a\": [{f.ax}, {f.ay}], \"b\": [{f.bx}, {f.by}], \"height\": {f.height}, \"thick\": {f.thick}}}";
+  }
+  out + "]}}"
+}
+
+/// A town as a place's hex version (`levels/<place>.hex.json`): its scene, and the measurements
+/// the view draws it with.
+pub fn level_json(name: text, town: Town, sz: hexwalls::Sizes, m: hexterrain::Measures) -> text {
+  "{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"inner\": {sz.inner / hexwalls::PER_METRE}, \"scene\": {scene_json(name, town)}}}"
+}
+
 // ── a hill with a house at every angle ──────────────────────────────────────
 
 /// A round hill with twelve houses round it, each facing down the hill: at every 30° angle, and
@@ -1051,4 +1153,69 @@ pub fn showcase(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
                        z: hex_field::height_get(g.gr_heights, q, r) }];
   }
   Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h) }
+}
+
+// ── a large place, made by a routine ────────────────────────────────────────
+
+/// A place of 256 × 256 cells for checking and timing the view's meshes at size (HEX_LIBRARIES.md
+/// § Tests at size): two hills, a terrace a storey up in the north-east with cliffs for fronts, a
+/// ragged road from west to east, and a house on every fifteenth cell that is not on the road or
+/// the terrace — boxes and L's in turn, at every 30° angle in turn, one and two storeys, each with
+/// a door and a window, seated on the ground where it stands — and two stretches of what stands
+/// along a yard beside each house.  Nothing is read from a file.
+pub fn large(sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards = default_yards()) -> Town {
+  g = hexterrain::ground_new(-128, -128, 256, 256);
+  hexterrain::hill(g, -60.0, 40.0, 150.0, 14.0);
+  hexterrain::hill(g, 90.0, -70.0, 90.0, 8.0);
+  // the terrace: the cells whose centres lie in a box, a storey up
+  levels = hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
+      (x, y) = hexterrain::centre(q, r);
+      up = x > 70.0 && x < 150.0 && y > 60.0 && y < 130.0;
+      hex_field::label_set(levels, q, r, if up { 1 } else { 0 });
+      if up { hex_field::height_set(g.gr_heights, q, r, hex_field::height_get(g.gr_heights, q, r) + m.storey); }
+    }
+  }
+  areas = [hex_ground::GroundBox { gb_x0: 60.0, gb_x1: 160.0, gb_y0: 50.0, gb_y1: 140.0 }];
+  cliffs = hexterrain::cliffs(levels, g.gr_q0, g.gr_r0, g.gr_w, g.gr_h, 0, 1, areas);
+  // the road: three cells wide, stepping over by a row every nine cells
+  for q in g.gr_q0..g.gr_q0 + g.gr_w {
+    off = ((q + 135) / 9 ?? 0) % 3 ?? 0;
+    for w in 0..3 { hex_field::label_set(g.gr_kinds, q, -41 + off + w, hexterrain::PATH); }
+  }
+  houses: vector<Placed> = [];
+  fences: vector<Fence> = [];
+  for j in 0..17 {
+    for i in 0..17 {
+      cq = -120 + 15 * i;
+      cr = -119 + 15 * j;
+      (x, y) = hexterrain::centre(cq, cr);
+      on_road = cr > -52 && cr < -29;
+      on_terrace = x > 55.0 && x < 165.0 && y > 45.0 && y < 145.0;
+      if on_road || on_terrace { continue; }
+      n = j * 17 + i;
+      t = n % 12;
+      ell = n % 2 == 1;
+      parts = if ell { hexhouse::l_plan(5, 3, 2, 2) } else { hexhouse::box_plan(5, 4) };
+      ops = [hexhouse::Spec { kind: hexwalls::DOOR, u: 0, v: if ell { -3 } else { -4 } },
+             hexhouse::Spec { kind: hexwalls::WINDOW, u: 5, v: 0 }];
+      b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: parts, openings: ops }, hexturn::BY_WALLS, sz);
+      floor = round(hex_field::height_get(g.gr_heights, cq, cr) * 10.0) / 10.0;
+      base = hexterrain::seat(g, b.cells, floor, m);
+      for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+        for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+          if hex_field::hexset_get(b.cells, q, r) { hex_field::label_set(g.gr_kinds, q, r, hexterrain::FLOOR); }
+        }
+      }
+      houses += [Placed { built: b, turn: t, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
+                          top: floor + ((1 + (n / 2 ?? 0) % 2) as float) * m.storey, cq: cq, cr: cr }];
+      kind = 1 + n % 4;
+      for side in [-1.0, 1.0] {
+        fences += [Fence { kind: kind, ax: x + side * 9.0, ay: y - 3.0, bx: x + side * 9.0, by: y + 3.0,
+                           height: ys.heights[kind] ?? 1.0, thick: ys.thicks[kind] ?? 0.3 }];
+      }
+    }
+  }
+  Town { ground: g, houses: houses, things: [], levels: levels, cliffs: cliffs, fences: fences }
 }
