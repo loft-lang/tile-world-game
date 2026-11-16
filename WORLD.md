@@ -581,7 +581,7 @@ between hexes.
   place); more than one thing on a hex; a second opening whose hex does not lie straight out
   (it goes aside; untried); a corner walled on both sides.
 
-◇ Next: then a terrace as the same with low walls.  The steps below were written before these rulings:
+◇ Next: a terrace as the same with low walls.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 
