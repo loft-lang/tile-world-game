@@ -271,6 +271,8 @@ fn main() {
   // (Not in a browser page: there this view came up black with the game served to a headless
   // Chrome, 2026-11-16; a page's 3D is the first-person view, F1.)
   if (env_variable("TW_VIEW") ?? "") != "flat" && !tiles::on_display(game.surface) { fv.on = true; }
+  // In a page the game starts in the first-person view, drawn by the page's GPU.
+  if (env_variable("TW_VIEW") ?? "") != "flat" { _ = render3d::start(v3, gpu, game); }
   // Drawn on the GPU in the device's own window where it opens (scene3d), on the CPU through
   // screen where it does not; TW_GPU=0 keeps the CPU, the Tanmatsu's view (SCENE_CONTRACT.md).
   if (env_variable("TW_GPU") ?? "") != "0" { fixedview::use_gpu(fv, gpu_gl::table()); }
@@ -317,14 +319,35 @@ fn main() {
     panel = pointing && game.editing;
     touched = panel && (at_ptr.0 != was_at.0 || at_ptr.1 != was_at.1 || btn != was_buttons || typed_now != "");
     was_at = at_ptr;
+    held_before = was_buttons;
     was_buttons = btn;
     changed = game::update(game, now - last, now);
     log_flush(plog, game);
     render3d::after(v3, game);
     if fv.on && !game.on_field {
       at = ticks();
-      // editing in the 3D view: the place as edited, the hero standing as the editor's cursor
-      if game.editing { game::edit_scene(game); }
+      // editing in the 3D view: the place as edited, the hero standing as the editor's cursor; the
+      // pointer picks the cell of the editor's layer under it (the frame fills the screen)
+      if game.editing {
+        if pointing && screen::width() > 0 && screen::height() > 0 {
+          at3 = fixedview::cell_under(fv, (at_ptr.0 * raster3d::WIDTH / screen::width()) ?? 0, (at_ptr.1 * raster3d::HEIGHT / screen::height()) ?? 0, game.ed.z);
+          _ = game::editor_cell_pointer(game, at3.0, at3.1, (btn & 1) != 0, (held_before & 1) != 0);
+        }
+        game::edit_scene(game);
+      }
+      // UI elements stay in sight over the 3D frame (owner): editing with a pointer, the editor's
+      // panel is drawn on the view's overlay, over the palette and the status line
+      fv.split = panel;
+      if panel {
+        over = fixedview::begin_overlay(fv, game);
+        osz = fixedview::overlay_size(fv);
+        if over != 0 && osz.0 > 0 && screen::width() > 0 {
+          oscale = (screen::width() as float) / (osz.0 as float) ?? 1.0;
+          ui::begin(widgets, over, oscale, at_ptr.0, at_ptr.1, btn, typed_now);
+          if game::editor_panel(game, widgets, osz.0 as float) { panel_changed = true; }
+          fixedview::end_overlay(fv);
+        }
+      }
       fixedview::draw(fv, game, changed || resized, now);
       timing.draw += ticks() - at;
       shown_at = ticks();
@@ -332,7 +355,7 @@ fn main() {
       timing.frames += 1;
       timing.show += ticks() - shown_at;
       report(timing, size);
-    } else if v3.on && !game.editing && !game.on_field {
+    } else if v3.on && !game.editing && (!game.on_field || game::on_town(game)) {
       aim(game, view, size);
       render3d::draw(v3, gpu, game, changed || resized, now);
       present(game, size, timing);

@@ -215,6 +215,17 @@ fn down(keys: const vector<boolean>, k: integer) -> boolean {
   keys[k] ?? false
 }
 
+/// The view on from the start, where the frame is a page's: the game is seen in 3D (owner,
+/// 2026-11-16).  Answers whether it came on.
+pub fn start(v: View3D, gpu: Gpu, g: game::Game) -> boolean {
+  if v.on || !tiles::on_display(g.surface) { return v.on; }
+  if len(gpu.gls) == 0 && !open(v, gpu) { return false; }
+  v.on = true;
+  v.built = false;
+  v.yaw = (motion::facing(g.world.face_x, g.world.face_y)) as float;
+  true
+}
+
 /// F1 pressed: switch the view on or off.  It comes on only where the frame is a page's (a
 /// GPU-drawn display surface) and not in the editor; the GPU side is opened the first time.
 /// Answers whether it changed, so the caller draws the 2D again when it went off.
@@ -270,6 +281,13 @@ pub fn steer(v: View3D, g: game::Game, keys: const vector<boolean>) -> vector<bo
   v.was = [];
   for k in keys { v.was += [k]; }
   for k in [K_W, K_A, K_S, K_D, K_UP, K_DOWN, K_LEFT, K_RIGHT] { if k < len(out) { out[k] = false; } }
+  if g.on_field {
+    // out on a field's ground the body turns and walks free: the game takes it from here
+    g.field_first = true;
+    g.field_turn = (if right { 1 } else { 0 }) - (if left { 1 } else { 0 });
+    g.field_go = if fwd { 1 } else if back { -1 } else { 0 };
+    return out;
+  }
   fx = g.world.face_x;
   fy = g.world.face_y;
   if left && !was_left && !fwd && !back {
@@ -1606,6 +1624,13 @@ pub fn draw(v: View3D, gpu: const Gpu, g: game::Game, changed: boolean, now: int
   ex = (w.hero_x as float) + 0.5 + p.x / (TS as float);
   ez = (w.hero_y as float) + 0.5 + p.y / (TS as float);
   ey = (w.hero_z as float) + STEP * (w.hero_h as float) + EYE + p.hop / 64.0;
+  if g.on_field {
+    // out on a field's ground: the eye where the body is and looking the way it faces, not on a
+    // tile's middle looking one of four ways
+    ex = g.fplay.x / TILE_M + 0.5;
+    ez = 0.0 - g.fplay.y / TILE_M + 0.5;
+    v.yaw = atan2(g.fplay.face_x, g.fplay.face_y) * 180.0 / PI;
+  }
   // The place's hex version, where it has one and the hero is out under the sky or in a house:
   // its ground and houses in place of the square cells, the eye on its ground.
   hex = hex_here(v, g);

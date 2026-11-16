@@ -847,8 +847,21 @@ first, above.
   editor's pointer, three tools and the tests that draw.  It goes when the 3D views draw the hex
   ground with the hero on it.
 
-◇ Next: the 3D view on the field — the hex ground, the rooms, the hero where its body is; then the
-flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
+**The town on the new rules in 3D, in a page** (2026-11-16; seen by starting the game served to a
+headless browser).  A page starts in the first-person view (`render3d::start`).  Out on Orbury's
+ground that view's eye is where the hero's body is and looks the way it faces; left and right
+turn the body, up and down walk it on and back (`field_first`, `field_turn`, `field_go`); the
+town's own hero is kept on the tile the body is over, for the view (`field_to_world`).  Walked and
+turned there: the hex town's ground, its paths, its trees and its houses at their angles.
+- The editor in the 3D view has its pointer (the fixed view's `cell_under`: the cell of the
+  editor's layer under a point of the frame) and UI elements are drawn over the 3D frame (owner:
+  "allow for UI elements, so we can still see them"): the view's overlay is the caller's to draw
+  on (`begin_overlay`, `end_overlay`), and the editor's panel is drawn there.  Neither seen on a
+  screen yet.
+- Still flat: a desktop window on the town's ground — its 3D is the fixed view, which draws
+  square places only.  So the flat drawing is not deleted yet.
+
+◇ Next: the fixed view drawing the hex ground; then the flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

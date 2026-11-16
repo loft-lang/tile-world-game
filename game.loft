@@ -265,6 +265,12 @@ pub struct Game {
   /// How much water the town's river is given at its head (water.loft's rate).  0: none — its bed
   /// dry but for the pools that stand in it, stale: the town as it starts.
   pub river: integer = 0,
+  /// Walking the ground seen through the hero's eyes (a first-person view sets these each frame):
+  /// the keys turn the body (`field_turn`: 1 right, -1 left) and walk it the way it faces
+  /// (`field_go`: 1 on, -1 back), not north, south, east and west.
+  pub field_first: boolean = false,
+  pub field_turn: integer = 0,
+  pub field_go: integer = 0,
   pub field_exits: vector<FieldExit> = [],
   field_q: integer = 0,
   field_r: integer = 0,
@@ -936,6 +942,7 @@ pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
   i = g.fplay.room;
   if i < 0 {
     if on_town(g) && town_spot(g) { return true; }
+    if on_town(g) && g.on_field { field_to_world(g); }
     return moved;
   }
   if on_town(g) {
@@ -985,8 +992,45 @@ pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
   true
 }
 
+// For a view that draws the town from the hero's cell (the 3D views): the hero of the town's own
+// map kept on the tile its body on the ground is over, facing the way the body faces.  Out on the
+// ground that hero plays no part in the rules (`on_field`); it is where the eye is.
+fn field_to_world(g: Game) {
+  x = round(g.fplay.x / gridroom::TILE ?? 0.0) as integer;
+  y = round(0.0 - g.fplay.y / gridroom::TILE ?? 0.0) as integer;
+  g.world.hero_x = x;
+  g.world.hero_y = y;
+  // on the town's surface there: the highest layer with ground under the open sky
+  for z in 0..5 {
+    if tile_world::terrain(g.world.w, x, y, z) != rules::VOID && tile_world::open_sky(g.world.w, x, y, z) { g.world.hero_z = z; }
+  }
+  ax = if g.fplay.face_x < 0.0 { 0.0 - g.fplay.face_x } else { g.fplay.face_x };
+  ay = if g.fplay.face_y < 0.0 { 0.0 - g.fplay.face_y } else { g.fplay.face_y };
+  g.world.face_x = if ax >= ay { (if g.fplay.face_x > 0.0 { 1 } else { -1 }) } else { 0 };
+  g.world.face_y = if ax >= ay { 0 } else { (if g.fplay.face_y > 0.0 { -1 } else { 1 }) };
+}
+
+/// How fast the body turns on the ground seen through the hero's eyes, in radians a second.
+pub const FIELD_TURN = 2.4;
+
 // The keys on the field: the arrows walk, north up.
 fn update_field(g: Game, ms: integer) -> boolean {
+  if g.field_first {
+    // seen through the hero's eyes: left and right turn the body, up and down walk it on and back
+    g.field_first = false;
+    a = atan2(g.fplay.face_y, g.fplay.face_x) - (g.field_turn as float) * FIELD_TURN * (ms as float) / 1000.0;
+    g.fplay.face_x = cos(a);
+    g.fplay.face_y = sin(a);
+    go = g.field_go as float;
+    changed = field_walk(g, go * cos(a), go * sin(a), ms) || g.field_turn != 0;
+    if g.on_field {
+      // walking back keeps the body facing as it did
+      g.fplay.face_x = cos(a);
+      g.fplay.face_y = sin(a);
+      if on_town(g) { field_to_world(g); }
+    }
+    return changed;
+  }
   dx = 0.0;
   dy = 0.0;
   if g.keys.is_action_pressed("left") { dx -= 1.0; }
@@ -1525,8 +1569,23 @@ fn cell_under(g: const Game, ux: float, uy: float) -> (integer, integer) {
 /// a room picks it; with CORRIDOR a drag runs a corridor.  What is drawn is filled in at once.
 /// Answers whether the picture changed.
 pub fn editor_map_pointer(g: Game, ux: float, uy: float, down: boolean, was_down: boolean) -> boolean {
-  if g.tool == "" { return false; }
   at = cell_under(g, ux, uy);
+  editor_cell_pointer(g, at.0, at.1, down, was_down)
+}
+
+/// The same with the cell the pointer is over given: what a view that is not the flat map says
+/// (a 3D view works out the cell under a point of its own frame).  With no tool picked the cell
+/// pressed becomes the editor's cursor.
+pub fn editor_cell_pointer(g: Game, cx: integer, cy: integer, down: boolean, was_down: boolean) -> boolean {
+  at = (cx, cy);
+  if g.tool == "" {
+    if down && !was_down && (g.ed.x != cx || g.ed.y != cy) {
+      g.ed.x = cx;
+      g.ed.y = cy;
+      return true;
+    }
+    return false;
+  }
   if down && !was_down {
     g.dragging = true;
     g.drag_from = at;

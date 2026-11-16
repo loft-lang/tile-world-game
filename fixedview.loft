@@ -153,6 +153,8 @@ pub struct FixedView {
   over: integer = 0,
   over_w: integer = 0,
   over_h: integer = 0,
+  /// The caller draws the overlay itself (begin_overlay, its UI elements, end_overlay).
+  pub split: boolean = false,
   cam_x: integer = 0,
   cam_y: integer = 0,
   placed: boolean = false,
@@ -171,6 +173,15 @@ pub fn view() -> FixedView {
 /// its window opens; the CPU where it does not.
 pub fn use_gpu(v: FixedView, table: i64) {
   v.table = table;
+}
+
+/// The cell of layer `z` under the point (sx, sy) of the view's frame (its own pixels, WIDTH by
+/// HEIGHT): the view looks from the south, a cell WIDE across and DEEP down the frame, a layer TALL
+/// up it — so a point is over one cell of each layer, and the layer says which.
+pub fn cell_under(v: FixedView, sx: integer, sy: integer, z: integer) -> (integer, integer) {
+  x = floor(((sx + v.cam_x) as float) / (raster3d::WIDE as float) ?? 0.0) as integer;
+  y = floor(((sy + v.cam_y + z * raster3d::TALL) as float) / (raster3d::DEEP as float) ?? 0.0) as integer;
+  (x, y)
 }
 
 /// F5 pressed: the view switched.  Answers whether it is on.  Switched off, the device's window
@@ -799,7 +810,10 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
 
 // The status line along the bottom and a bubble over whoever speaks, as the 2D draws them
 // (`game::draw_status_on`, `game::draw_bubble`), over the frame.
-fn overlay(v: FixedView, g: const game::Game) {
+/// What lies over the frame, begun: its surface cleared and the game's part drawn on it (the
+/// status line and the talk; editing, the editor's palette and status).  Answers the surface (0:
+/// none) for more to be drawn on — the editor's panel, any UI element — before `end_overlay`.
+pub fn begin_overlay(v: FixedView, g: const game::Game) -> integer {
   size = screen_size(v);
   w = (size.0 + OVER - 1) / OVER ?? 0;
   h = size.1 / OVER ?? 0;
@@ -813,13 +827,12 @@ fn overlay(v: FixedView, g: const game::Game) {
     v.over_w = w;
     v.over_h = h;
   }
-  if v.over == 0 { return; }
+  if v.over == 0 { return 0; }
   tiles::rect(v.over, 0, 0, w, h, raster3d::NONE);
   // editing: the editor's palette and status over the frame, the hero standing as its cursor
   if g.editing {
     game::draw_editor_on(g, v.over, w, h);
-    e_overlay(v, tiles::pixels(v.over, w, h), w, h);
-    return;
+    return v.over;
   }
   game::draw_status_on(g, v.over, h - ts, (w * 2 / ts) ?? 0);
   for t in game::talking(g) {
@@ -829,17 +842,32 @@ fn overlay(v: FixedView, g: const game::Game) {
           - ((t.z as float) + FIGURE) * (raster3d::TALL as float)) as integer - v.cam_y;
     game::draw_bubble(g, v.over, t, sx / OVER ?? 0, (sy / OVER ?? 0) - 1, w);
   }
-  e_overlay(v, tiles::pixels(v.over, w, h), w, h);
+  v.over
 }
+
+/// The overlay's size, in its own pixels.
+pub fn overlay_size(v: FixedView) -> (integer, integer) { (v.over_w, v.over_h) }
+
+/// What lies over the frame, done: shown with the next frame.
+pub fn end_overlay(v: FixedView) {
+  if v.over != 0 { e_overlay(v, tiles::pixels(v.over, v.over_w, v.over_h), v.over_w, v.over_h); }
+}
+
+fn overlay(v: FixedView, g: const game::Game) {
+  if begin_overlay(v, g) != 0 { end_overlay(v); }
+}
+
 
 /// This frame: the landscape kept up, the camera on the hero, the figures over it, the status line
 /// and what is said over them — into the device's window (`present` shows it) or into `v.px`.
+
 pub fn draw(v: FixedView, g: const game::Game, changed: boolean, now: integer) {
   keep_up(v, g, changed);
   if !live(v) { return; }
   acts = actors(v, g);
   give(v, g);
-  overlay(v, g);
+  // the overlay is the caller's while it draws UI elements on it (`split`)
+  if !v.split { overlay(v, g); }
   e_frame(v, acts);
 }
 
