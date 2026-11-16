@@ -268,9 +268,9 @@ fn seen_over(rm: const Room, x: integer, y: integer, dx: integer, dy: integer, u
 /// lie on do not count.  A low wall is seen over; a doorway and a gate are seen through.
 ///
 /// `up`: how many steps over the room's floor the eye is (0 on the floor; `LAYER` on a bridge or
-/// a platform a layer up).  From there what is no higher than the eye is seen over: a low hedge
-/// from two steps, a hedge and a wall from a layer up — the overview a maze gives from its high
-/// places and not from its paths.
+/// a platform a layer up).  A low wall and a low hedge are seen over from the floor already (they
+/// stop a step, not sight); a hedge and a wall stop sight from the floor and are seen over from a
+/// layer up — the overview a maze gives from its high places and not from its paths.
 pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, up: integer = 0) -> boolean {
   (ex, ey) = way(rm.turn);
   (sx, sy) = way(rm.turn + 9);

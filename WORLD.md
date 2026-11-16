@@ -595,7 +595,8 @@ or inside it; over a low wall; through a doorway, a gate or a gap.
   maze and places with little sight range.  And possibly bridges that span other walkways through
   the maze to prevent left/right handing it."
   - Built: `sees` takes how high the eye is.  From the floor a hedge is not seen over; from a
-    layer up (a bridge, a platform) it is, and a low hedge from two steps.
+    layer up (a bridge, a platform) it is.  A low wall and a low hedge are seen over from
+    the floor: they stop a step, not sight (kinds.json: `low_wall`, `low_hedge`; `hedge` opaque).
   - ◇ Little sight range is the maze's own doing — high hedges and short straight stretches —
     and needs no rule of its own.
   - ◇ Not built: a bridge.  It is tiles on the layer above crossing a path below, which the
