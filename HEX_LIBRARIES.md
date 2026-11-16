@@ -5,8 +5,9 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 
 # The hex work, into the hex libraries
 
-**Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phases 1 to 9 are done — the merge is done but for phase 4's speed work; 10 (the mesh build) remains.
+**Status** — the merge is done: phases 0 to 10 have landed, and the round and eight-sided
+structures can start.  What each phase left undone is listed under it — chiefly phase 4's speed
+work, the tests at size for walls and meshes, and guides and benches for the new library files.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -305,7 +306,7 @@ different routine.
   place changes, read by `cards_of`; `house_at` by the cell's own label (a house's cells are marked
   already) instead of every outline.  *Compared:* the table against `hex_y` at every tile and layer
   of Orbury, exactly.  *Aim:* under 1 ms a frame.
-- **Phase 10, in the game: the mesh build (M).**
+- **Phase 10, in the game: the mesh build — done, its three steps as below; what it found after them.**
   - 10a. The faces apart from their upload: the ground's cells, the cliffs, the houses, the fences
     as a routine that takes the scene and answers faces (`faces3d.loft`'s way), `render3d` only
     sending them to the GPU.  Nothing drawn changes; it is what lets a test and a bench reach them.
@@ -315,6 +316,33 @@ different routine.
     *Compared:* faces exactly as 10a's.
   - 10c. Day and night without building again: the light in the vertices as it is by day, dimmed
     when drawn.  **This one changes what is sent**, so it is seen in the view, not compared.
+
+  As landed (`render3d.loft`, `checks/hexmesh.loft`):
+  - 10a. `hex_chunk_faces` builds a chunk's faces and touches no GPU; `hex_build` sends them;
+    `hex_faces` gives every chunk's to a check or a bench.  Orbury: 156 chunks, 70 157 faces,
+    343 ms to build them all (native).  There was no "before" to compare with — the faces could
+    not be reached without a window until this step — so 10a is the baseline of what follows.
+  - 10b. Each fence's and canopy's chunk kept; a cell no side is near (most cells) emitted as its
+    six triangles with nothing cut.  Every face of the town, by day and by night, byte for byte
+    as 10a's; about 250 to 320 ms.  **Not done:** a corner's light shared by its three cells —
+    each cell sums the same three heights in its own order, so sharing would change last bits;
+    its height is one routine now (`hex_ground`).
+  - 10c. Done without the GPU's help, so it could be checked: the night's faces are the day's
+    with every light 0.45 of it (`NIGHT_LIGHT`) — all 70 157, the same pictures and corners.  So a
+    chunk's mesh is kept as the day lights it and a group is sent lit for the hour; a change of
+    day and night sends every group again and builds none.  What is sent at night differs from
+    before only in rounding a 32-bit light after the dimming, not before.  **Not seen in the
+    view** (no window here): the check holds what the change rests on.
+  - What the time is: of 343 ms, the ground's cells are 250, the houses 16, the fences and
+    canopies 10.  In a cell, the six corners' heights are 22 ms and their lights 26 for the whole
+    town; the rest is making 48 500 faces — each a record with two vectors.  A faster build is a
+    change of what a face is (vertices written straight into a chunk's mesh), not of the hex
+    routines.  It is a once-a-place cost now, and 2 ms for a chunk marked dirty.
+  - `checks/hexmesh.loft`: the night is the day dimmed (every face); a chunk built alone is the
+    chunk of the whole build; the ground is whole (29 965 places where its triangles meet, none
+    at two heights, across chunks too).  With `dump` it prints every face and the build's time.
+  - **Not done:** the scene of 256 × 256 cells with 200 houses, made by a routine; a house's
+    faces checked (no wall face in an opening, the roof on the walls); `bench/` entries.
 
 ### Tests at size
 

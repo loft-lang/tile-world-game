@@ -1,0 +1,155 @@
+// The hex version's meshes as faces (render3d::hex_faces), without a window: a plain program, as
+// the other checks are.  Run with `loft --native --lib libs checks/hexmesh.loft` (HEX_LIBRARIES.md
+// phase 10).  With `dump` as its argument it prints every face of Orbury, day then night, and the
+// time the build took (lines starting T), for comparing one build of the game against another
+// byte for byte: `diff <(... dump | grep -v ^T) <(... dump | grep -v ^T)`.
+use rules;
+use game;
+use render3d;
+use faces3d;
+
+fn orbury() -> game::Game {
+  g = game::new_game("..")!;
+  assert(game::start_world(g, "orbury"), "no Orbury");
+  g
+}
+
+fn dump() {
+  g = orbury();
+  for night in [false, true] {
+    v = render3d::view();
+    keys: vector<integer> = [];
+    t0 = ticks();
+    chunks = render3d::hex_faces(v, g, night, keys);
+    us = ticks() - t0;
+    n = 0;
+    for ci in 0..len(chunks) {
+      println("chunk {keys[ci] ?? -1} night {night}: {len(chunks[ci]!)} faces");
+      for f in chunks[ci]! {
+        println("{f.sprite} {f.light} {f.at} {f.lights}");
+        n += 1;
+      }
+    }
+    println("# {len(chunks)} chunks, {n} faces, night {night}");
+    println("T built in {us / 1000} ms");
+  }
+}
+
+fn main() {
+  if (arguments()[0] ?? "") == "dump" {
+    dump();
+    return;
+  }
+  test_the_night_is_the_day_dimmed();
+  test_a_chunk_alone_is_the_chunk_of_the_whole();
+  test_the_ground_is_whole();
+  println("checks/hexmesh.loft: 3 passed");
+}
+
+fn same(a: float, b: float) -> boolean { a - b < 0.000001 && b - a < 0.000001 }
+
+// What lets a kept mesh be lit for the night without building it again (render3d::hex_build): the
+// night's faces are the day's — as many, in the same order, the same picture and corners — and
+// every light of them, a face's and a corner's, NIGHT_LIGHT of the day's.
+fn test_the_night_is_the_day_dimmed() {
+  g = orbury();
+  dk: vector<integer> = [];
+  nk: vector<integer> = [];
+  day = render3d::hex_faces(render3d::view(), g, false, dk);
+  night = render3d::hex_faces(render3d::view(), g, true, nk);
+  assert(len(day) > 100 && len(day) == len(night) && dk == nk, "the same chunks by day and by night: {len(day)} and {len(night)}");
+  faces = 0;
+  for ci in 0..len(day) {
+    assert(len(day[ci]!) == len(night[ci]!), "chunk {ci}: as many faces by night");
+    for fi in 0..len(day[ci]!) {
+      a = day[ci]![fi]!;
+      b = night[ci]![fi]!;
+      assert(a.sprite == b.sprite && a.at == b.at, "chunk {ci} face {fi}: the same picture and corners");
+      assert(same(b.light, a.light * render3d::NIGHT_LIGHT), "chunk {ci} face {fi}: its light dimmed, {a.light} to {b.light}");
+      assert(len(a.lights) == len(b.lights), "chunk {ci} face {fi}: as many corner lights");
+      for li in 0..len(a.lights) {
+        assert(same((b.lights[li] ?? 0.0f) as float, ((a.lights[li] ?? 0.0f) as float) * render3d::NIGHT_LIGHT), "chunk {ci} face {fi} corner {li}: its light dimmed");
+      }
+      faces += 1;
+    }
+  }
+  assert(faces > 60000, "every face of the town compared: {faces}");
+}
+
+// A chunk built on its own, as one marked dirty is, gives the faces it gave when the whole place
+// was built: nothing a chunk's faces hold comes from what was built before it.
+fn test_a_chunk_alone_is_the_chunk_of_the_whole() {
+  g = orbury();
+  keys: vector<integer> = [];
+  whole = render3d::hex_faces(render3d::view(), g, false, keys);
+  tried = 0;
+  ci = 0;
+  while ci < len(whole) {
+    alone = render3d::hex_faces_of(render3d::view(), g, false, keys[ci] ?? -1);
+    assert(len(alone) == len(whole[ci]!) && len(alone) > 0, "chunk {ci}: as many faces alone, {len(alone)} and {len(whole[ci]!)}");
+    for fi in 0..len(alone) {
+      a = alone[fi]!;
+      b = whole[ci]![fi]!;
+      assert(a.sprite == b.sprite && a.at == b.at && a.light == b.light && a.lights == b.lights, "chunk {ci} face {fi}: the same alone");
+    }
+    tried += 1;
+    ci += 7;
+  }
+  assert(tried >= 20, "chunks all over the place tried: {tried}");
+}
+
+// The ground is whole.  Wherever two of its triangles meet in a point — a cell's corner, shared
+// by three cells, in one chunk or across chunks — they stand at one height there, so no crack
+// shows.  The ground's triangles are the faces of three corners lit corner by corner; a piece
+// beside a cliff is lit as a whole and lies on its own side's surface (two surfaces on purpose),
+// and is not among them.
+fn test_the_ground_is_whole() {
+  g = orbury();
+  keys: vector<integer> = [];
+  chunks = render3d::hex_faces(render3d::view(), g, false, keys);
+  // every corner of every ground triangle, by its place to the millimetre: the lowest and
+  // highest it stands at, and how many triangles meet there
+  lows: hash<Spot[key]> = [];
+  highs: hash<Spot[key]> = [];
+  points = 0;
+  for ch in chunks {
+    for f in ch {
+      if len(f.at) != 15 || len(f.lights) != 3 { continue; }
+      for c in 0..3 {
+        x = (f.at[c * 5] ?? 0.0f) as float;
+        y = (f.at[c * 5 + 1] ?? 0.0f) as float;
+        z = (f.at[c * 5 + 2] ?? 0.0f) as float;
+        key = (round(x * 1000.0) as integer + 1000000) * 4000000 + round(z * 1000.0) as integer + 1000000;
+        lo = lows[key];
+        if lo == null {
+          lows += [Spot { key: key, y: y, x: x, z: z, n: 1 }];
+          highs += [Spot { key: key, y: y, x: x, z: z, n: 1 }];
+        } else {
+          if y < lo.y { lo.y = y; }
+          lo.n += 1;
+          hi = highs[key]!;
+          if y > hi.y { hi.y = y; }
+        }
+        points += 1;
+      }
+    }
+  }
+  assert(points > 100000, "the ground's corners gathered: {points}");
+  places = 0;
+  met = 0;
+  for lo in lows {
+    hi = highs[lo.key]!;
+    places += 1;
+    if lo.n > 1 { met += 1; }
+    assert(hi.y - lo.y < 0.0001, "the ground at ({lo.x}, {lo.z}) stands at {lo.y} and at {hi.y}: a crack");
+  }
+  assert(places > 20000 && met > places / 2, "{places} places, triangles meeting at {met} of them");
+}
+
+struct Spot {
+  key: integer,
+  y: float,
+  x: float,
+  z: float,
+  n: integer
+}

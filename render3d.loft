@@ -167,6 +167,8 @@ pub struct View3D {
   hex_chunks: hash<HexChunk[ck]> = [],
   hex_groups: hash<HexGroup[gk]> = [],
   hex_house_ck: vector<integer> = [],
+  hex_fence_ck: vector<integer> = [],
+  hex_canopy_ck: vector<integer> = [],
   hex_night: boolean = false,
   /// What a cell stands on in the hex version, kept per cell as it is first asked (`hex_y`): the
   /// place's hex version does not change while it is the place.
@@ -467,6 +469,9 @@ pub fn hand(g: const game::Game, aspect: float) -> vector<faces3d::Face> {
 const TILE_M = 1.5;
 /// The eye over the feet in the hex view, in metres.
 const EYE_M = 1.6;
+/// How much of the day's light the hex version's faces keep at night: every face's, alike.  So a
+/// kept mesh is lit for the night by this, without building it again (`hex_build`).
+pub const NIGHT_LIGHT = 0.45;
 /// The sun the hex version's faces are lit by: a unit vector, x east, y up, z south.
 const SUN = (0.36, 0.84, 0.41);
 /// The place's hex version, read when the place changes: is there one?
@@ -478,6 +483,8 @@ fn hex_loaded(v: View3D, g: const game::Game) -> boolean {
     v.hex_chunks = [];
     v.hex_groups = [];
     v.hex_house_ck = [];
+    v.hex_fence_ck = [];
+    v.hex_canopy_ck = [];
     v.hex_stand = [];
     sc = hexscene::load(file("{g.dir}/levels/{g.place}.hex.json").content() ?? "");
     if sc != null { v.hex += [sc!]; }
@@ -603,7 +610,7 @@ fn sunlit(c: const vector<(float, float, float, float, float)>, night: boolean) 
   l = sqrt(nx * nx + ny * ny + nz * nz);
   dot = if l > 0.0 { ((nx * SUN.0 + ny * SUN.1 + nz * SUN.2) / l) ?? 0.0 } else { 1.0 };
   lit = 0.55 + 0.45 * (if dot < 0.0 { -dot } else { dot });
-  if night { lit * 0.45 } else { lit }
+  if night { lit * NIGHT_LIGHT } else { lit }
 }
 
 
@@ -624,58 +631,118 @@ fn hex_kinds(g: const game::Game) -> vector<integer> {
    theme::terrain_sprite(g.look, rules::tr(g.world, "wall"), 0, 0, false), faces3d::mat_sprite(g, "paving"), faces3d::mat_sprite(g, "field")]
 }
 
-/// Build what is dirty of the hex version's meshes (all of it the first time, or at a change of
-/// day and night) and upload the groups that hold it.
+/// The hex version's cells in chunks (gridmesh), made when there are none: every cell of the scene,
+/// and the chunk each house is drawn with (the one its middle lies in).
+fn hex_ready(v: View3D, s: const hexscene::Scene) {
+  if len(v.hex_field) > 0 { return; }
+  xs: vector<integer> = [];
+  ys: vector<integer> = [];
+  for r in s.r0..s.r0 + s.h { for q in s.q0..s.q0 + s.w { xs += [q]; ys += [r]; } }
+  v.hex_field += [gridmesh::field_new(0, xs, ys, HEX_SHIFT, 1)];
+  v.hex_house_ck = [];
+  for h in s.houses {
+    n = len(h.xs);
+    cx = 0.0;
+    cy = 0.0;
+    for i in 0..n {
+      cx += h.xs[i] ?? 0.0;
+      cy += h.ys[i] ?? 0.0;
+    }
+    (q, r) = hexscene::cell_near((cx / (n as float)) ?? 0.0, (cy / (n as float)) ?? 0.0);
+    v.hex_house_ck += [gridmesh::chunk_of(q, r, HEX_SHIFT).ck];
+  }
+  // what stands along the yards, and the roofs on pillars: each with the chunk its middle lies in
+  v.hex_fence_ck = [];
+  for each_fence in s.fences {
+    (fq, fr) = hexscene::cell_near((each_fence.ax + each_fence.bx) * 0.5, (each_fence.ay + each_fence.by) * 0.5);
+    v.hex_fence_ck += [gridmesh::chunk_of(fq, fr, HEX_SHIFT).ck];
+  }
+  v.hex_canopy_ck = [];
+  for each_canopy in s.canopies {
+    (cq, cr) = hexscene::cell_near(each_canopy.x, each_canopy.y);
+    v.hex_canopy_ck += [gridmesh::chunk_of(cq, cr, HEX_SHIFT).ck];
+  }
+}
+
+/// The faces of one chunk of the hex version: its cells' ground (the cliffs with it), the houses
+/// drawn with it, and what stands along the yards and the roofs on pillars whose middle lies in
+/// it.  Nothing here touches the GPU: `hex_build` sends them, the checks read them.
+fn hex_chunk_faces(v: View3D, g: const game::Game, s: const hexscene::Scene, cells: const vector<integer>, ck: integer,
+                   kinds: const vector<integer>, night: boolean) -> vector<faces3d::Face> {
+  f = v.hex_field[0]!;
+  out: vector<faces3d::Face> = [];
+  for i in cells { hex_cell(out, s, f.xs[i] ?? 0, f.ys[i] ?? 0, kinds, night); }
+  for i in 0..len(s.houses) {
+    if (v.hex_house_ck[i] ?? -1) == ck { house_faces(out, g, s, s.houses[i], night); }
+  }
+  for i in 0..len(s.fences) {
+    if (v.hex_fence_ck[i] ?? -1) == ck { fence_faces(out, g, s, s.fences[i], night); }
+  }
+  for i in 0..len(s.canopies) {
+    if (v.hex_canopy_ck[i] ?? -1) == ck { canopy_faces(out, g, s.canopies[i], night); }
+  }
+  out
+}
+
+/// For the checks and the bench: the faces of every chunk of the game's place's hex version, lit
+/// for day or night, chunk by chunk in the order the view builds them, each with its chunk's key
+/// first in `keys`.  Empty for a place without a hex version.  No window is opened.
+pub fn hex_faces(v: View3D, g: const game::Game, night: boolean, keys: vector<integer>) -> vector<vector<faces3d::Face>> {
+  out: vector<vector<faces3d::Face>> = [];
+  if !hex_loaded(v, g) { return out; }
+  s = v.hex[0]!;
+  hex_ready(v, s);
+  kinds = hex_kinds(g);
+  for inp in gridmesh::all_inputs(v.hex_field[0]!, 1) {
+    keys += [inp.key.ck];
+    out += [hex_chunk_faces(v, g, s, inp.cell_ixs, inp.key.ck, kinds, night)];
+  }
+  out
+}
+
+/// For the checks: the faces of the one chunk `ck`, built on its own as a chunk marked dirty is.
+pub fn hex_faces_of(v: View3D, g: const game::Game, night: boolean, ck: integer) -> vector<faces3d::Face> {
+  if !hex_loaded(v, g) { return []; }
+  s = v.hex[0]!;
+  hex_ready(v, s);
+  for inp in gridmesh::all_inputs(v.hex_field[0]!, 1) {
+    if inp.key.ck == ck { return hex_chunk_faces(v, g, s, inp.cell_ixs, ck, hex_kinds(g), night); }
+  }
+  []
+}
+
+/// Build what is dirty of the hex version's meshes (all of it the first time) and upload the
+/// groups that hold it.  Each chunk's mesh is kept as the DAY lights it; a group is sent lit for
+/// the hour — at night every light `NIGHT_LIGHT` of the day's, which is all the night changes
+/// (checks/hexmesh.loft) — so a change of day and night sends every group again and builds none.
 fn hex_build(v: View3D, gl: const Gl, g: const game::Game) {
   s = v.hex[0]!;
   night = g.world.night;
-  if night != v.hex_night { v.hex_field = []; }
-  v.hex_night = night;
   first = len(v.hex_field) == 0;
-  if first {
-    xs: vector<integer> = [];
-    ys: vector<integer> = [];
-    for r in s.r0..s.r0 + s.h { for q in s.q0..s.q0 + s.w { xs += [q]; ys += [r]; } }
-    v.hex_field += [gridmesh::field_new(0, xs, ys, HEX_SHIFT, 1)];
-    v.hex_house_ck = [];
-    for h in s.houses {
-      n = len(h.xs);
-      cx = 0.0;
-      cy = 0.0;
-      for i in 0..n {
-        cx += h.xs[i] ?? 0.0;
-        cy += h.ys[i] ?? 0.0;
-      }
-      (q, r) = hexscene::cell_near((cx / (n as float)) ?? 0.0, (cy / (n as float)) ?? 0.0);
-      v.hex_house_ck += [gridmesh::chunk_of(q, r, HEX_SHIFT).ck];
-    }
-  }
+  relight = !first && night != v.hex_night;
+  v.hex_night = night;
+  hex_ready(v, s);
   f = v.hex_field[0]!;
   inputs = if first { gridmesh::all_inputs(f, 1) } else { gridmesh::collect_dirty_inputs(f, 1) };
-  if len(inputs) == 0 { return; }
+  if len(inputs) == 0 && !relight { return; }
   kinds = hex_kinds(g);
   dirty: vector<integer> = [];
   for inp in inputs {
-    out: vector<faces3d::Face> = [];
-    for i in inp.cell_ixs { hex_cell(out, s, f.xs[i] ?? 0, f.ys[i] ?? 0, kinds, night); }
-    for i in 0..len(s.houses) {
-      if (v.hex_house_ck[i] ?? -1) == inp.key.ck { house_faces(out, g, s, s.houses[i], night); }
-    }
-    // what stands along the yards, and the roofs on pillars: each with the chunk its middle lies in
-    for each_fence in s.fences {
-      (fq, fr) = hexscene::cell_near((each_fence.ax + each_fence.bx) * 0.5, (each_fence.ay + each_fence.by) * 0.5);
-      if gridmesh::chunk_of(fq, fr, HEX_SHIFT).ck == inp.key.ck { fence_faces(out, g, s, each_fence, night); }
-    }
-    for each_canopy in s.canopies {
-      (cq, cr) = hexscene::cell_near(each_canopy.x, each_canopy.y);
-      if gridmesh::chunk_of(cq, cr, HEX_SHIFT).ck == inp.key.ck { canopy_faces(out, g, each_canopy, night); }
-    }
+    out = hex_chunk_faces(v, g, s, inp.cell_ixs, inp.key.ck, kinds, false);
     gk = gridmesh::group_of(inp.key.cx, inp.key.cy, HEX_GROUP).gk;
     v.hex_chunks[inp.key.ck] = null;
     v.hex_chunks += [HexChunk { ck: inp.key.ck, gk: gk, verts: vertices(v, gl, out) }];
     seen = false;
     for d in dirty { if d == gk { seen = true; } }
     if !seen { dirty += [gk]; }
+  }
+  if relight {
+    // the hour changed: every group sent again, lit for it
+    for c in v.hex_chunks {
+      seen = false;
+      for d in dirty { if d == c.gk { seen = true; } }
+      if !seen { dirty += [c.gk]; }
+    }
   }
   // each dirty group: its chunks' kept meshes together, into its GPU mesh
   for gk in dirty {
@@ -698,6 +765,14 @@ fn hex_build(v: View3D, gl: const Gl, g: const game::Game) {
       if z < lo_z { lo_z = z; }
       if z > hi_z { hi_z = z; }
       i += 8;
+    }
+    if night {
+      // a vertex is 8 numbers, its light the fourth
+      li = 3;
+      while li < len(verts) {
+        verts[li] = (((verts[li] ?? 0.0 as single) as float) * NIGHT_LIGHT) as single;
+        li += 8;
+      }
     }
     gl.hex[slot]!.update(verts);
     v.hex_groups[gk] = null;
@@ -753,6 +828,26 @@ fn hex_cell(out: vector<faces3d::Face>, s: const hexscene::Scene, q: integer, r:
   }
   // six points round a centre at 0.866 m: the least-squares slope is their sum over 3 r²
   lc = slope_light(gx / 2.25 ?? 0.0, gy / 2.25 ?? 0.0, night);
+  if len(near) == 0 {
+    // no side crosses this cell (most cells): its six triangles as they are, of the cell's own
+    // picture — nothing to cut, no cliff to lie beside, and what `piece_sprite` answers is the
+    // cell's own kind's wherever in it
+    sp = piece_sprite(s, own, near, cx, cy, kinds);
+    for j in 0..6 {
+      j1 = (j + 1) % 6 ?? 0;
+      ak = hex_field::corner_k(j);
+      am = hex_field::corner_m(j);
+      bk = hex_field::corner_k(j1);
+      bm = hex_field::corner_m(j1);
+      face_lit(out, sp, [hp(cx, cy, hc, 0.5, 0.5),
+                         hp(cx + (ak as float) * 0.75, cy + (am as float) * 0.4330127018922193, ch[j] ?? hc,
+                            0.5 + (ak as float) * 0.375, 0.5 - (am as float) * 0.25),
+                         hp(cx + (bk as float) * 0.75, cy + (bm as float) * 0.4330127018922193, ch[j1] ?? hc,
+                            0.5 + (bk as float) * 0.375, 0.5 - (bm as float) * 0.25)],
+               [lc, cl[j] ?? lc, cl[j1] ?? lc]);
+    }
+    return;
+  }
   for j in 0..6 {
     j1 = (j + 1) % 6 ?? 0;
     ak = hex_field::corner_k(j);
@@ -877,7 +972,7 @@ fn slope_light(gx: float, gy: float, night: boolean) -> float {
   l = sqrt(nx * nx + ny * ny + nz * nz);
   dot = ((nx * SUN.0 + ny * SUN.1 + nz * SUN.2) / l) ?? 1.0;
   lit = 0.55 + 0.45 * (if dot < 0.0 { -dot } else { dot });
-  if night { lit * 0.45 } else { lit }
+  if night { lit * NIGHT_LIGHT } else { lit }
 }
 
 /// A convex piece cut by the line through (x1, y1) and (x2, y2): the two parts, or the piece as it
