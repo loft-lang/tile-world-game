@@ -6,8 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — the merge is done: phases 0 to 10 have landed, and the round and eight-sided
-structures can start.  What each phase left undone is listed under it — chiefly phase 4's speed
-work, the tests at size for walls and meshes, and guides and benches for the new library files.
+structures can start.  What each phase left undone is listed under it — chiefly the generated large scene for the meshes.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -134,7 +133,7 @@ As landed: `hex_shape` 0.1.9, `box_part`, `parts_fill`, `parts_reach`.  The swee
 found no case where `box_fill`'s epsilon decides.  `hexhouse::fill` and `reach` are one line each
 now; `box_plan` and `l_plan` stay here, as the game's own shapes.
 
-### 4. Straight walls from cells alone — moved (loft-libs-world#49); its speed work open
+### 4. Straight walls from cells alone — done (loft-libs-world#49, and its speed work after)
 
 The centre of the work, and what the library's own notes leave to the consumer
 (`hex_shape/USAGE.md`: a chain is handed back in order "to cut a marking into runs").  Into
@@ -159,10 +158,14 @@ As landed: `hex_draw` 0.1.6, a file of its own (`cellwalls.loft`): `cells_loops`
 (`CellOutline`).  4a to 4d went as one release: the town regenerated from the library's routines
 in place of the game's is byte for byte the file it was, which compares the houses (4a–4c) and
 the roads' sides and cliffs (4d) at once.  `hexwalls.loft` keeps what the game adds: the openings
-and the measurements (731 lines to 200).  **Still open:** the speed work listed for this phase
-below (`merged` in one pass, `common` counted once, one reading of each edge's travel) — the
-routines moved as they were, so the comparison was exact; the boundary is already walked
-(`trace_edges`).
+and the measurements (731 lines to 200).  **The speed work, after the move** (`hex_draw` 0.1.8, `hex_field` 0.1.10): the runs kept as
+the places where the label changes; `most_common` counting each distinct value once; each edge's
+travel and nearest heading read once; the boundary walked once, the thin walls marked from it.
+Compared with the routines as they were (a renamed copy beside them) on 3 420 structures — boxes
+and L's at every rotation, 1 500 unions of six boxes, some with holes or cut in two — the
+boundary, the runs, the axes, every wall, every corner, the thin walls, every loop's outline:
+none differs.  And the town regenerates byte for byte.  What is left follows the window's cells
+(the scan for the boundary), not the edges: an 80 × 64 ward is 3.7 ms, not the 2 aimed at.
 
 ### 5. Openings on such walls — moved
 
@@ -252,7 +255,7 @@ The routines were written to be right first.  They are; they also do the same wo
 over, and nothing yet tests them on a structure larger than a house.  Both are settled as the
 routines move, so a library gets the routine fast and tested at size, not a copy to mend later.
 
-### Measured today
+### Measured at the start, and at the end
 
 Native, this machine, a throwaway probe (2026-11-16).  A box `w × d` hex steps, alone in a window.
 
@@ -273,6 +276,18 @@ solve and 7 µs for an odd turn.  A solve of 614 edges should cost what its edge
 | `hexhouse::build`, 3 openings | 2.4 ms at an even turn, 4.2 ms at an odd one | 5 and 9 wall solves: `place` solves the walls again for each opening, `turn_data` solves the cells `turn_full` just solved |
 | `hexturn::turned_point` | 0.85 ms a point (odd), 0.12 ms (even) | the whole turn done again for an offset that is one per structure; `hextown::with_house` asks it per yard end, court corner, inner wall end and paved tile's corner — most of `hextown::port`'s 0.92 s |
 | the 3D view's card heights (`render3d::cards_of` → `hex_y`) | **52 ms a frame** | 25 × 25 tiles × 5 layers asked afresh every frame: `hexscene::house_at` 10.8 µs (every house's outline, no box first), `height_at` 4.1 µs (nine centres, an `atan2`, hash reads).  The answers do not change while the place does not |
+
+**At the end** (2026-11-16, the same machine, natively, the libraries doing the work):
+
+| What | At the start | At the end |
+|---|---|---|
+| a 5 × 4 house's walls from its cells | 0.42 to 0.56 ms | 0.096 ms |
+| `hexhouse::build`, 3 openings, an even turn | 2.4 ms | 0.38 ms |
+| `hexhouse::build`, 3 openings, an odd turn | 4.2 ms | 0.63 ms |
+| an 80 × 64 ward's walls | 20.5 ms | 3.7 ms |
+| `hextown::port`, the whole town | 921 ms | 128 ms |
+| the view's card heights, a frame | 52 ms | about 1 ms |
+| a change of day and night in the hex view | every chunk built again (0.34 s of faces) | none built |
 
 Read, not measured (the mesh build needs a GL context; the split below makes it measurable): a
 change of day and night builds every chunk again, the light being in the vertices; every chunk
@@ -385,6 +400,25 @@ gains the routine at these sizes (its `bench.rs` twin with it), and `bench/` her
 the solve and the mesh build.  A test's own guard is a ratio, not a time, so it holds on any
 machine: four times the edges costs under eight times the solve; a turned point costs under a
 hundredth of a turn; `build` with twenty openings costs under twice `build` with one.
+
+### Guides and benches for what moved — done
+
+Each library's way of showing and timing its routines, kept for the new files:
+
+- **Guides** (programs that run and assert what their prose says, on both backends):
+  `hex_draw/docs/02-walls-from-cells.loft` (the walls of an L from its cells, a door at a point, a
+  courtyard), `hex_place/docs/02-turning.loft` (a house turned, a point and a door carried through,
+  a seat without a step), `hex_ground/docs/01-getting-started.loft` (a hill, a terrace, a house on
+  the slope, a bed and a cliff, the ground read back).
+- **Benches**, each row with its pure-Rust twin printing the same hash on the interpreter,
+  natively and in Rust: `trace_edges` (hex_field), `parts_fill` (hex_shape), `cells_built` and
+  `cells_outlines` (hex_draw), `cells_turn` and `seat_blend` (hex_place), `ground_terraces` and
+  `ground_height_at` (hex_ground).  The twins are a second writing of the routines — the whole
+  wall solver, the turn with its trigonometry, the surface reading — and they agreed to the bit
+  at the first build, which is a check of the routines in its own right.
+- **Not done:** bench rows for the openings (`cells_place_opening`, `cells_openings`,
+  `marked_turn`), `ground_dig`, `ground_cliffs` and `ground_height_on`; they stand on rows that
+  are there.
 
 ## What the merge is for: round and eight-sided structures
 
