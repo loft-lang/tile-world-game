@@ -9,8 +9,12 @@
 //
 // Measures are metres, north up (x east, y north), a square tile i at x = 1.5 i, y = -1.5 j.
 use hex_field;
+use hex_ground;
 use hex_draw;
 use hexwalls;
+
+/// A hex step, in metres: the scene's ground is `hex_ground`'s at this step.
+pub const STEP = 1.5;
 
 /// A door or a window: its kind (1 a door, 2 a window, 3 a bay window), the wall it is in, its span
 /// from a to b.
@@ -89,11 +93,6 @@ pub struct Canopy {
   pub size: float
 }
 
-struct Corner {
-  key: integer,
-  h: float
-}
-
 /// The ground's structures with sides of no height (owner, 2026-11-09: a road's sides are walls
 /// with no height): a road (the path cells), a rail, a stream (its bed and its pools).  Each is
 /// cells inside and out like a house, its sides the straight walls `hexwalls::outlines` draws
@@ -128,18 +127,17 @@ pub struct Scene {
   pub r0: integer,
   pub w: integer,
   pub h: integer,
-  pub heights: vector<float>,
-  pub kinds: vector<integer>,
+  /// Its ground: a height (metres) and a surface kind per cell (`hex_ground`, a hex step 1.5 m).
+  pub ground: hex_ground::Ground,
   pub storey: float,
   pub wall: float,
   /// How thick a wall between a house's rooms is drawn (hexsizes.json's inner wall).
   pub inner_wall: float = 0.45,
   pub houses: vector<House>,
-  corners: hash<Corner[key]>,
   pub sides: vector<Side> = [],
   near: hash<Near[key]> = [],
-  /// Each cell's terrace level, where the place gives them.
-  pub levels: vector<integer> = [],
+  /// Each cell's terrace level, where the place gives them (0 where it gives none).
+  pub levels: hex_field::Labels,
   pub fences: vector<Fence> = [],
   pub canopies: vector<Canopy> = []
 }
@@ -157,16 +155,21 @@ pub fn load(text: text) -> Scene? {
   s = v.field("scene");
   g = s.field("ground");
   if g.kind() != "JObject" { return null; }
-  hs: vector<float> = [];
-  ks: vector<integer> = [];
-  ls: vector<integer> = [];
+  q0 = num(g.field("q0")) as integer;
+  r0 = num(g.field("r0")) as integer;
+  gw = num(g.field("w")) as integer;
+  gh_cells = num(g.field("h")) as integer;
+  ground = hex_ground::ground_new(q0, r0, gw, gh_cells, STEP, 0);
+  levels = hex_field::labels_new(q0, r0, gw, gh_cells);
   gh = g.field("heights");
   gk = g.field("kinds");
   gl = g.field("levels");
-  for i in 0..gh.len() {
-    hs += [num(gh.item(i))];
-    ks += [num(gk.item(i)) as integer];
-    if gl.len() > i { ls += [num(gl.item(i)) as integer]; }
+  for i in 0..gw * gh_cells {
+    q = q0 + (i % gw ?? 0);
+    r = r0 + (i / gw ?? 0);
+    hex_field::height_set(ground.gr_heights, q, r, if i < gh.len() { num(gh.item(i)) } else { 0.0 });
+    hex_field::label_set(ground.gr_kinds, q, r, if i < gk.len() { num(gk.item(i)) as integer } else { 0 });
+    hex_field::label_set(levels, q, r, if i < gl.len() { num(gl.item(i)) as integer } else { 0 });
   }
   houses: vector<House> = [];
   hv = s.field("houses");
@@ -236,9 +239,8 @@ pub fn load(text: text) -> Scene? {
                        xs: xs, ys: ys, gaps: gaps, roof: num(h.field("roof")) as integer, court_xs: cxs, court_ys: cys,
                        parts: parts, tops: tops, rims: rims, rises: rises, inner: inner }];
   }
-  sc = Scene { q0: num(g.field("q0")) as integer, r0: num(g.field("r0")) as integer,
-               w: num(g.field("w")) as integer, h: num(g.field("h")) as integer, heights: hs, kinds: ks,
-               storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, corners: [], levels: ls };
+  sc = Scene { q0: q0, r0: r0, w: gw, h: gh_cells, ground: ground,
+               storey: num(v.field("storey")), wall: num(v.field("wall")), houses: houses, levels: levels };
   if num(v.field("inner")) > 0.0 { sc.inner_wall = num(v.field("inner")); }
   fv = s.field("fences");
   for i in 0..fv.len() {
@@ -272,29 +274,6 @@ pub fn load(text: text) -> Scene? {
                           x2: ax + (bx - ax) * t1, y2: ay + (by - ay) * t1 }];
     }
   }
-  // Each corner at the mean height of the cells round it.
-  sums: hash<Corner[key]> = [];
-  counts: hash<Corner[key]> = [];
-  for r in sc.r0..sc.r0 + sc.h {
-    for q in sc.q0..sc.q0 + sc.w {
-      z = cell_height(sc, q, r);
-      k = hex_field::lattice_k(q, r);
-      m = hex_field::lattice_m(q, r);
-      for j in 0..6 {
-        key = corner_key(k + hex_field::corner_k(j), m + hex_field::corner_m(j));
-        s0 = sums[key];
-        if s0 == null {
-          sums += [Corner { key: key, h: z }];
-          counts += [Corner { key: key, h: 1.0 }];
-        } else {
-          s0.h += z;
-          c0 = counts[key]!;
-          c0.h += 1.0;
-        }
-      }
-    }
-  }
-  for c in sums { sc.corners += [Corner { key: c.key, h: (c.h / (counts[c.key]!).h) ?? 0.0 }]; }
   outline_areas(sc);
   sc
 }
@@ -374,52 +353,28 @@ pub fn area_at(s: const Scene, x: float, y: float) -> integer {
 }
 
 /// The height of cell (q, r), 0 beyond the scene.
-pub fn cell_height(s: const Scene, q: integer, r: integer) -> float {
-  if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0.0; }
-  s.heights[(r - s.r0) * s.w + (q - s.q0)] ?? 0.0
-}
+pub fn cell_height(s: const Scene, q: integer, r: integer) -> float { hex_field::height_get(s.ground.gr_heights, q, r) }
 
 /// The surface kind of cell (q, r), 0 (grass) beyond the scene.
 pub fn cell_kind(s: const Scene, q: integer, r: integer) -> integer {
   if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0; }
-  s.kinds[(r - s.r0) * s.w + (q - s.q0)] ?? 0
+  hex_field::label_get(s.ground.gr_kinds, q, r)
 }
 
-/// The height of corner (k, m) of the lattice (doubled coordinates): the mean of its three cells.
-pub fn corner_height(s: const Scene, k: integer, m: integer) -> float {
-  c = s.corners[corner_key(k, m)];
-  if c == null { return 0.0; }
-  c.h
-}
+// @FR-HG-Surface: a corner's height is the mean of the cells round it
+/// The height of corner (k, m) of the lattice (doubled coordinates): the mean of its cells
+/// (`hex_ground::ground_corner_height`).
+pub fn corner_height(s: const Scene, k: integer, m: integer) -> float { hex_ground::ground_corner_height(s.ground, k, m) }
 
 /// A cell's centre, in metres.
-pub fn centre(q: integer, r: integer) -> (float, float) {
-  ((hex_field::lattice_k(q, r) as float) * 0.75, (hex_field::lattice_m(q, r) as float) * 0.4330127018922193)
-}
+pub fn centre(q: integer, r: integer) -> (float, float) { hex_ground::ground_centre(STEP, q, r) }
 
 /// The cell whose centre is nearest (x, y) metres.
-pub fn cell_near(x: float, y: float) -> (integer, integer) {
-  r = round(y / 1.299038105676658) as integer;
-  q = round(((x / 0.75) - ((r & 1) as float)) * 0.5) as integer;
-  best_q = q;
-  best_r = r;
-  best = -1.0;
-  for dr in -1..2 {
-    for dq in -1..2 {
-      (cx, cy) = centre(q + dq, r + dr);
-      d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
-      if best < 0.0 || d < best {
-        best = d;
-        best_q = q + dq;
-        best_r = r + dr;
-      }
-    }
-  }
-  (best_q, best_r)
-}
+pub fn cell_near(x: float, y: float) -> (integer, integer) { hex_ground::ground_cell_near(STEP, x, y) }
 
-/// The ground's height at (x, y) metres, as it is drawn: within the triangle of its cell's fan
-/// that holds the point, between the cell's centre and the two corners.
+/// The ground's height at (x, y) metres, as it is drawn: by a cliff, the surface of the side the
+/// point lies on; elsewhere within the triangle of its cell's fan that holds the point
+/// (`hex_ground::ground_height_at`).
 pub fn height_at(s: const Scene, x: float, y: float) -> float {
   (q, r) = cell_near(x, y);
   id = cliff_near(s, q, r, x, y);
@@ -427,62 +382,18 @@ pub fn height_at(s: const Scene, x: float, y: float) -> float {
     sd = s.sides[id];
     return height_on(s, x, y, sd.level, above_cliff(s, id, x, y));
   }
-  (cx, cy) = centre(q, r);
-  k = hex_field::lattice_k(q, r);
-  m = hex_field::lattice_m(q, r);
-  // the corner the point lies past, going round anticlockwise from corner 0 (north)
-  a = atan2(y - cy, x - cx) * 180.0 / PI;
-  // corner j sits at 90 + 60 j degrees
-  t = (a - 90.0) / 60.0;
-  j = floor(t) as integer;
-  f = t - (j as float);
-  j0 = ((j % 6) + 6) % 6 ?? 0;
-  j1 = (j0 + 1) % 6 ?? 0;
-  (ax, ay) = (hex_field::corner_k(j0) as float * 0.75, hex_field::corner_m(j0) as float * 0.4330127018922193);
-  (bx, by) = (hex_field::corner_k(j1) as float * 0.75, hex_field::corner_m(j1) as float * 0.4330127018922193);
-  // barycentric in the triangle (centre, a, b)
-  px = x - cx;
-  py = y - cy;
-  det = ax * by - ay * bx;
-  wa = ((px * by - py * bx) / det) ?? 0.0;
-  wb = ((ax * py - ay * px) / det) ?? 0.0;
-  wc = 1.0 - wa - wb;
-  _ = f;
-  wc * cell_height(s, q, r) + wa * corner_height(s, k + hex_field::corner_k(j0), m + hex_field::corner_m(j0))
-    + wb * corner_height(s, k + hex_field::corner_k(j1), m + hex_field::corner_m(j1))
+  hex_ground::ground_height_at(s.ground, x, y)
 }
 
-/// The house whose outline holds (x, y) metres, or -1.
-pub fn house_at(s: const Scene, x: float, y: float) -> integer {
-  for i in 0..len(s.houses) {
-    h = s.houses[i];
-    n = len(h.xs);
-    inside = false;
-    for j in 0..n {
-      x1 = h.xs[(j + n - 1) % n ?? 0] ?? 0.0;
-      y1 = h.ys[(j + n - 1) % n ?? 0] ?? 0.0;
-      x2 = h.xs[j] ?? 0.0;
-      y2 = h.ys[j] ?? 0.0;
-      if (y1 > y) != (y2 > y) {
-        cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
-        if x < cx { inside = !inside; }
-      }
-    }
-    if inside { return i; }
-  }
-  -1
-}
-
-/// Does (x, y) lie in house `i`'s inner court?
-pub fn in_court(s: const Scene, i: integer, x: float, y: float) -> boolean {
-  h = s.houses[i];
-  n = len(h.court_xs);
+/// Is (x, y) inside the ring of corners (xs, ys) (crossings of a ray towards +x)?
+fn in_ring(xs: const vector<float>, ys: const vector<float>, x: float, y: float) -> boolean {
+  n = len(xs);
   inside = false;
   for j in 0..n {
-    x1 = h.court_xs[(j + n - 1) % n ?? 0] ?? 0.0;
-    y1 = h.court_ys[(j + n - 1) % n ?? 0] ?? 0.0;
-    x2 = h.court_xs[j] ?? 0.0;
-    y2 = h.court_ys[j] ?? 0.0;
+    x1 = xs[(j + n - 1) % n ?? 0] ?? 0.0;
+    y1 = ys[(j + n - 1) % n ?? 0] ?? 0.0;
+    x2 = xs[j] ?? 0.0;
+    y2 = ys[j] ?? 0.0;
     if (y1 > y) != (y2 > y) {
       cx = x1 + (y - y1) * (x2 - x1) / (y2 - y1) ?? x1;
       if x < cx { inside = !inside; }
@@ -491,12 +402,25 @@ pub fn in_court(s: const Scene, i: integer, x: float, y: float) -> boolean {
   inside
 }
 
+/// The house whose outline holds (x, y) metres, or -1.
+pub fn house_at(s: const Scene, x: float, y: float) -> integer {
+  for i in 0..len(s.houses) {
+    if in_ring(s.houses[i].xs, s.houses[i].ys, x, y) { return i; }
+  }
+  -1
+}
+
+/// Does (x, y) lie in house `i`'s inner court?
+pub fn in_court(s: const Scene, i: integer, x: float, y: float) -> boolean {
+  in_ring(s.houses[i].court_xs, s.houses[i].court_ys, x, y)
+}
+
 // ── cliffs ──────────────────────────────────────────────────────────────────
 
-/// A cell's terrace level (0 where the place gives none).
+/// A cell's terrace level (0 where the place gives none, and beyond the scene).
 pub fn cell_level(s: const Scene, q: integer, r: integer) -> integer {
   if q < s.q0 || q >= s.q0 + s.w || r < s.r0 || r >= s.r0 + s.h { return 0; }
-  s.levels[(r - s.r0) * s.w + (q - s.q0)] ?? 0
+  hex_field::label_get(s.levels, q, r)
 }
 
 /// The cliff nearest (x, y) among those that may cross cell (q, r)'s fan, -1 for none.
@@ -531,47 +455,9 @@ pub fn above_cliff(s: const Scene, id: integer, x: float, y: float) -> boolean {
 
 // @FR-HG-Cliff: either side of a cliff its own surface, from the cells on that side only
 /// The ground's height at (x, y) on one side of a cliff: on its high side (`high`, the cells of
-/// `level` and up) or its low one, each corner the mean of the cells round it on that side only,
-/// so the ground does not slope down the cliff.  A corner with no cell on that side, or the centre
-/// of a cell on the other, takes that side's storey.
+/// `level` and up) or its low one (`hex_ground::ground_height_on`).
 pub fn height_on(s: const Scene, x: float, y: float, level: integer, high: boolean) -> float {
-  (q, r) = cell_near(x, y);
-  (cx, cy) = centre(q, r);
-  k = hex_field::lattice_k(q, r);
-  m = hex_field::lattice_m(q, r);
-  a = atan2(y - cy, x - cx) * 180.0 / PI;
-  j0 = (((floor((a - 90.0) / 60.0) as integer) % 6) + 6) % 6 ?? 0;
-  j1 = (j0 + 1) % 6 ?? 0;
-  own = (if high { level } else { level - 1 } as float) * s.storey;
-  hc = if (cell_level(s, q, r) >= level) == high { cell_height(s, q, r) } else { own };
-  ha = corner_on(s, k + hex_field::corner_k(j0), m + hex_field::corner_m(j0), j0, level, high, own);
-  hb = corner_on(s, k + hex_field::corner_k(j1), m + hex_field::corner_m(j1), j1, level, high, own);
-  (ax, ay) = (hex_field::corner_k(j0) as float * 0.75, hex_field::corner_m(j0) as float * 0.4330127018922193);
-  (bx, by) = (hex_field::corner_k(j1) as float * 0.75, hex_field::corner_m(j1) as float * 0.4330127018922193);
-  px = x - cx;
-  py = y - cy;
-  det = ax * by - ay * bx;
-  wa = ((px * by - py * bx) / det) ?? 0.0;
-  wb = ((ax * py - ay * px) / det) ?? 0.0;
-  (1.0 - wa - wb) * hc + wa * ha + wb * hb
-}
-
-/// Corner (k, m), the j-th of a cell, as the mean of the cells round it on one side of the cliff
-/// of `level`: the cells lie away from it along headings j, j + 2 and j + 4.
-fn corner_on(s: const Scene, k: integer, m: integer, j: integer, level: integer, high: boolean, own: float) -> float {
-  sum = 0.0;
-  n = 0;
-  for t in 0..3 {
-    i = (j + 2 * t) % 6 ?? 0;
-    ck = k - hex_field::corner_k(i);
-    cm = m - hex_field::corner_m(i);
-    (q, r) = hex_field::lattice_to_cell(ck, cm);
-    if (cell_level(s, q, r) >= level) == high {
-      sum += cell_height(s, q, r);
-      n += 1;
-    }
-  }
-  if n == 0 { own } else { (sum / (n as float)) ?? own }
+  hex_ground::ground_height_on(s.ground, s.levels, x, y, level, high, s.storey)
 }
 
 /// The ground's height at (x, y) for one standing on layer `z`: by a cliff, the surface of the

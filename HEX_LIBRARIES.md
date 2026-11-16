@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phases 1 to 7 have moved — the merge is done but for phase 4's speed work; 8 and 10 remain.
+exact copies; the view keeps its heights); phases 1 to 9 are done — the merge is done but for phase 4's speed work; 10 (the mesh build) remains.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -223,7 +223,7 @@ was.  **Moved to phase 8:** a corner at the mean of its three cells, the height 
 the height either side of a cliff — they read `hexscene::Scene`'s own vectors, and go with it
 when it is put on `Heights` and `Labels`.  **Not done:** a guide and a bench for `hex_ground`.
 
-### 8. The game on the libraries' own types (S)
+### 8. The game on the libraries' own types — done
 
 After 7: `hexscene::Scene` keeps its ground in `hex_field::Heights` and `Labels` instead of flat
 vectors with its own bounds tests; `centre` and `cell_near`, each written twice, become the
@@ -231,6 +231,19 @@ library's.  **This one changes output**: `centre` differs in the last bit and `c
 so the phase regenerates `orbury.hex.json` and shows the difference (expected: last digits, and no
 cell changing kind).  The point-in-polygon written five times and the distance to a stretch
 written four times become one of each.
+
+As landed: `hex_ground` 0.1.1 reads the ground as a smooth surface (`ground_corner_height`,
+`ground_height_at`, `ground_height_on`), and `hexscene::Scene` keeps its ground in a
+`hex_ground::Ground` and its levels in `hex_field::Labels`: no vectors, no table of corners, no
+corner offsets of its own.  `centre` and `cell_near` are `hex_ground`'s at the game's step.
+**It did not change output after all:** the game's constants follow from a step of 1.5 to the
+bit (phase 7), so `centre` and `cell_near` are the same numbers.  Compared before the switch, the
+game's reading against the library's over the town: 52 920 corners, 387 137 heights at points,
+560 000 beside cliffs, none differs; and after it, the scene as it was against the scene as it is
+at 252 000 points (every height, every layer, the house, the court, the area, the kind, the level):
+none differs.  The ring test written out for a house and for its court is one routine.
+**Left as they are:** the distance to a stretch in `hexscene::cliff_near` and
+`render3d::in_area`, and `hextown`'s own ring test — each reads its own data's layout.
 
 ## Speed, and larger structures
 
