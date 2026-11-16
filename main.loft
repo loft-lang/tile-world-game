@@ -351,6 +351,8 @@ fn main() {
           fixedview::end_overlay(fv);
         }
       }
+      // the enemies and people glide to their cells, as the first-person view eases them
+      game::follow_enemies(game);
       fixedview::draw(fv, game, changed || resized, now);
       timing.draw += ticks() - at;
       shown_at = ticks();

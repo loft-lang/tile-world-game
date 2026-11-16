@@ -884,6 +884,19 @@ goes flat out on Orbury's ground.
   ground does not step or bob; the first scene of a town takes about a second (the hex pieces
   are all made at once); a field that is not a town (the common) is still drawn flat.
 
+- **The town goes on while the hero is out on its ground** (2026-11-16; game.loft `update_play`,
+  `tests/townfield.loft`).  ◇ Mine, to be judged in play: out of doors only the hero's steps are
+  the ground's; the town's clock, its people and creatures and what the hero does with its hands
+  (take, swing, guard) go on as on the map, about the tile its body is over.  One who stands out
+  of doors is not walked through: the body stops before its tile and it is spoken to, once a
+  meeting.  Not yet: a thing pushed over the ground in play, a fight on the ground worked out
+  from where the body is rather than from its tile.
+- Found: the fixed view held the first-person view's state in its own, and both had a table
+  `pics` of a type `Pic`; with that, this view's lookups found nothing, every face became a new
+  picture (70 547 for a scene of 33), the CPU engine bore it and the GPU's atlas ran out — no
+  ground, no figures.  Renamed here (`vpics`, `ViewPic`); the same moment now drawn whole by both.
+  ◇ A loft defect to report to the loft stream.
+
 ◇ Next: the flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.

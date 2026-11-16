@@ -152,6 +152,7 @@ fn main() {
     if change && f == len(steps) * 4 { change_world(g); }
     now += 16;
     changed = game::update(g, 16, now);
+    game::follow_enemies(g);
     at = ticks();
     fixedview::draw(v, g, changed || f == 0, now);
     took = ticks() - at;

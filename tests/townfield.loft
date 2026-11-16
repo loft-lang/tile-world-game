@@ -7,6 +7,7 @@
 // map, as ever — and steps out of the door onto the hex before it.
 use hex_field;
 use hexterrain;
+use hextown;
 use tile_world;
 use rules;
 use gridroom;
@@ -188,4 +189,42 @@ fn test_a_house_s_frame_lays_the_ground_on_its_tiles() {
   assert(turned >= 4 && wings == 3, "houses at their own angles among them, and the three wings: {turned} turned, {wings} wings");
   assert(game::town_house(g, g.file.start_x, g.file.start_y) == -1, "the start is out of doors");
   assert(len(game::town_frame(g, 99)) == 0 && len(game::town_frame(g, -1)) == 0, "no frame for a house that is not there");
+}
+
+// Out on the ground the town goes on round the hero (game.loft `update_play`): its clock runs,
+// standing there costs the hero nothing, and one who stands out of doors is not walked through —
+// the body stops before its tile.
+fn test_the_town_goes_on_while_the_hero_is_out_on_its_ground() {
+  g = town() ?? return;
+  assert(g.on_field, "out on the ground");
+  was = g.world.now;
+  health = g.world.health;
+  at = (g.fplay.x, g.fplay.y);
+  now = 0;
+  for _f in 0..200 {
+    now += 25;
+    _ = game::update(g, 25, now);
+  }
+  assert(g.world.now >= was + 5000, "five seconds on the ground are five seconds of the town: {g.world.now - was} ms");
+  assert(g.on_field && g.world.health == health && far(at, (g.fplay.x, g.fplay.y)) < 0.01, "standing there it stays, unhurt: health {g.world.health} of {health}");
+  // someone out of doors with free ground to the west of it: walked into from there
+  tried = 0;
+  for i in 0..len(g.world.enemies) {
+    e = g.world.enemies[i]!;
+    if tried > 0 || e.away || e.z < 0 || game::town_house(g, e.x, e.y) >= 0 || !tile_world::open_sky(g.world.w, e.x, e.y, e.z) { continue; }
+    from = hextown::tile_xy((e.x as float) - 2.0, e.y as float);
+    (q, r) = hexterrain::cell_near(from.0, from.1);
+    if hex_field::label_get(g.fplay.ground.under, q, r) >= 0 || hex_field::hexset_get(g.fplay.ground.fixed, q, r) { continue; }
+    fieldplay::put_hero(g.fplay, from.0, from.1);
+    over = false;
+    for _s in 0..60 {
+      _ = game::field_walk(g, 1.0, 0.0, 25);
+      if g.world.hero_x == e.x && g.world.hero_y == e.y { over = true; }
+    }
+    if !g.on_field { continue; }
+    tried += 1;
+    there = hextown::tile_xy(e.x as float, e.y as float);
+    assert(!over && g.fplay.x < there.0 - 0.5 * gridroom::TILE + 0.01, "the body stops before the one at ({e.x}, {e.y}): at {g.fplay.x} m, its tile's middle at {there.0} m");
+  }
+  assert(tried == 1, "someone stands out of doors to walk into: {tried}");
 }

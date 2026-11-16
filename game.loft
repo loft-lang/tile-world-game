@@ -273,6 +273,9 @@ pub struct Game {
   pub field_go: integer = 0,
   pub field_exits: vector<FieldExit> = [],
   field_q: integer = 0,
+  /// The one the body last walked into on a town's ground (its id; -1: none): spoken to once a
+  /// contact, not every frame the key is held.
+  field_met: integer = -1,
   field_r: integer = 0,
   pub free: boolean = false,
   pub free_x: integer = 0,
@@ -1007,11 +1010,30 @@ pub fn start_field(g: Game, name: text) -> boolean {
 /// tile through its door, is in that room: the game plays there as in any place.  Answers whether
 /// anything changed.
 pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
+  bx = g.fplay.x;
+  by = g.fplay.y;
   moved = fieldplay::roam(g.fplay, dx, dy, ms);
   i = g.fplay.room;
   if i < 0 {
     if on_town(g) && town_spot(g) { return true; }
-    if on_town(g) && g.on_field { field_to_world(g); }
+    if on_town(g) && g.on_field {
+      field_to_world(g);
+      // someone stands on the tile the body came over: it is not walked through — the body stays
+      // where it was, and the one walked into is spoken to, once a meeting
+      e = rules::enemy_at(g.world, g.world.hero_x, g.world.hero_y, g.world.hero_z);
+      if e >= 0 {
+        id = g.world.enemies[e]!.id;
+        g.fplay.x = bx;
+        g.fplay.y = by;
+        field_to_world(g);
+        if id != g.field_met {
+          g.field_met = id;
+          talk_to(g, id);
+        }
+        return true;
+      }
+      if moved || (dx == 0.0 && dy == 0.0) { g.field_met = -1; }
+    }
     return moved;
   }
   if on_town(g) {
@@ -2558,8 +2580,10 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.editing { return update_editor(g, now); }
-  // Out on a field: the hero walks the ground between the rooms.
-  if g.on_field && !g.dreaming && !g.ending { return update_field(g, ms); }
+  // Out on a field: the hero walks the ground between the rooms.  On a town's ground the town
+  // goes on round it (below): its clock, its people and creatures, what the hero does with its
+  // hands — only its steps are the ground's.
+  if g.on_field && !on_town(g) && !g.dreaming && !g.ending { return update_field(g, ms); }
   // The haunted dream on waking: for DREAM_MS, or until a key.
   if g.dreaming {
     g.dream_ms += ms;
@@ -2788,6 +2812,8 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
     g.note = if g.free { "FREE ROAMING" } else { "ON THE TILES" };
     return true;
   }
+  // Out on a town's ground the keys walk the body free; the town's own hero is kept under it.
+  if g.on_field { return update_field(g, ms) || changed; }
   if g.free { return roam(g, ms) || changed; }
   d = direction(g, now);
   if d.0 == 0 && d.1 == 0 { return changed; }

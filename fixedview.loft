@@ -104,7 +104,9 @@ const HEX_DROP = 34.0;
 /// How far the ground is laid under a house's own floor where the two meet, in layers.
 const UNDER = 0.02;
 
-struct Pic {
+// (Not `Pic` in `pics`: render3d's view, held in this one, has a table of that name and type's
+// name, and with both in one struct this file's lookups found nothing — every face a new picture.)
+struct ViewPic {
   const sprite: integer,
   index: integer
 }
@@ -213,7 +215,7 @@ pub struct FixedView {
   seen: integer = 0,
   lights: vector<(integer, integer, integer, integer)> = [],
   /// The pictures, numbered in the order first met; each scene is given them all in that order.
-  pics: hash<Pic[sprite]> = [],
+  vpics: hash<ViewPic[sprite]> = [],
   sprites: vector<integer> = [],
   given: integer = 0,
   scratch: integer = 0,
@@ -372,10 +374,10 @@ fn e_frame(v: FixedView, acts: const vector<float>) {
 
 // The picture's number, given to the scene the first time it is met.
 fn pic_of(v: FixedView, sprite: integer) -> integer {
-  p = v.pics[sprite];
+  p = v.vpics[sprite];
   if p { return p.index; }
   n = len(v.sprites);
-  v.pics += [Pic { sprite: sprite, index: n }];
+  v.vpics += [ViewPic { sprite: sprite, index: n }];
   v.sprites += [sprite];
   n
 }
