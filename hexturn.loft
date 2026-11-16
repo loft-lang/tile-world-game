@@ -79,11 +79,8 @@ fn turn_full(cells: hex_field::HexSet, pq: integer, pr: integer, steps: integer,
   Turned { cells: out, sx: sx, sy: sy }
 }
 
-/// The cell whose centre is at doubled coordinates (k, m).
-pub fn cell_at(k: integer, m: integer) -> (integer, integer) {
-  r = m / 3 ?? 0;
-  ((k - (r & 1)) / 2 ?? 0, r)
-}
+/// The cell whose centre is at doubled coordinates (k, m) (`hex_field::lattice_to_cell`).
+pub fn cell_at(k: integer, m: integer) -> (integer, integer) { hex_field::lattice_to_cell(k, m) }
 
 /// The structure's cell nearest its middle (the mean of its centres): a pivot to turn it about
 /// when none is given.

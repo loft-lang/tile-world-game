@@ -342,26 +342,7 @@ fn groups(label: const vector<integer>) -> vector<vector<integer>> {
   out
 }
 
-// ── the average and the miter: `hex_draw`'s, over a run ────────────────
-
-/// `hex_draw::surface_of` over a run of edges rather than a `Plan`'s side: the sum of the edge
-/// vectors and of the doubled midpoints, exact integers.
-pub fn surface_of(b: const vector<Edge>, run: const vector<integer>) -> hex_draw::WallSurface {
-  sdk = 0;
-  sdm = 0;
-  smk = 0;
-  smm = 0;
-  for i in run {
-    e = b[i];
-    (c1, c2) = hex_grid::hex_edge_corners(hex_grid::hex_neighbor_dir(e.qa, e.ra, e.qb, e.rb));
-    sdk = sdk + hex_field::corner_k(c2) - hex_field::corner_k(c1);
-    sdm = sdm + hex_field::corner_m(c2) - hex_field::corner_m(c1);
-    smk = smk + 2 * hex_field::lattice_k(e.qa, e.ra) + hex_field::corner_k(c1) + hex_field::corner_k(c2);
-    smm = smm + 2 * hex_field::lattice_m(e.qa, e.ra) + hex_field::corner_m(c1) + hex_field::corner_m(c2);
-  }
-  n = len(run);
-  hex_draw::WallSurface { ws_dk: sdk, ws_dm: sdm, ws_num_k: smk, ws_num_m: smm, ws_den: 2 * n, ws_n: n }
-}
+// ── the miter: `hex_draw`'s, over two surfaces ─────────────────────────
 
 /// `hex_draw::surface_miter` over two surfaces: where their lines meet, in world units, and
 /// false when they are parallel (adjacent walls never are).
@@ -399,11 +380,13 @@ pub fn surface_miter(wa: hex_draw::WallSurface, wb: hex_draw::WallSurface) -> (f
 // next wall, caught in the run at a corner, has a midpoint of its own and is outvoted — and turns
 // the line back.  The direction is the heading itself, exactly.  The answer is a
 // `hex_draw::WallSurface`, so `hex_draw`'s readers and the miter above take it unchanged.  On a
-// whole run (every side of a box) it is the line `hex_draw::surface_of` gives.
+// whole tops run (a side of a box) it is the line `hex_draw::surface_of` gives; on a sides run it
+// lies 0.048 unit beside it (measured on a 5 x 4 box): the average counts the corner's edges in,
+// this outvotes them.
 
 /// A doubled-coordinate point or vector turned 60° anticlockwise: exact, since a lattice point's
-/// k and m have the same parity.
-pub fn turn60(k: integer, m: integer) -> (integer, integer) { ((k - m) / 2 ?? 0, (3 * k + m) / 2 ?? 0) }
+/// k and m have the same parity (`hex_field::lattice_rot60`).
+pub fn turn60(k: integer, m: integer) -> (integer, integer) { hex_field::lattice_rot60(k, m) }
 
 /// Turned `steps` × 60° anticlockwise.
 pub fn turned(k: integer, m: integer, steps: integer) -> (integer, integer) {

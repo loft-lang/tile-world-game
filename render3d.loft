@@ -454,10 +454,6 @@ const TILE_M = 1.5;
 const EYE_M = 1.6;
 /// The sun the hex version's faces are lit by: a unit vector, x east, y up, z south.
 const SUN = (0.36, 0.84, 0.41);
-/// A lattice cell's corners, in doubled coordinates (hex_field's order).
-const HCK = [0, -1, -1, 0, 1, 1];
-const HCM = [2, 1, -1, -2, -1, 1];
-
 /// The place's hex version, read when the place changes: is there one?
 fn hex_loaded(v: View3D, g: const game::Game) -> boolean {
   if v.hex_place != g.place {
@@ -665,8 +661,8 @@ fn hex_cell(out: vector<faces3d::Face>, s: const hexscene::Scene, q: integer, r:
   gx = 0.0;
   gy = 0.0;
   for j in 0..6 {
-    ak = HCK[j] ?? 0;
-    am = HCM[j] ?? 0;
+    ak = hex_field::corner_k(j);
+    am = hex_field::corner_m(j);
     h = hexscene::corner_height(s, k + ak, m + am);
     ch += [h];
     gx += (h - hc) * (ak as float) * 0.75;
@@ -677,10 +673,10 @@ fn hex_cell(out: vector<faces3d::Face>, s: const hexscene::Scene, q: integer, r:
   lc = slope_light(gx / 2.25 ?? 0.0, gy / 2.25 ?? 0.0, night);
   for j in 0..6 {
     j1 = (j + 1) % 6 ?? 0;
-    ak = HCK[j] ?? 0;
-    am = HCM[j] ?? 0;
-    bk = HCK[j1] ?? 0;
-    bm = HCM[j1] ?? 0;
+    ak = hex_field::corner_k(j);
+    am = hex_field::corner_m(j);
+    bk = hex_field::corner_k(j1);
+    bm = hex_field::corner_m(j1);
     // in metres, with the height, the place on the picture and the light
     tri = [(cx, cy, hc, 0.5, 0.5, lc),
            (cx + (ak as float) * 0.75, cy + (am as float) * 0.4330127018922193, ch[j] ?? hc,
@@ -762,8 +758,8 @@ fn cliff_face(out: vector<faces3d::Face>, s: const hexscene::Scene, sd: const he
 
 /// The height of the cell centred at (k, m) in doubled coordinates.
 fn height_km(s: const hexscene::Scene, k: integer, m: integer) -> float {
-  r = m / 3 ?? 0;
-  hexscene::cell_height(s, (k - (r & 1)) / 2 ?? 0, r)
+  (q, r) = hex_field::lattice_to_cell(k, m);
+  hexscene::cell_height(s, q, r)
 }
 
 /// The light at the corner (k, m), the j-th of its cell: the slope through the three cells round
@@ -774,7 +770,7 @@ fn corner_light(s: const hexscene::Scene, k: integer, m: integer, j: integer, ni
   mean = 0.0;
   for t in 0..3 {
     i = (j + 2 * t) % 6 ?? 0;
-    h = height_km(s, k - (HCK[i] ?? 0), m - (HCM[i] ?? 0));
+    h = height_km(s, k - hex_field::corner_k(i), m - hex_field::corner_m(i));
     hs += [h];
     mean += h;
   }
@@ -783,8 +779,8 @@ fn corner_light(s: const hexscene::Scene, k: integer, m: integer, j: integer, ni
   gy = 0.0;
   for t in 0..3 {
     i = (j + 2 * t) % 6 ?? 0;
-    gx -= ((hs[t] ?? mean) - mean) * ((HCK[i] ?? 0) as float) * 0.75;
-    gy -= ((hs[t] ?? mean) - mean) * ((HCM[i] ?? 0) as float) * 0.4330127018922193;
+    gx -= ((hs[t] ?? mean) - mean) * (hex_field::corner_k(i) as float) * 0.75;
+    gy -= ((hs[t] ?? mean) - mean) * (hex_field::corner_m(i) as float) * 0.4330127018922193;
   }
   slope_light(gx / 1.125 ?? 0.0, gy / 1.125 ?? 0.0, night)
 }

@@ -149,9 +149,6 @@ fn num(v: const JsonValue) -> float {
 
 fn corner_key(k: integer, m: integer) -> integer { (k + 100000) * 200000 + m + 100000 }
 
-const CK = [0, -1, -1, 0, 1, 1];
-const CM = [2, 1, -1, -2, -1, 1];
-
 /// The hex version in `text`, or none when there is none.
 pub fn load(text: text) -> Scene? {
   if text == "" { return null; }
@@ -283,7 +280,7 @@ pub fn load(text: text) -> Scene? {
       k = hex_field::lattice_k(q, r);
       m = hex_field::lattice_m(q, r);
       for j in 0..6 {
-        key = corner_key(k + (CK[j] ?? 0), m + (CM[j] ?? 0));
+        key = corner_key(k + hex_field::corner_k(j), m + hex_field::corner_m(j));
         s0 = sums[key];
         if s0 == null {
           sums += [Corner { key: key, h: z }];
@@ -440,8 +437,8 @@ pub fn height_at(s: const Scene, x: float, y: float) -> float {
   f = t - (j as float);
   j0 = ((j % 6) + 6) % 6 ?? 0;
   j1 = (j0 + 1) % 6 ?? 0;
-  (ax, ay) = ((CK[j0] ?? 0) as float * 0.75, (CM[j0] ?? 0) as float * 0.4330127018922193);
-  (bx, by) = ((CK[j1] ?? 0) as float * 0.75, (CM[j1] ?? 0) as float * 0.4330127018922193);
+  (ax, ay) = (hex_field::corner_k(j0) as float * 0.75, hex_field::corner_m(j0) as float * 0.4330127018922193);
+  (bx, by) = (hex_field::corner_k(j1) as float * 0.75, hex_field::corner_m(j1) as float * 0.4330127018922193);
   // barycentric in the triangle (centre, a, b)
   px = x - cx;
   py = y - cy;
@@ -450,8 +447,8 @@ pub fn height_at(s: const Scene, x: float, y: float) -> float {
   wb = ((ax * py - ay * px) / det) ?? 0.0;
   wc = 1.0 - wa - wb;
   _ = f;
-  wc * cell_height(s, q, r) + wa * corner_height(s, k + (CK[j0] ?? 0), m + (CM[j0] ?? 0))
-    + wb * corner_height(s, k + (CK[j1] ?? 0), m + (CM[j1] ?? 0))
+  wc * cell_height(s, q, r) + wa * corner_height(s, k + hex_field::corner_k(j0), m + hex_field::corner_m(j0))
+    + wb * corner_height(s, k + hex_field::corner_k(j1), m + hex_field::corner_m(j1))
 }
 
 /// The house whose outline holds (x, y) metres, or -1.
@@ -546,10 +543,10 @@ pub fn height_on(s: const Scene, x: float, y: float, level: integer, high: boole
   j1 = (j0 + 1) % 6 ?? 0;
   own = (if high { level } else { level - 1 } as float) * s.storey;
   hc = if (cell_level(s, q, r) >= level) == high { cell_height(s, q, r) } else { own };
-  ha = corner_on(s, k + (CK[j0] ?? 0), m + (CM[j0] ?? 0), j0, level, high, own);
-  hb = corner_on(s, k + (CK[j1] ?? 0), m + (CM[j1] ?? 0), j1, level, high, own);
-  (ax, ay) = ((CK[j0] ?? 0) as float * 0.75, (CM[j0] ?? 0) as float * 0.4330127018922193);
-  (bx, by) = ((CK[j1] ?? 0) as float * 0.75, (CM[j1] ?? 0) as float * 0.4330127018922193);
+  ha = corner_on(s, k + hex_field::corner_k(j0), m + hex_field::corner_m(j0), j0, level, high, own);
+  hb = corner_on(s, k + hex_field::corner_k(j1), m + hex_field::corner_m(j1), j1, level, high, own);
+  (ax, ay) = (hex_field::corner_k(j0) as float * 0.75, hex_field::corner_m(j0) as float * 0.4330127018922193);
+  (bx, by) = (hex_field::corner_k(j1) as float * 0.75, hex_field::corner_m(j1) as float * 0.4330127018922193);
   px = x - cx;
   py = y - cy;
   det = ax * by - ay * bx;
@@ -565,10 +562,9 @@ fn corner_on(s: const Scene, k: integer, m: integer, j: integer, level: integer,
   n = 0;
   for t in 0..3 {
     i = (j + 2 * t) % 6 ?? 0;
-    ck = k - (CK[i] ?? 0);
-    cm = m - (CM[i] ?? 0);
-    r = cm / 3 ?? 0;
-    q = (ck - (r & 1)) / 2 ?? 0;
+    ck = k - hex_field::corner_k(i);
+    cm = m - hex_field::corner_m(i);
+    (q, r) = hex_field::lattice_to_cell(ck, cm);
     if (cell_level(s, q, r) >= level) == high {
       sum += cell_height(s, q, r);
       n += 1;
