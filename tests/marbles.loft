@@ -8,13 +8,16 @@ use hexterrain;
 use marbles;
 
 // A round hill 6 m high, 21 m from its top to its foot, on a field of hexes; along its slopes a
-// wall of four hexes, a clump of three trees, and five single rocks.
+// wall of four hexes, a clump of three trees, and rocks scattered by a pattern: about one hex in
+// seven between 4 m from the top and the foot.
 fn the_hill() -> marbles::Hill {
   hl = marbles::hill(-36, -36, 73, 73);
   hexterrain::hill(hl.ground, 0.0, 0.0, 21.0, 6.0);
-  for c in [(-1, -6), (0, -6), (1, -6), (2, -6), (6, 2), (7, 2), (6, 3), (-6, 3), (-4, -3), (4, -2), (0, 7), (-8, -1)] {
+  for c in [(-1, -6), (0, -6), (1, -6), (2, -6), (6, 2), (7, 2), (6, 3)] {
     hex_field::hexset_set(hl.fixed, c.0, c.1, true);
   }
+  n = marbles::scatter(hl, 14, 4.0, 21.0, 3);
+  assert(n > 60 && n < 140, "rocks scattered over the slopes: {n}");
   hl
 }
 
@@ -37,7 +40,7 @@ fn played() -> marbles::Hill {
 
 fn test_ten_marbles_on_the_hill() {
   hl = played();
-  for line in marbles::picture(hl) { println(line); }
+  for line in marbles::picture(hl, 21) { println(line); }
   println("rounds {hl.rounds}");
   for i in 0..len(hl.marbles) {
     m = hl.marbles[i]!;
@@ -54,6 +57,17 @@ fn test_ten_marbles_on_the_hill() {
     // none rests higher than it was let fall
     assert(marbles::height(hl, m.q, m.r) <= marbles::height(hl, m.from_q, m.from_r) + 0.000001, "marble {i} not higher than it fell");
   }
+  // the ground takes its part: none runs further out over the flat than its most speed lasts there
+  struck = 0;
+  rolled = 0;
+  for m in hl.marbles {
+    c = hexterrain::centre(m.q, m.r);
+    assert((sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0) <= 21.0 + 1.5 * ((marbles::FASTEST / marbles::GROUND) as float) + 1.5, "a marble no further than its speed lasts past the foot");
+    struck += m.struck;
+    if m.went > 0 { rolled += 1; }
+  }
+  println("rolled {rolled}, struck {struck} in all");
+  assert(rolled >= 5 && struck >= rolled, "most roll, and what rolls meets something on the way: {rolled} rolled, struck {struck}");
 }
 
 // The same hill, the same marbles: the same end, hex for hex, round for round.
@@ -73,20 +87,20 @@ fn test_the_rules_of_a_marble() {
   assert(marbles::let_fall(flat, 0, 0) && !marbles::round_of(flat) && marbles::settled(flat, 0), "at rest on the flat");
   flat.marbles[0].heading = 0;
   flat.marbles[0].speed = 4;
-  assert(marbles::run(flat, 50) && flat.marbles[0]!.q == 3 && flat.marbles[0]!.r == 0, "speed 4 along the flat: three hexes on, the fourth not made: ({flat.marbles[0]!.q}, {flat.marbles[0]!.r})");
+  assert(marbles::run(flat, 50) && flat.marbles[0]!.q == 1 && flat.marbles[0]!.r == 0, "speed 4 along the flat, the ground taking 2 a hex: one hex on, the second not made: ({flat.marbles[0]!.q}, {flat.marbles[0]!.r})");
   // a marble struck takes the striker's motion, the striker rests where it was
   two = marbles::hill(-10, -10, 21, 21);
   marbles::let_fall(two, 0, 0);
   marbles::let_fall(two, 2, 0);
   two.marbles[0].heading = 0;
-  two.marbles[0].speed = 5;
+  two.marbles[0].speed = 9;
   assert(marbles::run(two, 50), "two on the flat come to rest");
   assert(two.marbles[0]!.q == 1 && two.marbles[1]!.q > 2 && two.marbles[0]!.struck == 1, "the striker stops beside where the other lay, the other goes on: {two.marbles[0]!.q} {two.marbles[1]!.q}");
   // onto a marble another rolls off to a neighbour
   pile = marbles::hill(-10, -10, 21, 21);
   marbles::let_fall(pile, 0, 0);
   marbles::let_fall(pile, 0, 0);
-  assert((pile.marbles[1]!.q != 0 || pile.marbles[1]!.r != 0) && pile.marbles[1]!.speed == 1, "the second rolled off the first");
+  assert((pile.marbles[1]!.q != 0 || pile.marbles[1]!.r != 0) && pile.marbles[1]!.speed == marbles::GROUND, "the second rolled off the first");
   // an obstacle ahead: aside; shut in on both sides too: back
   wall = marbles::hill(-10, -10, 21, 21);
   hex_field::hexset_set(wall.fixed, 3, 0, true);

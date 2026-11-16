@@ -571,12 +571,17 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   goes one hex (or between two to the next full one), its speed taking the drop and giving a unit
   to the ground; at an obstacle it goes aside as the place prefers, else comes back at half
   speed; two marbles change motion; let fall on a marble it rolls off to the lowest neighbour.
-- On a round hill 6 m high and 21 m to its foot, with a wall, a clump of trees and five rocks:
-  of ten let fall on and round the top, four stay on its nearly flat crown and six run down and
-  13 to 16 m out over the flat, each to a hex of its own, in 44 rounds — the same every time.
-- ◇ What it shows: the ground gives back too little (long run-outs), a marble mostly runs
-  straight down past the obstacles, a round is a hex whatever the speed (no time yet), and a
-  fall has no bounce of its own.  The numbers are in `marbles.loft` to tune.
+- First run, the ground taking 1 a hex and twelve obstacles: of ten let fall on and round the
+  top, four stayed on its nearly flat crown and six ran nearly straight down and 13 to 16 m out
+  over the flat, meeting little.
+- **Ground friction and denser obstacles first** (owner, 2026-11-16).  The ground takes 2 a hex
+  (`GROUND`; 3 between hexes) and rocks are scattered by a pattern over the slopes, about one
+  hex in seven (`scatter`, the same for the same seed; 100-odd of them).  Now the six that roll
+  end 0 to 8 m past the foot, each having met one to four things on its way — sixteen meetings
+  in all — and their ways bend round the rocks (`picture` draws the trails).  Four still stay
+  on the crown.  Each on a hex of its own, at rest; the same every time.
+- ◇ Still as it was: a round is a hex whatever the speed (no time yet), and a fall has no
+  bounce of its own.
 
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
