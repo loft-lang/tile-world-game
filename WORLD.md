@@ -624,10 +624,9 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   87 meetings; at rest after 22.9 s and 1063 happenings — the same every time.
 
 - **Yards and fences between the houses** (owner, 2026-11-16: "add yards and fences between the
-  houses to catch more marbles"; and, as the catching rose: "But it is now our goal here to
-  catch as many marbles as possible.  For the audience seeing strings of marbles appearing that
-  run in lines is part of the fun." — read as: catching all of them is NOT the goal; ◇ that
-  reading is mine, the sentence says "now").
+  houses to catch more marbles"; and, as the catching rose, that catching as many as possible
+  is not the goal: "for the audience seeing strings of marbles appearing that run in lines is
+  part of the fun" — confirmed by the owner the same day).
   - A fence stands on the edges between hexes and takes no hex (`marbles::fence`, a line in
     metres laid on the edges it parts).  A marble does not pass it: to a neighbour, a fence on
     the edge between; between two hexes, a fence along the way or a corner shut on both sides.
