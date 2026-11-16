@@ -8,7 +8,8 @@
 // It has a heading (one of the twelve) and a speed (a whole number; 0 at rest).  The ground is
 // hexes with a height each; some hexes hold what does not move (a tree, a rock, a wall).
 //
-// The rules, a round at a time, the marbles in the order they were dropped:
+// The rules.  Time runs in milliseconds; whichever marble is next to arrive acts next (of two at
+// the same moment, the one let fall first):
 //
 //   at rest      it stays unless a free neighbour lies clearly lower (`START` units of drop):
 //                then it sets off towards the lowest, the place's own side first among equals.
@@ -16,18 +17,26 @@
 //                to the neighbour, or between two hexes through to the next full hex.  Its speed
 //                takes the drop (a unit a `UNIT` of height) and gives `GROUND` to the ground
 //                (`GROUND_LONG` between hexes, the longer way); with nothing left it stays where
-//                it is, at rest.
+//                it is, at rest.  The hex is its own from the moment it sets off for it; it is
+//                there after the time its way takes at its speed (`step_ms`).
 //   an obstacle  it goes aside — the side the place prefers, then the other — a unit slower; with
 //                both sides shut it comes straight back at half its speed.
 //   a marble     the two change motion: the one struck goes on with the striker's heading and
 //                speed less one, the striker takes what the other had (rest, if it was at rest).
-//   dropped      onto a free hex it lies at rest; onto a marble it rolls off to the lowest free
-//                neighbour and sets off that way.
+//   let fall     it is in the air the time its fall takes.  Landing on a slope (a neighbour a
+//                unit or more lower) it bounces off down it, with a quarter of its fall as speed;
+//                on the flat it bounces where it is and lies still.  Onto a marble it rolls off
+//                to the lowest free neighbour, the same way.
+//
+// A house is hexes that do not move, as a rock is, many together: its wall across a slope stops
+// a marble, and a corner open to the slope holds it (`caught`).
 //
 // Nothing here is worked out from shapes: every outcome is a cell, the same every time.
 use hex_field;
 use hex_form;
 use hex_ground;
+use hex_shape;
+use hexhouse;
 use hexterrain;
 use rules;
 use gridroom;
@@ -44,6 +53,10 @@ pub const FASTEST = 12;
 /// friction and denser obstacles).
 pub const GROUND = 2;
 pub const GROUND_LONG = 3;
+/// The time two things are against each other when one strikes the other, in milliseconds.
+pub const CONTACT = 60;
+/// How much of a fall's speed a marble keeps when it lands on a slope: one part in this many.
+pub const BOUNCE = 4;
 
 pub struct Marble {
   pub q: integer,
@@ -54,7 +67,10 @@ pub struct Marble {
   pub from_q: integer = 0,
   pub from_r: integer = 0,
   pub went: integer = 0,
-  pub struck: integer = 0
+  pub struck: integer = 0,
+  /// When it next arrives or acts, and when it last came to rest (milliseconds).
+  pub at: integer = 0,
+  pub rest_at: integer = 0
 }
 
 /// The hill: the ground's heights, what stands on it and does not move, the marbles on it, and
@@ -62,14 +78,18 @@ pub struct Marble {
 pub struct Hill {
   pub ground: hex_ground::Ground,
   pub fixed: hex_field::HexSet,
+  /// The hexes of `fixed` that are a house's.
+  pub houses: hex_field::HexSet,
   pub marbles: vector<Marble> = [],
+  /// How many times a marble acted, and the time (milliseconds).
   pub rounds: integer = 0,
+  pub now: integer = 0,
   /// Every hex a marble rolled onto.
   pub trail: hex_field::HexSet
 }
 
 pub fn hill(q0: integer, r0: integer, w: integer, h: integer) -> Hill {
-  Hill { ground: hexterrain::ground_new(q0, r0, w, h), fixed: hex_field::hexset_chunk(q0, r0, w, h), trail: hex_field::hexset_chunk(q0, r0, w, h) }
+  Hill { ground: hexterrain::ground_new(q0, r0, w, h), fixed: hex_field::hexset_chunk(q0, r0, w, h), houses: hex_field::hexset_chunk(q0, r0, w, h), trail: hex_field::hexset_chunk(q0, r0, w, h) }
 }
 
 fn inside(hl: Hill, q: integer, r: integer) -> boolean {
@@ -123,19 +143,55 @@ fn lowest(hl: Hill, q: integer, r: integer, least: integer) -> integer {
   best
 }
 
-/// Drop a marble on (q, r).  False when it cannot lie there nor roll off (the hex holds what
-/// does not move, or a marble with no free neighbour).
-pub fn let_fall(hl: Hill, q: integer, r: integer) -> boolean {
+/// The time a marble takes over `metres` at `speed`: its speed is the height it could climb, a
+/// unit a `UNIT`, so it goes as fast as a thing fallen that far (√(2 g h)): a hex at speed 1 in
+/// 0.87 s, at speed 4 in 0.44 s, at the most (12) in 0.25 s.
+pub fn step_ms(metres: float, speed: integer) -> integer {
+  v = sqrt(2.0 * 9.81 * UNIT * (if speed > 0 { speed } else { 1 } as float)) ?? 1.0;
+  round(1000.0 * metres / v ?? 0.0) as integer
+}
+
+/// A house on the hill: the hexes of its plan (`hexhouse`), at (cq, cr), turned `turn` steps of
+/// 30°.  Answers how many hexes it takes.
+pub fn house(hl: Hill, cq: integer, cr: integer, turn: integer, parts: vector<hex_shape::BoxPart>) -> integer {
+  g = hl.ground;
+  cells = hex_field::hexset_chunk(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
+  hexhouse::fill(hexhouse::HexHouse { cq: cq, cr: cr, turn: turn, parts: parts }, cells);
+  n = 0;
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
+      if !hex_field::hexset_get(cells, q, r) { continue; }
+      hex_field::hexset_set(hl.fixed, q, r, true);
+      hex_field::hexset_set(hl.houses, q, r, true);
+      n += 1;
+    }
+  }
+  n
+}
+
+/// Let a marble fall on (q, r) from `from` metres over the ground, now.  False when it cannot lie
+/// there nor roll off (the hex holds what does not move, or a marble with no free neighbour).
+pub fn let_fall(hl: Hill, q: integer, r: integer, from: float = 2.0) -> boolean {
   if !inside(hl, q, r) || hex_field::hexset_get(hl.fixed, q, r) { return false; }
+  lands = hl.now + round(1000.0 * (sqrt(2.0 * from / 9.81) ?? 0.0)) as integer;
+  kick = (round(from / UNIT ?? 0.0) as integer) / BOUNCE;
+  if kick < GROUND { kick = GROUND; }
   if marble_at(hl, q, r) < 0 {
-    hl.marbles += [Marble { q: q, r: r, from_q: q, from_r: r }];
+    m = Marble { q: q, r: r, from_q: q, from_r: r, at: lands, rest_at: lands };
+    // on a slope it bounces off down it; on the flat it lies still
+    h = lowest(hl, q, r, 1);
+    if h >= 0 {
+      m.heading = h;
+      m.speed = kick;
+    }
+    hl.marbles += [m];
     return true;
   }
   // onto a marble: off it to the lowest free neighbour, whatever the drop, and on that way
   h = lowest(hl, q, r, -1000);
   if h < 0 { return false; }
   (tq, tr) = gridroom::hex_step(q, r, h);
-  hl.marbles += [Marble { q: tq, r: tr, heading: h, speed: GROUND, from_q: q, from_r: r, went: 1, struck: 1 }];
+  hl.marbles += [Marble { q: tq, r: tr, heading: h, speed: kick, from_q: q, from_r: r, went: 1, struck: 1, at: lands + step_ms(1.5, kick), rest_at: lands }];
   hex_field::hexset_set(hl.trail, tq, tr, true);
   true
 }
@@ -149,85 +205,109 @@ fn go(hl: Hill, i: integer, h: integer) {
   m.heading = h;
   if left <= 0 {
     m.speed = 0;
+    m.rest_at = hl.now;
   } else {
     m.q = tq;
     m.r = tr;
     m.went += 1;
     hex_field::hexset_set(hl.trail, tq, tr, true);
     m.speed = if left > FASTEST { FASTEST } else { left };
+    m.at = hl.now + step_ms(if (h & 1) == 0 { 1.5 } else { 2.598076211353316 }, m.speed);
   }
   hl.marbles[i] = m;
 }
 
-/// One round: every marble in turn.  Answers whether anything moved or changed its motion.
-pub fn round_of(hl: Hill) -> boolean {
-  busy = false;
-  hl.rounds += 1;
+/// The next thing that happens: the marbles at rest on a clear slope set off, and the marble
+/// next to arrive acts.  Answers false when nothing rolls any more.
+pub fn next(hl: Hill) -> boolean {
   for i in 0..len(hl.marbles) {
     m = hl.marbles[i]!;
-    if m.speed <= 0 {
-      // at rest: off down a clear slope
-      h = lowest(hl, m.q, m.r, START);
-      if h >= 0 {
-        m.heading = h;
-        m.speed = GROUND;
-        hl.marbles[i] = m;
-        busy = true;
-      }
-      continue;
-    }
-    busy = true;
-    // rolling: a step of 30° towards a clearly steeper way down
-    h = m.heading;
-    ahead = steep(hl, m.q, m.r, h);
-    for turn in [1, -1] {
-      if steep(hl, m.q, m.r, m.heading + turn) > ahead + 0.02 && steep(hl, m.q, m.r, m.heading + turn) > steep(hl, m.q, m.r, h) {
-        h = hex_form::head_norm(m.heading + turn);
-      }
-    }
-    (tq, tr) = gridroom::hex_step(m.q, m.r, h);
-    other = marble_at(hl, tq, tr);
-    if free(hl, tq, tr) {
-      go(hl, i, h);
-      continue;
-    }
-    m.struck += 1;
-    if other >= 0 {
-      // a marble: the two change motion
-      o = hl.marbles[other]!;
-      was_h = o.heading;
-      was_s = o.speed;
-      o.heading = h;
-      o.speed = m.speed - 1;
-      m.heading = was_h;
-      m.speed = was_s;
-      hl.marbles[other] = o;
-      hl.marbles[i] = m;
-      continue;
-    }
-    // what does not move, or the ground's edge: aside, the place's side first
-    m.speed -= 1;
-    hl.marbles[i] = m;
-    if m.speed <= 0 { continue; }
-    side = if (h & 1) == 0 { 2 } else { 1 };
-    first = if rules::prefers_right(m.q, m.r, 0) { -side } else { side };
-    gone = false;
-    for way in [first, -first] {
-      if gone { continue; }
-      (sq, sr) = gridroom::hex_step(m.q, m.r, h + way);
-      if free(hl, sq, sr) {
-        go(hl, i, hex_form::head_norm(h + way));
-        gone = true;
-      }
-    }
-    if !gone {
-      // both sides shut: straight back at half its speed
-      m.heading = hex_form::head_norm(h + 6);
-      m.speed = m.speed / 2;
+    if m.speed > 0 || m.at > hl.now { continue; }
+    h = lowest(hl, m.q, m.r, START);
+    if h >= 0 {
+      m.heading = h;
+      m.speed = GROUND;
+      m.at = hl.now;
       hl.marbles[i] = m;
     }
   }
-  busy
+  i = -1;
+  for j in 0..len(hl.marbles) {
+    if hl.marbles[j]!.speed > 0 && (i < 0 || hl.marbles[j]!.at < hl.marbles[i]!.at) { i = j; }
+  }
+  if i < 0 {
+    // nothing rolls: the time runs on to the last landing
+    for m in hl.marbles { if m.at > hl.now { hl.now = m.at; } }
+    return false;
+  }
+  m = hl.marbles[i]!;
+  if m.at > hl.now { hl.now = m.at; }
+  hl.rounds += 1;
+  // rolling: a step of 30° towards a clearly steeper way down
+  h = m.heading;
+  ahead = steep(hl, m.q, m.r, h);
+  for turn in [1, -1] {
+    if steep(hl, m.q, m.r, m.heading + turn) > ahead + 0.02 && steep(hl, m.q, m.r, m.heading + turn) > steep(hl, m.q, m.r, h) {
+      h = hex_form::head_norm(m.heading + turn);
+    }
+  }
+  (tq, tr) = gridroom::hex_step(m.q, m.r, h);
+  other = marble_at(hl, tq, tr);
+  if free(hl, tq, tr) {
+    go(hl, i, h);
+    return true;
+  }
+  m.struck += 1;
+  m.at = hl.now + CONTACT;
+  if other >= 0 {
+    // a marble: the two change motion
+    o = hl.marbles[other]!;
+    was_h = o.heading;
+    was_s = o.speed;
+    o.heading = h;
+    o.speed = m.speed - 1;
+    if o.at < hl.now + CONTACT { o.at = hl.now + CONTACT; }
+    if o.speed <= 0 { o.rest_at = hl.now; }
+    m.heading = was_h;
+    m.speed = was_s;
+    if m.speed <= 0 { m.rest_at = hl.now; }
+    hl.marbles[other] = o;
+    hl.marbles[i] = m;
+    return true;
+  }
+  // what does not move, or the ground's edge: aside, the place's side first
+  m.speed -= 1;
+  if m.speed <= 0 { m.rest_at = hl.now; }
+  hl.marbles[i] = m;
+  if m.speed <= 0 { return true; }
+  side = if (h & 1) == 0 { 2 } else { 1 };
+  first = if rules::prefers_right(m.q, m.r, 0) { -side } else { side };
+  for way in [first, -first] {
+    (sq, sr) = gridroom::hex_step(m.q, m.r, h + way);
+    if free(hl, sq, sr) {
+      go(hl, i, hex_form::head_norm(h + way));
+      return true;
+    }
+  }
+  // both sides shut: straight back at half its speed
+  m.heading = hex_form::head_norm(h + 6);
+  m.speed = m.speed / 2;
+  if m.speed <= 0 { m.rest_at = hl.now; }
+  hl.marbles[i] = m;
+  true
+}
+
+/// Play on until the time is `until` (milliseconds): what happens up to then happens.
+pub fn run_until(hl: Hill, until: integer) {
+  for _n in 0..100000 {
+    soon = -1;
+    for m in hl.marbles { if m.speed > 0 && (soon < 0 || m.at < soon) { soon = m.at; } }
+    wakes = false;
+    for i in 0..len(hl.marbles) { if hl.marbles[i]!.speed == 0 && hl.marbles[i]!.at <= hl.now && lowest(hl, hl.marbles[i]!.q, hl.marbles[i]!.r, START) >= 0 { wakes = true; } }
+    if !wakes && (soon < 0 || soon > until) { break; }
+    next(hl);
+  }
+  if hl.now < until { hl.now = until; }
 }
 
 /// Is marble `i` where it will stay: at rest, with no free neighbour clearly lower.
@@ -236,9 +316,20 @@ pub fn settled(hl: Hill, i: integer) -> boolean {
   m.speed == 0 && lowest(hl, m.q, m.r, START) < 0
 }
 
-/// Play rounds until nothing moves, `most` at the most.  Answers whether it came to rest.
+/// Play on until nothing rolls, `most` happenings at the most.  Answers whether it came to rest.
 pub fn run(hl: Hill, most: integer) -> boolean {
-  for _n in 0..most { if !round_of(hl) { return true; } }
+  for _n in 0..most { if !next(hl) { return true; } }
+  false
+}
+
+/// Is marble `i` held by a house: where it will stay, on the slope, a house's hex beside it.
+pub fn caught(hl: Hill, i: integer) -> boolean {
+  m = hl.marbles[i]!;
+  if !settled(hl, i) || height(hl, m.q, m.r) < 0.05 { return false; }
+  for h in [0, 2, 4, 6, 8, 10] {
+    (tq, tr) = gridroom::hex_step(m.q, m.r, h);
+    if inside(hl, tq, tr) && hex_field::hexset_get(hl.houses, tq, tr) { return true; }
+  }
   false
 }
 
@@ -266,7 +357,7 @@ pub fn scatter(hl: Hill, percent: integer, inner: float, outer: float, seed: int
 }
 
 /// The hill as text, north up, `reach` hexes round (0, 0): open ground by its height (`.` low to
-/// `9`), `#` what does not move, `+` where a marble rolled, a letter per marble (A the first let
+/// `9`), `H` a house, `#` anything else that does not move, `+` where a marble rolled, a letter per marble (A the first let
 /// fall), `*` where one was let fall.
 pub fn picture(hl: Hill, reach: integer = 1000) -> vector<text> {
   g = hl.ground;
@@ -285,7 +376,7 @@ pub fn picture(hl: Hill, reach: integer = 1000) -> vector<text> {
       if level > 0 { c = "{level}"; }
       if hex_field::hexset_get(hl.trail, q, r) { c = "+"; }
       for m in hl.marbles { if m.from_q == q && m.from_r == r { c = "*"; } }
-      if hex_field::hexset_get(hl.fixed, q, r) { c = "#"; }
+      if hex_field::hexset_get(hl.fixed, q, r) { c = if hex_field::hexset_get(hl.houses, q, r) { "H" } else { "#" }; }
       if i >= 0 { c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i..i + 1]; }
       line += c + " ";
     }

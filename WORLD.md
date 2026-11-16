@@ -580,8 +580,24 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   end 0 to 8 m past the foot, each having met one to four things on its way — sixteen meetings
   in all — and their ways bend round the rocks (`picture` draws the trails).  Four still stay
   on the crown.  Each on a hex of its own, at rest; the same every time.
-- ◇ Still as it was: a round is a hex whatever the speed (no time yet), and a fall has no
-  bounce of its own.
+- **Time, the bounce on landing, and houses for rocks** (owner, 2026-11-16: "my original plan
+  was not rocks but houses on the slope with a better chance of catching a marble").
+  - Time: whichever marble is next to arrive acts next.  A hex is a marble's own from the moment
+    it sets off for it, and it is there after the time its way takes at its speed — its speed
+    being the height it could climb, it goes as fast as a thing fallen that far: a hex at speed
+    1 in 0.87 s, at 4 in 0.44 s, at the most in 0.25 s; between hexes 1.73 times as long.
+  - The bounce: a marble is in the air the time its fall takes (2 m: 0.64 s).  Landing on a
+    slope it bounces off down it with a quarter of its fall as speed; on the flat it lies still.
+    So the crown no longer keeps four: all ten roll.
+  - Houses: eight on the slopes (`hexhouse` plans at their angles), each with its long wall
+    across the slope, three an L whose corner opens uphill.  Let fall one every 0.4 s: three
+    marbles are held by a house, at 4 to 5 m up the hill; seven find a way between the houses
+    and rest 1 to 8 m past the foot.  All at rest after 11.3 s, 119 happenings — the same every
+    time, to the millisecond.
+  - ◇ What it shows: the eight houses nearly close a ring, so the seven leave by the same two
+    gaps and four end in a row; where a wall stands across the slope a marble stays, where it
+    slants the marble runs along it.  The landing has no bounce to be seen (it is a speed, not
+    a hop), and a marble struck while on its way changes motion at once.
 
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
