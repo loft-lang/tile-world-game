@@ -462,6 +462,102 @@ What each shape becomes on hex ◇ (the `hex_*` packages of loft-libs-world and 
   too.  So to the rules a hex wall is the edge they know: is the way between these two cells
   open (step 2)?
 
+**Tile grids at small scale, hex ground between** (owner, 2026-11-16).  The rulings of one talk,
+on what the two grids are to each other.  They replace "the square tile world is the test bench,
+the hex world holds the realistic places" above, and "square into hex, never back" for whole
+places: a place is no longer drawn on one grid and ported to the other.  What is the owner's is
+given as said; what follows from it and is proposed is ◇.
+
+- **Why these puzzles at all** (owner): "this is exactly what draws me to these (old game) type
+  of puzzles.  You can rationalize about it in your head instead of finding out with trial and
+  error what works and be frustrated by it if it fails to replicate a situation that earlier
+  worked."  Every ruling below serves that: the same act in the same situation gives the same
+  result, and a player can work it out before trying.
+- **The tile grid stays, on smaller scales** (owner): "that doesn't mean I do not want a tile
+  grid, it is just that this grid lives on smaller scales (rooms, corridors, roads)."  A 90° grid
+  fits inside a house or a corridor because of how they are drawn, and it "will only work in
+  rooms & roads because several rooms/houses can be at odd angles" to each other: no one square
+  grid covers a town.  So a room, a corridor and a road each have a tile grid of their own, at
+  their own angle, and the hex ground lies between them.
+  - ◇ A corridor and a road are one shape: a strip of tiles along a line, so many wide.  A room
+    is a rectangle of tiles.  The drawing kit's shapes are these grids.
+  - ◇ Inside a grid nothing changes: tile_world, the dealt templates and the puzzle places play
+    as they do, at whatever angle the grid lies.  A room turns exactly, so a house's inside no
+    longer needs turning cell by cell on hex (`hex_place::stencil_turn` stays for what is drawn
+    on hex cells: outdoor structures, towers).
+- **The hex data is the store; the open ground is made by routines** (owner): no tile drawing of
+  a whole place is needed "if we can also use the hex binary data as a store.  We can just make
+  routines to place the trees, forests, even with an algorithm to create a pattern."
+  - ◇ The stored data is the place; a routine is a tool that writes into it, and a seed is kept
+    as a note of where the data came from, so a place can be changed by hand after a routine ran.
+- **The rules can be translated to the hex grid** (owner) — for what happens on the open ground.
+- **Figures move fully free, so only moving a thing is a question** (owner): "if we already
+  allow full free movement it naturally allows every situation, it is just the pushing that is
+  problematic."  A thing is pushed, pulled, slid, rolled, blasted or shoved by a cart; for each
+  the rules answer which way it goes, where it lands and how long it takes.
+- **A thing always ends on a whole tile or hex, and is steered there from the start** (owner):
+  "we secretly move the things to whole tiles/hexes and we do so by steering it that way even
+  before it starts moving/flying/rolling."  When its way changes while it moves, "we just need
+  to pivot early when needed."
+  - ◇ The rules choose the landing cell at the moment of the push and the thing is on that cell
+    from then on; the view draws a smooth way to the cell's centre.  A thing rolling over
+    several cells is settled cell by cell, and the drawn way turns to the new end as soon as the
+    rules know it.
+- **Twelve directions on the open ground** (owner): "6 directions here is not enough, we need
+  the 12 to still map the in-room 4 directions.  So pushing between two hexes is allowed as long
+  as you push through to the next full hex."
+  - A room's four directions are always among the twelve, and two of the four always run between
+    hexes whatever the room's angle (its directions are three steps of 30° apart), so a push
+    between hexes is the common case at a door.  The twelve are `hex_form`'s headings: an even
+    one to a neighbour, an odd one through a corner to the next hex on that line.
+- **A push that is not full goes aside** (owner): "if a push is somehow not full we can still
+  use the tile rule of small objects that are pushed aside" (DESIGN.md's items pushed aside,
+  `rules.loft` `aside`: the side the place prefers, then the other).
+  - ◇ The two hexes a push runs between are that side and the other.  So: the full hex ahead;
+    else the flank the place prefers; else the other; else the push is blocked.  A fence on the
+    edge between the flanks stops the push ahead (the thing ends on one side of it); a corner
+    walled on both sides blocks it.
+- **A push between hexes takes longer, by the distance** (owner): "the hero needs more time to
+  push between hexes (not inside a room) and that should be calculated correctly."
+  - ◇ Time follows the real distance at one speed: 1.5 m in 140 ms, tile to tile or hex to
+    neighbour; 2.6 m (1.5 × √3) in 242 ms between hexes; a way of several steps arrives at the
+    time of its whole length, not of its steps' rounded times added up.  The hero walks the same
+    way behind the thing.  A speed given in cells (a blast's push, a cart's) is a distance.
+- **Leaving a grid has to be worked out** (owner): "we have to recalculate what happens when we
+  go outside a room (push a stone through a door, a cart along a rails with curves)."
+  - ◇ Worked out once, when a grid is placed, and kept: each opening pairs its cells with the
+    cells beyond, both ways, each with the direction the thing has on the other side.  The
+    rules' one question then answers the next cell and the heading there.
+  - ◇ A rail is a grid of its own, a cart's cell its distance along the track: a curve changes
+    nothing for the rules, only where the cart is drawn (`hex_way`).  What a rail needs worked
+    out is which cells of a room or of the ground each of its cells lies over, and its switches.
+  - ◇ Sight and light are worked out in the world's own space, not through the openings' pairs.
+- **The open ground has not the same puzzles** (owner): "the outside world will not have the
+  same puzzles, unless it is on a terrace-like structure that is just a room with low walls."
+  A terrace is a room: its grid, its rules, its checks; its walls are low.
+  - ◇ So nothing on the open ground has to be shown solvable, and a thing that belongs to a
+    puzzle does not leave its room or its terrace through an opening; loose things may.
+- **What feels real, within the rules** (owner): "it is not about what is realistic but what
+  feels realistic but still adheres to the game's rules."
+  - ◇ The rules' side is tested; the feel is seen and tuned in play, its numbers (how early a
+    thing turns, how it settles on its cell) in the settings beside the timings.
+- **Stacking and what is stable are rules, not worked out from meshes** (owner): most 3D games
+  "create stacks of meshes at weird angles that slide in unnatural ways.  Here we can have rules
+  about stacking and about what is stable or not without a game engine trying to calculate that
+  from the meshes (and fail at it constantly)."  The game has them: a stack is a list on a cell,
+  and each kind says its height, what stands and rests on it, what breaks (`kinds.json`).
+  - ◇ The same stacking rules on a tile and on a hex; on a slope of the open ground, whether a
+    thing stays or rolls is a rule on the heights of its cell and the next.
+
+◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
+marked crossings; whether loose things cross a house's outer door at all.
+
+◇ First to build: one room on its own grid, placed at an angle on hex ground, with one door — a
+push inside it, one through the door, one between hexes outside — at each of the twelve angles;
+then a terrace as the same with low walls.  The steps below were written before these rulings:
+step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
+and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
+
 **Steps** ◇, each worth having on its own:
 
 1. Free roaming the everyday way to move, once it plays well enough (the owner's call).
