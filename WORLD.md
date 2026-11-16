@@ -734,8 +734,23 @@ or inside it; over a low wall; through a doorway, a gate or a gap.
 - A thing pushed to the rim cannot be pushed back by a hero standing inside: the rules ask the
   hero to stand behind it, which is beyond the low wall.  It is pulled back, as in any room.
 
-◇ Next: the game's play on it — the hero walking free from the ground into a room and out, the
-room's clock and the view.  The steps below were written before these rulings:
+**Built, play on a field with rooms** (2026-11-16; `fieldplay.loft`, `tests/fieldplay.loft`): the
+hero's body is a point in metres and moves any way at the walking pace; which grid it is on
+follows from where it is.  As free roaming has it on one square place, the body coming onto
+another cell takes the step there through the rules: onto a free hex; a thing on a hex pushed
+along the hero's way; in at a room's opening from the hex outside it; in the room by the room's
+own rules; out through an opening.  A wall from either side, a tree and a fence refuse it and
+the body stays where it was.  One clock: the room the hero is in runs with it, a room it comes
+into is brought to the field's time.  Tried at each of the twelve angles: 9 m over the ground to
+the door and in (in 840 ms, nothing refused), round a rock, the rock walked out through the door
+and on over the ground, back in; and from one room's door over 20 m of ground in at a terrace's
+gate.
+- **These algorithms are to end up in the libraries** (owner, 2026-11-16: "The algorithms need to
+  end up inside libraries eventually").  Candidates, once settled: the room grid on hex ground
+  (`gridroom.loft`), play across grids (`fieldplay.loft`), the marble rules (`marbles.loft`).
+
+◇ Next: this wired to the game's own keys, clock and views (game.loft still plays one square
+place at a time), and other figures crossing between grids.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

@@ -150,6 +150,13 @@ pub fn tile_corners(rm: const Room, x: integer, y: integer) -> vector<(float, fl
    tile_centre(rm, (x as float) + 0.5, (y as float) - 0.5), tile_centre(rm, (x as float) - 0.5, (y as float) - 0.5)]
 }
 
+/// Where (x, y) metres lies on the room's own grid, in tiles (a tile's centre a whole number).
+pub fn local(rm: const Room, x: float, y: float) -> (float, float) {
+  (ex, ey) = way(rm.turn);
+  (sx, sy) = way(rm.turn + 9);
+  (((x - rm.ox) * ex + (y - rm.oy) * ey) / TILE ?? 0.0, ((x - rm.ox) * sx + (y - rm.oy) * sy) / TILE ?? 0.0)
+}
+
 /// The room's tile under (x, y) metres, as (inside, tile x, tile y).
 pub fn tile_at(rm: const Room, x: float, y: float) -> (boolean, integer, integer) {
   (ex, ey) = way(rm.turn);

@@ -528,6 +528,20 @@ part is the scheduler (steps with their times, conditions, a seeded choice, rest
 checks every set must pass; the moves and what a condition reads are each game's.  It moves with
 the work on character animations, once the fights have settled.
 
+## To the libraries, once settled: rooms on hex ground, play across grids, marbles
+
+Written in the game on 2026-11-16 (WORLD.md § One game, square or hex), and to end up in the
+libraries (owner, the same day).  None is moved yet; each has its tests in the game.
+
+| In the game | What it is | Where it would go |
+|---|---|---|
+| `gridroom.loft` | a square place set down at any of the twelve angles on hex ground: its tiles in metres, the hexes under it, its openings paired with the hexes outside, its rim, sight past it by height; a thing pushed inside, through an opening and over the ground (twelve ways, aside, time by distance); walking a room's layers, `reached`, `one_hand` | the geometry and the pairing to `hex_place`; the pushes need the game's rules, so a part stays or takes the rules as a caller's answer (unchecked: whether a library can call back into a game's verbs) |
+| `fieldplay.loft` | a body walking free over hex ground and a room's tiles, each cell it comes onto a step through the rules | with the above |
+| `marbles.loft` | things rolling by rule over hex heights in time: the lowest neighbour, speed from the drop, aside at what does not move, fences on edges; later the same for water | `hex_ground`, or a package of its own beside it |
+
+The same grid serves drawn maps (owner: Moros's tabletop), so the room grid's geometry is the first
+to move.
+
 ## Later: natural curves, caves and cliffs
 
 Not this plan's work (owner, 2026-11-16: for later): roads and paths that curve as they would in

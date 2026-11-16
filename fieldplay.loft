@@ -1,0 +1,204 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Play on a field with rooms (WORLD.md § One game, square or hex: tile grids at small scale, hex
+// ground between): the hero walking free over the hex ground, in through a room's door onto the
+// room's own grid, about in it by the room's own rules, and out again — one body in one space,
+// one clock.
+//
+// The hero's body is a point in metres and moves as the keys or the stick say, at the walking
+// pace (a tile's length in `gridroom::STEP_MS`).  Which grid it stands on follows from where it
+// is: inside a room's rectangle it is on that room's tiles, else on the ground's hexes.  As
+// free roaming has it on one square place (game.loft `roam`), the body coming onto another cell
+// takes the step there through the rules:
+//
+//   on the ground   onto a free hex it goes; into a hex that holds a thing it pushes the thing
+//                   along its way (one of the twelve; `gridroom::push_on_ground`); a hex that
+//                   holds what does not move, a fence, or a room's wall refuses it;
+//   into a room     from the hex outside an opening onto the opening's tile, when the room's
+//                   rules let a walker stand there;
+//   in a room       onto the next tile by the room's rules (`rules::walk`: a walk, a push, a
+//                   climb, stairs to another layer);
+//   out of a room   from an opening's tile out through it onto the ground.
+//
+// A refused step leaves the body where it was.  The clock runs for the field; the room the hero
+// is in runs with it (`rules::tick`), and a room it comes into is brought to the field's time.
+//
+// What this is not yet: wired to the game's keys and views (game.loft still plays one square
+// place); other figures crossing between grids; a pull across a door.
+use hex_field;
+use hex_form;
+use hexterrain;
+use tile_world;
+use rules;
+use gridroom;
+
+/// The field as it is played: the ground, the rooms on it, where the hero's body is (metres) and
+/// which way it faces, which room it is in (-1: on the ground) and the time (milliseconds).
+pub struct Play {
+  pub ground: gridroom::Ground,
+  pub rooms: vector<gridroom::Room> = [],
+  pub x: float = 0.0,
+  pub y: float = 0.0,
+  pub face_x: float = 0.0,
+  pub face_y: float = -1.0,
+  pub room: integer = -1,
+  pub clock: integer = 0,
+  /// How far the body went, in metres, and how many steps were refused.
+  pub walked: float = 0.0,
+  pub refused: integer = 0
+}
+
+/// A field of hexes with nothing on it.
+pub fn play(q0: integer, r0: integer, w: integer, h: integer) -> Play { Play { ground: gridroom::ground(q0, r0, w, h) } }
+
+/// Set a room down on the field near (x, y) metres (`gridroom::place_room`).  Answers its number.
+pub fn add_room(p: Play, rm: gridroom::Room, x: float, y: float) -> integer {
+  id = len(p.rooms);
+  gridroom::place_room(p.ground, rm, id, x, y);
+  p.rooms += [rm];
+  id
+}
+
+/// Put the hero on the ground at (x, y) metres.
+pub fn put_hero(p: Play, x: float, y: float) {
+  p.x = x;
+  p.y = y;
+  p.room = -1;
+}
+
+/// The hex the hero's body is over.
+pub fn hero_hex(p: const Play) -> (integer, integer) { hexterrain::cell_near(p.x, p.y) }
+
+/// The tile of its room the hero stands on, as the room's rules have it: (x, y, layer).
+pub fn hero_tile(p: const Play) -> (integer, integer, integer) {
+  if p.room < 0 { return (0, 0, 0); }
+  l = p.rooms[p.room]!.level;
+  (l.hero_x, l.hero_y, l.hero_z)
+}
+
+// The body to (nx, ny) while it is on the ground.  Answers whether it went.
+fn ground_to(p: Play, nx: float, ny: float) -> boolean {
+  (q, r) = hexterrain::cell_near(p.x, p.y);
+  (tq, tr) = hexterrain::cell_near(nx, ny);
+  if tq == q && tr == r { return true; }
+  heading = gridroom::heading_of(nx - p.x, ny - p.y);
+  under = hex_field::label_get(p.ground.under, tq, tr);
+  if under >= 0 {
+    // a room: in by an opening, from the hex outside it, when a walker may stand on its tile
+    rm = p.rooms[under]!;
+    for o in rm.openings {
+      if !o.exact || o.q != q || o.r != r { continue; }
+      t = gridroom::tile_at(rm, nx, ny);
+      if !t.0 || t.1 != o.x || t.2 != o.y { continue; }
+      if !tile_world::passable(rm.level.w, o.x, o.y, rm.z) {
+        // what stands on the tile: pushed on into the room by the room's rules, the hero after it
+        rules::put_hero(rm.level, o.x + o.dx, o.y + o.dy, rm.z);
+        if rules::walk(rm.level, 0 - o.dx, 0 - o.dy) == rules::Step.Blocked { return false; }
+      }
+      rules::put_hero(rm.level, o.x, o.y, rm.z);
+      if rm.level.now < p.clock { rules::tick(rm.level, p.clock - rm.level.now); }
+      p.room = under;
+      return true;
+    }
+    return false;
+  }
+  if hex_field::hexset_get(p.ground.fixed, tq, tr) { return false; }
+  // the step from a hex to the one beside it: a fence between them stops it
+  if hex_field::edge_mat(p.ground.fences, q, r, tq, tr) != 0 { return false; }
+  if hex_field::label_get(p.ground.things, tq, tr) != 0 {
+    // a thing in the way: pushed along the hero's way, through a door when it is at one
+    door = 0;
+    for i in 0..len(p.rooms) { for o in p.rooms[i]!.openings { if o.exact && o.q == tq && o.r == tr { door = i; } } }
+    if len(p.rooms) == 0 { return false; }
+    m = gridroom::push_on_ground(p.ground, p.rooms[door]!, tq, tr, heading);
+    if m.how == gridroom::BLOCKED { return false; }
+  }
+  true
+}
+
+// The body to (nx, ny) while it is in a room.  Answers whether it went.
+fn room_to(p: Play, nx: float, ny: float) -> boolean {
+  rm = p.rooms[p.room]!;
+  hx = rm.level.hero_x;
+  hy = rm.level.hero_y;
+  t = gridroom::tile_at(rm, nx, ny);
+  if t.1 == hx && t.2 == hy { return true; }
+  // one tile at a time, across first, as free roaming crosses
+  dx = if t.1 > hx { 1 } else if t.1 < hx { -1 } else { 0 };
+  dy = if dx != 0 { 0 } else if t.2 > hy { 1 } else { -1 };
+  if !t.0 || hx + dx < 0 || hy + dy < 0 || hx + dx >= rm.w || hy + dy >= rm.h {
+    // out of the room: by an opening, from its tile, on the room's own floor
+    if rm.level.hero_z != rm.z { return false; }
+    for o in rm.openings {
+      if o.x != hx || o.y != hy || o.dx != dx || o.dy != dy || !o.exact { continue; }
+      if hex_field::hexset_get(p.ground.fixed, o.q, o.r) { return false; }
+      if hex_field::label_get(p.ground.things, o.q, o.r) != 0 {
+        m = gridroom::push_on_ground(p.ground, rm, o.q, o.r, o.heading);
+        if m.how == gridroom::BLOCKED { return false; }
+      }
+      p.room = -1;
+      return true;
+    }
+    return false;
+  }
+  // a thing on the opening's tile pushed out through it: the ground's part of the rules
+  for o in rm.openings {
+    if o.x == hx + dx && o.y == hy + dy && o.dx == dx && o.dy == dy && rm.level.hero_z == rm.z && tile_world::top(rm.level.w, o.x, o.y, rm.z) != 0 {
+      m = gridroom::push_in_room(p.ground, rm, o.x, o.y, dx, dy);
+      return m.how != gridroom::BLOCKED;
+    }
+  }
+  step = rules::walk(rm.level, dx, dy);
+  step != rules::Step.Blocked && (rm.level.hero_x != hx || rm.level.hero_y != hy)
+}
+
+/// The hero walks: the body moves `ms` worth along the direction (dx, dy) — any direction, in the
+/// world's own space, x east and y north — at the walking pace, and the clock runs `ms`.  Answers
+/// whether the body moved.
+pub fn roam(p: Play, dx: float, dy: float, ms: integer) -> boolean {
+  long = sqrt(dx * dx + dy * dy) ?? 0.0;
+  moved = false;
+  left = ms;
+  while left > 0 {
+    part = if left > 20 { 20 } else { left };
+    left -= part;
+    p.clock += part;
+    if p.room >= 0 { rules::tick(p.rooms[p.room]!.level, part); }
+    if long < 0.000001 { continue; }
+    p.face_x = dx / long ?? 0.0;
+    p.face_y = dy / long ?? 0.0;
+    far = gridroom::TILE * (part as float) / (gridroom::STEP_MS as float) ?? 0.0;
+    nx = p.x + p.face_x * far;
+    ny = p.y + p.face_y * far;
+    went = if p.room >= 0 { room_to(p, nx, ny) } else { ground_to(p, nx, ny) };
+    if went {
+      p.x = nx;
+      p.y = ny;
+      p.walked += far;
+      moved = true;
+    } else {
+      p.refused += 1;
+    }
+  }
+  moved
+}
+
+/// The hero walks towards (x, y) metres, `ms` at the most, and stops there.  Answers whether it
+/// came there.
+pub fn walk_to(p: Play, x: float, y: float, ms: integer) -> boolean {
+  left = ms;
+  while left > 0 {
+    dx = x - p.x;
+    dy = y - p.y;
+    far = sqrt(dx * dx + dy * dy) ?? 0.0;
+    if far < 0.05 { return true; }
+    // no further than there
+    need = round(far * (gridroom::STEP_MS as float) / gridroom::TILE ?? 0.0) as integer;
+    part = if need < 20 { (if need < 1 { 1 } else { need }) } else { 20 };
+    if part > left { part = left; }
+    left -= part;
+    if !roam(p, dx, dy, part) && p.refused > 200 { return false; }
+  }
+  false
+}
