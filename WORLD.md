@@ -827,7 +827,19 @@ river, keep the current river bed and allow it to get stale enough for the initi
   by the hex under it (a hex's edge reaches over a rim), and a figure coming out of a door stands
   at the place outside it.
 
-◇ Next: a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
+**The 2D view goes, and the title screen** (owner, 2026-11-16: "Remove the 2d view from the game (it
+will just not function with our 3d work) and remove the title screen (we will find an in-game way
+to thank Kenney)").  This replaces "no backend lost" and the 2D's place in § Which view ships
+first, above.
+- Done: no title screen — the game goes straight to play, the credits' text and drawing gone.  The
+  game starts in the fixed 3D view (main.loft; `TW_VIEW=flat` starts without it while the flat
+  picture lasts).
+- Not done: the flat drawing itself is still in game.loft, used where no 3D draws yet — the
+  editor, the hero out on a field's ground (the town's outdoors on the new rules), three tools
+  and the tests that draw.  It goes when the 3D view draws the hex ground with the hero on it.
+
+◇ Next: the 3D view on the field — the hex ground, the rooms, the hero where its body is; then the
+flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

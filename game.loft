@@ -4038,22 +4038,7 @@ pub fn snapshot(g: Game, path: text, scale: integer) -> boolean {
   img.save_png(path)
 }
 
-/// The credits, shown before the first level: the pictures and sounds are Kenney's (kenney.nl,
-/// CC0), with thanks.  Each line centred, in the theme's font.
-pub const CREDITS = "Pictures and sounds by Kenney (kenney.nl), CC0 - with kind regards to Kenney.";
-
-pub fn draw_credits(g: Game) {
-  tiles::clear(g.surface, 0);
-  ts = g.look.tile_size;
-  lines = ["TILE WORLD", "", "PICTURES AND", "SOUNDS BY", "KENNEY", "KENNEY.NL", "", "THANK YOU", "KENNEY!"];
-  y = (H - len(lines) * ts) / 2 ?? 0;
-  for l in lines {
-    write(g, l, (W - len(l) * ts) / 2 ?? 0, y);
-    y += ts;
-  }
-}
-
-/// Is any key down this tick (to leave the credits)?
+/// Is any key down this tick?
 pub fn any_key(g: const Game) -> boolean {
   for k in 1..256 {
     if g.keys.is_key_down(k) { return true; }

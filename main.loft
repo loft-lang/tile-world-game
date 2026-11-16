@@ -81,11 +81,8 @@ fn start_of(game: const game::Game) -> text {
 // [TW_KEYS="101 9 32 133+122"]: play those moves, then open the editor and make those edits
 // (game::edit's words), then press those keys (codes, `+` for keys held together) a tick
 // each as the game would read them, and write the frame as a picture — with no screen.
-// TW_CREDITS=1 writes the credits instead.
 fn picture(game: game::Game, shot: text) {
-  if (env_variable("TW_CREDITS") ?? "") != "" {
-    game::draw_credits(game);
-  } else {
+  if true {
     // TW_LEVEL plays one level of order.json on its own; without it the world, from its start.
     lv = env_variable("TW_LEVEL") ?? "";
     if lv != "" { game::start_level(game, lv as integer ?? 0); } else if !game::start_world(game, start_of(game)) { game::start_level(game, 0); }
@@ -238,22 +235,9 @@ fn main() {
   _ = audio::start();
   window_keys = screen::has_keys();
   if !window_keys { _ = input::device_open(); }
-  // Kenney's pictures and sounds, credited first: until a key is pressed, or five seconds.
-  println(game::CREDITS);
+  // No title screen (owner, 2026-11-16: Kenney is thanked in the game itself, a way to be found).
   size = fit_display(game);
   timing = Timing { frames: 0, draw: 0, copy: 0, show: 0, since: ticks() };
-  game::draw_credits(game);
-  mask(game);
-  present(game, size, timing);
-  shown = ticks() / 1000;
-  while screen::poll(15) && ticks() / 1000 - shown < 5000 {
-    if window_keys {
-      game.keys.input_tick_from_state(screen::keys(), 0.0, 0.0, 0, 0);
-    } else {
-      game.keys.input_tick_device();
-    }
-    if game::any_key(game) { break; }
-  }
   // Which world (WORLD.md): TW_WORLD names one; in a browser the page the play server served
   // (/orbury, /demo) says which, as `world <start place>` on the host's input before the game
   // starts; else order.json's `start`.  No choice in the game: the world is picked once, before
@@ -281,7 +265,10 @@ fn main() {
   gpu = render3d::gpu();
   // The fixed camera from the south (fixedview.loft): F5, or TW_VIEW=fixed to start in it.
   fv = fixedview::view();
-  if (env_variable("TW_VIEW") ?? "") == "fixed" { fv.on = true; }
+  // The game is seen in 3D (owner, 2026-11-16: the 2D view goes — it does not work with the 3D
+  // work).  It starts in this view; the flat picture is left only where no 3D draws yet: the
+  // editor, and the hero out on a field's ground.  TW_VIEW=flat starts without it, while those last.
+  if (env_variable("TW_VIEW") ?? "") != "flat" { fv.on = true; }
   // Drawn on the GPU in the device's own window where it opens (scene3d), on the CPU through
   // screen where it does not; TW_GPU=0 keeps the CPU, the Tanmatsu's view (SCENE_CONTRACT.md).
   if (env_variable("TW_GPU") ?? "") != "0" { fixedview::use_gpu(fv, gpu_gl::table()); }
@@ -332,7 +319,7 @@ fn main() {
     changed = game::update(game, now - last, now);
     log_flush(plog, game);
     render3d::after(v3, game);
-    if fv.on && !game.editing {
+    if fv.on && !game.editing && !game.on_field {
       at = ticks();
       fixedview::draw(fv, game, changed || resized, now);
       timing.draw += ticks() - at;
