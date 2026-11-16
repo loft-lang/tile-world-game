@@ -29,7 +29,9 @@
 //                to the lowest free neighbour, the same way.
 //
 // A house is hexes that do not move, as a rock is, many together: its wall across a slope stops
-// a marble, and a corner open to the slope holds it (`caught`).
+// a marble, and a corner open to the slope holds it (`caught`).  A fence stands on the edges
+// between hexes and takes no hex: a marble does not pass it, and meets it as it meets a wall
+// (`fenced`); a yard is fences that lead to a house.
 //
 // Nothing here is worked out from shapes: every outcome is a cell, the same every time.
 use hex_field;
@@ -89,6 +91,8 @@ pub struct Hill {
   pub fixed: hex_field::HexSet,
   /// The hexes of `fixed` that are a house's.
   pub houses: hex_field::HexSet,
+  /// What stands on the edges between hexes and lets no marble by: a fence, a yard's wall.
+  pub fences: hex_field::EdgeSet,
   pub marbles: vector<Marble> = [],
   /// How many times a marble acted, and the time (milliseconds).
   pub rounds: integer = 0,
@@ -99,7 +103,7 @@ pub struct Hill {
 }
 
 pub fn hill(q0: integer, r0: integer, w: integer, h: integer) -> Hill {
-  Hill { ground: hexterrain::ground_new(q0, r0, w, h), fixed: hex_field::hexset_chunk(q0, r0, w, h), houses: hex_field::hexset_chunk(q0, r0, w, h), trail: hex_field::hexset_chunk(q0, r0, w, h) }
+  Hill { ground: hexterrain::ground_new(q0, r0, w, h), fixed: hex_field::hexset_chunk(q0, r0, w, h), houses: hex_field::hexset_chunk(q0, r0, w, h), fences: hex_field::edgeset_new(q0, r0, w, h), trail: hex_field::hexset_chunk(q0, r0, w, h) }
 }
 
 fn inside(hl: Hill, q: integer, r: integer) -> boolean {
@@ -116,6 +120,49 @@ pub fn marble_at(hl: Hill, q: integer, r: integer) -> integer {
 /// May a marble come onto (q, r): on the ground, nothing standing there, no marble.
 pub fn free(hl: Hill, q: integer, r: integer) -> boolean {
   inside(hl, q, r) && !hex_field::hexset_get(hl.fixed, q, r) && marble_at(hl, q, r) < 0
+}
+
+/// Does a fence stop the step of heading `h` from (q, r).  To a neighbour: a fence on the edge
+/// between.  Between two hexes: a fence on the edge the way runs along, or the corner it leaves by
+/// or comes in by shut on both sides.
+pub fn fenced(hl: Hill, q: integer, r: integer, h: integer) -> boolean {
+  (tq, tr) = gridroom::hex_step(q, r, h);
+  if (hex_form::head_norm(h) & 1) == 0 { return hex_field::edge_mat(hl.fences, q, r, tq, tr) != 0; }
+  (lq, lr) = gridroom::hex_step(q, r, h + 1);
+  (rq, rr) = gridroom::hex_step(q, r, h - 1);
+  hex_field::edge_mat(hl.fences, lq, lr, rq, rr) != 0
+    || (hex_field::edge_mat(hl.fences, q, r, lq, lr) != 0 && hex_field::edge_mat(hl.fences, q, r, rq, rr) != 0)
+    || (hex_field::edge_mat(hl.fences, lq, lr, tq, tr) != 0 && hex_field::edge_mat(hl.fences, rq, rr, tq, tr) != 0)
+}
+
+/// Stand a fence from (ax, ay) to (bx, by) metres: on every edge between two hexes whose centres
+/// lie either side of that line, where the edge's middle is along the stretch.  Answers how many
+/// edges it stands on.
+pub fn fence(hl: Hill, ax: float, ay: float, bx: float, by: float) -> integer {
+  g = hl.ground;
+  long = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay)) ?? 0.0;
+  if long < 0.01 { return 0; }
+  ux = (bx - ax) / long ?? 0.0;
+  uy = (by - ay) / long ?? 0.0;
+  n = 0;
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
+      c = hexterrain::centre(q, r);
+      side = (c.0 - ax) * uy - (c.1 - ay) * ux;
+      if side < 0.0 || side > 1.6 { continue; }
+      for h in [0, 2, 4, 6, 8, 10] {
+        (tq, tr) = gridroom::hex_step(q, r, h);
+        if !inside(hl, tq, tr) { continue; }
+        t = hexterrain::centre(tq, tr);
+        if (t.0 - ax) * uy - (t.1 - ay) * ux >= 0.0 { continue; }
+        along = ((c.0 + t.0) * 0.5 - ax) * ux + ((c.1 + t.1) * 0.5 - ay) * uy;
+        if along < 0.0 || along > long { continue; }
+        if hex_field::edge_mat(hl.fences, q, r, tq, tr) == 0 { n += 1; }
+        hex_field::edge_set_mat(hl.fences, q, r, tq, tr, 1);
+      }
+    }
+  }
+  n
 }
 
 pub fn height(hl: Hill, q: integer, r: integer) -> float { hex_field::height_get(hl.ground.gr_heights, q, r) }
@@ -143,7 +190,7 @@ fn lowest(hl: Hill, q: integer, r: integer, least: integer) -> integer {
   for i in 0..6 {
     h = if right { hex_form::head_norm(12 - 2 * i) } else { 2 * i };
     (tq, tr) = gridroom::hex_step(q, r, h);
-    if !free(hl, tq, tr) { continue; }
+    if !free(hl, tq, tr) || fenced(hl, q, r, h) { continue; }
     d = drop(hl, q, r, h);
     if d > most {
       most = d;
@@ -264,13 +311,19 @@ pub fn next(hl: Hill) -> boolean {
   h = m.heading;
   ahead = steep(hl, m.q, m.r, h);
   for turn in [1, -1] {
+    // only towards a way that is open: a marble does not turn itself into a fence or a wall it
+    // was not heading for (set off from rest towards an open way, it would turn back into what
+    // stopped it, for ever)
+    (sq, sr) = gridroom::hex_step(m.q, m.r, m.heading + turn);
+    if !free(hl, sq, sr) || fenced(hl, m.q, m.r, m.heading + turn) { continue; }
     if steep(hl, m.q, m.r, m.heading + turn) > ahead + 0.02 && steep(hl, m.q, m.r, m.heading + turn) > steep(hl, m.q, m.r, h) {
       h = hex_form::head_norm(m.heading + turn);
     }
   }
   (tq, tr) = gridroom::hex_step(m.q, m.r, h);
-  other = marble_at(hl, tq, tr);
-  if free(hl, tq, tr) {
+  shut = fenced(hl, m.q, m.r, h);
+  other = if shut { -1 } else { marble_at(hl, tq, tr) };
+  if !shut && free(hl, tq, tr) {
     go(hl, i, h);
     return true;
   }
@@ -292,7 +345,7 @@ pub fn next(hl: Hill) -> boolean {
     hl.marbles[i] = m;
     return true;
   }
-  // what does not move, or the ground's edge: aside, the place's side first
+  // what does not move, a fence, or the ground's edge: aside, the place's side first
   m.speed -= 1;
   if m.speed <= 0 { m.rest_at = hl.now; }
   hl.marbles[i] = m;
@@ -301,7 +354,7 @@ pub fn next(hl: Hill) -> boolean {
   first = if rules::prefers_right(m.q, m.r, 0) { -side } else { side };
   for way in [first, -first] {
     (sq, sr) = gridroom::hex_step(m.q, m.r, h + way);
-    if free(hl, sq, sr) {
+    if free(hl, sq, sr) && !fenced(hl, m.q, m.r, h + way) {
       go(hl, i, hex_form::head_norm(h + way));
       return true;
     }
@@ -347,6 +400,14 @@ pub fn caught(hl: Hill, i: integer) -> boolean {
     (tq, tr) = gridroom::hex_step(m.q, m.r, h);
     if inside(hl, tq, tr) && hex_field::hexset_get(hl.houses, tq, tr) { return true; }
   }
+  false
+}
+
+/// Is marble `i` held by a fence: where it will stay, on the slope, a fence on one of its sides.
+pub fn fenced_in(hl: Hill, i: integer) -> boolean {
+  m = hl.marbles[i]!;
+  if !settled(hl, i) || height(hl, m.q, m.r) < 0.05 { return false; }
+  for h in [0, 2, 4, 6, 8, 10] { if fenced(hl, m.q, m.r, h) { return true; } }
   false
 }
 

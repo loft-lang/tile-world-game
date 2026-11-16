@@ -623,6 +623,23 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   strides.  Six are held by a house, two rest on the slope, forty-two on the flat past the foot;
   87 meetings; at rest after 22.9 s and 1063 happenings — the same every time.
 
+- **Yards and fences between the houses** (owner, 2026-11-16: "add yards and fences between the
+  houses to catch more marbles"; and, as the catching rose: "But it is now our goal here to
+  catch as many marbles as possible.  For the audience seeing strings of marbles appearing that
+  run in lines is part of the fun." — read as: catching all of them is NOT the goal; ◇ that
+  reading is mine, the sentence says "now").
+  - A fence stands on the edges between hexes and takes no hex (`marbles::fence`, a line in
+    metres laid on the edges it parts).  A marble does not pass it: to a neighbour, a fence on
+    the edge between; between two hexes, a fence along the way or a corner shut on both sides.
+  - Behind every other house a yard — two low walls 5 m up the hill and outward, leading what
+    comes down between them to the house; from each of the others a fence 8 m along the hill.
+    Of fifty: 20 held by a house, 4 by a fence or a yard's wall, 1 on the slope, 25 out past
+    the foot in their strings.  (With a yard and a longer fence at every house 38 were held and
+    12 ran out.)
+  - Found: a marble set off from rest towards an open way turned itself, by the steeper-way
+    rule, back into the fence that had stopped it, for ever; it now turns only towards a way
+    that is open.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 

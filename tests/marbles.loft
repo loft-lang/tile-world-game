@@ -14,7 +14,7 @@ use marblehill;
 // fifty let fall one every 250 ms.
 fn played() -> marbles::Hill {
   sh = marblehill::built(hexwalls::default_sizes(), hexterrain::default_measures());
-  assert(len(sh.town.houses) == 7, "seven houses");
+  assert(len(sh.town.houses) == 7 && len(sh.town.fences) == 4 * 2 + 3 * 4 && sh.edges > 50, "seven houses, their yards and the fences between them: {len(sh.town.fences)} stretches on {sh.edges} edges");
   assert(marblehill::play(sh), "the hill comes to rest");
   sh.hill
 }
@@ -24,14 +24,15 @@ fn test_fifty_marbles_on_the_hill() {
   for line in marbles::picture(hl, 34) { println(line); }
   held = 0;
   past = 0;
+  yard = 0;
   slope = 0;
   struck = 0;
   for i in 0..len(hl.marbles) {
     m = hl.marbles[i]!;
-    if marbles::caught(hl, i) { held += 1; } else if marbles::height(hl, m.q, m.r) < 0.05 { past += 1; } else { slope += 1; }
+    if marbles::caught(hl, i) { held += 1; } else if marbles::fenced_in(hl, i) { yard += 1; } else if marbles::height(hl, m.q, m.r) < 0.05 { past += 1; } else { slope += 1; }
     struck += m.struck;
   }
-  println("{held} held by a house, {slope} at rest on the slope against other marbles or the ground, {past} on the flat past the foot; {struck} meetings");
+  println("{held} held by a house, {yard} by a fence or a yard's wall, {slope} at rest on the slope against other marbles, {past} on the flat past the foot; {struck} meetings");
   println("at rest after {hl.now} ms, {hl.rounds} happenings; {held} held by a house");
   n = len(hl.marbles);
   assert(n == marblehill::MARBLES && n == 50, "fifty marbles: {n}");
@@ -50,7 +51,8 @@ fn test_fifty_marbles_on_the_hill() {
     if m.went > 0 { rolled += 1; }
   }
   assert(rolled >= 40, "the bounce on landing sets them going: {rolled} rolled");
-  assert(held >= 5, "houses hold some: {held}");
+  // more are held than by the houses alone (6 of 50), and a good part still runs out past the foot
+  assert(held + yard >= 12 && past >= 15, "houses, yards and fences hold more, and strings still run out: {held} and {yard} held, {past} past the foot");
   // every marble's way, for a view: it begins in the air and ends where the marble rests
   ways = marblehill::ways_json(hl);
   assert(ways.starts_with("[[[0, ") && len(ways) > 2000, "the ways written: {len(ways)} characters");
@@ -98,6 +100,17 @@ fn test_the_rules_of_a_marble() {
   marbles::let_fall(pile, 0, 0);
   marbles::let_fall(pile, 0, 0);
   assert((pile.marbles[1]!.q != 0 || pile.marbles[1]!.r != 0) && pile.marbles[1]!.speed >= marbles::GROUND, "the second rolled off the first");
+  // a fence across the way: not passed, on a neighbour's edge or between two hexes
+  yard = marbles::hill(-10, -10, 21, 21);
+  assert(marbles::fence(yard, 4.0, -9.0, 4.0, 9.0) > 8, "a fence north to south, 4 m east");
+  for start in [(0, 0, 0), (0, 0, 1), (0, 0, 11), (0, 1, 0)] {
+    marbles::let_fall(yard, start.0, start.1);
+    i = len(yard.marbles) - 1;
+    yard.marbles[i].heading = start.2;
+    yard.marbles[i].speed = 12;
+    marbles::run(yard, 200);
+    assert(hexterrain::centre(yard.marbles[i]!.q, yard.marbles[i]!.r).0 < 4.0 && yard.marbles[i]!.struck >= 1, "heading {start.2}: stopped by the fence, west of it: {hexterrain::centre(yard.marbles[i]!.q, yard.marbles[i]!.r).0} m");
+  }
   // a house ahead: aside along its wall
   wall = marbles::hill(-10, -10, 21, 21);
   assert(marbles::house(wall, 4, 0, 3, hexhouse::box_plan(2, 2)) > 3, "a small house");

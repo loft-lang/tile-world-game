@@ -16,7 +16,9 @@ use marbles;
 /// The hill built and played: the place, and the marbles on it at rest with their ways.
 pub struct Shown {
   pub town: hextown::Town,
-  pub hill: marbles::Hill
+  pub hill: marbles::Hill,
+  /// How many edges between hexes the fences and yards stand on.
+  pub edges: integer = 0
 }
 
 /// The hill's height and how far its foot is from its top, in metres.
@@ -50,12 +52,18 @@ pub fn drops() -> vector<(integer, integer)> {
 /// A round hill 14 m high, 42 m from its top to its foot, and seven houses spaced round its
 /// slopes at 14 to 30 m from the top, each facing down the hill — its long wall across the slope
 /// — and seated on the ground where it stands (a level floor cut into the slope).  Three are an
-/// L, the wing at the back, its corner open uphill.  Trees stand round the foot.
+/// L, the wing at the back, its corner open uphill.  Behind every other house a yard: two low walls
+/// running 5 m up the hill and outward, that lead what comes down between them to the house.
+/// From each of the others a fence 8 m along the hill towards the next, across the slope.  They
+/// are to hold a good part of the marbles and not all: strings of marbles running down between
+/// them in lines are part of the fun (owner, 2026-11-16).
+/// Trees stand round the foot.
 pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
   hl = marbles::hill(-52, -52, 105, 105);
   g = hl.ground;
   hexterrain::hill(g, 0.0, 0.0, FOOT, HIGH);
   houses: vector<hextown::Placed> = [];
+  fences: vector<hextown::Fence> = [];
   spots = [(0, 18.0), (2, 26.0), (3, 14.0), (5, 22.0), (7, 17.0), (9, 30.0), (10, 15.0)];
   for i in 0..len(spots) {
     k = spots[i]!.0;
@@ -70,6 +78,18 @@ pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
     floor = round(hex_field::height_get(g.gr_heights, cq, cr) * 10.0) / 10.0;
     base = hexterrain::seat(g, b.cells, floor, m);
     houses += [hextown::Placed { built: b, turn: t, floor: floor, base: (if base < floor { base } else { floor }) - 0.3, top: floor + m.storey }];
+    // its yard, behind it: a low wall from each end of the house running 5 m up the hill and
+    // outward (at 30° to the way up), so what comes down between them is led to the house's wall
+    cx = spots[i]!.1 * cos(a);
+    cy = spots[i]!.1 * sin(a);
+    for end in [-1.0, 1.0] {
+      // every other house has a yard; the others a fence beside them
+      if i % 2 == 1 { continue; }
+      px = cx - 3.6 * end * sin(a) - 1.0 * cos(a);
+      py = cy + 3.6 * end * cos(a) - 1.0 * sin(a);
+      wa = a + PI + end * (0.0 - PI / 6.0);
+      fences += [hextown::Fence { kind: hextown::LOW_WALL, ax: px, ay: py, bx: px + 5.0 * cos(wa), by: py + 5.0 * sin(wa), height: 1.0, thick: 0.35 }];
+    }
     for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
       for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
         if !hex_field::hexset_get(b.cells, q, r) { continue; }
@@ -79,6 +99,24 @@ pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
       }
     }
   }
+  // fences between the houses: from every other house 8 m along the hill's round towards the next
+  // (anticlockwise), across the slope, a gap left before the next house's yard
+  for i in 0..len(spots) {
+    // the houses without a yard: the marbles are to run past in strings too (owner)
+    if i % 2 == 0 { continue; }
+    k = spots[i]!.0;
+    d = spots[i]!.1;
+    a0 = (k as float) * PI / 6.0 + 4.6 / d;
+    a1 = a0 + 8.0 / d;
+    steps = 4;
+    for j in 0..steps {
+      b0 = a0 + (a1 - a0) * (j as float) / (steps as float);
+      b1 = a0 + (a1 - a0) * ((j + 1) as float) / (steps as float);
+      fences += [hextown::Fence { kind: hextown::FENCE, ax: d * cos(b0), ay: d * sin(b0), bx: d * cos(b1), by: d * sin(b1), height: 1.1, thick: 0.1 }];
+    }
+  }
+  edges = 0;
+  for f in fences { edges += marbles::fence(hl, f.ax, f.ay, f.bx, f.by); }
   things: vector<hextown::Thing> = [];
   for k in 0..12 {
     a = (k as float + 0.5) * PI / 6.0;
@@ -88,7 +126,7 @@ pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
     things += [hextown::Thing { kind: if k % 3 == 0 { "pine" } else if k % 3 == 1 { "oak" } else { "poplar" }, x: x, y: y, z: hex_field::height_get(g.gr_heights, q, r) }];
     hex_field::hexset_set(hl.fixed, q, r, true);
   }
-  Shown { town: hextown::Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h) }, hill: hl }
+  Shown { town: hextown::Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h), fences: fences }, hill: hl, edges: edges }
 }
 
 /// The marbles let fall, one every `EVERY` ms from 2 m up, and played to rest.  False when it does not
