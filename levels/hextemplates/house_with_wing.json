@@ -1,0 +1,24 @@
+{
+  "name": "house_with_wing",
+  "hex": {"kind": "house", "about": "a house with a wing behind it, a room of its own; the front door south", "weight": 1},
+  "cells": {".": "floor"},
+  "edges": {"#": "wall", "D": "door", "W": "window"},
+  "rows": [
+    "                          .   .   .   .   .",
+    "",
+    "                        .   .   .   .   .   .",
+    "",
+    "                          .   .   .   .   .",
+    "                         # # # D D # # # # #",
+    "    .   .   .   .   .   .   .   .   .   .   .",
+    "",
+    "W .   .   .   .   .   .   .   .   .   .   . W",
+    "",
+    "    .   .   .   .   .   .   .   .   .   .   .",
+    "",
+    "  .   .   .   .   .   .   .   .   .   .   .",
+    "",
+    "    .   .   .   .   .   .   .   .   .   .   .",
+    "               D D"
+  ]
+}

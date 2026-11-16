@@ -1,0 +1,83 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Hex templates as files (hextemplate.loft; HEX_LIBRARIES.md § Templates in the libraries): each
+// one under levels/hextemplates/ may be used — read whole, every room closed and reached, and all
+// of it kept at each of the twelve angles — and a template that may not be used is told why.
+use hex_field;
+use hex_draw;
+use hexwalls;
+use hextemplate;
+
+fn named(ts: const vector<hextemplate::HexTemplate>, name: text) -> integer {
+  for i in 0..len(ts) { if ts[i]!.name == name { return i; } }
+  -1
+}
+
+fn test_every_hex_template_may_be_used() {
+  ts = hextemplate::all("../levels/hextemplates");
+  assert(len(ts) >= 3, "the templates under levels/hextemplates: {len(ts)}");
+  for t in ts {
+    f = hextemplate::faults(t);
+    assert(len(f) == 0, "{t.name}: {f}");
+    assert(t.kind != "" && t.about != "" && t.weight >= 1, "{t.name}: its kind, what it is, its weight");
+  }
+}
+
+// What each is, at every angle: the cottage two rooms, four walls, one inner wall with a door in
+// it; the hall three rooms, its inner walls with two doors; the house with a wing six walls and
+// two rooms.
+fn test_the_templates_are_what_they_were_drawn_as() {
+  ts = hextemplate::all("../levels/hextemplates");
+  cottage = ts[named(ts, "cottage_two_rooms")]!;
+  hall = ts[named(ts, "hall_two_rooms")]!;
+  wing = ts[named(ts, "house_with_wing")]!;
+  assert(hex_field::hexset_count(cottage.stencil.sn_cells) == 45 && hex_field::hexset_get(cottage.stencil.sn_cells, 0, 0), "the cottage's 45 cells about its middle");
+  for s in 0..12 {
+    c = hextemplate::laid(cottage, s);
+    assert(c.inner.in_rooms == 2 && len(c.inner.in_walls) == 1 && len(c.inner.in_opens) == 1, "the cottage at {30 * s}: two rooms, a wall, a door in it: {c.inner.in_rooms} {len(c.inner.in_walls)} {len(c.inner.in_opens)}");
+    assert(len(c.built.walls) == 4 && len(c.built.openings) == 3, "the cottage at {30 * s}: four walls, a door and two windows: {len(c.built.walls)} {len(c.built.openings)}");
+    n = hex_field::hexset_count(c.stencil.sn_cells);
+    assert(n >= 41 && n <= 49, "the cottage at {30 * s}: about its 45 cells: {n}");
+    h = hextemplate::laid(hall, s);
+    assert(h.inner.in_rooms == 3 && len(h.inner.in_walls) == 3 && len(h.inner.in_opens) == 2, "the hall at {30 * s}: three rooms, three inner walls, two doors: {h.inner.in_rooms} {len(h.inner.in_walls)} {len(h.inner.in_opens)}");
+    w = hextemplate::laid(wing, s);
+    assert(len(w.built.walls) == 6 && w.inner.in_rooms == 2 && len(w.inner.in_opens) == 1, "the house with a wing at {30 * s}: six walls, two rooms, a door between: {len(w.built.walls)} {w.inner.in_rooms} {len(w.inner.in_opens)}");
+  }
+}
+
+// A six-sided tower — a hexagon of cells — is a template the format holds and the walls cannot
+// draw yet: they are solved along two directions at a right angle, and the tower comes out
+// square.  It is told so, not used.  (HEX_LIBRARIES.md § What the merge is for: round and eight-sided structures.)
+fn test_a_six_sided_tower_is_told_it_cannot_be_drawn_yet() {
+  rows = "\"        .   .   .   .\", \"\", \"      .   .   .   .   .\", \"\", \"    .   .   .   .   .   .\", \"\", \"  .   .   .   .   .   .   .\", \"\", "
+       + "\"    .   .   .   .   .   .\", \"\", \"      .   .   .   .   .\", \"\", \"        .   .   .   .\", \"           D D\"";
+  tower = template(rows);
+  assert(hex_field::hexset_count(tower.stencil.sn_cells) == 37 && len(tower.errors) == 0, "the tower read: 37 cells");
+  assert(has(hextemplate::faults(tower), "not at right angles"), "the tower: {hextemplate::faults(tower)}");
+}
+
+fn template(rows: text) -> hextemplate::HexTemplate {
+  hextemplate::from_text("{{\"name\": \"t\", \"hex\": {{\"kind\": \"house\", \"about\": \"a\"}}, \"cells\": {{\".\": \"floor\"}}, \"edges\": {{\"#\": \"wall\", \"D\": \"door\"}}, \"rows\": [{rows}]}}")
+}
+
+fn has(f: const vector<text>, part: text) -> boolean {
+  for line in f { if line.contains(part) { return true; } }
+  false
+}
+
+// A template that may not be used is told why: no door, a room behind a wall with no door, a wall
+// that closes nothing, two pieces, a character that is nothing.
+fn test_a_template_that_may_not_be_used_is_told_why() {
+  top = "\"  .   .   .   .   .\", \"\", \"    .   .   .   .\", \"\", ";
+  good = template(top + "\"  .   .   .   .   .\", \"   D\"");
+  assert(len(hextemplate::faults(good)) == 0, "a room with a door: {hextemplate::faults(good)}");
+  shut = template(top + "\"  .   .   .   .   .\"");
+  assert(has(hextemplate::faults(shut), "not reached"), "no door: {hextemplate::faults(shut)}");
+  stub = template("\"  .   .   . # .   .\", \"\", \"    .   .   .   .\", \"\", \"  .   .   .   .   .\", \"   D\"");
+  assert(has(hextemplate::faults(stub), "close no room"), "a wall that closes nothing: {hextemplate::faults(stub)}");
+  apart = template("\"  .   .           .   .\", \"   D\"");
+  assert(has(hextemplate::faults(apart), "pieces"), "two pieces: {hextemplate::faults(apart)}");
+  odd = template(top + "\"  .   .   ?   .   .\", \"   D\"");
+  assert(has(hextemplate::faults(odd), "no cell of the legend"), "a character that is nothing: {hextemplate::faults(odd)}");
+}

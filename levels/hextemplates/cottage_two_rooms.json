@@ -1,0 +1,18 @@
+{
+  "name": "cottage_two_rooms",
+  "hex": {"kind": "house", "about": "a cottage of two rooms, a door between them, the front door south, a window in each room", "weight": 2},
+  "cells": {".": "floor"},
+  "edges": {"#": "wall", "D": "door", "W": "window"},
+  "rows": [
+    "  .   .   .   .   . # .   .   .   .",
+    "                   #",
+    "    .   .   .   . # .   .   .   .   .",
+    "                   #",
+    "W .   .   .   .   . D .   .   .   . W",
+    "                   #",
+    "    .   .   .   . # .   .   .   .   .",
+    "                   #",
+    "  .   .   .   .   . # .   .   .   .",
+    "         D D"
+  ]
+}

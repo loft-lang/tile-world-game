@@ -503,9 +503,22 @@ character animations are added).
    `orbury.hex.json`.  Turning every floor of the town through all twelve steps
    (`tests/hexroads.loft`) found that a room one cell wide came through 30° in loose cells, each
    a room of its own; `stencil_turn` now makes every room one piece.
-   *Not done:* the dealt place templates (`levels/templates/`) are still dealt on squares and
-   reach hex through the house; a template of hex cells of its own — drawn on hex, dealt on hex —
-   has no format yet.
+   *A template of hex cells as a file* (`hextemplate.loft`, `levels/hextemplates/`,
+   `tests/hextemplates.loft`).  Its rows are `hex_place` 0.1.7's stencil text (`stencil_read`,
+   `stencil_rows`): a cell every four columns, the rows shifted as hex rows are, the edges
+   between cells drawn where they lie — a wall, a door, a window — north up.  The game gives the
+   characters their meaning, takes an unmarked outer edge as the outer wall, and takes the middle
+   cell as the cell the template is turned about and placed by.  `faults` says what keeps a
+   template from being used: not read whole, in pieces, a wall that closes no room, a room not
+   reached from outside through doors, walls not at right angles, or any of that — rooms, doors,
+   windows — not kept at one of the twelve angles.  Three templates are there (a cottage of two
+   rooms, a hall with two rooms, a house with a wing); `laid` gives one at an angle as outer
+   walls with openings and straight inner walls.
+   *Not done:* (a) no place is built from a hex template yet — the town is still ported from the
+   square intent; laying one into a scene needs its roof and its floors said (a template is one
+   floor); (b) the dealt square templates (`levels/templates/`) are not translated; (c) a
+   six-sided tower is read and told it cannot be drawn: the walls are solved at right angles
+   (§ What the merge is for: round and eight-sided structures).
 3. *When a second game asks:* the deal's kernel — a weighted, seeded draw that draws again until
    the caller's check passes, the same seed dealing the same town.  Which slots a house has, and
    playing a deal by the rules before it is dealt, are this game's.

@@ -1,0 +1,256 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A place template of hex cells, as a file (HEX_LIBRARIES.md § Templates in the libraries): a
+// room, a tower, a house's floor drawn on the hex grid itself — not dealt on squares and ported.
+//
+//   { "name": "cottage_two_rooms",
+//     "hex": { "kind": "house", "about": "two rooms, a door between them", "weight": 2 },
+//     "cells": { ".": "floor" },
+//     "edges": { "#": "wall", "D": "door", "W": "window" },
+//     "rows": [ "      D D",
+//               "  .   .   . # .   .",
+//               ... ] }
+//
+// The rows are `hex_place`'s stencil text (its `stenciltext`): a cell every four columns, the rows
+// shifted as hex rows are; between two cells of a row the edge between them; on the line between
+// two rows the edges between a cell and the two it touches in the other row.  North is up.
+//
+// What is the game's: what the characters mean (a cell's surface, an edge's wall, door or
+// window), that an edge of the template with nothing marked on it is its outer wall, that its
+// middle cell is the cell it is turned about and placed by, and what a template must be to be
+// used (`faults`): whole, every wall closing a room, every room reached from outside through
+// doors, and all of that kept at each of the twelve angles.
+use hex_field;
+use hex_form;
+use hex_draw;
+use hex_place;
+use hexwalls;
+use hexterrain;
+
+/// A hex template: its name, what it is for, how often it is dealt, and its cells, their
+/// surfaces (labels) and its walls, doors and windows (edges) about its middle cell.
+pub struct HexTemplate {
+  pub name: text,
+  pub kind: text,
+  pub about: text,
+  pub weight: integer,
+  pub stencil: hex_field::Stencil,
+  /// What could not be read, a line each.
+  pub errors: vector<text>
+}
+
+fn surface_of(name: text) -> integer {
+  if name == "floor" { hexterrain::FLOOR } else if name == "path" { hexterrain::PATH } else if name == "grass" { hexterrain::GRASS }
+  else if name == "water" { hexterrain::WATER } else if name == "bed" { hexterrain::BED } else { -1 }
+}
+
+fn mark_of(name: text) -> integer {
+  if name == "wall" { hexwalls::WALL } else if name == "door" { hexwalls::DOOR } else if name == "window" { hexwalls::WINDOW } else { 0 }
+}
+
+/// The legend the game writes a template back with.
+pub fn legend() -> hex_place::StencilLegend {
+  hex_place::StencilLegend { sl_cells: ".,~", sl_labels: [hexterrain::FLOOR, hexterrain::GRASS, hexterrain::WATER],
+                             sl_edges: "#DW", sl_mats: [hexwalls::WALL, hexwalls::DOOR, hexwalls::WINDOW] }
+}
+
+/// The template in `raw` (a file's text).
+pub fn from_text(raw: text) -> HexTemplate {
+  errors: vector<text> = [];
+  doc = json_parse(raw);
+  meta = doc.field("hex");
+  lg = hex_place::StencilLegend { sl_cells: "", sl_labels: [], sl_edges: "", sl_mats: [] };
+  cs = doc.field("cells");
+  for ch in cs.keys() {
+    s = surface_of(cs.field(ch).as_text());
+    if s < 0 || len(ch) != 1 {
+      errors += ["cells: '{ch}' is '{cs.field(ch).as_text()}': one character for floor, path, grass, water or bed"];
+      continue;
+    }
+    lg.sl_cells += ch;
+    lg.sl_labels += [s];
+  }
+  es = doc.field("edges");
+  for ch in es.keys() {
+    m = mark_of(es.field(ch).as_text());
+    if m == 0 || len(ch) != 1 || ch == " " {
+      errors += ["edges: '{ch}' is '{es.field(ch).as_text()}': one character for wall, door or window"];
+      continue;
+    }
+    for o in lg.sl_cells { if "{o}" == ch { errors += ["'{ch}' is both a cell and an edge"]; } }
+    lg.sl_edges += ch;
+    lg.sl_mats += [m];
+  }
+  rows: vector<text> = [];
+  rv = doc.field("rows");
+  for i in 0..rv.len() { rows += [rv.item(i).as_text()]; }
+  // the middle cell: the cell character nearest the middle of them all
+  sum_l = 0;
+  sum_c = 0;
+  n = 0;
+  for li in 0..len(rows) {
+    ci = 0;
+    for c in rows[li] ?? "" {
+      for o in lg.sl_cells {
+        if o == c {
+          sum_l += li;
+          sum_c += ci;
+          n += 1;
+        }
+      }
+      ci += 1;
+    }
+  }
+  line = 0;
+  col = 0;
+  near = -1;
+  for li in 0..len(rows) {
+    ci = 0;
+    for c in rows[li] ?? "" {
+      for o in lg.sl_cells {
+        if o != c { continue; }
+        // lines are half a row and columns a quarter of a cell: weigh them so
+        d = 4 * (li * n - sum_l) * (li * n - sum_l) + (ci * n - sum_c) * (ci * n - sum_c);
+        if near < 0 || d < near {
+          near = d;
+          line = li;
+          col = ci;
+        }
+      }
+      ci += 1;
+    }
+  }
+  got = hex_place::stencil_read(rows, lg, line, col);
+  for e in got.sr_errors { errors += [e]; }
+  st = got.sr_stencil;
+  // an edge of the template with nothing marked on it is its outer wall
+  cells = st.sn_cells;
+  for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+    for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+      if !hex_field::hexset_get(cells, q, r) { continue; }
+      for d in 0..6 {
+        nq = hex_field::nb_q(q, r, d);
+        nr = hex_field::nb_r(q, r, d);
+        if !hex_field::hexset_get(cells, nq, nr) && hex_field::edge_mat(st.sn_edges, q, r, nq, nr) == 0 {
+          hex_field::edge_set_mat(st.sn_edges, q, r, nq, nr, hexwalls::WALL);
+        }
+      }
+    }
+  }
+  w = meta.field("weight");
+  HexTemplate { name: doc.field("name").as_text(), kind: meta.field("kind").as_text(), about: meta.field("about").as_text(),
+                weight: if w.kind() == "JInteger" { w.as_number() as integer } else { 1 }, stencil: st, errors: errors }
+}
+
+/// Every template under `dir`, by name.
+pub fn all(dir: text) -> vector<HexTemplate> {
+  names: vector<text> = [];
+  for f in file(dir).files() {
+    n = f.path;
+    if len(n) > 5 && n.ends_with(".json") { names += [n]; }
+  }
+  names.sort();
+  [for n in names { from_text(file(n).content() ?? "") }]
+}
+
+/// The template as it lies turned `steps` steps of 30 degrees: its walls with their doors and
+/// windows, its inner walls as straight walls, and how many rooms it has.
+pub struct Laid {
+  pub stencil: hex_field::Stencil,
+  pub built: hexwalls::Built,
+  pub inner: hex_draw::InnerWalls,
+  /// Marked edges the turn could not carry.
+  pub lost: integer
+}
+
+pub fn laid(t: HexTemplate, steps: integer, sz: hexwalls::Sizes = hexwalls::default_sizes()) -> Laid {
+  turned = hex_place::stencil_turn(t.stencil, steps, hexwalls::open_sizes(sz));
+  st = turned.tu_stencil;
+  Laid { stencil: st, built: hexwalls::from_data(st.sn_cells, st.sn_edges, steps, sz),
+         inner: hex_draw::cells_inner_walls(st.sn_cells, st.sn_edges, steps, hexwalls::open_sizes(sz)), lost: turned.tu_lost }
+}
+
+fn doors(b: const hexwalls::Built, kind: integer) -> integer {
+  n = 0;
+  for o in b.openings { if o.kind == kind { n += 1; } }
+  n
+}
+
+/// Whether every room of the stencil is reached from outside through doors.
+fn all_reached(st: hex_field::Stencil) -> boolean {
+  cells = st.sn_cells;
+  rooms = hex_draw::cells_rooms(cells, st.sn_edges);
+  reached: vector<boolean> = [for _ in 0..rooms.cr_n { false }];
+  // a door between two rooms, or between a room and outside (-1)
+  da: vector<integer> = [];
+  db: vector<integer> = [];
+  for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+    for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+      if !hex_field::hexset_get(cells, q, r) { continue; }
+      for d in 0..6 {
+        nq = hex_field::nb_q(q, r, d);
+        nr = hex_field::nb_r(q, r, d);
+        if hex_field::edge_mat(st.sn_edges, q, r, nq, nr) != hexwalls::DOOR { continue; }
+        da += [hex_field::label_get(rooms.cr_of, q, r)];
+        db += [if hex_field::hexset_get(cells, nq, nr) { hex_field::label_get(rooms.cr_of, nq, nr) } else { -1 }];
+      }
+    }
+  }
+  for i in 0..len(da) { if db[i] == -1 { reached[da[i] ?? 0] = true; } }
+  for _round in 0..rooms.cr_n {
+    for i in 0..len(da) {
+      if (db[i] ?? -1) >= 0 && (reached[da[i] ?? 0] ?? false) { reached[db[i] ?? 0] = true; }
+    }
+  }
+  for ok in reached { if !ok { return false; } }
+  true
+}
+
+/// What keeps the template from being used, a line each; none when it may be.
+///
+/// It was read whole; it is one piece; each wall marked inside it closes a room; every room is
+/// reached from outside through doors; its walls are at right angles to each other; and at each of the twelve angles it has the rooms, the
+/// doors and the windows it was drawn with, every room still reached.
+pub fn faults(t: HexTemplate, sz: hexwalls::Sizes = hexwalls::default_sizes()) -> vector<text> {
+  out: vector<text> = [];
+  for e in t.errors { out += [e]; }
+  cells = t.stencil.sn_cells;
+  if hex_field::hexset_count(cells) == 0 { return out; }
+  if t.kind == "" { out += ["no kind (\"hex\": {{ \"kind\": ... }})"]; }
+  pieces = hex_draw::cells_rooms(cells, hex_draw::cells_no_marks(cells)).cr_n;
+  if pieces != 1 { out += ["{pieces} pieces: a template is one"]; }
+  drawn = laid(t, 0, sz);
+  if drawn.inner.in_lost > 0 { out += ["{drawn.inner.in_lost} marked edges inside it close no room"]; }
+  if !all_reached(t.stencil) { out += ["a room is not reached from outside through doors"]; }
+  // the walls are solved along one pair of directions at a right angle (formal/hex-houses.md,
+  // not done: walls not at a right angle): a shape they do not fit has a corner away from its cells
+  far = 0.0;
+  for c in drawn.built.corners {
+    near = -1.0;
+    for r in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
+      for q in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
+        if !hex_field::hexset_get(cells, q, r) { continue; }
+        d = sqrt((hex_form::cell_x(q, r) - c.0) * (hex_form::cell_x(q, r) - c.0) + (hex_form::cell_y(q, r) - c.1) * (hex_form::cell_y(q, r) - c.1)) ?? 0.0;
+        if near < 0.0 || d < near { near = d; }
+      }
+    }
+    if near > far { far = near; }
+  }
+  if far > 1.5 || len(drawn.built.corners) < 4 { out += ["its walls are not at right angles to each other (a corner {far:.1} from its cells): such walls are not drawn yet"]; }
+  if pieces != 1 || len(out) > 0 { return out; }
+  for s in 1..12 {
+    l = laid(t, s, sz);
+    if l.inner.in_rooms != drawn.inner.in_rooms || l.lost != 0 || l.inner.in_lost != 0 {
+      out += ["at {30 * s}: {l.inner.in_rooms} rooms for {drawn.inner.in_rooms}, {l.lost + l.inner.in_lost} edges lost"];
+    }
+    if doors(l.built, hexwalls::DOOR) != doors(drawn.built, hexwalls::DOOR) || doors(l.built, hexwalls::WINDOW) != doors(drawn.built, hexwalls::WINDOW) {
+      out += ["at {30 * s}: {doors(l.built, hexwalls::DOOR)} outer doors for {doors(drawn.built, hexwalls::DOOR)}, {doors(l.built, hexwalls::WINDOW)} windows for {doors(drawn.built, hexwalls::WINDOW)}"];
+    }
+    if len(l.inner.in_opens) != len(drawn.inner.in_opens) {
+      out += ["at {30 * s}: {len(l.inner.in_opens)} doors in inner walls for {len(drawn.inner.in_opens)}"];
+    }
+    if !all_reached(l.stencil) { out += ["at {30 * s}: a room is not reached from outside through doors"]; }
+  }
+  out
+}

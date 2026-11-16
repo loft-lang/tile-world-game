@@ -1,0 +1,21 @@
+{
+  "name": "hall_two_rooms",
+  "hex": {"kind": "house", "about": "a hall with two rooms off it, one behind the other; the front door west", "weight": 1},
+  "cells": {".": "floor"},
+  "edges": {"#": "wall", "D": "door", "W": "window"},
+  "rows": [
+    "    .   .   .   .   .   . # .   .   .   .   .   .   .",
+    "                           #",
+    "  .   .   .   .   .   .   . D .   .   .   .   .   . W",
+    "                           #",
+    "    .   .   .   .   .   . # .   .   .   .   .   .   .",
+    "                           #",
+    "D .   .   .   .   .   .   . # .   .   .   .   .   .",
+    "                           # # # # # # # # # # # # #",
+    "    .   .   .   .   .   . # .   .   .   .   .   .   .",
+    "                           #",
+    "  .   .   .   .   .   .   . D .   .   .   .   .   . W",
+    "                           #",
+    "    .   .   .   .   .   . # .   .   .   .   .   .   ."
+  ]
+}
