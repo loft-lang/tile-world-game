@@ -618,6 +618,11 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   it lands with a hop that dies away.  All of that is the view's: the rules' stops are as they
   were.
 
+- **Fifty marbles** (owner, 2026-11-16: the marbles are as big as wanted; fifty of them).  Let
+  fall one every 0.25 s on the hexes 6 to 10 m from the top, going round the hill in long
+  strides.  Six are held by a house, two rest on the slope, forty-two on the flat past the foot;
+  87 meetings; at rest after 22.9 s and 1063 happenings — the same every time.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 

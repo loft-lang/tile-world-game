@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jurjen Stellingwerff
 // SPDX-License-Identifier: LGPL-3.0-or-later
 //
-// Ten marbles let fall on a hill with houses on its slopes (marbles.loft; owner, 2026-11-16):
+// Fifty marbles let fall on a hill with houses on its slopes (marbles.loft; owner, 2026-11-16):
 // where they end up and when, by the rules of what is unstable — the same every time.
 use hex_field;
 use hexterrain;
@@ -11,7 +11,7 @@ use marbles;
 use marblehill;
 
 // The hill of marblehill.loft: seven houses spaced round its slopes, seated on the ground, and the
-// ten let fall one every 400 ms.
+// fifty let fall one every 250 ms.
 fn played() -> marbles::Hill {
   sh = marblehill::built(hexwalls::default_sizes(), hexterrain::default_measures());
   assert(len(sh.town.houses) == 7, "seven houses");
@@ -19,20 +19,24 @@ fn played() -> marbles::Hill {
   sh.hill
 }
 
-fn test_ten_marbles_on_the_hill() {
+fn test_fifty_marbles_on_the_hill() {
   hl = played();
   for line in marbles::picture(hl, 34) { println(line); }
   held = 0;
+  past = 0;
+  slope = 0;
+  struck = 0;
   for i in 0..len(hl.marbles) {
     m = hl.marbles[i]!;
-    c = hexterrain::centre(m.q, m.r);
-    if marbles::caught(hl, i) { held += 1; }
-    println("marble {i}: fell on ({m.from_q}, {m.from_r}), rests ({m.q}, {m.r}) at {marbles::height(hl, m.q, m.r):.2} m, {sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0:.1} m from the top, after {m.rest_at} ms, went {m.went} hexes, struck {m.struck}{if marbles::caught(hl, i) { ", held by a house" } else { "" }}");
+    if marbles::caught(hl, i) { held += 1; } else if marbles::height(hl, m.q, m.r) < 0.05 { past += 1; } else { slope += 1; }
+    struck += m.struck;
   }
+  println("{held} held by a house, {slope} at rest on the slope against other marbles or the ground, {past} on the flat past the foot; {struck} meetings");
   println("at rest after {hl.now} ms, {hl.rounds} happenings; {held} held by a house");
-  assert(len(hl.marbles) == 10, "ten marbles");
+  n = len(hl.marbles);
+  assert(n == marblehill::MARBLES && n == 50, "fifty marbles: {n}");
   rolled = 0;
-  for i in 0..10 {
+  for i in 0..n {
     m = hl.marbles[i]!;
     // each on a whole hex of its own, on open ground, where it will stay
     assert(!hex_field::hexset_get(hl.fixed, m.q, m.r), "marble {i} not in a house");
@@ -40,16 +44,16 @@ fn test_ten_marbles_on_the_hill() {
     assert(marbles::settled(hl, i), "marble {i} is where it will stay");
     // none rests higher than it was let fall, none later than the end, none before it landed
     assert(marbles::height(hl, m.q, m.r) <= marbles::height(hl, m.from_q, m.from_r) + 0.000001, "marble {i} not higher than it fell");
-    assert(m.rest_at <= hl.now && m.rest_at >= 400 * i + 600, "marble {i} at rest after it landed and by the end: {m.rest_at}");
+    assert(m.rest_at <= hl.now && m.rest_at >= marblehill::EVERY * i + 600, "marble {i} at rest after it landed and by the end: {m.rest_at}");
     c = hexterrain::centre(m.q, m.r);
     assert((sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0) <= marblehill::FOOT + 1.5 * ((marbles::FASTEST / marbles::GROUND) as float) + 1.5, "marble {i} no further than its speed lasts past the foot");
     if m.went > 0 { rolled += 1; }
   }
-  assert(rolled >= 8, "the bounce on landing sets them going: {rolled} rolled");
-  assert(held >= 1, "a house holds a marble: {held}");
+  assert(rolled >= 40, "the bounce on landing sets them going: {rolled} rolled");
+  assert(held >= 5, "houses hold some: {held}");
   // every marble's way, for a view: it begins in the air and ends where the marble rests
   ways = marblehill::ways_json(hl);
-  assert(ways.starts_with("[[[0, 7.5, 0, ") && len(ways) > 2000, "the ways written: {len(ways)} characters");
+  assert(ways.starts_with("[[[0, ") && len(ways) > 2000, "the ways written: {len(ways)} characters");
 }
 
 // The same hill, the same marbles: the same end, hex for hex and millisecond for millisecond.
@@ -57,7 +61,7 @@ fn test_the_hill_plays_the_same_every_time() {
   a = played();
   b = played();
   assert(a.rounds == b.rounds && a.now == b.now, "as many happenings, as long: {a.rounds} {b.rounds}");
-  for i in 0..10 {
+  for i in 0..len(a.marbles) {
     assert(a.marbles[i]!.q == b.marbles[i]!.q && a.marbles[i]!.r == b.marbles[i]!.r && a.marbles[i]!.went == b.marbles[i]!.went && a.marbles[i]!.struck == b.marbles[i]!.struck && a.marbles[i]!.rest_at == b.marbles[i]!.rest_at, "marble {i} the same");
   }
 }

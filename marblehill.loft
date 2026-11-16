@@ -3,7 +3,7 @@
 //
 // The marble hill as a place to look at (WORLD.md § One game, square or hex: tried, marbles on a
 // hill): a round hill with houses on its slopes, each seated on the ground with its long wall
-// across the slope, and ten marbles let fall on its top — the hill as the 3D view draws a place
+// across the slope, and fifty marbles let fall round its top — the hill as the 3D view draws a place
 // (`hextown::Town`), and every marble's way in time for the view to play back.
 use hex_field;
 use hexwalls;
@@ -23,10 +23,28 @@ pub struct Shown {
 pub const HIGH = 14.0;
 pub const FOOT = 42.0;
 
-/// Where the ten are let fall: round the top where the slope begins, 6 to 8 m out (the crown of
-/// a hill this size is too flat to set a marble going), two on the same hex.
+/// How many marbles are let fall, and the time between one and the next (milliseconds).
+pub const MARBLES = 50;
+pub const EVERY = 250;
+
+/// Where the marbles are let fall: on the hexes 6 to 10 m from the top, where the slope begins
+/// (the crown of a hill this size is too flat to set a marble going), taken in an order that goes
+/// round the hill in long strides, so one after the other falls on another side.  The first two
+/// on the same hex: the second lands on the first and rolls off it.
 pub fn drops() -> vector<(integer, integer)> {
-  [(5, 0), (5, 0), (-5, 0), (2, 4), (-3, 4), (2, -4), (-3, -4), (4, 2), (-4, -2), (0, 5)]
+  ring: vector<(integer, integer)> = [];
+  for r in -8..9 {
+    for q in -8..9 {
+      c = hexterrain::centre(q, r);
+      far = sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0;
+      if far >= 6.0 && far <= 10.0 { ring += [(q, r)]; }
+    }
+  }
+  out: vector<(integer, integer)> = [];
+  for i in 0..MARBLES {
+    out += [ring[(if i < 2 { 0 } else { i * 37 }) % len(ring) ?? 0] ?? (5, 0)];
+  }
+  out
 }
 
 /// A round hill 14 m high, 42 m from its top to its foot, and seven houses spaced round its
@@ -73,16 +91,16 @@ pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
   Shown { town: hextown::Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h) }, hill: hl }
 }
 
-/// The ten let fall, one every 400 ms from 2 m up, and played to rest.  False when it does not
+/// The marbles let fall, one every `EVERY` ms from 2 m up, and played to rest.  False when it does not
 /// come to rest.
 pub fn play(sh: Shown) -> boolean {
   i = 0;
   for d in drops() {
-    marbles::run_until(sh.hill, 400 * i);
+    marbles::run_until(sh.hill, EVERY * i);
     if !marbles::let_fall(sh.hill, d.0, d.1) { return false; }
     i += 1;
   }
-  marbles::run(sh.hill, 5000)
+  marbles::run(sh.hill, 50000)
 }
 
 /// The marbles' ways for a view: per marble its stops in order, each `[ms, x, y, z]` in metres (x

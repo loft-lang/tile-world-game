@@ -375,7 +375,7 @@ pub fn scatter(hl: Hill, percent: integer, inner: float, outer: float, seed: int
 
 /// The hill as text, north up, `reach` hexes round (0, 0): open ground by its height (`.` low to
 /// `9`), `H` a house, `#` anything else that does not move, `+` where a marble rolled, a letter per marble (A the first let
-/// fall), `*` where one was let fall.
+/// fall, a the twenty-seventh), `*` where one was let fall.
 pub fn picture(hl: Hill, reach: integer = 1000) -> vector<text> {
   g = hl.ground;
   top = 0.0;
@@ -394,7 +394,7 @@ pub fn picture(hl: Hill, reach: integer = 1000) -> vector<text> {
       if hex_field::hexset_get(hl.trail, q, r) { c = "+"; }
       for m in hl.marbles { if m.from_q == q && m.from_r == r { c = "*"; } }
       if hex_field::hexset_get(hl.fixed, q, r) { c = if hex_field::hexset_get(hl.houses, q, r) { "H" } else { "#" }; }
-      if i >= 0 { c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i..i + 1]; }
+      if i >= 0 { c = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[i % 52 ?? 0..(i % 52 ?? 0) + 1]; }
       line += c + " ";
     }
     out += [line];
