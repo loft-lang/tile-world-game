@@ -88,7 +88,8 @@ fn ground_to(p: Play, nx: float, ny: float) -> boolean {
     // a room: in by an opening, from the hex outside it, when a walker may stand on its tile
     rm = p.rooms[under]!;
     for o in rm.openings {
-      if !o.exact || o.q != q || o.r != r { continue; }
+      // from the hex before the opening (a figure needs no hex straight out, as a pushed thing does)
+      if o.q != q || o.r != r { continue; }
       t = gridroom::tile_at(rm, nx, ny);
       if !t.0 || t.1 != o.x || t.2 != o.y { continue; }
       // a window onto a place kept elsewhere: who plays the field takes the step there

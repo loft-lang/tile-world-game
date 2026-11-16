@@ -759,8 +759,25 @@ shed and a lawn) is walked by the test through the game itself.  The owner's pri
 day: the experimental whole before the square puzzles' polish — "a broken mess that shows off
 what the engine can do is highly preferable above a consistent and working sokoban clone".
 
-◇ Next: the full town on these rules (owner) — Orbury's outdoors as hex ground, each house a room
-on its own grid at its angle; then water that flows.  The steps below were written before these rulings:
+**Built, the full town on the new rules** (owner, 2026-11-16: "I want to play the game with the full
+town as we defined before but with our newly defined rules"; game.loft § A town on the new rules,
+`tests/townfield.loft`).  A place with a hex version — Orbury — is played with its outdoors as the
+hex town's ground (paths, stream, trees, fences) and every part of every house, wings too, a
+room on its own grid where and at the angle the hex town gives it; the rooms are windows onto
+the town's own map, so a house's inside — its people, things and floors — plays as ever.  The
+hero starts out on the ground and walks free; in at a door it stands on the door's tile; a step
+out of a door puts it on the hex before it; a door to another place and stairs down under the
+sky are spots on the ground.  The game turns it on (`TW_SQUARE=1` plays the square map).
+- All 21 doors of Orbury's houses let the hero in and out.  Found on the way: a house's rim
+  opens into its wing and into a bay window, which are no doors (a way out leads onto a tile
+  under the sky, out of every part of every house); a figure needs no hex straight out of a
+  door, as a pushed thing does; and stepping out must not be a step onto the square map's
+  outdoors, where a person standing by the door, unseen on the ground, refused it.
+- Rough, and known: nothing that stands outdoors in the square town is on the ground yet
+  (people, creatures, loose things); the ground is flat to the rules; outdoors is drawn plainly
+  from above and the 3D view stands down there; hexes under a bay window are open ground.
+
+◇ Next: water that flows (owner: tonight, once the town works).  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

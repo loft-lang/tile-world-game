@@ -453,9 +453,24 @@ pub fn place_room(g: Ground, rm: Room, id: integer, x: float, y: float) {
 /// Set down a window: a room that is a part of place `l`, kept elsewhere (a house in a town's own
 /// map).  Its ways out are found in `l`; the room keeps no copy of it.
 pub fn place_window(g: Ground, rm: Room, id: integer, x: float, y: float, l: const rules::Level) {
-  rm.window = true;
   ops = openings_of(rm, l);
+  set_window(g, rm, id, x, y, ops);
+}
+
+/// The ways out of the room's rectangle as place `l` has them (a way may lead into another part
+/// of the same building: who sets the window down chooses which lead onto the ground).
+pub fn window_openings(rm: const Room, l: const rules::Level) -> vector<Opening> { openings_of(rm, l) }
+
+/// Set a window down with the ways onto the ground given.
+pub fn set_window(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Opening>) {
+  rm.window = true;
   set_down(g, rm, id, x, y, ops);
+}
+
+/// Is the hex before the opening open ground: a figure can stand there, come in from it and go
+/// out onto it — whether or not it lies straight out (`exact`, which a thing pushed needs).
+pub fn before(g: Ground, o: const Opening) -> boolean {
+  hex_field::label_get(g.under, o.q, o.r) < 0 && !hex_field::hexset_get(g.fixed, o.q, o.r)
 }
 
 fn set_down(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Opening>) {
