@@ -609,6 +609,16 @@ or inside it; over a low wall; through a doorway, a gate or a gap.
     there is a way at all.  A court with a hedge across it and a bridge whose stairs stand free
     in its middle is reached and beats both hands; the same with the stairs against the hedge is
     walked by one hand.  ◇ For a dealt maze: reached, and not by one hand.
+  - In the demo village (`levels/the_maze.json`, `tests/maze.loft`): the fenced garden's gate
+    leads to a maze of thirteen tiles by nine — an outer walk between high hedges with one gap
+    into the garden, high hedges that close the view, low hedges seen over, and a bridge whose
+    stairs stand free, over a walk and the hedge of the closed plot in the middle, where a chest
+    is.  Every tile is walked to; the plot by neither hand; the garden by the right hand only
+    (the left goes round the outer walk for ever).  It is played by the square game as it is.
+  - ◇ Found making it: from a bridge one layer up, a hedge a layer high hides the walk behind it
+    unless the hedge is nearer than half the way there — as it would.  A real lookout wants two
+    layers.  And what the player sees is the camera's: the view does not yet hide what the hero
+    does not see, so "little sight range" is not yet felt in play.
   - Not built: a way out of a room on a layer over its own (an upper floor's door onto a
     terrace or a hillside); a thing pushed off a bridge is the room's rules' alone.
 - A thing pushed to the rim cannot be pushed back by a hero standing inside: the rules ask the

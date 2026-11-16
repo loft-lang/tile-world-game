@@ -345,7 +345,10 @@ pub fn walk_from(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: 
   rm.level.hero_y = y;
   rm.level.hero_z = z;
   rm.level.hero_h = 0;
+  // a question, not a walk taken: a fall the step leads to costs the asker nothing
+  health = rm.level.health;
   rules::walk(rm.level, dx, dy);
+  rm.level.health = health;
   (rm.level.hero_x != x || rm.level.hero_y != y || rm.level.hero_z != z, rm.level.hero_x, rm.level.hero_y, rm.level.hero_z)
 }
 

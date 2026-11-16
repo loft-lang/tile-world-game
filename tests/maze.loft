@@ -1,0 +1,86 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The garden maze of the demo village (levels/the_maze.json; WORLD.md § One game, square or hex:
+// a maze that is a real puzzle — owner, 2026-11-16): one terrace behind a high hedge, high hedges
+// that close the view, low hedges that are seen over, and a bridge whose stairs stand free, over
+// a walk and into the closed plot in the middle where the chest is.
+use tile_world;
+use rules;
+use materials;
+use levels;
+use gridroom;
+use game;
+
+fn read(name: text) -> text { file("../levels/{name}.json").content() ?? "" }
+
+fn maze() -> gridroom::Room {
+  k = rules::kinds();
+  lf = levels::load_with(read("the_maze"), k, materials::load(file("../theme.json").content() ?? "", k));
+  if !lf { assert(false, "levels/the_maze.json loads"); }
+  gridroom::Room { level: lf!.level, w: 13, h: 9, z: 0, turn: 0 }
+}
+
+// Every tile of the maze is walked to from its gate but the chest's own; the plot in the middle,
+// beside the chest, is reached — over the bridge — and by neither hand kept on the hedge.
+fn test_the_maze_is_walked_and_not_by_one_hand() {
+  rm = maze();
+  assert(rules::terrain_name(rm.level.k, tile_world::terrain(rm.level.w, 3, 3, 0)) == "stairs_up" && tile_world::terrain(rm.level.w, 4, 3, 1) != rules::VOID && tile_world::top(rm.level.w, 7, 4, 0) != 0, "the stairs, the bridge and the chest");
+  for y in 0..9 {
+    for x in 0..13 {
+      if x == 7 && y == 4 { continue; }
+      assert(gridroom::reached(rm, 0, 3, 0, x, y, 0), "tile ({x}, {y}) is walked to");
+    }
+  }
+  for hand in [true, false] {
+    assert(!gridroom::one_hand(rm, 0, 3, 0, 0, -1, 6, 4, 0, hand), "the plot not by one hand (left: {hand})");
+  }
+  // the right hand, on the inner hedge of the outer walk, finds the gap into the garden; the left,
+  // on the outer hedge, goes round the walk for ever
+  assert(gridroom::one_hand(rm, 0, 3, 0, 0, -1, 11, 7, 0, false) && !gridroom::one_hand(rm, 0, 3, 0, 0, -1, 11, 7, 0, true), "the garden by the right hand only");
+  // the bridge: up the free stairs, over the walk and the plot's hedge, down inside the plot
+  at = (2, 3, 0);
+  for want in [(3, 3, 1), (4, 3, 1), (5, 3, 1), (6, 3, 0), (7, 3, 0)] {
+    n = gridroom::walk_from(rm, at.0, at.1, at.2, 1, 0);
+    assert(n.0 && n.1 == want.0 && n.2 == want.1 && n.3 == want.2, "east from ({at.0}, {at.1}, {at.2}): ({n.1}, {n.2}, {n.3})");
+    at = (n.1, n.2, n.3);
+  }
+  n = gridroom::walk_from(rm, 4, 2, 0, 0, 1);
+  assert(n.0 && n.2 == 3 && n.3 == 0, "and south under it on the walk");
+  assert(rm.level.health > 0 && !gridroom::walk_from(rm, 6, 3, 1, 1, 0).0 && !gridroom::walk_from(rm, 4, 3, 1, 0, 1).0, "no step off the bridge");
+}
+
+// What the hedges do to the view.  A low hedge is seen over from the path.  A high hedge closes the
+// view from the path — and from the bridge the walk beyond it is overlooked.
+fn test_the_mazes_hedges_and_its_overview() {
+  rm = maze();
+  up = gridroom::LAYER as float;
+  a = gridroom::tile_centre(rm, 2.0, 5.0);
+  b = gridroom::tile_centre(rm, 2.0, 7.0);
+  assert(gridroom::sees(rm, a.0, a.1, b.0, b.1), "over the low hedge");
+  c = gridroom::tile_centre(rm, 4.0, 4.0);
+  d = gridroom::tile_centre(rm, 4.0, 7.0);
+  assert(!gridroom::sees(rm, c.0, c.1, d.0, d.1), "not over the high hedge from the path");
+  e = gridroom::tile_centre(rm, 4.0, 3.0);
+  assert(gridroom::sees(rm, e.0, e.1, d.0, d.1, up + gridroom::EYE), "over it from the bridge");
+  ring = gridroom::tile_centre(rm, 0.0, 2.0);
+  inside = gridroom::tile_centre(rm, 3.0, 2.0);
+  assert(!gridroom::sees(rm, ring.0, ring.1, inside.0, inside.1), "the outer walk sees nothing of the garden");
+}
+
+// A gate of the demo village's fenced garden leads to it, and its gate leads back: the game goes
+// through both, the hero coming out on the maze's outer walk and again on the village's path.
+fn test_the_maze_is_a_place_of_the_demo_village() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game opens"); return; }
+  g = m ?? return;
+  assert(game::start_world(g, "demo"), "the demo opens");
+  gate = levels::door_named(g.file, "the_maze");
+  assert(gate >= 0 && game::go_through(g, gate), "through the garden's gate");
+  assert(g.place == "the_maze" && g.world.hero_x == 0 && (g.world.hero_y == 3 || g.world.hero_y == 5) && g.world.hero_z == 0, "on the maze's outer walk: {g.place} ({g.world.hero_x}, {g.world.hero_y})");
+  back = levels::door_named(g.file, "demo");
+  assert(back >= 0 && game::go_through(g, back), "and out again");
+  assert(g.place == "demo" && g.world.hero_x == 26 && g.world.hero_y == 15, "on the village's path below the gate: {g.place} ({g.world.hero_x}, {g.world.hero_y})");
+  assert(read("the_maze").contains("\"to\": \"demo\""), "the way out to the village");
+  assert(read("demo").contains("\"to\": \"the_maze\""), "the village's gate to it");
+}
