@@ -639,6 +639,18 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
     rule, back into the fence that had stopped it, for ever; it now turns only towards a way
     that is open.
 
+**Later, water by the same routine** (owner, 2026-11-16).  The marble hill is "a nice addition to
+the engine, but getting real realistic scenes here is not our goal either.  After our puzzles
+work (and I have tested them too) we should also allow for a similar routine that uses a marble
+down the hill routine to find out where water needs to flow.  So we do not calculate it all the
+time, but on scene changes (like locks) we analyze where the water will go and adjust the game to
+it."  Not started; it waits for the puzzles and the owner's testing of them.
+- ◇ What carries over from `marbles.loft`: the lowest free neighbour, what stops a step (a
+  wall's hexes, a fence's or a lock's edges), the same answer every time.  What differs: water
+  has no speed and does not stop on a slope — it goes on to where no neighbour is lower and
+  fills there until it finds a way over — so the answer is which cells are wet and how deep,
+  worked out once when a lock opens or shuts, a wall falls or a bed is dug, and kept.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 
