@@ -200,3 +200,133 @@ fn test_a_push_that_is_not_full_goes_aside() {
     }
   }
 }
+
+// ── a terrace: a room with low walls ────────────────────────────────────────
+
+fn edges_text(es: const vector<text>) -> text {
+  out = "";
+  for e in es { out += (if out == "" { "" } else { ", " }) + e; }
+  out
+}
+
+fn place_of(rows: text, things: text, edges: const vector<text>, w: integer, h: integer, turn: integer) -> gridroom::Room {
+  k = rules::kinds();
+  raw = "{{\"name\": \"a place\", \"camera\": \"follow\", \"legend\": {{\".\": \"floor\", \"#\": \"wall\"}}, \"ground\": [], \"chunks\": [{{\"cx\": 0, \"cy\": 0, \"z\": 0, \"rows\": [{rows}]}}], \"things\": [{things}], \"tiles\": [], \"edges\": [{edges_text(edges)}], \"rises\": [], \"doors\": []}}";
+  lf = levels::load_with(raw, k, materials::load(file("../theme.json").content() ?? "", k));
+  if !lf { assert(false, "the place loads"); }
+  gridroom::Room { level: lf!.level, w: w, h: h, z: 0, turn: turn }
+}
+
+// The edges of `what` round a floor of w by h tiles, but on the east side of row `gate`.
+fn rim_edges(w: integer, h: integer, what: text, gate: integer) -> vector<text> {
+  out: vector<text> = [];
+  for x in 0..w {
+    out += ["[{x}, 0, 0, \"N\", \"{what}\"]"];
+    out += ["[{x}, {h}, 0, \"N\", \"{what}\"]"];
+  }
+  for y in 0..h {
+    out += ["[0, {y}, 0, \"W\", \"{what}\"]"];
+    if y != gate { out += ["[{w}, {y}, 0, \"W\", \"{what}\"]"]; }
+  }
+  out
+}
+
+// A terrace of six tiles by four, a low wall round it, a gate in its east side, two rocks on it.
+fn terrace(turn: integer) -> gridroom::Room {
+  place_of("\"......\", \"......\", \"......\", \"......\"", "{{\"at\": [2, 1, 0], \"stack\": [\"rock\"]}}, {{\"at\": [4, 2, 0], \"stack\": [\"rock\"]}}", rim_edges(6, 4, "low_wall", 1), 6, 4, turn)
+}
+
+// A terrace is a room: at every angle its one way out is its gate, a rock is pushed along it by
+// the room's rules, stopped by the low wall, and goes out through the gate and comes back.  Its
+// rim is a low wall on nineteen sides and open on one; each side 1.5 m, the rim closed.
+fn test_a_terrace_is_a_room_with_low_walls() {
+  for turn in 0..12 {
+    g = field();
+    rm = terrace(turn);
+    gridroom::place_room(g, rm, 0, -2.0, 5.0);
+    assert(len(rm.openings) == 1, "at {30 * turn}: one way out, the gate: {len(rm.openings)}");
+    o = rm.openings[0]!;
+    assert(o.x == 5 && o.y == 1 && o.dx == 1 && o.dy == 0 && o.exact && o.heading == hex_form::head_norm(turn), "at {30 * turn}: the gate, opening east of the terrace");
+    sides = gridroom::rim(rm);
+    low = 0;
+    open = 0;
+    for i in 0..len(sides) {
+      s = sides[i]!;
+      nx = sides[(i + 1) % len(sides) ?? 0]!;
+      assert(near(far((s.ax, s.ay), (s.bx, s.by)), 1.5) && far((s.bx, s.by), (nx.ax, nx.ay)) < 0.000001, "at {30 * turn}: side {i} 1.5 m, ending where the next begins");
+      if s.kind == gridroom::RIM_LOW && s.sees { low += 1; }
+      if s.kind == gridroom::RIM_OPEN { open += 1; assert(s.x == 5 && s.y == 1 && s.dx == 1, "at {30 * turn}: the open side is the gate's"); }
+    }
+    assert(len(sides) == 20 && low == 19 && open == 1, "at {30 * turn}: twenty sides, nineteen a low wall, one open: {len(sides)} {low} {open}");
+    rock = tile_world::top(rm.level.w, 2, 1, 0);
+    // the second rock south to the rim, and no further: the low wall stops it
+    m = gridroom::push_in_room(g, rm, 4, 2, 0, 1);
+    assert(m.how == gridroom::INSIDE && m.y == 3, "at {30 * turn}: to the rim");
+    m = gridroom::push_in_room(g, rm, 4, 3, 0, 1);
+    assert(m.how == gridroom::BLOCKED && tile_world::top(rm.level.w, 4, 3, 0) == rock, "at {30 * turn}: not over the low wall");
+    for x in 2..5 {
+      m = gridroom::push_in_room(g, rm, x, 1, 1, 0);
+      assert(m.how == gridroom::INSIDE && m.x == x + 1 && m.y == 1, "at {30 * turn}: east along the terrace to tile {x + 1}: {m.how}");
+    }
+    m = gridroom::push_in_room(g, rm, 5, 1, 1, 0);
+    assert(m.how == gridroom::OUT && m.q == o.q && m.r == o.r && m.ms == 140, "at {30 * turn}: out through the gate: {m.how}");
+    m = gridroom::push_on_ground(g, rm, o.q, o.r, o.heading + 6);
+    assert(m.how == gridroom::IN && m.x == 5 && m.y == 1 && tile_world::top(rm.level.w, 5, 1, 0) == rock, "at {30 * turn}: and back in");
+  }
+}
+
+// A garden maze is one terrace, however big: a hedge round it with a gate, a hedge down its middle
+// with a gap.  Its hedges stop a rock and stop sight; the gap and the gate let both through.  A
+// terrace's low wall is seen over, and a room's wall is not seen through but its doorway is.
+fn test_what_is_seen_past_a_rooms_walls_and_hedges() {
+  for turn in 0..12 {
+    hedges = rim_edges(11, 7, "hedge", 3);
+    for y in 0..7 { if y != 3 { hedges += ["[5, {y}, 0, \"W\", \"hedge\"]"]; } }
+    rows = "";
+    for _y in 0..7 { rows += (if rows == "" { "" } else { ", " }) + "\"...........\""; }
+    g = field();
+    maze = place_of(rows, "{{\"at\": [3, 1, 0], \"stack\": [\"rock\"]}}, {{\"at\": [3, 3, 0], \"stack\": [\"rock\"]}}", hedges, 11, 7, turn);
+    gridroom::place_room(g, maze, 0, -6.0, 4.0);
+    assert(len(maze.openings) == 1 && maze.openings[0]!.x == 10 && maze.openings[0]!.y == 3, "at {30 * turn}: the maze's one gate");
+    a = gridroom::tile_centre(maze, 1.0, 3.0);
+    b = gridroom::tile_centre(maze, 9.0, 3.0);
+    c = gridroom::tile_centre(maze, 1.0, 1.0);
+    d = gridroom::tile_centre(maze, 9.0, 1.0);
+    assert(gridroom::sees(maze, a.0, a.1, b.0, b.1) && gridroom::sees(maze, b.0, b.1, a.0, a.1), "at {30 * turn}: through the gap, both ways");
+    assert(!gridroom::sees(maze, c.0, c.1, d.0, d.1) && !gridroom::sees(maze, d.0, d.1, c.0, c.1), "at {30 * turn}: not through the hedge");
+    assert(gridroom::sees(maze, c.0, c.1, a.0, a.1), "at {30 * turn}: along the hedge on one side of it");
+    // from a high place the maze is overlooked: over the hedge from a layer up, not from two steps
+    assert(gridroom::sees(maze, c.0, c.1, d.0, d.1, gridroom::LAYER) && !gridroom::sees(maze, c.0, c.1, d.0, d.1, 2), "at {30 * turn}: over the hedge from a layer up only");
+    out_gate = gridroom::tile_centre(maze, 14.0, 3.0);
+    out_side = gridroom::tile_centre(maze, 14.0, 0.0);
+    assert(gridroom::sees(maze, out_gate.0, out_gate.1, b.0, b.1) && gridroom::sees(maze, out_gate.0, out_gate.1, a.0, a.1), "at {30 * turn}: in through the gate, and on through the gap");
+    assert(!gridroom::sees(maze, out_side.0, out_side.1, gridroom::tile_centre(maze, 9.0, 0.0).0, gridroom::tile_centre(maze, 9.0, 0.0).1), "at {30 * turn}: not through the hedge round it");
+    // a rock against the hedge down the middle stays; one at the gap goes through
+    gridroom::push_in_room(g, maze, 3, 1, 1, 0);
+    m = gridroom::push_in_room(g, maze, 4, 1, 1, 0);
+    assert(m.how == gridroom::BLOCKED && tile_world::top(maze.level.w, 4, 1, 0) != 0, "at {30 * turn}: a rock not through the hedge");
+    gridroom::push_in_room(g, maze, 3, 3, 1, 0);
+    m = gridroom::push_in_room(g, maze, 4, 3, 1, 0);
+    assert(m.how == gridroom::INSIDE && m.x == 5, "at {30 * turn}: a rock through the gap: {m.how}");
+    // the terrace's low wall is seen over, from every side
+    tr = terrace(turn);
+    gridroom::place_room(g, tr, 1, 20.0, 20.0);
+    mid = gridroom::tile_centre(tr, 2.0, 2.0);
+    for p in [(-3.0, 2.0), (9.0, 2.0), (2.0, -3.0), (2.0, 7.0), (-3.0, -3.0)] {
+      from = gridroom::tile_centre(tr, p.0, p.1);
+      assert(gridroom::sees(tr, from.0, from.1, mid.0, mid.1), "at {30 * turn}: over the low wall from ({p.0}, {p.1})");
+    }
+    // the room's wall is not seen through; its doorway is, straight on and at a slant
+    rm = room(turn);
+    gridroom::place_room(g, rm, 2, -20.0, -20.0);
+    rock = gridroom::tile_centre(rm, 3.0, 2.0);
+    for p in [(-3.0, 2.0), (9.0, 2.0), (3.0, -3.0), (0.0, 7.0), (6.0, 7.0)] {
+      from = gridroom::tile_centre(rm, p.0, p.1);
+      assert(!gridroom::sees(rm, from.0, from.1, rock.0, rock.1), "at {30 * turn}: not through the wall from ({p.0}, {p.1})");
+    }
+    step = hexterrain::centre(rm.openings[0]!.q, rm.openings[0]!.r);
+    assert(gridroom::sees(rm, step.0, step.1, rock.0, rock.1), "at {30 * turn}: in through the doorway from the hex outside it");
+    slant = gridroom::tile_centre(rm, 4.0, 1.0);
+    assert(gridroom::sees(rm, step.0, step.1, slant.0, slant.1), "at {30 * turn}: and at a slant through it");
+  }
+}

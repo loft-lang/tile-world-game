@@ -581,7 +581,32 @@ between hexes.
   place); more than one thing on a hex; a second opening whose hex does not lie straight out
   (it goes aside; untried); a corner walled on both sides.
 
-◇ Next: a terrace as the same with low walls.  The steps below were written before these rulings:
+**Built, the terrace** (2026-11-16; `gridroom.loft`): a terrace is the same room, floor to its
+rim with a low wall on the rim's edges and a gate where there is none.  Its ways out are found
+from the room itself (a rim tile's side nothing stops a step on: a doorway, a gate), so a room
+and a terrace are one thing to the code.  `rim` gives what stands round a room side by side — a
+wall, something low, or nothing — for a map and a view to draw.  `sees` answers whether one point
+sees another past a room, in the world's own space: not through its walls and hedges, on its rim
+or inside it; over a low wall; through a doorway, a gate or a gap.
+- **A garden maze is a single terrace, even one that spans quite a big area** (owner,
+  2026-11-16).  Its hedges are edges inside it: tried at every angle with a hedge round it and one
+  down its middle — a rock stops at the hedge and passes the gap, and so does sight.
+- **A maze that is a real puzzle** (owner, 2026-11-16): "you want places with an overview on the
+  maze and places with little sight range.  And possibly bridges that span other walkways through
+  the maze to prevent left/right handing it."
+  - Built: `sees` takes how high the eye is.  From the floor a hedge is not seen over; from a
+    layer up (a bridge, a platform) it is, and a low hedge from two steps.
+  - ◇ Little sight range is the maze's own doing — high hedges and short straight stretches —
+    and needs no rule of its own.
+  - ◇ Not built: a bridge.  It is tiles on the layer above crossing a path below, which the
+    room's rules have (layers, stairs); here a room is still placed and seen on one layer.  That
+    a maze is not solved by keeping a hand on one hedge is a check for a dealt maze: its paths,
+    with the bridges, do not all hang on one wall.
+- A thing pushed to the rim cannot be pushed back by a hero standing inside: the rules ask the
+  hero to stand behind it, which is beyond the low wall.  It is pulled back, as in any room.
+
+◇ Next: the game's play on it — the hero walking free from the ground into a room and out, the
+room's clock and the view.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 
