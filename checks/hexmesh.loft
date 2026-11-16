@@ -48,7 +48,8 @@ fn main() {
   test_a_chunk_alone_is_the_chunk_of_the_whole();
   test_the_ground_is_whole();
   test_a_large_place();
-  println("checks/hexmesh.loft: 4 passed");
+  test_a_piece_made_alone_is_the_piece_of_the_whole();
+  println("checks/hexmesh.loft: 5 passed");
 }
 
 fn same(a: float, b: float) -> boolean { a - b < 0.000001 && b - a < 0.000001 }
@@ -258,4 +259,50 @@ struct Spot {
   x: float,
   z: float,
   n: integer
+}
+
+// The shards a view keeps (fixedview.loft: a piece made when the hero comes near it).  The list of
+// pieces says what `hex_pieces` makes, in its order; a piece made alone is the piece made with
+// them all; and every corner of a piece lies near the middle the list gives for it — so a piece
+// asked for by how near its middle is cannot reach into view unmade.
+fn test_a_piece_made_alone_is_the_piece_of_the_whole() {
+  g = orbury();
+  kinds: vector<integer> = [];
+  // in shards of 32 x 32 cells, as fixedview keeps them
+  w = render3d::view();
+  render3d::hex_shards(w, 5);
+  whole = render3d::hex_pieces(w, g, false, kinds);
+  listed: vector<integer> = [];
+  v = render3d::view();
+  render3d::hex_shards(v, 5);
+  spots = render3d::hex_piece_spots(v, g, listed);
+  assert(len(listed) == len(whole) && len(spots) == 2 * len(whole) && listed == kinds, "the list is the pieces: {len(listed)} of {len(whole)}");
+  houses = 0;
+  furthest = 0.0;
+  for i in 0..len(whole) {
+    alone = render3d::hex_piece(v, g, false, i);
+    assert(len(alone) == len(whole[i]!), "piece {i}: as many faces alone, {len(alone)} and {len(whole[i]!)}");
+    if (kinds[i] ?? -1) >= 0 { houses += 1; }
+    mx = (spots[2 * i] ?? 0.0 as single) as float;
+    mz = (spots[2 * i + 1] ?? 0.0 as single) as float;
+    for fi in 0..len(alone) {
+      a = alone[fi]!;
+      b = whole[i]![fi]!;
+      assert(a.sprite == b.sprite && a.at == b.at && a.light == b.light && a.lights == b.lights, "piece {i} face {fi}: the same alone");
+      for c in 0..len(a.at) / 5 ?? 0 {
+        dx = ((a.at[c * 5] ?? 0.0 as single) as float) - mx;
+        dz = ((a.at[c * 5 + 2] ?? 0.0 as single) as float) - mz;
+        if dx < 0.0 { dx = 0.0 - dx; }
+        if dz < 0.0 { dz = 0.0 - dz; }
+        if dx > furthest { furthest = dx; }
+        if dz > furthest { furthest = dz; }
+      }
+    }
+  }
+  assert(houses == 21, "a piece a house: {houses}");
+  // fixedview makes a piece at once within 30 cells of the hero; the screen reaches 8.4 cells
+  // either side of its middle, the hero 2 off that
+  assert(furthest < 19.0, "no piece reaches further than 19 cells from its middle: {furthest}");
+  assert(len(whole) < 21 + 30, "few shards of ground: {len(whole) - 21} beside the houses");
+  assert(len(render3d::hex_piece(v, g, false, len(whole))) == 0 && len(render3d::hex_piece(v, g, false, -1)) == 0, "no piece past the list");
 }

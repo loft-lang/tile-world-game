@@ -885,7 +885,7 @@ goes flat out on Orbury's ground.
   replaces it.  Scene switches stay for the demo village's doors between places, and for a
   cellar under a house of the town (nothing of the town is seen from there).
 - Rough, and known: the hex ground under the house shows as a stone footprint round the inside;
-  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; the first scene of a town takes about 0.4 s (the hex pieces all made at once); in a turned house
+  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; in a turned house
   the hero's picture still faces by the house's own ways; a field that is not a town (the common) is still drawn flat.
 
 - **The town goes on while the hero is out on its ground** (2026-11-16; game.loft `update_play`,
@@ -900,6 +900,31 @@ goes flat out on Orbury's ground.
   picture (70 547 for a scene of 33), the CPU engine bore it and the GPU's atlas ran out — no
   ground, no figures.  Renamed here (`vpics`, `ViewPic`); the same moment now drawn whole by both.
   ◇ A loft defect to report to the loft stream.
+
+- **The world in shards, made as the hero comes near** (owner, 2026-11-16 and 17: "a single mesh is
+  probably a bit much, can you shard the world like the hex_mesh does so you can get the next
+  part as the hero moves there", "the game as a whole should not be a single mesh", "8x8 hexes is
+  probably a bit low per mesh, moros uses a 32x32 block per mesh").  No scene switch, but not one
+  buffer either: the town's hex version is a list of pieces — a shard of 32 x 32 hexes of ground
+  each (about 32 by 28 cells), a house each — and a piece is made the first time the hero comes
+  near it (`render3d::hex_piece`; within 30 cells at once, the ring to 36 one a frame), is in the
+  scene within 36 cells and out of it past 46 (`fixedview.loft` `keep_hex`).  Walking Orbury from
+  its start into a house made 29 of its pieces; the first scene takes 0.19 s.  The first-person
+  view's GPU meshes are 32 x 32 cells too, built from its chunks of 8 x 8.
+  `checks/hexmesh.loft`: a piece made alone is the piece made with all the others, and none
+  reaches further than 19 cells from the middle its nearness is judged by.
+
+- **Later, the far distance from a height and displacement map** (owner, 2026-11-17: "eventually I
+  want to experiment with the longer distances inside a height and displacement map that can
+  make straight angles and colours of the highest layer of the current map only").  Not started.
+  ◇ As I read it: past the shards made in full round the hero, the world is drawn from one map
+  per stretch — a height a point, a displacement that lets a wall or a cliff stand straight up
+  where a plain height map would slope it, and one colour a point, that of whatever is highest
+  there (a roof, a tree's crown, the ground): nothing under it, no insides.  The two cross-fade (owner, the same day:
+  "we can fade that in and the detailed map out at the same time, but that and the correct forms
+  is the experimental bit of it"): where they meet, the map fades in as the detailed shards fade
+  out.  What is to be found out by trying is that fade and getting the forms right.  ◇ Open: its
+  grain (a hex a point, or finer).
 
 ◇ Next: the flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3

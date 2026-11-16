@@ -100,8 +100,13 @@ const TOWN_Z1 = 4;
 /// A hex piece's tile key (past every square tile's), and how near the hero a piece is given to
 /// the scene and how far it is dropped, in cells.
 const HEX_KEY = 100000000;
-const HEX_REACH = 26.0;
-const HEX_DROP = 34.0;
+/// A shard of ground is 32 x 32 hexes (1 << HEX_BLOCK a side), as moros's hex_mesh keeps its
+/// world (owner, 2026-11-17): about 32 by 28 cells.
+const HEX_BLOCK = 5;
+const HEX_REACH = 36.0;
+/// Within this a piece may come into view (the screen and a piece's own size): made at once.
+const HEX_NOW = 30.0;
+const HEX_DROP = 46.0;
 /// How far a house's own floor is laid over the ground under it where the two meet, in layers.
 const UNDER = 0.02;
 /// How high the hero hops at the middle of a step out on the ground, in layers.
@@ -134,6 +139,8 @@ pub struct Spent {
   pub looked: integer = 0,
   pub looked_us: integer = 0,
   pub changed: integer = 0,
+  /// The pieces of a town's hex version made (each once, when the hero first came near it).
+  pub pieces: integer = 0,
   /// The things whose picture moves drawn as actors in the last frame.
   pub flames: integer = 0,
   /// Lights that moved, dimmed or went out, the cells they reach lit again.
@@ -142,10 +149,9 @@ pub struct Spent {
   pub lights: integer = 0
 }
 
-/// A piece of a town's hex version (render3d::hex_pieces) as the engine takes it, on the town's
-/// ground: its faces, the house it is (-1: ground, -2: a roof on pillars) and its middle.
+/// A piece of a town's hex version (render3d::hex_piece_spots): the house it is (-1: a chunk of
+/// ground, -2: a roof on pillars) and its middle on the ground.
 struct HexTile {
-  faces: vector<float>,
   house: integer,
   x: float,
   z: float
@@ -196,6 +202,9 @@ pub struct FixedView {
   fy: float = 0.0,
   hex: vector<HexTile> = [],
   hex_on: vector<boolean> = [],
+  /// Which pieces are made, and their faces as the engine takes them.
+  hex_made: vector<boolean> = [],
+  hex_faces: vector<vector<float>> = [],
   hex_for: text = "",
   hex_night: boolean = false,
   /// How far the body had walked on the ground when it was last drawn, in tiles.
@@ -246,7 +255,9 @@ pub struct FixedView {
 
 /// A view, off.
 pub fn view() -> FixedView {
-  FixedView { hexv: render3d::view() }
+  hexv = render3d::view();
+  render3d::hex_shards(hexv, HEX_BLOCK);
+  FixedView { hexv: hexv }
 }
 
 /// Draw on a GPU through the backend whose table is `table` (a backend library's `table()`), where
@@ -668,9 +679,11 @@ fn spot(v: FixedView, g: const game::Game, x: integer, y: integer, z: integer) -
   Spot { shown: true, out: true, inn: false, x: fx, y: render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z), z: fz }
 }
 
-// The town's hex version in pieces as the engine takes them, made when the place or the hour is
-// another: a house's faces hidden together (the hero behind it is not hidden), a roof on pillars'
-// too.  None of them is in the scene yet.
+// The town's hex version as shards (as moros's hex_mesh keeps its world; owner, 2026-11-16: the
+// game as a whole is not one mesh): the list of its pieces — a chunk of ground each, a house
+// each, a roof on pillars each — with where each lies, read when the place or the hour is
+// another.  None is made yet and none is in the scene: `keep_hex` makes a piece when the hero
+// comes near it.
 fn hex_ready(v: FixedView, g: const game::Game) {
   night = g.world.night;
   if v.hex_for == g.place && v.hex_night == night {
@@ -681,40 +694,48 @@ fn hex_ready(v: FixedView, g: const game::Game) {
   v.hex_night = night;
   v.hex = [];
   v.hex_on = [];
+  v.hex_made = [];
+  v.hex_faces = [];
   kinds: vector<i64> = [];
-  pieces = render3d::hex_pieces(v.hexv, g, night, kinds);
-  for i in 0..len(pieces) {
+  spots = render3d::hex_piece_spots(v.hexv, g, kinds);
+  for i in 0..len(kinds) {
     k = (kinds[i] ?? -1l) as integer ?? -1;
-    grp = if k >= 0 { k + 1 } else if k == -2 { 1000 + i } else { -1 };
-    out: vector<float> = [];
-    sx = 0.0;
-    sz = 0.0;
-    n = 0;
-    for f in pieces[i]! {
-      if f.sprite < 0 { continue; }
-      c = len(f.at) / 5 ?? 0;
-      out += [pic_of(v, f.sprite) as float, grp as float, c as float, 0.0, 0.0, faces3d::NO_LIGHT as float, 1.0];
-      for j in 0..c {
-        x = f.at[j * 5] ?? 0.0;
-        z = f.at[j * 5 + 2] ?? 0.0;
-        out += [x, f.at[j * 5 + 1] ?? 0.0, z, f.at[j * 5 + 3] ?? 0.0, f.at[j * 5 + 4] ?? 0.0, f.lights[j] ?? f.light];
-        sx += x;
-        sz += z;
-        n += 1;
-      }
-    }
-    v.hex += [HexTile { faces: out, house: k, x: sx / (n as float) ?? 0.0, z: sz / (n as float) ?? 0.0 }];
+    v.hex += [HexTile { house: k, x: spots[2 * i] ?? 0.0, z: spots[2 * i + 1] ?? 0.0 }];
     v.hex_on += [false];
+    v.hex_made += [false];
+    v.hex_faces += [[]];
   }
 }
 
-// The hex pieces near the hero in the scene, those left far behind out of it.  The house the
-// hero is in is not among them: its inside is drawn from the town's map.
-fn keep_hex(v: FixedView, g: const game::Game) {
+// Piece `i` made, as the engine takes it: a house's faces hidden together (the hero behind it is
+// not hidden), a roof on pillars' too.
+fn hex_make(v: FixedView, g: const game::Game, i: integer) {
+  k = v.hex[i]!.house;
+  grp = if k >= 0 { k + 1 } else if k == -2 { 1000 + i } else { -1 };
+  out: vector<float> = [];
+  for f in render3d::hex_piece(v.hexv, g, v.hex_night, i) {
+    if f.sprite < 0 { continue; }
+    c = len(f.at) / 5 ?? 0;
+    out += [pic_of(v, f.sprite) as float, grp as float, c as float, 0.0, 0.0, faces3d::NO_LIGHT as float, 1.0];
+    for j in 0..c {
+      out += [f.at[j * 5] ?? 0.0, f.at[j * 5 + 1] ?? 0.0, f.at[j * 5 + 2] ?? 0.0, f.at[j * 5 + 3] ?? 0.0, f.at[j * 5 + 4] ?? 0.0,
+              f.lights[j] ?? f.light];
+    }
+  }
+  v.hex_faces[i] = out;
+  v.hex_made[i] = true;
+  v.spent.pieces += 1;
+}
+
+// The shards round the hero: a piece within HEX_REACH is in the scene, one left HEX_DROP behind
+// out of it.  A piece is made the first time it is wanted — at once within HEX_NOW (it may come
+// into view), else one a call, so walking makes the world a piece ahead (`all`: every one wanted,
+// now).  The house the hero is in is not among them: its inside is drawn from the town's map.
+fn keep_hex(v: FixedView, g: const game::Game, all: boolean = false) {
   if v.frame == SQUARE { return; }
-  give(v, g);
   hx = (g.world.hero_x as float) + 0.5;
   hz = (g.world.hero_y as float) + 0.5;
+  ahead = 1;
   for i in 0..len(v.hex) {
     t = v.hex[i]!;
     dx = t.x - hx;
@@ -728,10 +749,16 @@ fn keep_hex(v: FixedView, g: const game::Game) {
       v.hex_on[i] = false;
       on = false;
     }
-    if !on && !mine && dx <= HEX_REACH && dz <= HEX_REACH {
-      e_tile(v, HEX_KEY + i, t.faces);
-      v.hex_on[i] = true;
+    if on || mine || dx > HEX_REACH || dz > HEX_REACH { continue; }
+    if !(v.hex_made[i] ?? false) {
+      now = all || (dx <= HEX_NOW && dz <= HEX_NOW);
+      if !now && ahead <= 0 { continue; }
+      if !now { ahead -= 1; }
+      hex_make(v, g, i);
     }
+    give(v, g);
+    e_tile(v, HEX_KEY + i, v.hex_faces[i] ?? []);
+    v.hex_on[i] = true;
   }
 }
 
@@ -1330,7 +1357,7 @@ pub fn differs_from_fresh(v: const FixedView, g: const game::Game) -> integer {
   }
   if f.frame != SQUARE {
     hex_ready(f, g);
-    keep_hex(f, g);
+    keep_hex(f, g, true);
   }
   raster3d::build_scene(f.scene, w.hero_x as float, z1 as float, w.hero_y as float);
   if f.scene == 0 || len(v.px) != raster3d::WIDTH * raster3d::HEIGHT { return -1; }

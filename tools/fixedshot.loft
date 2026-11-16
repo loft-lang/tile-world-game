@@ -176,7 +176,7 @@ fn main() {
   sp = v.spent;
   println("  new scenes {sp.fresh}, {sp.fresh_us / sp.fresh ?? 0} us each; tiles built walking {sp.built}, "
           + "{sp.built_us / sp.built ?? 0} us each; looked at {sp.looked}, {sp.looked_us / sp.looked ?? 0} us each, "
-          + "{sp.changed} changed; {sp.flames} flames drawn as actors; {sp.shone} lights changed; "
+          + "{sp.changed} changed; {sp.pieces} pieces of the hex town made; {sp.flames} flames drawn as actors; {sp.shone} lights changed; "
           + "the light of {sp.lights} cells kept");
   // The tiles kept up through the walk show what a fresh build shows.
   d = fixedview::differs_from_fresh(v, g);

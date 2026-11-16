@@ -164,6 +164,8 @@ pub struct View3D {
   /// Its cells in chunks (gridmesh), each chunk's mesh kept, the chunks' render groups, the chunk
   /// each house is drawn with, and the night the meshes were lit for.
   hex_field: vector<gridmesh::ChunkField> = [],
+  /// A chunk's side in cells, as a power of two (`hex_shards` sets another).
+  hex_shift: integer = HEX_SHIFT,
   hex_chunks: hash<HexChunk[ck]> = [],
   hex_groups: hash<HexGroup[gk]> = [],
   hex_house_ck: vector<integer> = [],
@@ -633,11 +635,12 @@ fn sunlit(c: const vector<(float, float, float, float, float)>, night: boolean) 
 
 
 /// The hex version's chunks: 8 x 8 cells (gridmesh), each chunk's mesh built once and kept; and
-/// its render groups, 2 x 2 chunks drawn as one GPU mesh.  Only a chunk marked dirty is built again
+/// its render groups, 4 x 4 chunks drawn as one GPU mesh (32 x 32 cells a mesh, as moros; owner,
+/// 2026-11-17).  Only a chunk marked dirty is built again
 /// (gridmesh::field_mark_dirty, its border halo with it), and only the groups holding one are
 /// uploaded again (owner, 2026-11-09: the hex mesh's model).
 const HEX_SHIFT = 3;
-const HEX_GROUP = 2;
+const HEX_GROUP = 4;
 const HEX_SLOTS = 96;
 
 /// The surface pictures, by kind (hexterrain.loft): grass, path, rail, a stream's bed, shallows,
@@ -656,7 +659,7 @@ fn hex_ready(v: View3D, s: const hexscene::Scene) {
   xs: vector<integer> = [];
   ys: vector<integer> = [];
   for r in s.r0..s.r0 + s.h { for q in s.q0..s.q0 + s.w { xs += [q]; ys += [r]; } }
-  v.hex_field += [gridmesh::field_new(0, xs, ys, HEX_SHIFT, 1)];
+  v.hex_field += [gridmesh::field_new(0, xs, ys, v.hex_shift, 1)];
   v.hex_house_ck = [];
   for h in s.houses {
     n = len(h.xs);
@@ -667,18 +670,18 @@ fn hex_ready(v: View3D, s: const hexscene::Scene) {
       cy += h.ys[i] ?? 0.0;
     }
     (q, r) = hexscene::cell_near((cx / (n as float)) ?? 0.0, (cy / (n as float)) ?? 0.0);
-    v.hex_house_ck += [gridmesh::chunk_of(q, r, HEX_SHIFT).ck];
+    v.hex_house_ck += [gridmesh::chunk_of(q, r, v.hex_shift).ck];
   }
   // what stands along the yards, and the roofs on pillars: each with the chunk its middle lies in
   v.hex_fence_ck = [];
   for each_fence in s.fences {
     (fq, fr) = hexscene::cell_near((each_fence.ax + each_fence.bx) * 0.5, (each_fence.ay + each_fence.by) * 0.5);
-    v.hex_fence_ck += [gridmesh::chunk_of(fq, fr, HEX_SHIFT).ck];
+    v.hex_fence_ck += [gridmesh::chunk_of(fq, fr, v.hex_shift).ck];
   }
   v.hex_canopy_ck = [];
   for each_canopy in s.canopies {
     (cq, cr) = hexscene::cell_near(each_canopy.x, each_canopy.y);
-    v.hex_canopy_ck += [gridmesh::chunk_of(cq, cr, HEX_SHIFT).ck];
+    v.hex_canopy_ck += [gridmesh::chunk_of(cq, cr, v.hex_shift).ck];
   }
 }
 
@@ -751,6 +754,84 @@ pub fn hex_pieces(v: View3D, g: const game::Game, night: boolean, kinds: vector<
     out += [fs];
   }
   out
+}
+
+/// The hex version kept in chunks of 1 << `shift` cells a side from here on (before any of it is
+/// asked for): a view that keeps its own shards chooses their size — the fixed view 32 x 32, as
+/// moros's hex_mesh (owner, 2026-11-17).
+pub fn hex_shards(v: View3D, shift: integer) {
+  v.hex_shift = shift;
+  v.hex_field = [];
+  v.hex_chunks = [];
+  v.hex_groups = [];
+}
+
+/// The pieces `hex_pieces` gives, without making them: a number a piece in `kinds` (as there) and
+/// each one's middle on the ground as x, z in tiles, two numbers a piece — for a view that makes a
+/// piece only when the hero comes near it (`hex_piece`).
+pub fn hex_piece_spots(v: View3D, g: const game::Game, kinds: vector<integer>) -> vector<single> {
+  out: vector<single> = [];
+  if !hex_loaded(v, g) { return out; }
+  s = v.hex[0]!;
+  hex_ready(v, s);
+  f = v.hex_field[0]!;
+  for b in f.buckets {
+    sx = 0.0;
+    sy = 0.0;
+    for i in b.cell_ixs {
+      (cx, cy) = hexscene::centre(f.xs[i] ?? 0, f.ys[i] ?? 0);
+      sx += cx;
+      sy += cy;
+    }
+    n = len(b.cell_ixs) as float;
+    kinds += [-1];
+    out += [((sx / n ?? 0.0) / TILE_M + 0.5) as single, (0.5 - (sy / n ?? 0.0) / TILE_M) as single];
+  }
+  for i in 0..len(s.houses) {
+    h = s.houses[i]!;
+    sx = 0.0;
+    sy = 0.0;
+    for j in 0..len(h.xs) {
+      sx += h.xs[j] ?? 0.0;
+      sy += h.ys[j] ?? 0.0;
+    }
+    n = len(h.xs) as float;
+    kinds += [i];
+    out += [((sx / n ?? 0.0) / TILE_M + 0.5) as single, (0.5 - (sy / n ?? 0.0) / TILE_M) as single];
+  }
+  for c in s.canopies {
+    kinds += [-2];
+    out += [(c.x / TILE_M + 0.5) as single, (0.5 - c.y / TILE_M) as single];
+  }
+  out
+}
+
+/// Piece `at` of `hex_piece_spots`' list, made: its faces, as `hex_pieces` gives them.
+pub fn hex_piece(v: View3D, g: const game::Game, night: boolean, at: integer) -> vector<faces3d::Face> {
+  fs: vector<faces3d::Face> = [];
+  if !hex_loaded(v, g) || at < 0 { return fs; }
+  s = v.hex[0]!;
+  hex_ready(v, s);
+  f = v.hex_field[0]!;
+  i = 0;
+  for b in f.buckets {
+    if i == at {
+      pics = hex_kinds(g);
+      for c in b.cell_ixs { hex_cell(fs, s, f.xs[c] ?? 0, f.ys[c] ?? 0, pics, night); }
+      for k in 0..len(s.fences) {
+        if (v.hex_fence_ck[k] ?? -1) == b.ck { fence_faces(fs, g, s, s.fences[k], night); }
+      }
+      return fs;
+    }
+    i += 1;
+  }
+  if at - i < len(s.houses) {
+    house_faces(fs, g, s, s.houses[at - i], night);
+    return fs;
+  }
+  i += len(s.houses);
+  if at - i < len(s.canopies) { canopy_faces(fs, g, s.canopies[at - i], night); }
+  fs
 }
 
 /// The hex version's ground under the middle of tile (x, y) of the place's map, for one standing
