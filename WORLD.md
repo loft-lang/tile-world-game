@@ -645,11 +645,20 @@ work (and I have tested them too) we should also allow for a similar routine tha
 down the hill routine to find out where water needs to flow.  So we do not calculate it all the
 time, but on scene changes (like locks) we analyze where the water will go and adjust the game to
 it."  Not started; it waits for the puzzles and the owner's testing of them.
+- **Water has speed, and carries** (owner, 2026-11-16): "Water has speed in practice, we do want
+  to incorporate that in our model.  Water slides should be in the game and potential to be
+  dragged along by water is there."
+- ◇ So what the routine works out on a scene change is, per wet cell: how deep, which way the
+  water runs (one of the grid's ways) and how fast — its speed taken from the drop it has come
+  down and given back to the ground, as a marble's is.  It is kept until the next change.
 - ◇ What carries over from `marbles.loft`: the lowest free neighbour, what stops a step (a
-  wall's hexes, a fence's or a lock's edges), the same answer every time.  What differs: water
-  has no speed and does not stop on a slope — it goes on to where no neighbour is lower and
-  fills there until it finds a way over — so the answer is which cells are wet and how deep,
-  worked out once when a lock opens or shuts, a wall falls or a bed is dug, and kept.
+  wall's hexes, a fence's or a lock's edges), speed from the drop, the same answer every time.
+  What differs: water does not stop on a slope and does not keep to one cell — it runs on,
+  spreads, and where no neighbour is lower it stands and fills until it finds a way over.
+- ◇ Carrying is then a rule on the kept answer, not worked out again: a figure or a thing in a
+  cell whose water runs faster than it can stand against is taken one cell along the water's
+  way, in the time that speed gives; slower water is waded.  A water slide is a channel steep
+  enough that its water is that fast all the way down.
 
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
