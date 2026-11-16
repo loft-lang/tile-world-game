@@ -1,0 +1,58 @@
+{
+ "name": "the shed",
+ "camera": "follow",
+ "legend": {
+  ".": "floor",
+  "#": "wall",
+  "d": "open_door"
+ },
+ "ground": [],
+ "chunks": [
+  {
+   "cx": 0,
+   "cy": 0,
+   "z": 0,
+   "rows": [
+    "#######",
+    "#.....#",
+    "#.....#",
+    "#.....#",
+    "###d###"
+   ]
+  }
+ ],
+ "things": [
+  {
+   "at": [
+    3,
+    2,
+    0
+   ],
+   "stack": [
+    "rock"
+   ]
+  }
+ ],
+ "tiles": [],
+ "edges": [],
+ "rises": [],
+ "doors": [
+  {
+   "at": [
+    3,
+    4,
+    0
+   ],
+   "to": "the_common",
+   "door": "the_shed"
+  }
+ ],
+ "start": [
+  3,
+  3,
+  0
+ ],
+ "goal": {
+  "type": ""
+ }
+}

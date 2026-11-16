@@ -17,6 +17,10 @@ use motion;
 use ui;
 use intent;
 use stamp;
+use hex_field;
+use hexterrain;
+use gridroom;
+use fieldplay;
 use deal;
 use urn;
 
@@ -230,6 +234,14 @@ pub struct Game {
   /// held, diagonals too, and stands between tiles; its body's offset from its cell, in 1/256 of a
   /// cell.  The rules still see it on its cell: crossing half a cell takes the step there.  The
   /// way (1 or -1) a step was refused, not tried again while that key stays held.
+  /// On a field with rooms (WORLD.md § One game, square or hex; fieldplay.loft): the hero is out on
+  /// the hex ground between the rooms, its body where `fplay` has it.  `world` stays the room it
+  /// came out of (what it carries is there) until it goes into another.  `field` is the field's
+  /// name (levels/<name>.field), `field_rooms` its rooms' places in `fplay.rooms`' order.
+  pub on_field: boolean = false,
+  pub field: text = "",
+  pub field_rooms: vector<text> = [],
+  pub fplay: fieldplay::Play,
   pub free: boolean = false,
   pub free_x: integer = 0,
   pub free_y: integer = 0,
@@ -383,7 +395,8 @@ pub fn new_game(dir: text) -> Game? {
     drag_to: (0, 0), room_pick: -1, words: intent::words_from(theme_text), lit: false, checking: false, note: "",
     cam_x: 0, cam_y: 0, area: (0, 0, 0, 0),
     dir: dir, saved: empty, has_save: false, asking_back: false, previous: empty, has_previous: false,
-    just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0
+    just_back: false, motion: motion::still(), was_moving: false, movers: [], lift: 0,
+    fplay: fieldplay::play(0, 0, 1, 1)
   };
   g.people = load_people(dir);
   for e in sound_events() {
@@ -564,9 +577,173 @@ fn deal_here(g: Game) {
 pub fn go_through(g: Game, i: integer) -> boolean {
   if i < 0 || i >= len(g.file.doors) { return false; }
   to = g.file.doors[i]!.to;
-  there = g.file.doors[i]!.door;
+  // out onto a field: the hero is on the ground outside this room, the room kept as its world
+  if is_field(g, to) { return enter_field(g, to); }
+  travel(g, to, g.file.doors[i]!.door, g.file.doors[i]!.home)
+}
+
+// --- A field with rooms (WORLD.md § One game, square or hex; fieldplay.loft) ---
+
+/// Is `name` a field: a stretch of hex ground with rooms on it (levels/<name>.field).
+pub fn is_field(g: const Game, name: text) -> boolean { name != "" && (file("{g.dir}/levels/{name}.field").content() ?? "") != "" }
+
+// Read field `name`: its ground's window, its rooms — each a place set down at its angle, its
+// tiles on the ground where the file says — its trees, and where the hero starts.
+fn load_field(g: Game, name: text) -> boolean {
+  raw = file("{g.dir}/levels/{name}.field").content() ?? "";
+  if raw == "" { return false; }
+  doc = json_parse(raw);
+  wv = doc.field("window");
+  p = fieldplay::play(levels::num(wv.item(0), -20), levels::num(wv.item(1), -20), levels::num(wv.item(2), 41), levels::num(wv.item(3), 41));
+  rooms: vector<text> = [];
+  rv = doc.field("rooms");
+  for i in 0..rv.len() {
+    r = rv.item(i);
+    place = levels::str(r.field("place"), "");
+    m = levels::load_with(file("{g.dir}/levels/{place}.json").content() ?? "", g.kinds, g.mats);
+    if !m { return false; }
+    lf = m ?? return false;
+    size = r.field("size");
+    at = r.field("at");
+    rm = gridroom::Room { level: lf.level, w: levels::num(size.item(0), 1), h: levels::num(size.item(1), 1), z: 0, turn: levels::num(r.field("turn"), 0) };
+    fieldplay::add_room(p, rm, at.item(0).as_number(), at.item(1).as_number());
+    rooms += [place];
+  }
+  tv = doc.field("trees");
+  for i in 0..tv.len() { hex_field::hexset_set(p.ground.fixed, levels::num(tv.item(i).item(0), 0), levels::num(tv.item(i).item(1), 0), true); }
+  st = doc.field("start");
+  fieldplay::put_hero(p, st.item(0).as_number(), st.item(1).as_number());
+  g.fplay = p;
+  g.field = name;
+  g.field_rooms = rooms;
+  true
+}
+
+// The hero out of the room it is in onto field `name`: on the hex outside the door it came by,
+// facing out.  The room stays `g.world`, the hero on its door.
+fn enter_field(g: Game, name: text) -> boolean {
+  if g.field != name && !load_field(g, name) { return false; }
+  for i in 0..len(g.field_rooms) {
+    if g.field_rooms[i] != g.place { continue; }
+    rm = g.fplay.rooms[i]!;
+    for o in rm.openings {
+      if o.x != g.world.hero_x || o.y != g.world.hero_y { continue; }
+      c = hexterrain::centre(o.q, o.r);
+      fieldplay::put_hero(g.fplay, c.0, c.1);
+      (wx, wy) = gridroom::way(o.heading);
+      g.fplay.face_x = wx;
+      g.fplay.face_y = wy;
+    }
+  }
+  g.fplay.room = -1;
+  g.on_field = true;
+  g.motion = motion::still();
+  g.movers = [];
+  g.note = "";
+  sound(g, "door_open");
+  true
+}
+
+/// Play field `name` from its start, the hero on the ground.  False when it does not load.
+pub fn start_field(g: Game, name: text) -> boolean {
+  if !load_field(g, name) { return false; }
+  g.in_world = true;
+  g.places = [];
+  g.place = "";
+  g.world = rules::level(g.kinds);
+  g.on_field = true;
+  true
+}
+
+/// On the field the hero walks `ms` along (dx, dy) — x east, y north — and, come onto a room's
+/// tile through its door, is in that room: the game plays there as in any place.  Answers whether
+/// anything changed.
+pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
+  moved = fieldplay::roam(g.fplay, dx, dy, ms);
+  i = g.fplay.room;
+  if i < 0 { return moved; }
+  // the body is left on the hex outside the door, for when it comes out again
+  rm = g.fplay.rooms[i]!;
+  t = gridroom::tile_at(rm, g.fplay.x, g.fplay.y);
+  for o in rm.openings {
+    if o.x != t.1 || o.y != t.2 { continue; }
+    c = hexterrain::centre(o.q, o.r);
+    fieldplay::put_hero(g.fplay, c.0, c.1);
+  }
+  g.fplay.room = -1;
+  name = g.field_rooms[i] ?? "";
+  g.on_field = false;
+  if name == g.place {
+    // back into the room it came out of: beside its door, as it was left
+    k = levels::door_named(g.file, g.field);
+    if k >= 0 {
+      side = levels::out_of(g.file, g.world, k);
+      rules::put_hero(g.world, g.file.doors[k]!.x + side.0, g.file.doors[k]!.y + side.1, g.file.doors[k]!.z);
+      if side.0 != 0 || side.1 != 0 {
+        g.world.face_x = side.0;
+        g.world.face_y = side.1;
+      }
+    }
+    aim(g);
+    sound(g, "door_open");
+    return true;
+  }
+  if !travel(g, name, g.field, false) { g.on_field = true; }
+  true
+}
+
+// The keys on the field: the arrows walk, north up.
+fn update_field(g: Game, ms: integer) -> boolean {
+  dx = 0.0;
+  dy = 0.0;
+  if g.keys.is_action_pressed("left") { dx -= 1.0; }
+  if g.keys.is_action_pressed("right") { dx += 1.0; }
+  if g.keys.is_action_pressed("up") { dy += 1.0; }
+  if g.keys.is_action_pressed("down") { dy -= 1.0; }
+  field_walk(g, dx, dy, ms)
+}
+
+// The field from above, plainly: the ground's hexes round the hero, a tile's length 16 pixels —
+// grass, what does not move, a thing, the hex outside a door, and under a room its floor or its
+// wall as the room's own tile there has it; the hero a mark with the way it faces.
+fn draw_field(g: Game) {
+  tiles::clear(g.surface, tiles::rgb(60, 104, 52));
+  p = g.fplay;
+  (hq, hr) = fieldplay::hero_hex(p);
+  scale = 16.0 / gridroom::TILE;
+  mid_y = (H - 16) / 2;
+  for r in hr - 8..hr + 9 {
+    for q in hq - 8..hq + 9 {
+      c = hexterrain::centre(q, r);
+      px = W / 2 + round((c.0 - p.x) * scale) as integer;
+      py = mid_y - round((c.1 - p.y) * scale) as integer;
+      colour = tiles::rgb(86, 140, 70);
+      under = hex_field::label_get(p.ground.under, q, r);
+      if under >= 0 {
+        rm = p.rooms[under]!;
+        t = gridroom::tile_at(rm, c.0, c.1);
+        k = tile_world::terrain(rm.level.w, t.1, t.2, rm.z);
+        colour = if k != rules::VOID && rules::walkable(rm.level, k) { tiles::rgb(196, 184, 160) } else { tiles::rgb(112, 104, 98) };
+      } else if hex_field::hexset_get(p.ground.fixed, q, r) {
+        colour = tiles::rgb(34, 84, 46);
+      } else if hex_field::label_get(p.ground.things, q, r) != 0 {
+        colour = tiles::rgb(150, 150, 162);
+      } else {
+        for rm in p.rooms { for o in rm.openings { if o.exact && o.q == q && o.r == r { colour = tiles::rgb(204, 172, 112); } } }
+      }
+      tiles::rect(g.surface, px - 7, py - 6, 15, 13, colour);
+    }
+  }
+  tiles::rect(g.surface, W / 2 - 3, mid_y - 3, 7, 7, tiles::rgb(228, 64, 52));
+  tiles::rect(g.surface, W / 2 - 1 + round(p.face_x * 5.0) as integer, mid_y - 1 - round(p.face_y * 5.0) as integer, 3, 3, tiles::rgb(250, 240, 210));
+  draw_status_on(g, g.surface, (ROWS - 1) * 16, COLS * 2);
+}
+
+// Through to place `to`, arriving at its door named `there`: the place as the hero left it when
+// it was there before, with what goes through with the hero.
+fn travel(g: Game, to: text, there: text, home: boolean) -> boolean {
   // Into someone's home while seen (BUILD.md C2b): snooping, and it is known.
-  if g.file.doors[i]!.home && rules::seen_by_people(g.world) { rules::snoop(g.world); }
+  if home && rules::seen_by_people(g.world) { rules::snoop(g.world); }
   m = levels::load_with(file("{g.dir}/levels/{to}.json").content() ?? "", g.kinds, g.mats);
   if !m { return false; }
   // Leaving the place is walking away from whoever is talking.
@@ -1938,6 +2115,8 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
     return true;
   }
   if g.editing { return update_editor(g, now); }
+  // Out on a field: the hero walks the ground between the rooms.
+  if g.on_field { return update_field(g, ms); }
   // The haunted dream on waking: for DREAM_MS, or until a key.
   if g.dreaming {
     g.dream_ms += ms;
@@ -3263,6 +3442,10 @@ pub fn draw(g: Game) {
   }
   if g.dreaming {
     draw_dream(g);
+    return;
+  }
+  if g.on_field {
+    draw_field(g);
     return;
   }
   follow_enemies(g);

@@ -1,0 +1,81 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A field with rooms played in the game itself (game.loft § A field with rooms; the common,
+// levels/the_common.field): the hero out on the hex ground walks to the shed's door and is in
+// the shed — the game's own place, played as any — steps out of its door and is on the ground
+// outside it, crosses to the lawn's gate and is on the lawn; the shed is as it was left.
+use hex_field;
+use hexterrain;
+use tile_world;
+use rules;
+use levels;
+use gridroom;
+use fieldplay;
+use game;
+
+fn far(a: (float, float), b: (float, float)) -> float { sqrt((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)) ?? 0.0 }
+
+// Walk the hero straight towards (x, y) on the field until it is there, is in a room, or `ms` ran out.
+fn to(g: game::Game, x: float, y: float, ms: integer) {
+  left = ms;
+  while left > 0 && g.on_field && far((g.fplay.x, g.fplay.y), (x, y)) > 0.08 {
+    game::field_walk(g, x - g.fplay.x, y - g.fplay.y, 20);
+    left -= 20;
+  }
+}
+
+fn test_the_hero_walks_the_common_into_its_rooms_and_out() {
+  m = game::new_game("..");
+  if !m { assert(false, "the game opens"); return; }
+  g = m ?? return;
+  assert(game::is_field(g, "the_common") && !game::is_field(g, "demo"), "the common is a field, the village is not");
+  assert(game::start_field(g, "the_common") && g.on_field && len(g.field_rooms) == 2, "out on the common, two rooms on it");
+  game::draw(g);
+  shed = g.fplay.rooms[0]!;
+  lawn = g.fplay.rooms[1]!;
+  assert(len(shed.openings) == 1 && len(lawn.openings) == 1 && shed.openings[0]!.exact && lawn.openings[0]!.exact, "each with its one way in");
+  // to 4 m out from the shed's door, then in at it
+  so = shed.openings[0]!;
+  step = hexterrain::centre(so.q, so.r);
+  (sx, sy) = gridroom::way(so.heading);
+  door = gridroom::tile_centre(shed, so.x as float, so.y as float);
+  to(g, step.0 + 4.0 * sx, step.1 + 4.0 * sy, 20000);
+  assert(g.on_field && far((g.fplay.x, g.fplay.y), (step.0 + 4.0 * sx, step.1 + 4.0 * sy)) < 0.1, "before the shed's door: ({g.fplay.x}, {g.fplay.y}), refused {g.fplay.refused}");
+  to(g, door.0, door.1, 5000);
+  assert(!g.on_field && g.place == "the_shed", "in the shed: on the field {g.on_field}, place {g.place}");
+  assert(g.world.hero_x == 3 && g.world.hero_y == 3 && g.world.hero_z == 0, "beside its door, inside: ({g.world.hero_x}, {g.world.hero_y})");
+  game::draw(g);
+  // the shed is the game's own place: the rock is pushed by the game's own move
+  rock = tile_world::top(g.world.w, 3, 2, 0);
+  assert(rock != 0, "the rock in the shed");
+  game::move(g, 0, -1, false);
+  assert(tile_world::top(g.world.w, 3, 1, 0) == rock && g.world.hero_y == 2, "pushed a tile north by the game's move");
+  // back to the door and out: on the hex outside it
+  game::move(g, 0, 1, false);
+  game::move(g, 0, 1, false);
+  assert(g.on_field && g.place == "the_shed", "out on the common, the shed still the hero's world: on the field {g.on_field}");
+  assert(far((g.fplay.x, g.fplay.y), step) < 0.001, "on the hex outside the shed's door: ({g.fplay.x}, {g.fplay.y})");
+  // in again: the shed as it was left
+  to(g, door.0, door.1, 3000);
+  assert(!g.on_field && g.place == "the_shed" && tile_world::top(g.world.w, 3, 1, 0) == rock && g.world.hero_y == 3, "in again, the rock where it was pushed");
+  game::move(g, 0, 1, false);
+  assert(g.on_field, "and out");
+  // over the ground to the lawn's gate, and on to the lawn
+  lo = lawn.openings[0]!;
+  gate_step = hexterrain::centre(lo.q, lo.r);
+  (lx, ly) = gridroom::way(lo.heading);
+  gate = gridroom::tile_centre(lawn, lo.x as float, lo.y as float);
+  for stop in [(step.0 + 6.0 * sx, step.1 + 6.0 * sy), (gate_step.0 + 6.0 * lx, gate_step.1 + 6.0 * ly), (gate.0, gate.1)] {
+    to(g, stop.0, stop.1, 30000);
+  }
+  assert(!g.on_field && g.place == "the_lawn", "on the lawn: on the field {g.on_field}, place {g.place}, body ({g.fplay.x}, {g.fplay.y}), refused {g.fplay.refused}");
+  assert(tile_world::top(g.world.w, 2, 2, 0) != 0, "its chest there");
+  // and the shed, kept: back over the ground into it
+  d = levels::door_named(g.file, "the_common");
+  assert(d >= 0 && game::go_through(g, d) && g.on_field && far((g.fplay.x, g.fplay.y), gate_step) < 0.001, "out of the lawn's gate, on the hex outside it");
+  for stop in [(gate_step.0 + 6.0 * lx, gate_step.1 + 6.0 * ly), (step.0 + 6.0 * sx, step.1 + 6.0 * sy), (door.0, door.1)] {
+    to(g, stop.0, stop.1, 30000);
+  }
+  assert(!g.on_field && g.place == "the_shed" && tile_world::top(g.world.w, 3, 1, 0) == rock, "in the shed again, as it was left");
+}

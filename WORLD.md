@@ -749,8 +749,18 @@ gate.
   end up inside libraries eventually").  Candidates, once settled: the room grid on hex ground
   (`gridroom.loft`), play across grids (`fieldplay.loft`), the marble rules (`marbles.loft`).
 
-◇ Next: this wired to the game's own keys, clock and views (game.loft still plays one square
-place at a time), and other figures crossing between grids.  The steps below were written before these rulings:
+**Built, a field in the game** (2026-11-16; game.loft § A field with rooms, `tests/fieldgame.loft`):
+a field is a file `levels/<name>.field` — its ground's window, its rooms (each a place, where and at
+what angle), its trees.  Out on it the arrows walk the hero free over the hexes; come onto a
+room's tile through its door, the hero is in that room as the game's own place, played as any;
+stepping onto the room's door (a door to the field) puts the hero on the hex outside it, the room
+kept as it was left.  The field is drawn from above, plainly.  The common (`the_common.field`: a
+shed and a lawn) is walked by the test through the game itself.  The owner's priority, the same
+day: the experimental whole before the square puzzles' polish — "a broken mess that shows off
+what the engine can do is highly preferable above a consistent and working sokoban clone".
+
+◇ Next: the full town on these rules (owner) — Orbury's outdoors as hex ground, each house a room
+on its own grid at its angle; then water that flows.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

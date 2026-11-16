@@ -335,7 +335,7 @@ fn main() {
       timing.frames += 1;
       timing.show += ticks() - shown_at;
       report(timing, size);
-    } else if v3.on && !game.editing {
+    } else if v3.on && !game.editing && !game.on_field {
       aim(game, view, size);
       render3d::draw(v3, gpu, game, changed || resized, now);
       present(game, size, timing);
