@@ -21,6 +21,8 @@ use hex_field;
 use hexterrain;
 use gridroom;
 use fieldplay;
+use hexwalls;
+use hextown;
 use deal;
 use urn;
 
@@ -136,6 +138,17 @@ pub struct MovedTalk {
   pub talk: talk::Talk
 }
 
+/// A spot of a town's ground that leads off it: the hex, and the door of the town's place that
+/// is there (-1: stairs, down from tile (x, y) of layer z).
+pub struct FieldExit {
+  pub q: integer,
+  pub r: integer,
+  pub door: integer,
+  pub x: integer,
+  pub y: integer,
+  pub z: integer
+}
+
 pub struct Game {
   pub world: rules::Level,
   /// The level being played, as its file holds it (name, start, goal).
@@ -242,6 +255,15 @@ pub struct Game {
   pub field: text = "",
   pub field_rooms: vector<text> = [],
   pub fplay: fieldplay::Play,
+  /// On a town's own field (`field` is the place itself): the spots of its ground that lead off
+  /// it — a door to another place, stairs down — and the hex the hero was last on.
+  /// Play a town that has a hex version on the new rules (its outdoors hex ground, its houses
+  /// rooms on it).  The game itself turns it on (main.loft); off, a town plays on its square map
+  /// as before, which the checks of the square rules use.
+  pub town_rules: boolean = false,
+  pub field_exits: vector<FieldExit> = [],
+  field_q: integer = 0,
+  field_r: integer = 0,
   pub free: boolean = false,
   pub free_x: integer = 0,
   pub free_y: integer = 0,
@@ -554,6 +576,9 @@ pub fn start_world(g: Game, place: text) -> boolean {
   move_people(g, true);
   g.arrived = g.world;
   g.has_arrived = true;
+  g.on_field = false;
+  g.field = "";
+  settle(g);
   true
 }
 
@@ -583,6 +608,139 @@ pub fn go_through(g: Game, i: integer) -> boolean {
 }
 
 // --- A field with rooms (WORLD.md § One game, square or hex; fieldplay.loft) ---
+
+// --- A town on the new rules (WORLD.md § One game, square or hex; owner, 2026-11-16) ---
+//
+// A place with a hex version (levels/<place>.hex.json: Orbury) is played with its outdoors as hex
+// ground and each of its houses a room on its own grid, at the angle the hex town gives it.  The
+// houses' insides stay the town's own map — their people, their things, their floors — played by
+// the rules as ever; the hero outside is on the ground (`on_field`), walking free.  In at a
+// house's door, out of it onto the hex before it; a door to another place and stairs down are
+// spots on the ground.  Not yet on the ground: the people, creatures and things that stand
+// outdoors in the square town, the ground's heights, and a dressed view.
+
+// Build the town's field from the place being played: the hex town's ground and what stands on
+// it, a window for each house, the spots that lead off.
+fn load_town(g: Game) -> boolean {
+  raw = file("{g.dir}/levels/{g.place}.json").content() ?? "";
+  sizes = "{g.dir}/hexsizes.json";
+  town = hextown::port(raw, hexwalls::sizes_file(sizes), hexterrain::measures_file(sizes), hextown::yards_file(sizes));
+  gr = town.ground;
+  p = fieldplay::play(gr.gr_q0, gr.gr_r0, gr.gr_w, gr.gr_h);
+  for r in gr.gr_r0..gr.gr_r0 + gr.gr_h {
+    for q in gr.gr_q0..gr.gr_q0 + gr.gr_w { hex_field::label_set(p.ground.kinds, q, r, hex_field::label_get(gr.gr_kinds, q, r)); }
+  }
+  for t in town.things {
+    if t.kind == "bridge" || t.kind == "gazebo_roof" { continue; }
+    (q, r) = hexterrain::cell_near(t.x, t.y);
+    hex_field::hexset_set(p.ground.fixed, q, r, true);
+  }
+  for f in town.fences { gridroom::fence(p.ground, f.ax, f.ay, f.bx, f.by); }
+  it = g.file.intent;
+  rooms: vector<text> = [];
+  for i in 0..len(it.houses) {
+    h = it.houses[i]!;
+    pl = town.houses[i]!;
+    rm = gridroom::Room { level: rules::level(g.kinds), w: h.w, h: h.h, z: h.z, turn: pl.turn, x0: h.x, y0: h.y };
+    c = hexterrain::centre(pl.cq, pl.cr);
+    (ex, ey) = gridroom::way(pl.turn);
+    (sx, sy) = gridroom::way(pl.turn + 9);
+    hw = ((h.w - 1) as float) * 0.5 * gridroom::TILE;
+    hh = ((h.h - 1) as float) * 0.5 * gridroom::TILE;
+    gridroom::place_window(p.ground, rm, i, c.0 - hw * ex - hh * sx, c.1 - hw * ey - hh * sy, g.world);
+    p.rooms += [rm];
+    rooms += [g.place];
+  }
+  // the spots that lead off: each door of the place that stands outdoors, and stairs down under the sky
+  exits: vector<FieldExit> = [];
+  for i in 0..len(g.file.doors) {
+    d = g.file.doors[i]!;
+    if in_house(p, d.x, d.y) || d.z < 0 { continue; }
+    at = hextown::tile_xy(d.x as float, d.y as float);
+    (q, r) = hexterrain::cell_near(at.0, at.1);
+    exits += [FieldExit { q: q, r: r, door: i, x: d.x, y: d.y, z: d.z }];
+  }
+  down = rules::terrain_id(g.kinds, "stairs_down");
+  area = camera::bounds(g.world.w);
+  for z in 0..4 {
+    for y in area.1..area.3 + 1 {
+      for x in area.0..area.2 + 1 {
+        if tile_world::terrain(g.world.w, x, y, z) != down || in_house(p, x, y) || !tile_world::open_sky(g.world.w, x, y, z) { continue; }
+        at = hextown::tile_xy(x as float, y as float);
+        (q, r) = hexterrain::cell_near(at.0, at.1);
+        exits += [FieldExit { q: q, r: r, door: -1, x: x, y: y, z: z }];
+      }
+    }
+  }
+  g.fplay = p;
+  g.field = g.place;
+  g.field_rooms = rooms;
+  g.field_exits = exits;
+  true
+}
+
+// Is tile (x, y) of the town's map in one of its houses.
+fn in_house(p: const fieldplay::Play, x: integer, y: integer) -> boolean {
+  for rm in p.rooms { if x >= rm.x0 && y >= rm.y0 && x < rm.x0 + rm.w && y < rm.y0 + rm.h { return true; } }
+  false
+}
+
+/// Is the place being played a town on the new rules: its field is its own.
+pub fn on_town(g: const Game) -> boolean { g.place != "" && g.field == g.place }
+
+// After the hero came to a tile of a town's map: outdoors — out of every house, under the sky —
+// it is out on the ground: on the hex before the door it came out of, or where its tile lies.
+fn settle(g: Game) {
+  if !g.town_rules || !g.in_world || g.editing || g.place == "" { return; }
+  if g.field != g.place {
+    if (file("{g.dir}/levels/{g.place}.hex.json").content() ?? "") == "" { return; }
+    if !load_town(g) { return; }
+  }
+  x = g.world.hero_x;
+  y = g.world.hero_y;
+  z = g.world.hero_z;
+  if in_house(g.fplay, x, y) || z < 0 || !tile_world::open_sky(g.world.w, x, y, z) { return; }
+  at = hextown::tile_xy(x as float, y as float);
+  for rm in g.fplay.rooms {
+    for o in rm.openings {
+      if o.exact && o.x + o.dx == x && o.y + o.dy == y && rm.z == z {
+        at = hexterrain::centre(o.q, o.r);
+        (wx, wy) = gridroom::way(o.heading);
+        g.fplay.face_x = wx;
+        g.fplay.face_y = wy;
+      }
+    }
+  }
+  fieldplay::put_hero(g.fplay, at.0, at.1);
+  (q, r) = fieldplay::hero_hex(g.fplay);
+  g.field_q = q;
+  g.field_r = r;
+  g.on_field = true;
+  g.motion = motion::still();
+  g.movers = [];
+}
+
+// On a town's ground the hero came onto another hex: a spot that leads off takes it there — through
+// a door to another place, or down stairs into the town's own map below.
+fn town_spot(g: Game) -> boolean {
+  (q, r) = fieldplay::hero_hex(g.fplay);
+  if q == g.field_q && r == g.field_r { return false; }
+  g.field_q = q;
+  g.field_r = r;
+  for e in g.field_exits {
+    if e.q != q || e.r != r { continue; }
+    g.on_field = false;
+    if e.door >= 0 {
+      rules::put_hero(g.world, e.x, e.y, e.z);
+      if !go_through(g, e.door) { g.on_field = true; }
+    } else {
+      rules::put_hero(g.world, e.x, e.y, e.z - 1);
+      aim(g);
+    }
+    return true;
+  }
+  false
+}
 
 /// Is `name` a field: a stretch of hex ground with rooms on it (levels/<name>.field).
 pub fn is_field(g: const Game, name: text) -> boolean { name != "" && (file("{g.dir}/levels/{name}.field").content() ?? "") != "" }
@@ -661,7 +819,27 @@ pub fn start_field(g: Game, name: text) -> boolean {
 pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
   moved = fieldplay::roam(g.fplay, dx, dy, ms);
   i = g.fplay.room;
-  if i < 0 { return moved; }
+  if i < 0 {
+    if on_town(g) && town_spot(g) { return true; }
+    return moved;
+  }
+  if on_town(g) {
+    // into a house of the town: on its door's tile, in the town's own map
+    rm = g.fplay.rooms[i]!;
+    t = gridroom::tile_at(rm, g.fplay.x, g.fplay.y);
+    g.fplay.room = -1;
+    g.on_field = false;
+    rules::put_hero(g.world, t.1, t.2, rm.z);
+    for o in rm.openings {
+      if o.x == t.1 && o.y == t.2 {
+        g.world.face_x = 0 - o.dx;
+        g.world.face_y = 0 - o.dy;
+      }
+    }
+    aim(g);
+    sound(g, "door_open");
+    return true;
+  }
   // the body is left on the hex outside the door, for when it comes out again
   rm = g.fplay.rooms[i]!;
   t = gridroom::tile_at(rm, g.fplay.x, g.fplay.y);
@@ -722,14 +900,26 @@ fn draw_field(g: Game) {
       if under >= 0 {
         rm = p.rooms[under]!;
         t = gridroom::tile_at(rm, c.0, c.1);
-        k = tile_world::terrain(rm.level.w, t.1, t.2, rm.z);
-        colour = if k != rules::VOID && rules::walkable(rm.level, k) { tiles::rgb(196, 184, 160) } else { tiles::rgb(112, 104, 98) };
+        floor = if rm.window {
+          k = tile_world::terrain(g.world.w, t.1, t.2, rm.z);
+          k != rules::VOID && (rules::walkable(g.world, k) || rules::terrain_name(g.kinds, k).contains("door"))
+        } else {
+          k = tile_world::terrain(rm.level.w, t.1, t.2, rm.z);
+          k != rules::VOID && rules::walkable(rm.level, k)
+        };
+        colour = if floor { tiles::rgb(196, 184, 160) } else { tiles::rgb(112, 104, 98) };
       } else if hex_field::hexset_get(p.ground.fixed, q, r) {
         colour = tiles::rgb(34, 84, 46);
       } else if hex_field::label_get(p.ground.things, q, r) != 0 {
         colour = tiles::rgb(150, 150, 162);
       } else {
-        for rm in p.rooms { for o in rm.openings { if o.exact && o.q == q && o.r == r { colour = tiles::rgb(204, 172, 112); } } }
+        kind = hex_field::label_get(p.ground.kinds, q, r);
+        if kind == hexterrain::PATH { colour = tiles::rgb(196, 170, 120); }
+        if kind == hexterrain::RAIL { colour = tiles::rgb(128, 118, 108); }
+        if kind == hexterrain::BED { colour = tiles::rgb(150, 128, 96); }
+        if kind == hexterrain::WATER { colour = tiles::rgb(84, 140, 200); }
+        for rm in p.rooms { for o in rm.openings { if o.exact && o.q == q && o.r == r { colour = tiles::rgb(224, 190, 120); } } }
+        for e in g.field_exits { if on_town(g) && e.q == q && e.r == r { colour = tiles::rgb(60, 50, 60); } }
       }
       tiles::rect(g.surface, px - 7, py - 6, 15, 13, colour);
     }
@@ -807,6 +997,8 @@ fn travel(g: Game, to: text, there: text, home: boolean) -> boolean {
   g.cam_y = g.area.1;
   aim(g);
   sound(g, "door_open");
+  g.on_field = false;
+  settle(g);
   true
 }
 
@@ -1675,6 +1867,7 @@ pub fn move(g: Game, dx: integer, dy: integer, pull: boolean) {
     return;
   }
   if moved && door >= 0 && rules::alive(g.world) && go_through(g, door) { return; }
+  if moved { settle(g); }
   aim(g);
 }
 
@@ -2116,7 +2309,7 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   }
   if g.editing { return update_editor(g, now); }
   // Out on a field: the hero walks the ground between the rooms.
-  if g.on_field { return update_field(g, ms); }
+  if g.on_field && !g.dreaming && !g.ending { return update_field(g, ms); }
   // The haunted dream on waking: for DREAM_MS, or until a key.
   if g.dreaming {
     g.dream_ms += ms;

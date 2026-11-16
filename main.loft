@@ -219,6 +219,9 @@ fn main() {
     return;
   }
   game = g ?? game::new_game(".") ?? return;
+  // a town with a hex version plays on the new rules: its outdoors hex ground, its houses rooms on
+  // it (TW_SQUARE=1: on its square map, as before)
+  game.town_rules = (env_variable("TW_SQUARE") ?? "") == "";
   shot = env_variable("TW_SHOT") ?? "";
   if shot != "" {
     picture(game, shot);

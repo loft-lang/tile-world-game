@@ -1,0 +1,83 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The full town on the new rules (game.loft § A town on the new rules; owner, 2026-11-16): Orbury
+// played with its outdoors as hex ground and each house a room on its own grid at its angle.  The
+// hero starts out on the ground, walks free to a house's door and is in the house — the town's own
+// map, as ever — and steps out of the door onto the hex before it.
+use hex_field;
+use hexterrain;
+use tile_world;
+use rules;
+use gridroom;
+use fieldplay;
+use game;
+
+fn far(a: (float, float), b: (float, float)) -> float { sqrt((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)) ?? 0.0 }
+
+fn town() -> game::Game? {
+  m = game::new_game("..");
+  if !m { return null; }
+  g = m ?? return null;
+  g.town_rules = true;
+  if !game::start_world(g, "orbury") { return null; }
+  g
+}
+
+fn test_orbury_starts_out_on_its_ground() {
+  g = town() ?? return;
+  assert(g.on_field && game::on_town(g), "the hero out on the town's ground");
+  assert(len(g.fplay.rooms) == 21, "its twenty-one houses, each a room: {len(g.fplay.rooms)}");
+  with_door = 0;
+  turned = 0;
+  for rm in g.fplay.rooms {
+    if len(rm.openings) > 0 { with_door += 1; }
+    if rm.turn != 0 { turned += 1; }
+    for o in rm.openings { assert(hex_field::label_get(g.fplay.ground.under, o.q, o.r) < 0 || !o.exact, "the hex before a door is open ground"); }
+  }
+  assert(with_door >= 15 && turned >= 4, "most with a way in, some at their own angle: {with_door} with a door, {turned} turned");
+  assert(len(g.field_exits) >= 1, "spots that lead off the ground: {len(g.field_exits)}");
+  // the hero is where its start tile lies, on a hex it can stand on
+  (q, r) = fieldplay::hero_hex(g.fplay);
+  assert(hex_field::label_get(g.fplay.ground.under, q, r) < 0 && !hex_field::hexset_get(g.fplay.ground.fixed, q, r), "on open ground");
+  game::draw(g);
+  // it walks: a second of walking moves it, or it is refused by what stands there
+  before = (g.fplay.x, g.fplay.y);
+  for dir in [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)] { game::field_walk(g, dir.0, dir.1, 300); }
+  assert(g.fplay.walked > 1.0, "it walks the ground: {g.fplay.walked} m, from ({before.0}, {before.1})");
+}
+
+// Into a house by its door and out again: for every house with a door straight before it, the
+// hero set on the hex before the door walks in and is on the door's tile of the town's own map,
+// on the house's layer; a step back out and it is on the ground again, on that hex.
+fn test_in_at_every_door_and_out_again() {
+  g = town() ?? return;
+  tried = 0;
+  outs = 0;
+  for i in 0..len(g.fplay.rooms) {
+    rm = g.fplay.rooms[i]!;
+    for o in rm.openings {
+      if !o.exact { continue; }
+      step = hexterrain::centre(o.q, o.r);
+      door = gridroom::tile_centre(rm, o.x as float, o.y as float);
+      g.on_field = true;
+      fieldplay::put_hero(g.fplay, step.0, step.1);
+      left = 2000;
+      while left > 0 && g.on_field {
+        game::field_walk(g, door.0 - g.fplay.x, door.1 - g.fplay.y, 20);
+        left -= 20;
+      }
+      assert(!g.on_field && g.place == "orbury", "house {i}: in at its door: on the field {g.on_field}");
+      assert(g.world.hero_x == o.x && g.world.hero_y == o.y && g.world.hero_z == rm.z, "house {i}: on the door's tile ({o.x}, {o.y}, {rm.z}): ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z})");
+      tried += 1;
+      // out: a step the way the door opens
+      game::move(g, o.dx, o.dy, false);
+      if g.on_field {
+        assert(far((g.fplay.x, g.fplay.y), step) < 0.001, "house {i}: out on the hex before the door");
+        outs += 1;
+      }
+    }
+  }
+  println("doors tried {tried}, came out again {outs}");
+  assert(tried >= 15 && outs * 2 >= tried, "doors tried: {tried}, out again: {outs}");
+}

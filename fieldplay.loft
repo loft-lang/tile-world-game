@@ -91,6 +91,11 @@ fn ground_to(p: Play, nx: float, ny: float) -> boolean {
       if !o.exact || o.q != q || o.r != r { continue; }
       t = gridroom::tile_at(rm, nx, ny);
       if !t.0 || t.1 != o.x || t.2 != o.y { continue; }
+      // a window onto a place kept elsewhere: who plays the field takes the step there
+      if rm.window {
+        p.room = under;
+        return true;
+      }
       if !tile_world::passable(rm.level.w, o.x, o.y, rm.z) {
         // what stands on the tile: pushed on into the room by the room's rules, the hero after it
         rules::put_hero(rm.level, o.x + o.dx, o.y + o.dy, rm.z);
@@ -103,7 +108,7 @@ fn ground_to(p: Play, nx: float, ny: float) -> boolean {
     }
     return false;
   }
-  if hex_field::hexset_get(p.ground.fixed, tq, tr) { return false; }
+  if hex_field::hexset_get(p.ground.fixed, tq, tr) || hex_field::label_get(p.ground.kinds, tq, tr) == hexterrain::WATER { return false; }
   // the step from a hex to the one beside it: a fence between them stops it
   if hex_field::edge_mat(p.ground.fences, q, r, tq, tr) != 0 { return false; }
   if hex_field::label_get(p.ground.things, tq, tr) != 0 {

@@ -72,13 +72,23 @@ pub struct Room {
   pub turn: integer,
   pub ox: float = 0.0,
   pub oy: float = 0.0,
-  pub openings: vector<Opening> = []
+  pub openings: vector<Opening> = [],
+  /// The room's first tile in its place (a house in a town's own map is a part of it: its
+  /// tiles are x0 .. x0 + w - 1, y0 .. y0 + h - 1; a place of its own starts at 0, 0).  `ox`, `oy`
+  /// is where that first tile's centre lies.
+  pub x0: integer = 0,
+  pub y0: integer = 0,
+  /// A window onto a place kept elsewhere (a town's own map): `level` is not that place and is
+  /// not asked; who plays the field answers what the room's rules would.
+  pub window: boolean = false
 }
 
 /// The open ground round the rooms: which hexes lie under a room (its number, -1 for open), what
 /// thing stands on a hex (0 for none), which hexes hold what does not move (a tree), and the
 /// fences on the edges between hexes.
 pub struct Ground {
+  /// What the ground is, hex by hex (hexterrain's kinds: grass, path, water ...).
+  pub kinds: hex_field::Labels,
   pub under: hex_field::Labels,
   pub things: hex_field::Labels,
   pub fixed: hex_field::HexSet,
@@ -86,9 +96,14 @@ pub struct Ground {
 }
 
 pub fn ground(q0: integer, r0: integer, w: integer, h: integer) -> Ground {
-  g = Ground { under: hex_field::labels_new(q0, r0, w, h), things: hex_field::labels_new(q0, r0, w, h),
+  g = Ground { kinds: hex_field::labels_new(q0, r0, w, h), under: hex_field::labels_new(q0, r0, w, h), things: hex_field::labels_new(q0, r0, w, h),
                fixed: hex_field::hexset_chunk(q0, r0, w, h), fences: hex_field::edgeset_new(q0, r0, w, h) };
-  for r in r0..r0 + h { for q in q0..q0 + w { hex_field::label_set(g.things, q, r, 0); } }
+  for r in r0..r0 + h {
+    for q in q0..q0 + w {
+      hex_field::label_set(g.things, q, r, 0);
+      hex_field::label_set(g.kinds, q, r, 0);
+    }
+  }
   g
 }
 
@@ -139,7 +154,9 @@ pub fn room_step(rm: const Room, x: float, y: float) -> (integer, integer) {
 pub fn tile_centre(rm: const Room, x: float, y: float) -> (float, float) {
   (ex, ey) = way(rm.turn);
   (sx, sy) = way(rm.turn + 9);
-  (rm.ox + (x * ex + y * sx) * TILE, rm.oy + (x * ey + y * sy) * TILE)
+  u = x - (rm.x0 as float);
+  v = y - (rm.y0 as float);
+  (rm.ox + (u * ex + v * sx) * TILE, rm.oy + (u * ey + v * sy) * TILE)
 }
 
 /// The four corners of the room's tile (x, y), in metres, anticlockwise: the tile as it is drawn
@@ -150,7 +167,8 @@ pub fn tile_corners(rm: const Room, x: integer, y: integer) -> vector<(float, fl
    tile_centre(rm, (x as float) + 0.5, (y as float) - 0.5), tile_centre(rm, (x as float) - 0.5, (y as float) - 0.5)]
 }
 
-/// Where (x, y) metres lies on the room's own grid, in tiles (a tile's centre a whole number).
+/// Where (x, y) metres lies on the room's own grid, in tiles from its first tile (a tile's centre a
+/// whole number).
 pub fn local(rm: const Room, x: float, y: float) -> (float, float) {
   (ex, ey) = way(rm.turn);
   (sx, sy) = way(rm.turn + 9);
@@ -163,8 +181,8 @@ pub fn tile_at(rm: const Room, x: float, y: float) -> (boolean, integer, integer
   (sx, sy) = way(rm.turn + 9);
   u = ((x - rm.ox) * ex + (y - rm.oy) * ey) / TILE;
   v = ((x - rm.ox) * sx + (y - rm.oy) * sy) / TILE;
-  tx = round(u) as integer;
-  ty = round(v) as integer;
+  tx = round(u) as integer + rm.x0;
+  ty = round(v) as integer + rm.y0;
   (u > -0.5 && v > -0.5 && u < (rm.w as float) - 0.5 && v < (rm.h as float) - 0.5, tx, ty)
 }
 
@@ -187,17 +205,21 @@ pub fn ms_of(metres: float) -> integer { round((STEP_MS as float) * metres / TIL
 /// room, where a thing can stand on the tile and nothing on that side stops a step (no wall, no
 /// low wall, no hedge; a door's edge is a way).  A room walled by a ring of wall tiles has its
 /// doorways; a terrace, floor to its rim with a low wall on the rim's edges, has its gates.
-fn openings_of(rm: const Room) -> vector<Opening> {
+fn openings_of(rm: const Room, l: const rules::Level) -> vector<Opening> {
   out: vector<Opening> = [];
-  for y in 0..rm.h {
-    for x in 0..rm.w {
-      k = tile_world::terrain(rm.level.w, x, y, rm.z);
-      if k == rules::VOID || !rules::walkable(rm.level, k) { continue; }
+  for j in 0..rm.h {
+    for i in 0..rm.w {
+      x = rm.x0 + i;
+      y = rm.y0 + j;
+      k = tile_world::terrain(l.w, x, y, rm.z);
+      // a tile a thing can stand on — or a door, shut as it may be
+      door = rules::terrain_name(l.k, k).contains("door");
+      if k == rules::VOID || (!rules::walkable(l, k) && !door) { continue; }
       for s in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
-        nx = x + s.0;
-        ny = y + s.1;
-        if nx >= 0 && ny >= 0 && nx < rm.w && ny < rm.h { continue; }
-        if tile_world::crossable(rm.level.w, x, y, rm.z, s.0, s.1) { out += [Opening { x: x, y: y, dx: s.0, dy: s.1 }]; }
+        ni = i + s.0;
+        nj = j + s.1;
+        if ni >= 0 && nj >= 0 && ni < rm.w && nj < rm.h { continue; }
+        if tile_world::crossable(l.w, x, y, rm.z, s.0, s.1) { out += [Opening { x: x, y: y, dx: s.0, dy: s.1 }]; }
       }
     }
   }
@@ -236,8 +258,8 @@ pub fn rim(rm: const Room) -> vector<RimSide> {
   for leg in 0..4 {
     n = if leg % 2 == 0 { rm.w } else { rm.h };
     for i in 0..n {
-      x = if leg == 0 { i } else if leg == 1 { rm.w - 1 } else if leg == 2 { rm.w - 1 - i } else { 0 };
-      y = if leg == 0 { rm.h - 1 } else if leg == 1 { rm.h - 1 - i } else if leg == 2 { 0 } else { i };
+      x = rm.x0 + (if leg == 0 { i } else if leg == 1 { rm.w - 1 } else if leg == 2 { rm.w - 1 - i } else { 0 });
+      y = rm.y0 + (if leg == 0 { rm.h - 1 } else if leg == 1 { rm.h - 1 - i } else if leg == 2 { 0 } else { i });
       dx = if leg == 1 { 1 } else if leg == 3 { -1 } else { 0 };
       dy = if leg == 0 { 1 } else if leg == 2 { -1 } else { 0 };
       // the side's ends: half a tile out, half a tile either way along it
@@ -301,7 +323,7 @@ pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, eye: flo
     t = ((lv as float) * layer - eye) / (aim - eye) ?? 0.0;
     fi = round(u0 + t * du) as integer;
     fj = round(v0 + t * dv) as integer;
-    if fi >= 0 && fj >= 0 && fi < rm.w && fj < rm.h && tile_world::terrain(rm.level.w, fi, fj, rm.z + lv) != rules::VOID { return false; }
+    if fi >= 0 && fj >= 0 && fi < rm.w && fj < rm.h && tile_world::terrain(rm.level.w, fi + rm.x0, fj + rm.y0, rm.z + lv) != rules::VOID { return false; }
   }
   su = if du > 0.0 { 1 } else { -1 };
   sv = if dv > 0.0 { 1 } else { -1 };
@@ -323,9 +345,9 @@ pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, eye: flo
     over = high - (lv as float) * layer;
     z = rm.z + lv;
     // the edge between the two tiles, asked of whichever is the room's
-    if here && edge_stops(rm, i, j, z, sdx, sdy, over) { return false; }
-    if !here && there && edge_stops(rm, ni, nj, z, -sdx, -sdy, over) { return false; }
-    if there && !(ni == ei && nj == ej && lv == l1) && tile_world::opaque(rm.level.w, ni, nj, z) { return false; }
+    if here && edge_stops(rm, i + rm.x0, j + rm.y0, z, sdx, sdy, over) { return false; }
+    if !here && there && edge_stops(rm, ni + rm.x0, nj + rm.y0, z, -sdx, -sdy, over) { return false; }
+    if there && !(ni == ei && nj == ej && lv == l1) && tile_world::opaque(rm.level.w, ni + rm.x0, nj + rm.y0, z) { return false; }
     if tu <= tv { tu += 1.0 / (if du < 0.0 { -du } else { du }); } else { tv += 1.0 / (if dv < 0.0 { -dv } else { dv }); }
     i = ni;
     j = nj;
@@ -420,13 +442,26 @@ pub fn one_hand(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: i
 
 // ── placing a room ──────────────────────────────────────────────────────────
 
-/// Set the room down with tile (0, 0)'s centre near (x, y) metres, moved by less than a hex so
+/// Set the room down with its first tile's centre near (x, y) metres, moved by less than a hex so
 /// the hex outside its first opening lies straight out, one tile's length away; mark the hexes
 /// under it (number `id`); pair each opening with the ground outside it.
 pub fn place_room(g: Ground, rm: Room, id: integer, x: float, y: float) {
+  ops = openings_of(rm, rm.level);
+  set_down(g, rm, id, x, y, ops);
+}
+
+/// Set down a window: a room that is a part of place `l`, kept elsewhere (a house in a town's own
+/// map).  Its ways out are found in `l`; the room keeps no copy of it.
+pub fn place_window(g: Ground, rm: Room, id: integer, x: float, y: float, l: const rules::Level) {
+  rm.window = true;
+  ops = openings_of(rm, l);
+  set_down(g, rm, id, x, y, ops);
+}
+
+fn set_down(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Opening>) {
   rm.ox = x;
   rm.oy = y;
-  rm.openings = openings_of(rm);
+  rm.openings = ops;
   if len(rm.openings) > 0 {
     o = rm.openings[0]!;
     d = tile_centre(rm, (o.x + o.dx) as float, (o.y + o.dy) as float);
@@ -480,6 +515,36 @@ pub fn place_room(g: Ground, rm: Room, id: integer, x: float, y: float) {
     }
     rm.openings[i] = o;
   }
+}
+
+/// Stand a fence on the ground from (ax, ay) to (bx, by) metres: on every edge between two hexes
+/// whose centres lie either side of that line, where the edge's middle is along the stretch.
+pub fn fence(g: Ground, ax: float, ay: float, bx: float, by: float) -> integer {
+  long = sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay)) ?? 0.0;
+  if long < 0.01 { return 0; }
+  ux = (bx - ax) / long ?? 0.0;
+  uy = (by - ay) / long ?? 0.0;
+  q0 = hex_field::hexset_q0(g.fixed);
+  r0 = hex_field::hexset_r0(g.fixed);
+  n = 0;
+  for r in r0..r0 + hex_field::hexset_h(g.fixed) {
+    for q in q0..q0 + hex_field::hexset_w(g.fixed) {
+      c = hexterrain::centre(q, r);
+      side = (c.0 - ax) * uy - (c.1 - ay) * ux;
+      if side < 0.0 || side > 1.6 { continue; }
+      if (c.0 - ax) * ux + (c.1 - ay) * uy < -1.6 || (c.0 - ax) * ux + (c.1 - ay) * uy > long + 1.6 { continue; }
+      for h in [0, 2, 4, 6, 8, 10] {
+        (tq, tr) = hex_step(q, r, h);
+        t = hexterrain::centre(tq, tr);
+        if (t.0 - ax) * uy - (t.1 - ay) * ux >= 0.0 { continue; }
+        along = ((c.0 + t.0) * 0.5 - ax) * ux + ((c.1 + t.1) * 0.5 - ay) * uy;
+        if along < 0.0 || along > long { continue; }
+        hex_field::edge_set_mat(g.fences, q, r, tq, tr, 1);
+        n += 1;
+      }
+    }
+  }
+  n
 }
 
 // ── moving a thing ──────────────────────────────────────────────────────────
