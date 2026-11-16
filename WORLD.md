@@ -834,9 +834,18 @@ first, above.
 - Done: no title screen — the game goes straight to play, the credits' text and drawing gone.  The
   game starts in the fixed 3D view (main.loft; `TW_VIEW=flat` starts without it while the flat
   picture lasts).
-- Not done: the flat drawing itself is still in game.loft, used where no 3D draws yet — the
-  editor, the hero out on a field's ground (the town's outdoors on the new rules), three tools
-  and the tests that draw.  It goes when the 3D view draws the hex ground with the hero on it.
+- **The editor in the 3D view** (owner, 2026-11-16), a first version: while editing, the fixed 3D
+  view stays on and draws the place as it is edited, the hero standing on the editor's cursor
+  (its cell, its layer) so the view follows it, the palette and the status line over the frame.
+  The editor's keys work; its pointer and its panel are not in the 3D view yet (which cell lies
+  under a point of the screen is not worked out).  Not seen on a screen yet.
+- Found by starting the game served to a headless browser: in a page the fixed 3D view came up
+  black, so there the game still starts flat (a page's 3D is the first-person view, F1); Orbury
+  starts on its ground in the plain view; the demo village plays.
+- Not done: the flat drawing itself is still in game.loft, used where no 3D draws yet — a browser
+  page's start, the hero out on a field's ground (the town's outdoors on the new rules), the
+  editor's pointer, three tools and the tests that draw.  It goes when the 3D views draw the hex
+  ground with the hero on it.
 
 ◇ Next: the 3D view on the field — the hex ground, the rooms, the hero where its body is; then the
 flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:

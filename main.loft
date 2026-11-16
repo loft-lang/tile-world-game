@@ -266,9 +266,11 @@ fn main() {
   // The fixed camera from the south (fixedview.loft): F5, or TW_VIEW=fixed to start in it.
   fv = fixedview::view();
   // The game is seen in 3D (owner, 2026-11-16: the 2D view goes — it does not work with the 3D
-  // work).  It starts in this view; the flat picture is left only where no 3D draws yet: the
-  // editor, and the hero out on a field's ground.  TW_VIEW=flat starts without it, while those last.
-  if (env_variable("TW_VIEW") ?? "") != "flat" { fv.on = true; }
+  // work).  It starts in this view, the editor too (its keys; its pointer and panel not yet); the
+  // flat picture is left only where no 3D draws yet: the hero out on a field's ground.  TW_VIEW=flat starts without it, while those last.
+  // (Not in a browser page: there this view came up black with the game served to a headless
+  // Chrome, 2026-11-16; a page's 3D is the first-person view, F1.)
+  if (env_variable("TW_VIEW") ?? "") != "flat" && !tiles::on_display(game.surface) { fv.on = true; }
   // Drawn on the GPU in the device's own window where it opens (scene3d), on the CPU through
   // screen where it does not; TW_GPU=0 keeps the CPU, the Tanmatsu's view (SCENE_CONTRACT.md).
   if (env_variable("TW_GPU") ?? "") != "0" { fixedview::use_gpu(fv, gpu_gl::table()); }
@@ -319,8 +321,10 @@ fn main() {
     changed = game::update(game, now - last, now);
     log_flush(plog, game);
     render3d::after(v3, game);
-    if fv.on && !game.editing && !game.on_field {
+    if fv.on && !game.on_field {
       at = ticks();
+      // editing in the 3D view: the place as edited, the hero standing as the editor's cursor
+      if game.editing { game::edit_scene(game); }
       fixedview::draw(fv, game, changed || resized, now);
       timing.draw += ticks() - at;
       shown_at = ticks();

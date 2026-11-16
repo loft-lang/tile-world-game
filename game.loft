@@ -3947,6 +3947,36 @@ fn entry_sprite(g: const Game, e: const editor::Entry) -> integer {
   theme::terrain_sprite(g.look, e.id, 0, 0, false)
 }
 
+/// While editing in a 3D view (owner, 2026-11-16: the editor in the 3D view): the place as it is
+/// edited is what the view draws, and the hero stands on the editor's cursor — on its cell and its
+/// layer — so the view follows the cursor.  Leaving the editor starts the place afresh, as ever.
+pub fn edit_scene(g: Game) {
+  g.world = g.file.level;
+  rules::put_hero(g.world, g.ed.x, g.ed.y, g.ed.z);
+}
+
+/// The editor's palette and its status line on `surface`, `w` by `h` pixels, along its foot: what a
+/// 3D view draws over its frame while editing (the flat editor draws the same under its map).
+pub fn draw_editor_on(g: const Game, surface: integer, w: integer, h: integer) {
+  ed = g.ed;
+  ts = g.look.tile_size;
+  cols = w / ts ?? 1;
+  n = len(ed.palette);
+  first = ed.pick - cols / 2;
+  if first > n - cols { first = n - cols; }
+  if first < 0 { first = 0; }
+  py = h - 2 * ts;
+  for i in first..n {
+    if i - first >= cols { break; }
+    px = (i - first) * ts;
+    theme::put(surface, entry_sprite(g, ed.palette[i] ?? editor::picked(ed)), px, py, 0);
+    if i == ed.pick { tiles::frame(surface, px, py, ts, ts, PICKED); }
+  }
+  status = if g.note != "" { g.note } else { "{ed.x} {ed.y} {ed.z} {editor::name(g.file.level.k, editor::picked(ed))}" };
+  if len(status) > cols { status = status.char_slice(0, cols); }
+  theme::write(surface, g.look, status, 0, h - ts);
+}
+
 /// The editor's frame (EDITOR.md § 4): the cursor's layer over the one below (darker), an
 /// outline round each cell the layer above sets, the start (the hero) and a "cell" goal; the
 /// palette along the bottom, its picked entry framed; and a status line: the cursor's cell

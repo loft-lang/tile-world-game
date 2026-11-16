@@ -815,6 +815,12 @@ fn overlay(v: FixedView, g: const game::Game) {
   }
   if v.over == 0 { return; }
   tiles::rect(v.over, 0, 0, w, h, raster3d::NONE);
+  // editing: the editor's palette and status over the frame, the hero standing as its cursor
+  if g.editing {
+    game::draw_editor_on(g, v.over, w, h);
+    e_overlay(v, tiles::pixels(v.over, w, h), w, h);
+    return;
+  }
   game::draw_status_on(g, v.over, h - ts, (w * 2 / ts) ?? 0);
   for t in game::talking(g) {
     // Over the speaker's card as the camera sees it: its cell's middle, a figure's height up.
