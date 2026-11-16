@@ -332,6 +332,25 @@ none a reason to build the tower there:
 New rules for these are written in `formal/hex-houses.md` when that work starts (a round wall, an
 eight-sided one, their turn, an opening on each); this plan only keeps the way open.
 
+## Later: natural curves, caves and cliffs
+
+Not this plan's work (owner, 2026-11-16: for later): roads and paths that curve as they would in
+the land, and caves and cliffs in natural forms.  Noted here for what it asks of the phases above:
+
+- **A side that curves.**  A road's side is today a straight wall with no height from its cells
+  (HR-Sides), and phase 4d moves that.  A curving road is what `hex_way` is for: a centreline of
+  straights and arcs, its sides exact offsets of it (`track_arc`, `track_offset`).  So the wall's
+  kind that phase 4 adds for a round tower (straight, arc) is the same one an outline's side needs,
+  and the two ways of a road in "Differences" become one choice per road: from its cells where it
+  is drawn in cells, from its centreline where it is drawn as a line.
+- **A cliff that is not straight.**  Phase 7b's cliff is the straight sides of the cells of a
+  level and up.  A natural one is a line through the same cells with its own shape; `hex_terrain`
+  already draws such lines between terrain types (a fractal line, the steeper side claiming the
+  band).  The cliff is kept as "the boundary of the cells of a level, and how its line is drawn",
+  the second part open.
+- **A cave** is the ground's own case of a cell set with a wall round it, the wall not straight
+  and a roof over it.  Nothing above closes it off; nothing above builds towards it.
+
 ## What stays in the game
 
 `hextown.loft` (the square town ported: yards, courts, wings, bays, out-houses — HY-*), the
