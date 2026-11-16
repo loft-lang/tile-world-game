@@ -62,7 +62,7 @@ fn test_in_at_every_door_and_out_again() {
     rm = g.fplay.rooms[i]!;
     for o in rm.openings {
       if !gridroom::before(g.fplay.ground, o) { continue; }
-      step = hexterrain::centre(o.q, o.r);
+      step = gridroom::outside(rm, o);
       door = gridroom::tile_centre(rm, o.x as float, o.y as float);
       g.on_field = true;
       fieldplay::put_hero(g.fplay, step.0, step.1);

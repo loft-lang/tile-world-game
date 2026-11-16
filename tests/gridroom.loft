@@ -244,8 +244,11 @@ fn test_a_terrace_is_a_room_with_low_walls() {
     g = field();
     rm = terrace(turn);
     gridroom::place_room(g, rm, 0, -2.0, 5.0);
-    assert(len(rm.openings) == 1, "at {30 * turn}: one way out, the gate: {len(rm.openings)}");
+    gates = 0;
     o = rm.openings[0]!;
+    for way in rm.openings { if !way.low { gates += 1; o = way; } }
+    // a thing leaves by the gate alone; a figure over the low wall at any place: 6 + 6 + 4 + 4 sides, one the gate
+    assert(gates == 1 && len(rm.openings) == 20, "at {30 * turn}: one gate, twenty sides to step out by: {gates} {len(rm.openings)}");
     assert(o.x == 5 && o.y == 1 && o.dx == 1 && o.dy == 0 && o.exact && o.heading == hex_form::head_norm(turn), "at {30 * turn}: the gate, opening east of the terrace");
     sides = gridroom::rim(rm);
     low = 0;

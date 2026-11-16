@@ -542,6 +542,15 @@ libraries (owner, the same day).  None is moved yet; each has its tests in the g
 The same grid serves drawn maps (owner: Moros's tabletop), so the room grid's geometry is the first
 to move.
 
+**`hex_place` already has part of this** (owner, 2026-11-16: "there was already code in the hex
+libraries about this stitching of layers together").  Its body with a pose that is never stamped
+into the world lattice (`pose_new`, `pose_fwd_x/y`, `pose_inv_x/y`) is what `gridroom`'s room at
+an angle is; its stencils combined per level (`combine_cut_level`, `kappa_at_level`: a level is a
+filter before the cut) and its arbitration of what overlaps (`arb_solid`, `arb_owner`) are the
+joining of layers a patch of ground with layers of its own needs.  So when `gridroom` moves, its
+frame becomes a `Pose` and its layers are joined by those routines, not written a second time;
+`gridroom` was written without them and is to be checked against them first.
+
 ## Later: natural curves, caves and cliffs
 
 Not this plan's work (owner, 2026-11-16: for later): roads and paths that curve as they would in

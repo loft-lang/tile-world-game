@@ -86,22 +86,19 @@ pub fn hero_tile(p: const Play) -> (integer, integer, integer) {
 // @FR-RP-Step, @FR-RP-Refuse: the step onto another hex, or in at an opening; what refuses it
 // The body to (nx, ny) while it is on the ground.  Answers whether it went.
 fn ground_to(p: Play, nx: float, ny: float, swept: boolean = false) -> boolean {
-  (q, r) = hexterrain::cell_near(p.x, p.y);
-  (tq, tr) = hexterrain::cell_near(nx, ny);
-  if tq == q && tr == r { return true; }
-  heading = gridroom::heading_of(nx - p.x, ny - p.y);
-  under = hex_field::label_get(p.ground.under, tq, tr);
-  if under >= 0 {
-    // a room: in by an opening, from the hex outside it, when a walker may stand on its tile
-    rm = p.rooms[under]!;
+  // into a room's rectangle: the body is on that room's tiles from there (which grid it is on
+  // follows from where it is, not from the hex under it) — in by an opening, onto its tile from
+  // the place of the tile outside it, when a walker may stand there
+  for i in 0..len(p.rooms) {
+    rm = p.rooms[i]!;
+    t = gridroom::tile_at(rm, nx, ny);
+    if !t.0 { continue; }
+    was = gridroom::tile_at(rm, p.x, p.y);
     for o in rm.openings {
-      // from the hex before the opening (a figure needs no hex straight out, as a pushed thing does)
-      if o.q != q || o.r != r { continue; }
-      t = gridroom::tile_at(rm, nx, ny);
-      if !t.0 || t.1 != o.x || t.2 != o.y { continue; }
+      if t.1 != o.x || t.2 != o.y || was.1 != o.x + o.dx || was.2 != o.y + o.dy { continue; }
       // a window onto a place kept elsewhere: who plays the field takes the step there
       if rm.window {
-        p.room = under;
+        p.room = i;
         return true;
       }
       if !tile_world::passable(rm.level.w, o.x, o.y, rm.z) {
@@ -111,11 +108,15 @@ fn ground_to(p: Play, nx: float, ny: float, swept: boolean = false) -> boolean {
       }
       rules::put_hero(rm.level, o.x, o.y, rm.z);
       if rm.level.now < p.clock { rules::tick(rm.level, p.clock - rm.level.now); }
-      p.room = under;
+      p.room = i;
       return true;
     }
     return false;
   }
+  (q, r) = hexterrain::cell_near(p.x, p.y);
+  (tq, tr) = hexterrain::cell_near(nx, ny);
+  if tq == q && tr == r { return true; }
+  heading = gridroom::heading_of(nx - p.x, ny - p.y);
   // what does not move; and water too deep to wade into (the water itself takes a body there)
   if hex_field::hexset_get(p.ground.fixed, tq, tr) || (!swept && hex_field::height_get(p.ground.depth, tq, tr) > WADE) { return false; }
   // the step from a hex to the one beside it: a fence between them stops it
@@ -146,7 +147,7 @@ fn room_to(p: Play, nx: float, ny: float) -> boolean {
     // out of the room: by an opening, from its tile, on the room's own floor
     if rm.level.hero_z != rm.z { return false; }
     for o in rm.openings {
-      if o.x != hx || o.y != hy || o.dx != dx || o.dy != dy || !o.exact { continue; }
+      if o.x != hx || o.y != hy || o.dx != dx || o.dy != dy || !gridroom::before(p.ground, o) { continue; }
       if hex_field::hexset_get(p.ground.fixed, o.q, o.r) { return false; }
       if hex_field::label_get(p.ground.things, o.q, o.r) != 0 {
         m = gridroom::push_on_ground(p.ground, rm, o.q, o.r, o.heading);
@@ -159,7 +160,7 @@ fn room_to(p: Play, nx: float, ny: float) -> boolean {
   }
   // a thing on the opening's tile pushed out through it: the ground's part of the rules
   for o in rm.openings {
-    if o.x == hx + dx && o.y == hy + dy && o.dx == dx && o.dy == dy && rm.level.hero_z == rm.z && tile_world::top(rm.level.w, o.x, o.y, rm.z) != 0 {
+    if !o.low && o.x == hx + dx && o.y == hy + dy && o.dx == dx && o.dy == dy && rm.level.hero_z == rm.z && tile_world::top(rm.level.w, o.x, o.y, rm.z) != 0 {
       m = gridroom::push_in_room(p.ground, rm, o.x, o.y, dx, dy);
       return m.how != gridroom::BLOCKED;
     }

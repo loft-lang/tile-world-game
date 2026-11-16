@@ -107,8 +107,7 @@ fn test_walls_trees_and_fences_refuse_the_body() {
     clock = p.clock;
     assert(!fieldplay::walk_to(p, mid.0, mid.1, 2000), "at {30 * turn}: not through the wall");
     assert(p.room == -1 && p.refused > 0 && p.clock == clock + 2000, "at {30 * turn}: outside still, the clock run on: {p.clock - clock}");
-    (hq, hr) = fieldplay::hero_hex(p);
-    assert(hex_field::label_get(p.ground.under, hq, hr) < 0 && far((p.x, p.y), mid) < 2.4, "at {30 * turn}: stopped at the wall, on open ground: {far((p.x, p.y), mid)} m from the wall's tile");
+    assert(!gridroom::tile_at(rm, p.x, p.y).0 && far((p.x, p.y), mid) < 2.4, "at {30 * turn}: stopped at the wall, outside the room: {far((p.x, p.y), mid)} m from the wall's tile");
     // from inside at the same wall
     o = rm.openings[0]!;
     door = gridroom::tile_centre(rm, 3.0, 4.0);
@@ -158,6 +157,7 @@ fn test_from_one_room_to_another_over_the_ground() {
     assert(fieldplay::walk_to(p, door.0, door.1, 2000) && p.room == a, "at {30 * turn}: in the room");
     // out, to 4 m before the terrace's gate, then in through it
     gate = rb.openings[0]!;
+    for way in rb.openings { if !way.low { gate = way; } }
     (gx, gy) = gridroom::way(gate.heading);
     gate_tile = gridroom::tile_centre(rb, gate.x as float, gate.y as float);
     step = hexterrain::centre(ra.openings[0]!.q, ra.openings[0]!.r);
@@ -168,5 +168,22 @@ fn test_from_one_room_to_another_over_the_ground() {
     }
     assert(p.room == b && fieldplay::hero_tile(p).0 == gate.x && fieldplay::hero_tile(p).1 == gate.y, "at {30 * turn}: on the terrace, at its gate: room {p.room} at ({p.x}, {p.y}), refused {p.refused}");
     assert(rb.level.now == p.clock && ra.level.now < p.clock, "at {30 * turn}: the terrace at the field's time, the room left behind at the time it was left");
+  }
+}
+
+// A terrace is left at any place (owner): the hero steps out over its low wall on every side and
+// in again; a rock is not pushed over it.
+fn test_a_terrace_is_left_at_any_place() {
+  for turn in 0..12 {
+    p = fieldplay::play(-40, -40, 81, 81);
+    id = fieldplay::add_room(p, terrace(turn), 3.0, 2.0);
+    rm = p.rooms[id]!;
+    for side in [(2.0, 0.0, 2.0, -2.0), (2.0, 3.0, 2.0, 5.0), (0.0, 2.0, -2.0, 2.0), (5.0, 3.0, 7.0, 3.0)] {
+      from = gridroom::tile_centre(rm, side.0, side.1);
+      out = gridroom::tile_centre(rm, side.2, side.3);
+      fieldplay::put_hero(p, out.0, out.1);
+      assert(fieldplay::walk_to(p, from.0, from.1, 3000) && p.room == id, "at {30 * turn}: in over the low wall to tile ({side.0}, {side.1}): room {p.room}, refused {p.refused}");
+      assert(fieldplay::walk_to(p, out.0, out.1, 3000) && p.room == -1, "at {30 * turn}: and out over it again");
+    }
   }
 }

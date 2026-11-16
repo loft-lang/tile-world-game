@@ -821,6 +821,12 @@ river, keep the current river bed and allow it to get stale enough for the initi
   like a lock opening: the room's openings and the hexes before them found anew, and the water
   worked out anew — a wall dug through beside the river lets the river in.
 
+- **A road and a terrace can be left at any place** (owner, 2026-11-16).  A figure steps over
+  what is low on a rim's side wherever it likes; a thing is not pushed across it and leaves by a
+  gate (formal RP-Low).  With it: which grid a body is on is decided by the room's rectangle, not
+  by the hex under it (a hex's edge reaches over a rim), and a figure coming out of a door stands
+  at the place outside it.
+
 ◇ Next: a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.

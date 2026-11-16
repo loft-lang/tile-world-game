@@ -34,7 +34,9 @@ fn test_the_hero_walks_the_common_into_its_rooms_and_out() {
   game::draw(g);
   shed = g.fplay.rooms[0]!;
   lawn = g.fplay.rooms[1]!;
-  assert(len(shed.openings) == 1 && len(lawn.openings) == 1 && shed.openings[0]!.exact && lawn.openings[0]!.exact, "each with its one way in");
+  lo = lawn.openings[0]!;
+  for way in lawn.openings { if !way.low { lo = way; } }
+  assert(len(shed.openings) == 1 && shed.openings[0]!.exact && !lo.low && lo.exact, "the shed's door and the lawn's gate");
   // to 4 m out from the shed's door, then in at it
   so = shed.openings[0]!;
   step = hexterrain::centre(so.q, so.r);
@@ -62,7 +64,6 @@ fn test_the_hero_walks_the_common_into_its_rooms_and_out() {
   game::move(g, 0, 1, false);
   assert(g.on_field, "and out");
   // over the ground to the lawn's gate, and on to the lawn
-  lo = lawn.openings[0]!;
   gate_step = hexterrain::centre(lo.q, lo.r);
   (lx, ly) = gridroom::way(lo.heading);
   gate = gridroom::tile_centre(lawn, lo.x as float, lo.y as float);

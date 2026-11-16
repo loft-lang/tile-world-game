@@ -100,6 +100,9 @@ ones between two (hex-houses.md).
                 what does not move, a fence, water too deep to wade.
   (RP-Door)     A figure uses an opening when the hex before it is open ground, whether or not
                 that hex lies exactly straight out — which only a pushed thing needs (RG-Pair).
+  (RP-Low)      A road and a terrace are left at any place (owner): a figure steps over what is
+                low on a rim's side (a low wall, a low hedge) wherever the hex before it is open
+                ground.  A thing is not pushed across it: it leaves by a gate (RG-Through).
   (RP-Clock)    The field has one clock.  The room the figure is in runs with it; a room it
                 comes into is brought to the field's time.
 ```
@@ -140,6 +143,7 @@ room on a layer over its own; a corner walled on both sides against a move betwe
 | RG-Hand | `gridroom` `test_a_bridge_that_hangs_on_no_wall_beats_one_hand`; `maze` `test_the_maze_is_walked_and_not_by_one_hand` |
 | RP-Body, RP-Step, RP-Clock | `fieldplay` `test_the_hero_walks_in_and_out_and_pushes_a_rock_out`, `test_from_one_room_to_another_over_the_ground` |
 | RP-Refuse | `fieldplay` `test_walls_trees_and_fences_refuse_the_body` |
+| RP-Low | `fieldplay` `test_a_terrace_is_left_at_any_place` |
 | RP-Step in the game | `fieldgame` `test_the_hero_walks_the_common_into_its_rooms_and_out` |
 | RT-Town, RG-Part | `townfield` `test_orbury_starts_out_on_its_ground` |
 | RT-In, RT-Out, RG-Sky, RP-Door | `townfield` `test_in_at_every_door_and_out_again` |

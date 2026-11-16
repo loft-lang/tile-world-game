@@ -37,6 +37,9 @@ use hexterrain;
 use tile_world;
 use rules;
 
+/// A layer's height in steps (a hedge's and a wall's; kinds.json's `over`).
+pub const LAYER = 4;
+
 /// A tile's side, in metres: a hex step's.
 pub const TILE = 1.5;
 /// The time a thing takes over one tile or to a neighbouring hex (the game's glide, FREE_CELL_MS).
@@ -52,6 +55,9 @@ pub struct Opening {
   pub dx: integer,
   pub dy: integer,
   pub heading: integer = 0,
+  /// Something low stands on this side (a low wall, a low hedge): a figure steps over it, a thing
+  /// is not pushed across it.  A road's side and a terrace's are left at any place (owner).
+  pub low: boolean = false,
   pub exact: boolean = false,
   pub q: integer = 0,
   pub r: integer = 0,
@@ -231,7 +237,12 @@ fn openings_of(rm: const Room, l: const rules::Level) -> vector<Opening> {
         ni = i + s.0;
         nj = j + s.1;
         if ni >= 0 && nj >= 0 && ni < rm.w && nj < rm.h { continue; }
-        if tile_world::crossable(l.w, x, y, rm.z, s.0, s.1) { out += [Opening { x: x, y: y, dx: s.0, dy: s.1 }]; }
+        if tile_world::crossable(l.w, x, y, rm.z, s.0, s.1) {
+          out += [Opening { x: x, y: y, dx: s.0, dy: s.1 }];
+        } else if rules::over_between(l, x, y, rm.z, s.0, s.1) > 0 && rules::over_between(l, x, y, rm.z, s.0, s.1) < LAYER && tile_world::see_through(l.w, x, y, rm.z, s.0, s.1) {
+          // @FR-RP-Low: over something low a figure leaves at any place
+          out += [Opening { x: x, y: y, dx: s.0, dy: s.1, low: true }];
+        }
       }
     }
   }
@@ -298,8 +309,7 @@ pub fn rim(rm: const Room) -> vector<RimSide> {
   out
 }
 
-/// A layer's height in steps (a hedge's and a wall's; kinds.json's `over`).
-pub const LAYER = 4;
+
 /// How high an eye is over the floor it stands on, in steps (1.6 m of a layer's 2.6), and how
 /// high over its floor the spot looked at is (a figure's or a thing's middle).
 pub const EYE = 2.5;
@@ -486,10 +496,15 @@ pub fn set_window(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vec
 }
 
 // @FR-RP-Door: a figure needs open ground before the opening, not a hex straight out
-/// Is the hex before the opening open ground: a figure can stand there, come in from it and go
-/// out onto it — whether or not it lies straight out (`exact`, which a thing pushed needs).
-pub fn before(g: Ground, o: const Opening) -> boolean {
-  hex_field::label_get(g.under, o.q, o.r) < 0 && !hex_field::hexset_get(g.fixed, o.q, o.r)
+/// May a figure use the opening: nothing that does not move stands on the hex before it.  (The
+/// place outside an opening is out of the room; whether a hex lies straight out there — `exact` —
+/// matters to a thing pushed, not to a figure.)
+pub fn before(g: Ground, o: const Opening) -> boolean { !hex_field::hexset_get(g.fixed, o.q, o.r) }
+
+/// Where a figure stands that has just come out of the opening: the place of the tile outside
+/// it, in metres (for an opening with a hex straight out, that hex's centre).
+pub fn outside(rm: const Room, o: const Opening) -> (float, float) {
+  tile_centre(rm, (o.x + o.dx) as float, (o.y + o.dy) as float)
 }
 
 fn set_down(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Opening>) {
@@ -497,7 +512,9 @@ fn set_down(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Op
   rm.oy = y;
   rm.openings = ops;
   if len(rm.openings) > 0 {
+    // by its first way a thing can take, if it has one
     o = rm.openings[0]!;
+    for i in 0..len(rm.openings) { if o.low && !rm.openings[i]!.low { o = rm.openings[i]!; } }
     d = tile_centre(rm, (o.x + o.dx) as float, (o.y + o.dy) as float);
     (hq, hr) = hexterrain::cell_near(d.0, d.1);
     c = hexterrain::centre(hq, hr);
@@ -649,7 +666,7 @@ pub fn push_in_room(g: Ground, rm: Room, x: integer, y: integer, dx: integer, dy
   thing = tile_world::top(rm.level.w, x, y, rm.z);
   if thing == 0 { return Move { how: BLOCKED, room: true, x: x, y: y }; }
   for o in rm.openings {
-    if o.x != x || o.y != y || o.dx != dx || o.dy != dy { continue; }
+    if o.low || o.x != x || o.y != y || o.dx != dx || o.dy != dy { continue; }
     if !rules::movable(rm.level, thing) { return Move { how: BLOCKED, room: true, x: x, y: y }; }
     from = tile_centre(rm, x as float, y as float);
     // straight out where a hex lies there; else, or with that hex taken, aside
@@ -699,7 +716,7 @@ pub fn push_on_ground(g: Ground, rm: Room, q: integer, r: integer, h: integer) -
   if hex_field::label_get(g.things, q, r) == 0 { return Move { how: BLOCKED, q: q, r: r }; }
   // in through an opening
   for o in rm.openings {
-    if !o.exact || o.q != q || o.r != r || hex_form::head_norm(o.heading + 6) != h { continue; }
+    if o.low || !o.exact || o.q != q || o.r != r || hex_form::head_norm(o.heading + 6) != h { continue; }
     k = tile_world::terrain(rm.level.w, o.x, o.y, rm.z);
     if !rules::walkable(rm.level, k) || tile_world::top(rm.level.w, o.x, o.y, rm.z) != 0 { return Move { how: BLOCKED, q: q, r: r }; }
     tile_world::place(rm.level.w, o.x, o.y, rm.z, hex_field::label_get(g.things, q, r));

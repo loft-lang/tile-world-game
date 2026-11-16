@@ -607,7 +607,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
   if i < 0 || i >= len(g.file.doors) { return false; }
   to = g.file.doors[i]!.to;
   // out onto a field: the hero is on the ground outside this room, the room kept as its world
-  if is_field(g, to) { return enter_field(g, to); }
+  if is_field(g, to) { return enter_field(g, to, g.file.doors[i]!.x, g.file.doors[i]!.y); }
   travel(g, to, g.file.doors[i]!.door, g.file.doors[i]!.home)
 }
 
@@ -791,7 +791,7 @@ fn settle(g: Game) {
     rm = g.fplay.rooms[i]!;
     for o in rm.openings {
       if gridroom::before(g.fplay.ground, o) && o.x + o.dx == x && o.y + o.dy == y && rm.z == z {
-        at = hexterrain::centre(o.q, o.r);
+        at = gridroom::outside(rm, o);
         (wx, wy) = gridroom::way(o.heading);
         g.fplay.face_x = wx;
         g.fplay.face_y = wy;
@@ -815,7 +815,7 @@ fn town_out(g: Game, dx: integer, dy: integer) -> boolean {
     if rm.z != g.world.hero_z { continue; }
     for o in rm.openings {
       if o.x != g.world.hero_x || o.y != g.world.hero_y || o.dx != dx || o.dy != dy || !gridroom::before(g.fplay.ground, o) { continue; }
-      c = hexterrain::centre(o.q, o.r);
+      c = gridroom::outside(rm, o);
       fieldplay::put_hero(g.fplay, c.0, c.1);
       (wx, wy) = gridroom::way(o.heading);
       g.fplay.face_x = wx;
@@ -890,16 +890,17 @@ fn load_field(g: Game, name: text) -> boolean {
   true
 }
 
-// The hero out of the room it is in onto field `name`: on the hex outside the door it came by,
-// facing out.  The room stays `g.world`, the hero on its door.
-fn enter_field(g: Game, name: text) -> boolean {
+// The hero out of the room it is in onto field `name`: on the hex outside the door it came by
+// (the door on tile (door_x, door_y)), facing out.  The room stays `g.world`.
+fn enter_field(g: Game, name: text, door_x: integer, door_y: integer) -> boolean {
   if g.field != name && !load_field(g, name) { return false; }
   for i in 0..len(g.field_rooms) {
     if g.field_rooms[i] != g.place { continue; }
     rm = g.fplay.rooms[i]!;
     for o in rm.openings {
-      if o.x != g.world.hero_x || o.y != g.world.hero_y { continue; }
-      c = hexterrain::centre(o.q, o.r);
+      // the way out that is the door's own: on its tile, and not over a low wall beside it
+      if o.low || o.x != door_x || o.y != door_y { continue; }
+      c = gridroom::outside(rm, o);
       fieldplay::put_hero(g.fplay, c.0, c.1);
       (wx, wy) = gridroom::way(o.heading);
       g.fplay.face_x = wx;
@@ -958,8 +959,8 @@ pub fn field_walk(g: Game, dx: float, dy: float, ms: integer) -> boolean {
   rm = g.fplay.rooms[i]!;
   t = gridroom::tile_at(rm, g.fplay.x, g.fplay.y);
   for o in rm.openings {
-    if o.x != t.1 || o.y != t.2 { continue; }
-    c = hexterrain::centre(o.q, o.r);
+    if o.low || o.x != t.1 || o.y != t.2 { continue; }
+    c = gridroom::outside(rm, o);
     fieldplay::put_hero(g.fplay, c.0, c.1);
   }
   g.fplay.room = -1;
