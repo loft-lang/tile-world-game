@@ -484,9 +484,15 @@ character animations are added).
    the game's own applying: the same world each time.  The game keeps applying by its own listed
    shape — the deal tries a template in many places — and keeps what is its own: a template's
    stretch, its door beams, its figures.
-2. *Next:* the hex side.  `hex_field::Stencil` stamps, rotates by 60° and mirrors, and
-   `hex_place::cells_turn` turns cells and openings by 30°; heights, labels and layers do not yet
-   come through an odd step.  A hex template is then a stencil laid at any of the twelve angles.
+2. *Done:* the hex side, `hex_place` 0.1.6: `stencil_turn` turns a whole `hex_field::Stencil` by
+   any number of 30° steps — its cells, what each holds (height, label, layers), its outer walls
+   with their materials and openings, and its inner walls.  Inner walls are solved as straight
+   walls, as the game's are (owner): they are the boundaries between rooms, each room a structure
+   with straight walls of its own, its outline turned and its walls taken to the same lines the
+   outer walls go to; the turned cells inside it are the room, and an inner wall is wherever two
+   rooms meet.  So it comes out straight, meets the walls it met and closes what it closed.  A
+   marked edge that bounds no room cannot come through an odd step and is counted (`tu_lost`).
+   A hex template is a stencil laid at any of the twelve angles.
 3. *When a second game asks:* the deal's kernel — a weighted, seeded draw that draws again until
    the caller's check passes, the same seed dealing the same town.  Which slots a house has, and
    playing a deal by the rules before it is dealt, are this game's.
