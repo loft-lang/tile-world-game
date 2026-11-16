@@ -167,7 +167,22 @@ pub struct View3D {
   hex_chunks: hash<HexChunk[ck]> = [],
   hex_groups: hash<HexGroup[gk]> = [],
   hex_house_ck: vector<integer> = [],
-  hex_night: boolean = false
+  hex_night: boolean = false,
+  /// What a cell stands on in the hex version, kept per cell as it is first asked (`hex_y`): the
+  /// place's hex version does not change while it is the place.
+  hex_stand: hash<HexStand[key]> = []
+}
+
+/// Where the cell with this key stands in the hex version: the house whose outline holds its
+/// middle (-1 for none), that house's floor and roof, whether the middle lies in its court, and
+/// the ground's height there for one standing on the cell's layer (metres).
+struct HexStand {
+  key: integer,
+  house: integer,
+  floor: float,
+  roof: integer,
+  court: boolean,
+  ground: float
 }
 
 /// A chunk of the hex version: its render group and its mesh (vertices, 8 numbers each).
@@ -463,6 +478,7 @@ fn hex_loaded(v: View3D, g: const game::Game) -> boolean {
     v.hex_chunks = [];
     v.hex_groups = [];
     v.hex_house_ck = [];
+    v.hex_stand = [];
     sc = hexscene::load(file("{g.dir}/levels/{g.place}.hex.json").content() ?? "");
     if sc != null { v.hex += [sc!]; }
   }
@@ -482,11 +498,37 @@ fn hex_here(v: View3D, g: const game::Game) -> boolean {
 
 /// The height cell (x, y, z) stands at in the view, `base` its height in layers: in the hex
 /// version, the ground's under the open sky and its storey's indoors, in tiles; else `base`.
+/// What the place's hex version says of the cell is read once and kept (`HexStand`): the view asks
+/// this of every cell round the hero each frame.
 fn hex_y(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, base: float) -> float {
   if !v.hex_mode { return base; }
   s = v.hex[0]!;
+  if !tile_world::open_sky(w.w, x, y, z) { return base * s.storey / TILE_M; }
+  key = ((x + 4096) * 8192 + y + 4096) * 64 + z + 32;
+  if v.hex_stand[key] == null { v.hex_stand += [hex_stand_of(s, key, x, y, z)]; }
+  st = v.hex_stand[key]!;
+  // on a house's roof (a roof garden, a roof walked over): its storey's height, not the ground's
+  if st.house >= 0 && base * s.storey > st.floor + 0.1 && !st.court {
+    return (base * s.storey + (if st.roof == 1 { 0.3 } else { 0.0 })) / TILE_M;
+  }
+  st.ground / TILE_M
+}
+
+/// What cell (x, y, z) stands on in the hex version `s`.
+fn hex_stand_of(s: const hexscene::Scene, key: integer, x: integer, y: integer, z: integer) -> HexStand {
+  mx = TILE_M * (x as float);
+  my = -TILE_M * (y as float);
+  hi = hexscene::house_at(s, mx, my);
+  HexStand { key: key, house: hi, floor: if hi >= 0 { s.houses[hi]!.floor } else { 0.0 },
+             roof: if hi >= 0 { s.houses[hi]!.roof } else { 0 }, court: hi >= 0 && hexscene::in_court(s, hi, mx, my),
+             ground: hexscene::height_at_layer(s, mx, my, z) }
+}
+
+/// `hex_y` worked out afresh from the place's hex version, nothing kept: what `hex_y` must answer.
+fn hex_y_afresh(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, base: float) -> float {
+  if !v.hex_mode { return base; }
+  s = v.hex[0]!;
   if tile_world::open_sky(w.w, x, y, z) {
-    // on a house's roof (a roof garden, a roof walked over): its storey's height, not the ground's
     mx = TILE_M * (x as float);
     my = -TILE_M * (y as float);
     hi = hexscene::house_at(s, mx, my);
@@ -496,6 +538,46 @@ fn hex_y(v: View3D, w: const rules::Level, x: integer, y: integer, z: integer, b
     return hexscene::height_at_layer(s, mx, my, z) / TILE_M;
   }
   base * s.storey / TILE_M
+}
+
+/// For the checks: over the cells x0 ..= x1, y0 ..= y1 on the layers z0 ..= z1 of the game's place
+/// (one with a hex version), how many heights were asked and how many `hex_y` answers otherwise
+/// than worked out afresh — asked twice, as they are first read and as they are kept — and the
+/// time each way took, in microseconds.
+pub fn hex_heights_check(v: View3D, g: const game::Game, x0: integer, y0: integer, x1: integer, y1: integer, z0: integer,
+                         z1: integer) -> (integer, integer, integer, integer) {
+  if !hex_loaded(v, g) { return (0, 0, 0, 0); }
+  was = v.hex_mode;
+  v.hex_mode = true;
+  w = g.world;
+  asked = 0;
+  wrong = 0;
+  kept_us = 0;
+  afresh_us = 0;
+  for pass in 0..2 {
+    for z in z0..=z1 {
+      for y in y0..=y1 {
+        for x in x0..=x1 {
+          for half in 0..2 {
+            base = (z as float) + 0.5 * (half as float);
+            t0 = ticks();
+            a = hex_y(v, w, x, y, z, base);
+            t1 = ticks();
+            b = hex_y_afresh(v, w, x, y, z, base);
+            t2 = ticks();
+            asked += 1;
+            if a != b { wrong += 1; }
+            if pass == 1 {
+              kept_us += t1 - t0;
+              afresh_us += t2 - t1;
+            }
+          }
+        }
+      }
+    }
+  }
+  v.hex_mode = was;
+  (asked, wrong, kept_us, afresh_us)
 }
 
 /// A point of the hex version (metres: x east, y north, h up) as the view places it, with its

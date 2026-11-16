@@ -53,7 +53,21 @@ fn main() {
   test_stairs_rise_toward_their_wall();
   test_a_floor_above_has_an_underside();
   test_a_roof_is_pitched();
-  println("checks/view3d.loft: 8 passed");
+  test_the_hex_heights_kept_are_the_heights();
+  println("checks/view3d.loft: 9 passed");
+}
+
+// HEX_LIBRARIES.md phase 9: what a cell stands on in Orbury's hex version, kept per cell, is what
+// the hex version says afresh: every cell of the town and a margin round it, every layer, at the
+// layer's own height and half a layer up (a roof walked over), read first and read kept.
+fn test_the_hex_heights_kept_are_the_heights() {
+  g = game::new_game("..")!;
+  assert(game::start_world(g, "orbury"), "no Orbury");
+  v = render3d::view();
+  (asked, wrong, kept_us, afresh_us) = render3d::hex_heights_check(v, g, -4, -4, 92, 72, -1, 5);
+  assert(asked == 2 * 2 * 7 * 97 * 77, "every height asked: {asked}");
+  assert(wrong == 0, "{wrong} of {asked} heights kept differ from the hex version's");
+  println("  the hex heights: {asked / 2} kept in {kept_us} us, afresh in {afresh_us} us");
 }
 
 // A whole wall on (4, 4) among floor: four sides and a top, each four corners; no floor under it.

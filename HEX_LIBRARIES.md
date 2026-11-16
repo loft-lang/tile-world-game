@@ -5,8 +5,8 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 
 # The hex work, into the hex libraries
 
-**Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phase 0 is done (the game uses the library's routines where it had exact
-copies); nothing has gone into a library yet.
+**Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
+exact copies; the view keeps its heights); phase 2 is in the library's work branch.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -235,7 +235,9 @@ different routine.
   needed).  The frames' cosines and sines from the exact table (`hex_shape::box_cos`, `box_sin`),
   once.  `BY_OUTLINE` stays the comparison it is, unhurried.
   *Aim:* `build` with any number of openings is two solves; a turned point is a few multiplications.
-- **Phase 9, in the game: the view's heights (S, needs nothing before it).**  A table per place of
+- **Phase 9, in the game: the view's heights — done.**  (`render3d.loft`'s `HexStand`, kept per
+  cell as it is first asked; `checks/view3d.loft` compares all 104 566 of Orbury's, kept against
+  afresh: none differs, 39 ms against 431 ms.)  As planned:  A table per place of
   each tile's height on each layer, filled when the place's hex version is read and again when the
   place changes, read by `cards_of`; `house_at` by the cell's own label (a house's cells are marked
   already) instead of every outline.  *Compared:* the table against `hex_y` at every tile and layer
