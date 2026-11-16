@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phases 1 to 6 have moved — the merge is done but for phase 4's speed work.
+exact copies; the view keeps its heights); phases 1 to 7 have moved — the merge is done but for phase 4's speed work; 8 and 10 remain.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -200,7 +200,7 @@ read their reach from, so it is not an exact step), and `build` at two solves (i
 an even turn and five for an odd one, whatever the openings; it was five and nine at three
 openings and more with each).
 
-### 7. The ground (M)
+### 7. The ground — moved, but for how it is read
 
 - 7a. `hex_place`: seating with the ground blended back round the footprint.  Its footprint half
   is `seat_height(SEAT_LOW)` and `seat_write`, which the new routine calls (HG-Seat).
@@ -211,6 +211,17 @@ openings and more with each).
   what `CONVERGENCE.md` lists as planned ("a wall whose cause is a height delta").
 
 *Compared here:* every height of the regenerated ground, bit for bit.
+
+As landed: `hex_place` 0.1.5, `seat_blend` (on `seat_height` and `seat_write`); a new package,
+`hex_ground` 0.1.0: `ground_new`, `ground_terraces`, `ground_hill`, `ground_seat`, `ground_dig`,
+`ground_cliffs`, `ground_sharpen`.  A ground carries its `step` (the distance between two
+neighbouring centres in the caller's unit), so the game's ground in metres (1.5) and one in the
+lattice's unit are the same routines; the game's constants (0.75, 0.433, 1.299, 0.866) all follow
+from 1.5 to the bit.  `hexterrain.loft` is the game's names for them, with its step, its surface
+kinds and its measurements (392 lines to 132).  The town regenerated is byte for byte the file it
+was.  **Moved to phase 8:** a corner at the mean of its three cells, the height at a point and
+the height either side of a cliff — they read `hexscene::Scene`'s own vectors, and go with it
+when it is put on `Heights` and `Labels`.  **Not done:** a guide and a bench for `hex_ground`.
 
 ### 8. The game on the libraries' own types (S)
 

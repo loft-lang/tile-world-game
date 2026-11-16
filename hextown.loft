@@ -18,6 +18,7 @@
 //     lowest the ground was.
 //   - Trees, fences, the well and the bridges: things standing on the surface.
 use hex_field;
+use hex_ground;
 use hex_shape;
 use hexwalls;
 use hexturn;
@@ -155,13 +156,13 @@ pub struct Thing {
 }
 
 pub struct Town {
-  pub ground: hexterrain::Ground,
+  pub ground: hex_ground::Ground,
   pub houses: vector<Placed>,
   pub things: vector<Thing>,
   /// Each cell's terrace level (the square place's layer under its centre), and the cliffs: the
   /// fronts that do not slope (the intent's cliff areas).
   pub levels: hex_field::Labels,
-  pub cliffs: vector<hexterrain::Cliff> = [],
+  pub cliffs: vector<hex_ground::GroundCliff> = [],
   /// What stands along the yards' sides: hedges, low walls, fences.
   pub fences: vector<Fence> = []
 }
@@ -264,18 +265,18 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
   // the steps' rows run north, the square map's south
   north: vector<integer> = [];
   for j in 0..NY { for i in 0..NX { north += [sf.level[(NY - 1 - j) * NX + i] ?? 0]; } }
-  steps = hexterrain::Steps { x0: -0.5 * TILE, y0: -(NY as float - 0.5) * TILE, size: TILE, nx: NX, ny: NY,
-                              level: north };
+  steps = hex_ground::GroundSteps { gs_x0: -0.5 * TILE, gs_y0: -(NY as float - 0.5) * TILE, gs_size: TILE, gs_nx: NX, gs_ny: NY,
+                              gs_level: north };
   // The window: the map's width and height in cells, and a margin.
   g = hexterrain::ground_new(-2, -82, NX + 6, 86);
   // the dry ground first (the bed's squares at level 0); the bed is dug in below, along its sides
   hexterrain::terraces(g, steps, m, 0, HI);
-  bed = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
-  levels = hex_field::labels_new(g.q0, g.r0, g.w, g.h);
+  bed = hex_field::hexset_chunk(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
+  levels = hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
   // The surface's kinds, tile by tile under each cell's centre.
   paths = hash_tiles(it);
-  for r in g.r0..g.r0 + g.h {
-    for q in g.q0..g.q0 + g.w {
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
       (x, y) = hexterrain::centre(q, r);
       tx = round(x / TILE) as integer;
       ty = round(-y / TILE) as integer;
@@ -306,7 +307,7 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
       if k == "field" { kind = FIELD; }
       p = paths[i] ?? -1;
       if p >= 0 { kind = p; }
-      hex_field::label_set(g.kinds, q, r, kind);
+      hex_field::label_set(g.gr_kinds, q, r, kind);
     }
   }
   // the stream's bed a storey down, its banks along its straight sides (a path running down
@@ -314,26 +315,26 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
   hexterrain::dig(g, bed, (-LO as float) * m.storey, m);
   // The fronts slope (owner, 2026-11-09), but not in the intent's cliff areas: there the ground
   // stands at its level's storey and drops a storey at a cliff along the level's straight sides.
-  areas: vector<hexterrain::Box> = [];
+  areas: vector<hex_ground::GroundBox> = [];
   for a in it.cliffs {
-    areas += [hexterrain::Box { x0: (a.x as float) * TILE - 0.5 * TILE, x1: ((a.x + a.w) as float) * TILE - 0.5 * TILE,
-                                y0: -((a.y + a.h) as float) * TILE + 0.5 * TILE, y1: -(a.y as float) * TILE + 0.5 * TILE }];
+    areas += [hex_ground::GroundBox { gb_x0: (a.x as float) * TILE - 0.5 * TILE, gb_x1: ((a.x + a.w) as float) * TILE - 0.5 * TILE,
+                                gb_y0: -((a.y + a.h) as float) * TILE + 0.5 * TILE, gb_y1: -(a.y as float) * TILE + 0.5 * TILE }];
   }
-  sharp = hex_field::heights_new(g.q0, g.r0, g.w, g.h);
-  for r in g.r0..g.r0 + g.h {
-    for q in g.q0..g.q0 + g.w { hex_field::height_set(sharp, q, r, (hex_field::label_get(levels, q, r) as float) * m.storey); }
+  sharp = hex_field::heights_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w { hex_field::height_set(sharp, q, r, (hex_field::label_get(levels, q, r) as float) * m.storey); }
   }
   hexterrain::sharpen(g, sharp, areas, m);
-  cliffs = hexterrain::cliffs(levels, g.q0, g.r0, g.w, g.h, LO, HI, areas);
+  cliffs = hexterrain::cliffs(levels, g.gr_q0, g.gr_r0, g.gr_w, g.gr_h, LO, HI, areas);
   houses = place_houses(it, g, sz, m);
   // a house's seat blends the ground round it, but never across a cliff: in the cliff areas the
   // ground off its footprint stays at its level
-  for r in g.r0..g.r0 + g.h {
-    for q in g.q0..g.q0 + g.w {
-      if hex_field::label_get(g.kinds, q, r) == hexterrain::FLOOR { continue; }
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
+      if hex_field::label_get(g.gr_kinds, q, r) == hexterrain::FLOOR { continue; }
       (x, y) = hexterrain::centre(q, r);
       for a in areas {
-        if hexterrain::box_distance(a, x, y) == 0.0 { hex_field::height_set(g.heights, q, r, hex_field::height_get(sharp, q, r)); }
+        if hexterrain::box_distance(a, x, y) == 0.0 { hex_field::height_set(g.gr_heights, q, r, hex_field::height_get(sharp, q, r)); }
       }
     }
   }
@@ -343,7 +344,7 @@ pub fn port(raw: text, sz: hexwalls::Sizes, m: hexterrain::Measures, ys: Yards =
     if (gr.what == "house_roof" || gr.what == "house_slate") && gr.w >= 2 && gr.h >= 2 {
       (rx, ry) = tile_xy((gr.x as float) + ((gr.w - 1) as float) * 0.5, (gr.y as float) + ((gr.h - 1) as float) * 0.5);
       (rq, rr) = hexterrain::cell_near(rx, ry);
-      things += [Thing { kind: "gazebo_roof", x: rx, y: ry, z: hex_field::height_get(g.heights, rq, rr) + m.storey,
+      things += [Thing { kind: "gazebo_roof", x: rx, y: ry, z: hex_field::height_get(g.gr_heights, rq, rr) + m.storey,
                          size: (gr.w as float) * TILE }];
     }
   }
@@ -375,7 +376,7 @@ fn hash_tiles(it: const intent::Intent) -> vector<integer> {
 
 /// The things on the surface: a tree, a fence, the well where the square place has one; a bridge
 /// where it has a bridge, at its layer.
-fn things_of(cells: const vector<text>, sf: const Surface, m: const hexterrain::Measures, g: hexterrain::Ground) -> vector<Thing> {
+fn things_of(cells: const vector<text>, sf: const Surface, m: const hexterrain::Measures, g: hex_ground::Ground) -> vector<Thing> {
   out: vector<Thing> = [];
   for y in 0..NY {
     for x in 0..NX {
@@ -383,7 +384,7 @@ fn things_of(cells: const vector<text>, sf: const Surface, m: const hexterrain::
       k = sf.what[i] ?? "";
       (tx, ty) = tile_xy(x as float, y as float);
       (q, r) = hexterrain::cell_near(tx, ty);
-      foot = hex_field::height_get(g.heights, q, r);
+      foot = hex_field::height_get(g.gr_heights, q, r);
       if is_tree(k) || k == "garden_fence" || k == "village_well" {
         out += [Thing { kind: k, x: tx, y: ty, z: foot }];
       }
@@ -447,14 +448,14 @@ fn bay_cells(h: const intent::House) -> vector<(integer, integer)> {
 
 /// The angle facing down the hill at (x, y) metres: the ground's fall there to the nearest 30°,
 /// 0 where it is near flat (the square house's own angle, its front south).
-fn facing(g: hexterrain::Ground, x: float, y: float) -> integer {
+fn facing(g: hex_ground::Ground, x: float, y: float) -> integer {
   (q, r) = hexterrain::cell_near(x, y);
   (qe, re) = hexterrain::cell_near(x + 3.0, y);
   (qw, rw) = hexterrain::cell_near(x - 3.0, y);
   (qn, rn) = hexterrain::cell_near(x, y + 3.0);
   (qs, rs) = hexterrain::cell_near(x, y - 3.0);
-  gx = (hex_field::height_get(g.heights, qe, re) - hex_field::height_get(g.heights, qw, rw)) / 6.0;
-  gy = (hex_field::height_get(g.heights, qn, rn) - hex_field::height_get(g.heights, qs, rs)) / 6.0;
+  gx = (hex_field::height_get(g.gr_heights, qe, re) - hex_field::height_get(g.gr_heights, qw, rw)) / 6.0;
+  gy = (hex_field::height_get(g.gr_heights, qn, rn) - hex_field::height_get(g.gr_heights, qs, rs)) / 6.0;
   if sqrt(gx * gx + gy * gy) < 0.05 { return 0; }
   // the front faces south (270°) at turn 0, and 30° further each turn
   down = atan2(-gy, -gx) * 180.0 / PI;
@@ -474,12 +475,12 @@ fn overlaps(a: hex_field::HexSet, b: hex_field::HexSet) -> boolean {
 
 /// Does `a` lie across a road or a rail: on more of its cells than the start of the way to its own
 /// door (three)?
-fn on_a_way(g: hexterrain::Ground, a: hex_field::HexSet) -> boolean {
+fn on_a_way(g: hex_ground::Ground, a: hex_field::HexSet) -> boolean {
   n = 0;
   for r in hex_field::hexset_r0(a)..hex_field::hexset_r0(a) + hex_field::hexset_h(a) {
     for q in hex_field::hexset_q0(a)..hex_field::hexset_q0(a) + hex_field::hexset_w(a) {
       if !hex_field::hexset_get(a, q, r) { continue; }
-      k = hex_field::label_get(g.kinds, q, r);
+      k = hex_field::label_get(g.gr_kinds, q, r);
       if k == hexterrain::PATH || k == hexterrain::RAIL { n += 1; }
     }
   }
@@ -498,8 +499,8 @@ fn plan_of(h: const intent::House) -> vector<hex_shape::BoxPart> {
 }
 
 /// Every house of the intent, placed (see the top of the file).
-fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::Sizes, m: const hexterrain::Measures) -> vector<Placed> {
-  taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
+fn place_houses(it: const intent::Intent, g: hex_ground::Ground, sz: hexwalls::Sizes, m: const hexterrain::Measures) -> vector<Placed> {
+  taken = hex_field::hexset_chunk(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
   out: vector<Placed> = [];
   for h in it.houses {
     // the middle of its tiles (tile i's centre is at 1.5 i)
@@ -540,7 +541,7 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
     base = hexterrain::seat(g, b.cells, floor, m);
     for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
       for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
-        if hex_field::hexset_get(b.cells, q, r) { hex_field::label_set(g.kinds, q, r, hexterrain::FLOOR); }
+        if hex_field::hexset_get(b.cells, q, r) { hex_field::label_set(g.gr_kinds, q, r, hexterrain::FLOOR); }
       }
     }
     out += [Placed { built: b, turn: plan.turn, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
@@ -595,7 +596,7 @@ fn inside(poly: const vector<(float, float)>, x: float, y: float) -> boolean {
 }
 
 /// The cells with their centre in `poly` (metres) get surface `kind`.
-fn pave(g: hexterrain::Ground, poly: const vector<(float, float)>, kind: integer) {
+fn pave(g: hex_ground::Ground, poly: const vector<(float, float)>, kind: integer) {
   lo_x = 1000000.0;
   hi_x = -1000000.0;
   lo_y = 1000000.0;
@@ -611,7 +612,7 @@ fn pave(g: hexterrain::Ground, poly: const vector<(float, float)>, kind: integer
   for r in ra - 1..rb + 2 {
     for q in qa - 1..qb + 2 {
       (x, y) = hexterrain::centre(q, r);
-      if inside(poly, x, y) { hex_field::label_set(g.kinds, q, r, kind); }
+      if inside(poly, x, y) { hex_field::label_set(g.gr_kinds, q, r, kind); }
     }
   }
 }
@@ -647,7 +648,7 @@ fn yard_house(it: const intent::Intent, yd: const intent::Yard, roof: boolean) -
 /// stands along each yard's sides (its gates left open), turned with the house it belongs to; a
 /// paved yard's and a court's cells paved; a court's pillars; a roof garden's bushes on its roof.
 // @FR-HY-Side, @FR-HY-Turn, @FR-HY-Court, @FR-HY-Roof, @FR-HY-Bay: the yards and the houses' new parts, from the square map
-fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>, things: vector<Thing>,
+fn dress(it: const intent::Intent, g: hex_ground::Ground, houses: vector<Placed>, things: vector<Thing>,
          sz: hexwalls::Sizes, ys: const Yards, storey: float) -> vector<Fence> {
   out: vector<Fence> = [];
   _ = sz;
@@ -727,12 +728,12 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
     if hi >= 0 && houses[hi]!.turn != 0 {
       lo = tile_xy(x0, y1);
       up = tile_xy(x1, y0);
-      for r in g.r0..g.r0 + g.h {
-        for q in g.q0..g.q0 + g.w {
+      for r in g.gr_r0..g.gr_r0 + g.gr_h {
+        for q in g.gr_q0..g.gr_q0 + g.gr_w {
           (cx, cy) = hexterrain::centre(q, r);
-          k = hex_field::label_get(g.kinds, q, r);
+          k = hex_field::label_get(g.gr_kinds, q, r);
           if cx > lo.0 && cx < up.0 && cy > lo.1 && cy < up.1 && (k == PAVING || k == FIELD) {
-            hex_field::label_set(g.kinds, q, r, hexterrain::GRASS);
+            hex_field::label_set(g.gr_kinds, q, r, hexterrain::GRASS);
           }
         }
       }
@@ -1018,7 +1019,7 @@ fn outside(hull: const vector<(float, float)>, a: (float, float), b: (float, flo
 pub fn showcase(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
   g = hexterrain::ground_new(-30, -34, 60, 68);
   hexterrain::hill(g, 0.0, 0.0, 40.0, 10.0);
-  taken = hex_field::hexset_chunk(g.q0, g.r0, g.w, g.h);
+  taken = hex_field::hexset_chunk(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h);
   houses: vector<Placed> = [];
   for k in 0..12 {
     a = (k as float) * PI / 6.0;
@@ -1035,7 +1036,7 @@ pub fn showcase(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
            hexhouse::Spec { kind: hexwalls::WINDOW, u: -3, v: if k % 2 == 0 { -4 } else { -3 } },
            hexhouse::Spec { kind: hexwalls::WINDOW, u: 5, v: 0 }];
     b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: parts, openings: ops }, hexturn::BY_WALLS, sz);
-    floor = round(hex_field::height_get(g.heights, cq, cr) * 10.0) / 10.0;
+    floor = round(hex_field::height_get(g.gr_heights, cq, cr) * 10.0) / 10.0;
     base = hexterrain::seat(g, b.cells, floor, m);
     houses += [Placed { built: b, turn: t, floor: floor, base: (if base < floor { base } else { floor }) - 0.3,
                         top: floor + ((1 + k % 2) as float) * m.storey }];
@@ -1047,7 +1048,7 @@ pub fn showcase(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Town {
     y = 40.0 * sin(a);
     (q, r) = hexterrain::cell_near(x, y);
     things += [Thing { kind: if k % 3 == 0 { "pine" } else if k % 3 == 1 { "oak" } else { "poplar" }, x: x, y: y,
-                       z: hex_field::height_get(g.heights, q, r) }];
+                       z: hex_field::height_get(g.gr_heights, q, r) }];
   }
-  Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.q0, g.r0, g.w, g.h) }
+  Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h) }
 }

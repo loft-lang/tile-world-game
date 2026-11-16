@@ -4,6 +4,7 @@
 // The ground on the hex grid (hexterrain.loft; formal/hex-houses.md § The ground): terraces made
 // smooth, a round hill, a structure seated on the ground.
 use hex_field;
+use hex_ground;
 use hex_draw;
 use hexterrain;
 use hexhouse;
@@ -15,10 +16,10 @@ fn measures() -> hexterrain::Measures { hexterrain::measures_file("../hexsizes.j
 
 /// Two terraces side by side on a 20 x 10 map of 1.5 m squares: level 0 west of x = 10, level 1
 /// east of it.
-fn two_terraces() -> hexterrain::Steps {
+fn two_terraces() -> hex_ground::GroundSteps {
   level: vector<integer> = [];
   for j in 0..10 { for i in 0..20 { level += [if i < 10 { 0 } else { 1 }]; } }
-  hexterrain::Steps { x0: 0.0, y0: 0.0, size: 1.5, nx: 20, ny: 10, level: level }
+  hex_ground::GroundSteps { gs_x0: 0.0, gs_y0: 0.0, gs_size: 1.5, gs_nx: 20, gs_ny: 10, gs_level: level }
 }
 
 // @FR-HG-Terrace: half a hillside or more from an edge, the ground is flat at its storey
@@ -62,11 +63,11 @@ fn test_a_terrace_edge_is_a_smooth_slope() {
 fn test_a_hill_is_level_at_its_top_and_its_foot() {
   g = hexterrain::ground_new(-30, -30, 60, 60);
   hexterrain::hill(g, 0.0, 0.0, 30.0, 8.0);
-  assert(abs_f(hex_field::height_get(g.heights, 0, 0) - 8.0) < 0.000001, "8 m at the top");
+  assert(abs_f(hex_field::height_get(g.gr_heights, 0, 0) - 8.0) < 0.000001, "8 m at the top");
   for c in [(25, 0), (-25, 0), (0, 25), (0, -25)] {
     (x, y) = hexterrain::centre(c.0, c.1);
     d = sqrt(x * x + y * y);
-    if d >= 30.0 { assert(hex_field::height_get(g.heights, c.0, c.1) == 0.0, "nothing beyond the foot, {d} m out"); }
+    if d >= 30.0 { assert(hex_field::height_get(g.gr_heights, c.0, c.1) == 0.0, "nothing beyond the foot, {d} m out"); }
   }
 }
 
@@ -83,10 +84,10 @@ fn test_a_seated_house_is_level_and_blends_in() {
   for r in -30..30 {
     for q in -30..30 {
       inside = hex_field::hexset_get(b.cells, q, r);
-      h = hex_field::height_get(g.heights, q, r);
+      h = hex_field::height_get(g.gr_heights, q, r);
       if inside {
         assert(h == 5.0, "the footprint level at 5 m: cell ({q}, {r}) at {h}");
-        was = hex_field::height_get(before.heights, q, r);
+        was = hex_field::height_get(before.gr_heights, q, r);
         if was < lowest { lowest = was; }
         continue;
       }
@@ -103,10 +104,10 @@ fn test_a_seated_house_is_level_and_blends_in() {
         }
       }
       if near - 0.75 >= m.blend {
-        assert(h == hex_field::height_get(before.heights, q, r), "beyond the blend the ground as it was: ({q}, {r})");
+        assert(h == hex_field::height_get(before.gr_heights, q, r), "beyond the blend the ground as it was: ({q}, {r})");
       } else {
-        lo = if 5.0 < hex_field::height_get(before.heights, q, r) { 5.0 } else { hex_field::height_get(before.heights, q, r) };
-        hi = if 5.0 > hex_field::height_get(before.heights, q, r) { 5.0 } else { hex_field::height_get(before.heights, q, r) };
+        lo = if 5.0 < hex_field::height_get(before.gr_heights, q, r) { 5.0 } else { hex_field::height_get(before.gr_heights, q, r) };
+        hi = if 5.0 > hex_field::height_get(before.gr_heights, q, r) { 5.0 } else { hex_field::height_get(before.gr_heights, q, r) };
         assert(h >= lo - 0.000001 && h <= hi + 0.000001, "in the blend, between the floor and the ground: ({q}, {r}) at {h}");
       }
     }
@@ -144,7 +145,7 @@ fn test_a_dug_bed_follows_its_sides() {
     for q in -30..31 {
       (x, y) = hexterrain::centre(q, r);
       d = hexterrain::signed_distance(sides, x, y);
-      z = hex_field::height_get(g.heights, q, r);
+      z = hex_field::height_get(g.gr_heights, q, r);
       // the bank's profile, as the rule states it
       t = (d + m.bank * 0.5) / m.bank ?? 0.0;
       c = if t < 0.0 { 0.0 } else if t > 1.0 { 1.0 } else { t };
@@ -180,29 +181,29 @@ fn test_cliffs_only_in_their_areas_and_sharp() {
       hex_field::label_set(levels, q, r, lv);
       hex_field::height_set(sharp, q, r, (lv as float) * m.storey);
       (x, y) = hexterrain::centre(q, r);
-      hex_field::height_set(g.heights, q, r, m.storey * (0.5 - 0.5 * (if y > 3.0 { -1.0 } else if y < -3.0 { 1.0 } else { y / -3.0 })));
+      hex_field::height_set(g.gr_heights, q, r, m.storey * (0.5 - 0.5 * (if y > 3.0 { -1.0 } else if y < -3.0 { 1.0 } else { y / -3.0 })));
     }
   }
-  b = hexterrain::Box { x0: -6.0, x1: 6.0, y0: -10.0, y1: 10.0 };
+  b = hex_ground::GroundBox { gb_x0: -6.0, gb_x1: 6.0, gb_y0: -10.0, gb_y1: 10.0 };
   hexterrain::sharpen(g, sharp, [b], m);
   cs = hexterrain::cliffs(levels, -20, -20, 41, 41, 0, 1, [b]);
   assert(len(cs) > 0, "a cliff along the front in the area");
   for c in cs {
-    assert(c.ax >= b.x0 - 0.000001 && c.ax <= b.x1 + 0.000001 && c.bx >= b.x0 - 0.000001 && c.bx <= b.x1 + 0.000001
-           && c.ay >= b.y0 - 0.000001 && c.ay <= b.y1 + 0.000001 && c.by >= b.y0 - 0.000001 && c.by <= b.y1 + 0.000001,
-           "the cliff ({c.ax}, {c.ay}) .. ({c.bx}, {c.by}) lies in its area");
+    assert(c.gc_ax >= b.gb_x0 - 0.000001 && c.gc_ax <= b.gb_x1 + 0.000001 && c.gc_bx >= b.gb_x0 - 0.000001 && c.gc_bx <= b.gb_x1 + 0.000001
+           && c.gc_ay >= b.gb_y0 - 0.000001 && c.gc_ay <= b.gb_y1 + 0.000001 && c.gc_by >= b.gb_y0 - 0.000001 && c.gc_by <= b.gb_y1 + 0.000001,
+           "the cliff ({c.gc_ax}, {c.gc_ay}) .. ({c.gc_bx}, {c.gc_by}) lies in its area");
     // walked with the high ground on its left: the level-1 cells are north (y < 0 is r > 0 ... north is y up)
-    mx = (c.ax + c.bx) * 0.5;
-    my = (c.ay + c.by) * 0.5;
-    lx = mx - (c.by - c.ay) * 0.1;
-    ly = my + (c.bx - c.ax) * 0.1;
+    mx = (c.gc_ax + c.gc_bx) * 0.5;
+    my = (c.gc_ay + c.gc_by) * 0.5;
+    lx = mx - (c.gc_by - c.gc_ay) * 0.1;
+    ly = my + (c.gc_bx - c.gc_ax) * 0.1;
     (lq, lr) = hexterrain::cell_near(lx, ly);
-    assert(hex_field::label_get(levels, lq, lr) >= c.level, "the high side on the cliff's left");
+    assert(hex_field::label_get(levels, lq, lr) >= c.gc_level, "the high side on the cliff's left");
   }
   for r in -20..21 {
     for q in -20..21 {
       (x, y) = hexterrain::centre(q, r);
-      z = hex_field::height_get(g.heights, q, r);
+      z = hex_field::height_get(g.gr_heights, q, r);
       zs = hex_field::height_get(sharp, q, r);
       if hexterrain::box_distance(b, x, y) == 0.0 {
         assert(abs_f(z - zs) < 0.000001, "in the area ({q}, {r}) at its level's storey: {z}");
@@ -213,6 +214,6 @@ fn test_cliffs_only_in_their_areas_and_sharp() {
   (fq, fr) = hexterrain::cell_near(15.0, 0.0);
   (fx, fy) = hexterrain::centre(fq, fr);
   assert(hexterrain::box_distance(b, fx, fy) > m.blend, "the far cell lies beyond the blend");
-  zf = hex_field::height_get(g.heights, fq, fr);
+  zf = hex_field::height_get(g.gr_heights, fq, fr);
   assert(zf > 0.1 && zf < m.storey - 0.1, "beyond the blend the front still slopes: {zf}");
 }

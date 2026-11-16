@@ -8,6 +8,7 @@
 // house (its angle, the heights of its walls' foot, its floor and its eaves, its outline as the
 // straight walls' corners in metres, its doors and windows), and the things on the surface.
 use hex_field;
+use hex_ground;
 use hexwalls;
 use hexterrain;
 use hextown;
@@ -19,19 +20,19 @@ fn scene(name: text, town: hextown::Town) -> text {
   hs = "";
   ks = "";
   ls = "";
-  for r in g.r0..g.r0 + g.h {
-    for q in g.q0..g.q0 + g.w {
+  for r in g.gr_r0..g.gr_r0 + g.gr_h {
+    for q in g.gr_q0..g.gr_q0 + g.gr_w {
       if len(hs) > 0 { hs += ","; ks += ","; ls += ","; }
-      hs += "{round(hex_field::height_get(g.heights, q, r) * 1000.0) / 1000.0}";
-      ks += "{hex_field::label_get(g.kinds, q, r)}";
+      hs += "{round(hex_field::height_get(g.gr_heights, q, r) * 1000.0) / 1000.0}";
+      ks += "{hex_field::label_get(g.gr_kinds, q, r)}";
       ls += "{hex_field::label_get(town.levels, q, r)}";
     }
   }
-  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.q0}, \"r0\": {g.r0}, \"w\": {g.w}, \"h\": {g.h}, \"heights\": [{hs}], \"kinds\": [{ks}], \"levels\": [{ls}]}}, \"cliffs\": [";
+  out = "{{\"name\": \"{name}\", \"ground\": {{\"q0\": {g.gr_q0}, \"r0\": {g.gr_r0}, \"w\": {g.gr_w}, \"h\": {g.gr_h}, \"heights\": [{hs}], \"kinds\": [{ks}], \"levels\": [{ls}]}}, \"cliffs\": [";
   for i in 0..len(town.cliffs) {
     c = town.cliffs[i];
     if i > 0 { out += ", "; }
-    out += "{{\"level\": {c.level}, \"a\": [{c.ax}, {c.ay}], \"b\": [{c.bx}, {c.by}]}}";
+    out += "{{\"level\": {c.gc_level}, \"a\": [{c.gc_ax}, {c.gc_ay}], \"b\": [{c.gc_bx}, {c.gc_by}]}}";
   }
   out += "], \"houses\": [";
   for i in 0..len(town.houses) {
