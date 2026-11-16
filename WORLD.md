@@ -548,6 +548,18 @@ given as said; what follows from it and is proposed is ◇.
   and each kind says its height, what stands and rests on it, what breaks (`kinds.json`).
   - ◇ The same stacking rules on a tile and on a hex; on a slope of the open ground, whether a
     thing stays or rolls is a rule on the heights of its cell and the next.
+- **The puzzles are of the old Repton's kind, in a 3D world** (owner): "that is exactly the type
+  of puzzles I want to replicate in a 3d world" — its kind of rules, exact and plannable: what a
+  thing rests on, when it falls, what it rolls off.  Not its places, figures or look.
+  - ◇ Falling is real here: a thing with nothing under it goes to the layer below.  What rolls
+    off what is a kind's property, to add beside what stands and rests on it (`kinds.json`).
+- **The side a thing goes aside to may stay the place's own** (owner): "I do not mind about a
+  bit of randomness involved.  And it is not even random in the sense that the same puzzle will
+  behave the same every time.  But the layout of actual puzzles involving unstable structures
+  should normally have enough walls/filled tiles around it so it still reads as logical."
+  - ◇ So it is the layout's to make plain, not the rule's: where a puzzle's thing can fall or
+    roll, the place leaves it one way to go, or two that come to the same.  A check for the
+    dealt templates and the puzzle places, beside playing a deal by the rules before it is dealt.
 
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
