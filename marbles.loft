@@ -122,6 +122,7 @@ pub fn free(hl: Hill, q: integer, r: integer) -> boolean {
   inside(hl, q, r) && !hex_field::hexset_get(hl.fixed, q, r) && marble_at(hl, q, r) < 0
 }
 
+// @FR-UM-Fence: a marble does not pass a fence
 /// Does a fence stop the step of heading `h` from (q, r).  To a neighbour: a fence on the edge
 /// between.  Between two hexes: a fence on the edge the way runs along, or the corner it leaves by
 /// or comes in by shut on both sides.
@@ -181,6 +182,7 @@ fn steep(hl: Hill, q: integer, r: integer, h: integer) -> float {
   (height(hl, q, r) - height(hl, tq, tr)) / (if (h & 1) == 0 { 1.5 } else { 2.598076211353316 }) ?? 0.0
 }
 
+// @FR-UM-Rest: the lowest free neighbour, the place's own side first
 // The lowest free neighbour of (q, r) lying at least `least` units lower, as a heading; -1 for
 // none.  Among equals the place's own side first: round from heading 0 one way or the other.
 fn lowest(hl: Hill, q: integer, r: integer, least: integer) -> integer {
@@ -200,6 +202,7 @@ fn lowest(hl: Hill, q: integer, r: integer, least: integer) -> integer {
   best
 }
 
+// @FR-UM-Time: as fast as a thing fallen the height its speed is worth
 /// The time a marble takes over `metres` at `speed`: its speed is the height it could climb, a
 /// unit a `UNIT`, so it goes as fast as a thing fallen that far (√(2 g h)): a hex at speed 1 in
 /// 0.87 s, at speed 4 in 0.44 s, at the most (12) in 0.25 s.
@@ -226,6 +229,7 @@ pub fn house(hl: Hill, cq: integer, cr: integer, turn: integer, parts: vector<he
   n
 }
 
+// @FR-UM-Fall: in the air its fall's time; a bounce down a slope; off a marble
 /// Let a marble fall on (q, r) from `from` metres over the ground, now.  False when it cannot lie
 /// there nor roll off (the hex holds what does not move, or a marble with no free neighbour).
 pub fn let_fall(hl: Hill, q: integer, r: integer, from: float = 2.0) -> boolean {
@@ -256,6 +260,7 @@ pub fn let_fall(hl: Hill, q: integer, r: integer, from: float = 2.0) -> boolean 
   true
 }
 
+// @FR-UM-Roll, @FR-UM-Hex: one hex on, its speed taking the drop and giving the ground its part
 // One hex on for marble `i` along heading `h`: onto the hex when its speed, with the drop and less
 // what the ground takes, leaves it any; else it stays and is at rest.
 fn go(hl: Hill, i: integer, h: integer) {
@@ -281,6 +286,7 @@ fn go(hl: Hill, i: integer, h: integer) {
   hl.marbles[i] = m;
 }
 
+// @FR-UM-Time, @FR-UM-Open, @FR-UM-Strike, @FR-UM-Aside: who acts next; turning to an open way; two marbles; at what does not move
 /// The next thing that happens: the marbles at rest on a clear slope set off, and the marble
 /// next to arrive acts.  Answers false when nothing rolls any more.
 pub fn next(hl: Hill) -> boolean {

@@ -138,6 +138,7 @@ pub fn heading_of(x: float, y: float) -> integer {
   best
 }
 
+// @FR-RG-Ways: a room's four ways among the ground's twelve
 /// The heading a step (dx, dy) of the room's tiles has on the ground.
 pub fn room_heading(rm: const Room, dx: integer, dy: integer) -> integer {
   hex_form::head_norm(rm.turn + (if dx > 0 { 0 } else if dy < 0 { 3 } else if dx < 0 { 6 } else { 9 }))
@@ -158,6 +159,7 @@ pub fn room_step(rm: const Room, x: float, y: float) -> (integer, integer) {
   best
 }
 
+// @FR-RG-Grid: a room's tiles in the world's space, at its angle
 /// The centre of the room's tile (x, y), in metres; a tile outside it too.
 pub fn tile_centre(rm: const Room, x: float, y: float) -> (float, float) {
   (ex, ey) = way(rm.turn);
@@ -206,9 +208,11 @@ fn apart(a: (float, float), b: (float, float)) -> float {
   sqrt((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)) ?? 0.0
 }
 
+// @FR-RG-Time: the time of a move's real length
 /// The time a thing takes over `metres`.
 pub fn ms_of(metres: float) -> integer { round((STEP_MS as float) * metres / TILE) as integer }
 
+// @FR-RG-Opening: a way out is a rim tile's side nothing stops a step on
 /// The ways through the room's rim on its layer: each side of a rim tile that looks out of the
 /// room, where a thing can stand on the tile and nothing on that side stops a step (no wall, no
 /// low wall, no hedge; a door's edge is a way).  A room walled by a ring of wall tiles has its
@@ -258,6 +262,7 @@ pub struct RimSide {
   pub by: float
 }
 
+// @FR-RG-Rim: what stands round a room, side by side
 /// The room's rim, side by side, anticlockwise from its south-west corner: what a map or a view
 /// draws round it — a wall, a low wall, or nothing where there is a way through.
 pub fn rim(rm: const Room) -> vector<RimSide> {
@@ -300,6 +305,7 @@ pub const LAYER = 4;
 pub const EYE = 2.5;
 pub const AIM = 1.0;
 
+// @FR-RG-Sight: sight in the world's own space, by height
 /// Is (bx, by) seen from (ax, ay), both in metres, as far as this room goes: the straight line
 /// from the eye to the spot, in the world's own space, crosses nothing of the room that stops
 /// sight at the height the line has there.
@@ -373,6 +379,7 @@ fn edge_stops(rm: const Room, x: integer, y: integer, z: integer, dx: integer, d
 
 // ── walking, by the room's rules ────────────────────────────────────────────
 
+// @FR-RG-Layers: where a step leads is asked of the room's own rules
 /// Where a walker on tile (x, y, z) of the room comes by one step (dx, dy), as the room's own
 /// rules have it: (moved, x, y, z).  Stairs take it to the same tile a layer up or down, so a
 /// bridge is walked over and the path under it walked under, each on its own layer.  For a place
@@ -416,6 +423,7 @@ pub fn reached(rm: Room, x: integer, y: integer, z: integer, gx: integer, gy: in
   false
 }
 
+// @FR-RG-Hand: a maze walked with one hand on the wall
 /// Does a walker who keeps one hand on the wall (`left`, else the right) come from (x, y, z),
 /// setting out along (dx, dy), to (gx, gy, gz): at every tile it tries the way on its hand's side
 /// first, then straight on, then the other side, then back.  A maze this answers true for is
@@ -450,6 +458,7 @@ pub fn one_hand(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: i
 
 // ── placing a room ──────────────────────────────────────────────────────────
 
+// @FR-RG-Pair, @FR-RG-Under: the hex before the first opening straight out; the hexes under the room
 /// Set the room down with its first tile's centre near (x, y) metres, moved by less than a hex so
 /// the hex outside its first opening lies straight out, one tile's length away; mark the hexes
 /// under it (number `id`); pair each opening with the ground outside it.
@@ -458,6 +467,7 @@ pub fn place_room(g: Ground, rm: Room, id: integer, x: float, y: float) {
   set_down(g, rm, id, x, y, ops);
 }
 
+// @FR-RG-Part: a room that is a part of a place kept elsewhere
 /// Set down a window: a room that is a part of place `l`, kept elsewhere (a house in a town's own
 /// map).  Its ways out are found in `l`; the room keeps no copy of it.
 pub fn place_window(g: Ground, rm: Room, id: integer, x: float, y: float, l: const rules::Level) {
@@ -475,6 +485,7 @@ pub fn set_window(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vec
   set_down(g, rm, id, x, y, ops);
 }
 
+// @FR-RP-Door: a figure needs open ground before the opening, not a hex straight out
 /// Is the hex before the opening open ground: a figure can stand there, come in from it and go
 /// out onto it — whether or not it lies straight out (`exact`, which a thing pushed needs).
 pub fn before(g: Ground, o: const Opening) -> boolean {
@@ -540,6 +551,7 @@ fn set_down(g: Ground, rm: Room, id: integer, x: float, y: float, ops: vector<Op
   }
 }
 
+// @FR-RG-Fence: a fence on the edges between hexes
 /// Stand a fence on the ground from (ax, ay) to (bx, by) metres: on every edge between two hexes
 /// whose centres lie either side of that line, where the edge's middle is along the stretch.
 pub fn fence(g: Ground, ax: float, ay: float, bx: float, by: float) -> integer {
@@ -628,6 +640,7 @@ fn push_up(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: intege
   Move { how: INSIDE, room: true, x: x + dx, y: y + dy, heading: room_heading(rm, dx, dy), metres: TILE, ms: ms_of(TILE) }
 }
 
+// @FR-RG-Inside, @FR-RG-Through, @FR-RG-Whole: by the room's rules; out through an opening onto the paired hex
 /// Push the thing on tile (x, y) of the room one step (dx, dy), `up` layers over the room's own
 /// (0: on its floor).  On its floor, on through an opening, it goes out onto the ground; else the
 /// room's own rules move it, the hero stepping after it.
@@ -674,6 +687,7 @@ pub fn push_in_room(g: Ground, rm: Room, x: integer, y: integer, dx: integer, dy
   Move { how: INSIDE, room: true, x: x + dx, y: y + dy, heading: room_heading(rm, dx, dy), metres: TILE, ms: ms_of(TILE) }
 }
 
+// @FR-RG-Twelve, @FR-RG-Aside, @FR-RG-Through: twelve ways; not full, aside; in through an opening
 /// Push the thing on hex (q, r) along heading `h` of the twelve.
 ///
 /// An even heading: to the neighbour, when it is free and no fence stands between.  An odd one:

@@ -125,6 +125,19 @@ on either side of it, every centre is clearly in or out.
                 apart, HX-Size.)
   (HT-Drawing)  Turn from the drawing, not from an earlier turn: two odd steps are two
                 approximations, and need not give what one exact 60° step gives.
+  (HT-Stencil)  A whole template — its cells, what each holds, its outer walls with their
+                materials and openings, its inner walls — turns by the same steps.  An even step
+                is exact, edge for edge.  Through an odd step the inner walls are the boundaries
+                between its ROOMS (HY-Inner): each room's own straight walls are turned and taken
+                to the lines the outer walls go to (HT-Near), the turned cells inside them are
+                the room, and an inner wall is wherever two rooms meet.  What a cell holds is
+                read from the drawn cell nearest where it came from, in its own room.
+  (HT-Whole)    Every room comes through a turn in one piece.  A room one cell wide, whose cells
+                an odd heading would leave apart, is joined along the shortest way through other
+                rooms' cells (three at the most, which take its room); a piece with no such way
+                goes to the room it touches most.
+  (HT-Lost)     A marked edge with one room on both sides bounds no room: an even step carries
+                it, an odd step cannot, and says how many it lost.
 ```
 
 **In words.** Turning by 60° moves every hex onto a hex, so nothing changes but the direction.
@@ -386,6 +399,17 @@ gazebo; the yards' sides in stretches of all four kinds.
   (HP-Fill)     A house at 0° is the cells whose centres lie in one of its plan's rectangles,
                 tested exactly (no float) and inclusively, as hex_shape::box_fill does for one box.
   (HP-Zero)     The house at 0° stays as its plan gives it; only the turn changes (owner).
+  (HP-Text)     A template of hex cells is drawn as text a person can write: lines of cells and
+                lines of edges in turn, north up; a cell every four columns, the rows shifted as
+                hex rows are; between two cells of a row the edge between them; on the line
+                between two rows the edges between a cell and the two it touches in the other
+                row.  A space is nothing.  What cannot be read is told, a line each, not guessed.
+  (HP-Usable)   A template may be used when it was read whole, is one piece, each wall marked
+                inside it closes a room, every room is reached from outside through doors, its
+                walls are at right angles to each other, and at each of the twelve angles it has
+                the rooms, doors and windows it was drawn with, every room still reached.  An
+                outer edge with nothing marked is its outer wall; its middle cell is the one it
+                is turned about.
 ```
 
 ## Measured (2026-11-09)

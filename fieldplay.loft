@@ -83,6 +83,7 @@ pub fn hero_tile(p: const Play) -> (integer, integer, integer) {
   (l.hero_x, l.hero_y, l.hero_z)
 }
 
+// @FR-RP-Step, @FR-RP-Refuse: the step onto another hex, or in at an opening; what refuses it
 // The body to (nx, ny) while it is on the ground.  Answers whether it went.
 fn ground_to(p: Play, nx: float, ny: float, swept: boolean = false) -> boolean {
   (q, r) = hexterrain::cell_near(p.x, p.y);
@@ -130,6 +131,7 @@ fn ground_to(p: Play, nx: float, ny: float, swept: boolean = false) -> boolean {
   true
 }
 
+// @FR-RP-Step: the step onto another tile by the room's rules, or out through an opening
 // The body to (nx, ny) while it is in a room.  Answers whether it went.
 fn room_to(p: Play, nx: float, ny: float) -> boolean {
   rm = p.rooms[p.room]!;
@@ -166,6 +168,7 @@ fn room_to(p: Play, nx: float, ny: float) -> boolean {
   step != rules::Step.Blocked && (rm.level.hero_x != hx || rm.level.hero_y != hy)
 }
 
+// @FR-UW-Carry, @FR-UW-Wade: running water takes a body, into deep water too
 // Water that runs fast enough takes the body with it: along the water's way, as far as that
 // speed goes in `ms` (a speed is the height a thing could climb, a unit 0.15 m: it goes as fast as
 // a thing fallen that far).  What refuses a step refuses this one too.  Answers whether it moved.
@@ -188,6 +191,7 @@ fn carried(p: Play, ms: integer) -> boolean {
   true
 }
 
+// @FR-RP-Body, @FR-RP-Clock: the body a point moving any way; one clock
 /// The hero walks: the body moves `ms` worth along the direction (dx, dy) — any direction, in the
 /// world's own space, x east and y north — at the walking pace, and the clock runs `ms`.  Answers
 /// whether the body moved.

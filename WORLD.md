@@ -809,6 +809,10 @@ river, keep the current river bed and allow it to get stale enough for the initi
   for a puzzle.  Outdoors the ground has one height a hex and cannot hold the overhang itself,
   only the dry strip behind the fall; under ground, with layers, the fall passes through the
   open cells between, and what stands in them is struck by it.
+  - **Overhang in the hills' rock faces too** (owner, 2026-11-16): "I want to allow for overhang
+    in rock faces on the hills too.  But that can be implemented locally with extra layers."  So
+    the ground keeps one height a hex, and where a face curves back a stretch of it gets layers
+    of its own, as a room has: the overhang is there, and nowhere else pays for it.
 
 ◇ Next: a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3

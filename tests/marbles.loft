@@ -58,6 +58,7 @@ fn test_fifty_marbles_on_the_hill() {
   assert(ways.starts_with("[[[0, ") && len(ways) > 2000, "the ways written: {len(ways)} characters");
 }
 
+// @FR-UM-Same: the same end, hex for hex and millisecond for millisecond
 // The same hill, the same marbles: the same end, hex for hex and millisecond for millisecond.
 fn test_the_hill_plays_the_same_every_time() {
   a = played();

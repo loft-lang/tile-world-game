@@ -999,6 +999,7 @@ fn inner_of(h: const intent::House, p: const Placed, inner: const vector<intent:
     any = false;
     for e in inner { if e.z == z && e.x > h.x && e.x < h.x + h.w && e.y > h.y && e.y < h.y + h.h { any = true; } }
     if !any { continue; }
+    // @FR-HT-Stencil, @FR-HT-Whole, @FR-HT-Lost: the floor's template turned whole, each room in one piece
     t = hex_place::stencil_turn(floor_template(h, inner, z), p.turn, hexwalls::open_sizes(sz));
     iw = hex_draw::cells_inner_walls(t.tu_stencil.sn_cells, t.tu_stencil.sn_edges, p.turn, hexwalls::open_sizes(sz));
     told[0] += iw.in_rooms;

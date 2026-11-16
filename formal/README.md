@@ -12,6 +12,11 @@ The rules do not change to match the code; the code changes to match the rules.
 
 - [hex-houses.md](hex-houses.md) — structures on the hex grid at any 30° angle: the cells, the
   walls drawn from them, the turn.
+- [rooms-on-ground.md](rooms-on-ground.md) — rooms on their own tile grids at their own angles,
+  the hex ground between: openings and the hexes before them, moving a thing, a figure walking, a
+  town.
+- [rolling-and-water.md](rolling-and-water.md) — what is unstable, by rule: a thing rolling down
+  the ground, and where water goes.
 
 Much of the code that keeps the hex rules is in the hex libraries now (HEX_LIBRARIES.md), citing
 them by the same tags; the check reads the fetched sources (`libs/`) with the game's.

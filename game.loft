@@ -623,6 +623,7 @@ pub fn go_through(g: Game, i: integer) -> boolean {
 // spots on the ground.  Not yet on the ground: the people, creatures and things that stand
 // outdoors in the square town, the ground's heights, and a dressed view.
 
+// @FR-RT-Town, @FR-RG-Part, @FR-RG-Sky: the hex town's ground, every part of every house a room, its ways onto the ground
 // Build the town's field from the place being played: the hex town's ground and what stands on
 // it, a window for each house, the spots that lead off.
 fn load_town(g: Game) -> boolean {
@@ -710,6 +711,7 @@ fn load_town(g: Game) -> boolean {
   true
 }
 
+// @FR-UW-Start, @FR-UW-Kept: the river's bed as it is; worked out when its supply changes
 // The river worked out anew (water.loft): its bed is the ground's bed and the pools in it, kept
 // as it is; water comes in at the bed's west end at `g.river` and leaves at its east end.
 fn run_river(g: Game) {
@@ -805,6 +807,7 @@ fn settle(g: Game) {
   g.movers = [];
 }
 
+// @FR-RT-Out: out of a door straight onto the hex before it
 // The hero on a house's door tile steps the way the door opens: out on the hex before it.
 fn town_out(g: Game, dx: integer, dy: integer) -> boolean {
   for i in 0..len(g.fplay.rooms) {
@@ -829,6 +832,7 @@ fn town_out(g: Game, dx: integer, dy: integer) -> boolean {
   false
 }
 
+// @FR-RT-Spot: a door to another place and stairs down are spots on the ground
 // On a town's ground the hero came onto another hex: a spot that leads off takes it there — through
 // a door to another place, or down stairs into the town's own map below.
 fn town_spot(g: Game) -> boolean {
@@ -922,6 +926,7 @@ pub fn start_field(g: Game, name: text) -> boolean {
   true
 }
 
+// @FR-RT-In: in at a house's door, on the door's tile of the town's map
 /// On the field the hero walks `ms` along (dx, dy) — x east, y north — and, come onto a room's
 /// tile through its door, is in that room: the game plays there as in any place.  Answers whether
 /// anything changed.

@@ -136,6 +136,7 @@ fn step(q: integer, r: integer, h: integer) -> (integer, integer) {
   hex_field::lattice_to_cell(hex_field::lattice_k(q, r) + dk, hex_field::lattice_m(q, r) + dm)
 }
 
+// @FR-UW-Way: the way that climbs least, and of those the shortest
 fn ways(heights: hex_field::Heights, open: hex_field::HexSet, outlets: const vector<(integer, integer)>) -> Ways {
   q0 = hex_field::hexset_q0(open);
   r0 = hex_field::hexset_r0(open);
@@ -165,6 +166,7 @@ fn ways(heights: hex_field::Heights, open: hex_field::HexSet, outlets: const vec
   wy
 }
 
+// @FR-UW-Supply, @FR-UW-Hollow, @FR-UW-Depth, @FR-UW-Speed, @FR-UW-Stale: the supply down the bed; hollows; depth; speed; old water
 /// Work the water out.  `heights` the ground; `open` where water may be; `pools` the water that
 /// was there before; the source hex and its `rate` (0: none); `outlets` where it leaves.
 pub fn flow(heights: hex_field::Heights, open: hex_field::HexSet, pools: hex_field::HexSet,

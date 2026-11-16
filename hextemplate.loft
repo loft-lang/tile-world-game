@@ -55,6 +55,7 @@ pub fn legend() -> hex_place::StencilLegend {
                              sl_edges: "#DW", sl_mats: [hexwalls::WALL, hexwalls::DOOR, hexwalls::WINDOW] }
 }
 
+// @FR-HP-Text: a template's rows are the stencil's text
 /// The template in `raw` (a file's text).
 pub fn from_text(raw: text) -> HexTemplate {
   errors: vector<text> = [];
@@ -164,6 +165,7 @@ pub struct Laid {
   pub lost: integer
 }
 
+// @FR-HT-Stencil: a template turned whole, its inner walls straight
 pub fn laid(t: HexTemplate, steps: integer, sz: hexwalls::Sizes = hexwalls::default_sizes()) -> Laid {
   turned = hex_place::stencil_turn(t.stencil, steps, hexwalls::open_sizes(sz));
   st = turned.tu_stencil;
@@ -207,6 +209,7 @@ fn all_reached(st: hex_field::Stencil) -> boolean {
   true
 }
 
+// @FR-HP-Usable: what a template must be to be used
 /// What keeps the template from being used, a line each; none when it may be.
 ///
 /// It was read whole; it is one piece; each wall marked inside it closes a room; every room is
