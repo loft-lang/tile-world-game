@@ -564,9 +564,24 @@ given as said; what follows from it and is proposed is ◇.
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 
-◇ First to build: one room on its own grid, placed at an angle on hex ground, with one door — a
-push inside it, one through the door, one between hexes outside — at each of the twelve angles;
-then a terrace as the same with low walls.  The steps below were written before these rulings:
+**Built, the first room** (2026-11-16; `gridroom.loft`, `tests/gridroom.loft`): a room — a
+square place as the game has them, played by its own rules — set down at any of the twelve angles
+on a field of hexes, its door paired both ways with the hex straight outside it, one tile's
+length out (the room is moved by less than a hex to make it so).  At each angle a rock is pushed
+two tiles inside by the room's rules, out through the door, twice on over the ground and back to
+the tile it left; every step 1.5 m in 140 ms, or between hexes 2.6 m in 242 ms.  Between hexes
+with the hex ahead taken, or a fence along the way, it goes aside as the place prefers, then the
+other side, then not at all.  A room's four ways are four of the twelve, two of them always
+between hexes.
+- **The same grid serves drawn maps** (owner, 2026-11-16): "the up-side to the grid in the rooms
+  and corridors is that we can use it on drawn maps too (for Moros tabletop) where we want a grid
+  where people can stand presented as big tiles."  `gridroom::tile_corners` gives a tile as the
+  square a map draws.  ◇ So this geometry belongs in the shared libraries once it has settled.
+- Not yet: the game's play on it (the hero, the view and the clock still run on one square
+  place); more than one thing on a hex; a second opening whose hex does not lie straight out
+  (it goes aside; untried); a corner walled on both sides.
+
+◇ Next: then a terrace as the same with low walls.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

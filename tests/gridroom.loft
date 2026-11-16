@@ -1,0 +1,202 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A room on its own tile grid at an angle on hex ground (gridroom.loft; WORLD.md § One game,
+// square or hex, tile grids at small scale): at each of the twelve angles a rock is pushed inside
+// the room by the room's own rules, out through its door onto the ground, on between hexes, and
+// back the way it came to the tile it left.
+use hex_field;
+use hex_form;
+use hexterrain;
+use tile_world;
+use rules;
+use materials;
+use levels;
+use gridroom;
+
+fn near(a: float, b: float) -> boolean { a - b < 0.000001 && b - a < 0.000001 }
+
+fn far(a: (float, float), b: (float, float)) -> float { sqrt((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)) ?? 0.0 }
+
+// A room of seven tiles by five, a wall round it, a door in the middle of its south wall, a rock
+// two tiles in from the door; placed at `turn` near the middle of a field of hexes.
+fn room(turn: integer) -> gridroom::Room {
+  k = rules::kinds();
+  raw = "{{\"name\": \"a room\", \"camera\": \"follow\", \"legend\": {{\".\": \"floor\", \"#\": \"wall\"}}, \"ground\": [], \"chunks\": [{{\"cx\": 0, \"cy\": 0, \"z\": 0, \"rows\": [\"#######\", \"#.....#\", \"#.....#\", \"#.....#\", \"###.###\"]}}], \"things\": [{{\"at\": [3, 2, 0], \"stack\": [\"rock\"]}}], \"tiles\": [], \"edges\": [], \"rises\": [], \"doors\": []}}";
+  lf = levels::load_with(raw, k, materials::load(file("../theme.json").content() ?? "", k));
+  if !lf { assert(false, "the room loads"); }
+  gridroom::Room { level: lf!.level, w: 7, h: 5, z: 0, turn: turn }
+}
+
+fn field() -> gridroom::Ground { gridroom::ground(-30, -30, 61, 61) }
+
+fn test_the_room_lies_on_the_ground_at_every_angle() {
+  for turn in 0..12 {
+    g = field();
+    rm = room(turn);
+    gridroom::place_room(g, rm, 0, 3.0, 2.0);
+    assert(far((rm.ox, rm.oy), (3.0, 2.0)) < 1.0, "at {30 * turn}: set down within a hex of where it was asked: {far((rm.ox, rm.oy), (3.0, 2.0))}");
+    // its tiles are a tile apart, along its own two ways, a right angle between them
+    a = gridroom::tile_centre(rm, 0.0, 0.0);
+    b = gridroom::tile_centre(rm, 1.0, 0.0);
+    c = gridroom::tile_centre(rm, 0.0, 1.0);
+    assert(near(far(a, b), 1.5) && near(far(a, c), 1.5) && near((b.0 - a.0) * (c.0 - a.0) + (b.1 - a.1) * (c.1 - a.1), 0.0), "at {30 * turn}: tiles 1.5 m apart at a right angle");
+    (wx, wy) = gridroom::way(turn);
+    assert(near(b.0 - a.0, 1.5 * wx) && near(b.1 - a.1, 1.5 * wy), "at {30 * turn}: its x along its heading");
+    // one opening, the door; the hex outside it straight out, a tile's length from the door's tile
+    assert(len(rm.openings) == 1, "at {30 * turn}: one way out: {len(rm.openings)}");
+    o = rm.openings[0]!;
+    assert(o.x == 3 && o.y == 4 && o.dx == 0 && o.dy == 1 && o.exact && o.heading == hex_form::head_norm(turn + 9), "at {30 * turn}: the door, opening south of the room");
+    door = gridroom::tile_centre(rm, 3.0, 4.0);
+    step = hexterrain::centre(o.q, o.r);
+    (ox, oy) = gridroom::way(o.heading);
+    assert(near(step.0 - door.0, 1.5 * ox) && near(step.1 - door.1, 1.5 * oy), "at {30 * turn}: the hex outside the door 1.5 m straight out");
+    assert(hex_field::label_get(g.under, o.q, o.r) < 0, "at {30 * turn}: that hex is open ground");
+    // the hexes under it: every one's centre inside its rectangle, and about its area of them
+    under = 0;
+    for r in -30..31 {
+      for q in -30..31 {
+        cc = hexterrain::centre(q, r);
+        t = gridroom::tile_at(rm, cc.0, cc.1);
+        assert(t.0 == (hex_field::label_get(g.under, q, r) == 0), "at {30 * turn}: hex ({q}, {r}) under the room or not");
+        if t.0 {
+          under += 1;
+          assert(t.1 >= 0 && t.1 < 7 && t.2 >= 0 && t.2 < 5 && far(gridroom::tile_centre(rm, t.1 as float, t.2 as float), cc) < 1.07, "at {30 * turn}: a hex under the room lies on one of its tiles");
+        }
+      }
+    }
+    // 7 × 5 tiles of 2.25 m², a hex 1.95 m²
+    assert(under >= 35 && under <= 46, "at {30 * turn}: about forty hexes under it: {under}");
+    // a tile as a map draws it: a square of 1.5 m at the room's angle, its middle the tile's centre,
+    // sharing a side with the next tile
+    sq = gridroom::tile_corners(rm, 2, 1);
+    mid = gridroom::tile_centre(rm, 2.0, 1.0);
+    area = 0.0;
+    for i in 0..4 {
+      p0 = sq[i]!;
+      p1 = sq[(i + 1) % 4 ?? 0]!;
+      area += p0.0 * p1.1 - p1.0 * p0.1;
+      assert(near(far(p0, p1), 1.5) && near(far(p0, mid), 1.5 * sqrt(0.5)), "at {30 * turn}: a tile's sides 1.5 m, its corners round its centre");
+    }
+    assert(near(area * 0.5, 2.25), "at {30 * turn}: a tile of 2.25 m², its corners anticlockwise: {area * 0.5}");
+    nx = gridroom::tile_corners(rm, 3, 1);
+    assert(far(sq[1]!, nx[0]!) < 0.000001 && far(sq[2]!, nx[3]!) < 0.000001, "at {30 * turn}: it shares its east side with the next tile");
+  }
+}
+
+// The four ways of a room are four of the ground's twelve, and two of them always run between
+// hexes.
+fn test_a_rooms_four_ways_are_among_the_twelve() {
+  for turn in 0..12 {
+    rm = room(turn);
+    odd = 0;
+    for s in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
+      h = gridroom::room_heading(rm, s.0, s.1);
+      a = gridroom::tile_centre(rm, 0.0, 0.0);
+      b = gridroom::tile_centre(rm, s.0 as float, s.1 as float);
+      assert(gridroom::heading_of(b.0 - a.0, b.1 - a.1) == h, "at {30 * turn}: step {s.0} {s.1} runs along heading {h}");
+      assert(gridroom::room_step(rm, b.0 - a.0, b.1 - a.1).0 == s.0 && gridroom::room_step(rm, b.0 - a.0, b.1 - a.1).1 == s.1, "at {30 * turn}: and the direction gives the step back");
+      if (h & 1) == 1 { odd += 1; }
+    }
+    assert(odd == 2, "at {30 * turn}: two of the four between hexes: {odd}");
+  }
+}
+
+// The rock's way: two tiles south inside the room (the room's rules), out through the door, two
+// steps on over the ground, and back by the opposite headings to the tile it started the way out
+// from.  Every step's length and time: 1.5 m in 140 ms, or between hexes 2.6 m in 242 ms.
+fn test_a_rock_goes_out_through_the_door_and_comes_back() {
+  for turn in 0..12 {
+    g = field();
+    rm = room(turn);
+    gridroom::place_room(g, rm, 0, 3.0, 2.0);
+    rock = tile_world::top(rm.level.w, 3, 2, 0);
+    assert(rock != 0 && rules::movable(rm.level, rock), "a rock in the room");
+    m = gridroom::push_in_room(g, rm, 3, 2, 0, 1);
+    assert(m.how == gridroom::INSIDE && m.room && m.x == 3 && m.y == 3 && m.ms == 140 && near(m.metres, 1.5), "at {30 * turn}: a tile south, by the room's rules: {m.how} ({m.x}, {m.y}) {m.ms} ms");
+    assert(rm.level.hero_x == 3 && rm.level.hero_y == 2, "at {30 * turn}: the hero stepped after it");
+    m = gridroom::push_in_room(g, rm, 3, 3, 0, 1);
+    assert(m.how == gridroom::INSIDE && m.y == 4 && tile_world::top(rm.level.w, 3, 4, 0) == rock, "at {30 * turn}: onto the door's tile");
+    // into the wall beside the door: the room's rules say no
+    side = gridroom::push_in_room(g, rm, 3, 4, 1, 0);
+    assert(side.how == gridroom::BLOCKED && tile_world::top(rm.level.w, 3, 4, 0) == rock, "at {30 * turn}: not into the wall");
+    o = rm.openings[0]!;
+    m = gridroom::push_in_room(g, rm, 3, 4, 0, 1);
+    assert(m.how == gridroom::OUT && !m.room && m.q == o.q && m.r == o.r && m.heading == o.heading && m.ms == 140 && near(m.metres, 1.5), "at {30 * turn}: out onto the hex outside the door: {m.how} {m.ms} ms {m.metres} m");
+    assert(tile_world::top(rm.level.w, 3, 4, 0) == 0 && hex_field::label_get(g.things, o.q, o.r) == rock, "at {30 * turn}: off the tile, on the hex");
+    // on over the ground, twice, the way it came out
+    at = (m.q, m.r);
+    start = hexterrain::centre(o.q, o.r);
+    (wx, wy) = gridroom::way(o.heading);
+    odd = (o.heading & 1) == 1;
+    for n in 1..3 {
+      m = gridroom::push_on_ground(g, rm, at.0, at.1, o.heading);
+      assert(m.how == gridroom::AHEAD && m.heading == o.heading, "at {30 * turn}: step {n} over the ground: {m.how}");
+      if odd { assert(m.ms == 242 && near(m.metres, 1.5 * sqrt(3.0)), "at {30 * turn}: between hexes 2.6 m in 242 ms: {m.metres} m {m.ms} ms"); }
+      else { assert(m.ms == 140 && near(m.metres, 1.5), "at {30 * turn}: to a neighbour 1.5 m in 140 ms: {m.metres} m {m.ms} ms"); }
+      c = hexterrain::centre(m.q, m.r);
+      along = (c.0 - start.0) * wx + (c.1 - start.1) * wy;
+      across = (c.0 - start.0) * wy - (c.1 - start.1) * wx;
+      assert(near(across, 0.0) && near(along, (n as float) * m.metres), "at {30 * turn}: on a full hex on the line, {along} m out, {across} m off it");
+      assert(hex_field::label_get(g.things, m.q, m.r) == rock && hex_field::label_get(g.things, at.0, at.1) == 0, "at {30 * turn}: the rock went with it");
+      at = (m.q, m.r);
+    }
+    // and back
+    for n in 1..3 {
+      m = gridroom::push_on_ground(g, rm, at.0, at.1, o.heading + 6);
+      assert(m.how == gridroom::AHEAD, "at {30 * turn}: step {n} back: {m.how}");
+      at = (m.q, m.r);
+    }
+    assert(at.0 == o.q && at.1 == o.r, "at {30 * turn}: back on the hex outside the door");
+    // not into the wall from outside; in through the door
+    for h in 0..12 {
+      (tq, tr) = gridroom::hex_step(o.q, o.r, h);
+      if h == hex_form::head_norm(o.heading + 6) || hex_field::label_get(g.under, tq, tr) < 0 { continue; }
+      if (h & 1) == 1 { continue; }
+      w = gridroom::push_on_ground(g, rm, o.q, o.r, h);
+      assert(w.how == gridroom::BLOCKED && hex_field::label_get(g.things, o.q, o.r) == rock, "at {30 * turn}: not through the wall along heading {h}");
+    }
+    m = gridroom::push_on_ground(g, rm, o.q, o.r, o.heading + 6);
+    assert(m.how == gridroom::IN && m.room && m.x == 3 && m.y == 4 && m.ms == 140, "at {30 * turn}: in through the door: {m.how}");
+    assert(tile_world::top(rm.level.w, 3, 4, 0) == rock && hex_field::label_get(g.things, o.q, o.r) == 0, "at {30 * turn}: on the door's tile again");
+    m = gridroom::push_in_room(g, rm, 3, 4, 0, -1);
+    assert(m.how == gridroom::INSIDE && m.y == 3, "at {30 * turn}: and on into the room, by its rules");
+  }
+}
+
+// Between two hexes with the full hex ahead taken: aside into one of the two, the side the place
+// prefers; with that one taken too, the other; with both taken, not at all.  A fence on the edge
+// the push would run along sends it aside as well.
+fn test_a_push_that_is_not_full_goes_aside() {
+  g = field();
+  rm = room(0);
+  gridroom::place_room(g, rm, 0, 40.0, 40.0);
+  for h in [1, 3, 5, 7, 9, 11] {
+    (aq, ar) = gridroom::hex_step(0, 0, h);
+    (lq, lr) = gridroom::hex_step(0, 0, h + 1);
+    (rq, rr) = gridroom::hex_step(0, 0, h - 1);
+    first = if rules::prefers_right(0, 0, 0) { (rq, rr) } else { (lq, lr) };
+    second = if rules::prefers_right(0, 0, 0) { (lq, lr) } else { (rq, rr) };
+    // the two it passes between both touch where it starts and where it would land
+    c = hexterrain::centre(0, 0);
+    assert(near(far(c, hexterrain::centre(lq, lr)), 1.5) && near(far(c, hexterrain::centre(rq, rr)), 1.5) && near(far(hexterrain::centre(aq, ar), hexterrain::centre(lq, lr)), 1.5) && near(far(hexterrain::centre(lq, lr), hexterrain::centre(rq, rr)), 1.5), "heading {h}: the two flanks touch the start, the end and each other");
+    for case in 0..4 {
+      for r in -6..7 { for q in -6..7 { hex_field::label_set(g.things, q, r, 0); } }
+      g.fixed = hex_field::hexset_chunk(-30, -30, 61, 61);
+      g.fences = hex_field::edgeset_new(-30, -30, 61, 61);
+      hex_field::label_set(g.things, 0, 0, 7);
+      // 0: the hex ahead taken; 1: a fence along the way; 2: ahead and the first side taken; 3: all three
+      if case == 1 { hex_field::edge_set_mat(g.fences, lq, lr, rq, rr, 1); } else { hex_field::hexset_set(g.fixed, aq, ar, true); }
+      if case >= 2 { hex_field::hexset_set(g.fixed, first.0, first.1, true); }
+      if case == 3 { hex_field::hexset_set(g.fixed, second.0, second.1, true); }
+      m = gridroom::push_on_ground(g, rm, 0, 0, h);
+      want = if case < 2 { first } else { second };
+      if case == 3 {
+        assert(m.how == gridroom::BLOCKED && hex_field::label_get(g.things, 0, 0) == 7, "heading {h}: nowhere to go");
+      } else {
+        assert(m.how == gridroom::ASIDE && m.q == want.0 && m.r == want.1 && m.ms == 140 && near(m.metres, 1.5), "heading {h} case {case}: aside to ({want.0}, {want.1}): {m.how} ({m.q}, {m.r})");
+        assert(hex_field::label_get(g.things, want.0, want.1) == 7 && hex_field::label_get(g.things, 0, 0) == 0, "heading {h} case {case}: the thing went there");
+      }
+    }
+  }
+}

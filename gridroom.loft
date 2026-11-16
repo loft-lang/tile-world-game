@@ -1,0 +1,380 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// A room on its own tile grid, placed at an angle on hex ground (WORLD.md § One game, square or
+// hex: tile grids at small scale, hex ground between — owner, 2026-11-16).
+//
+// The room is a square place as the game has them (a `rules::Level`): inside it the rules play
+// as they do, four ways, whatever angle the room lies at.  Round it is open ground of hex cells,
+// where a thing moves one of twelve ways: an even heading to a neighbour, an odd one between two
+// hexes through to the next full hex — or, when that is not free, aside into one of the two it
+// would pass between (the side the place prefers, then the other; `rules::prefers_right`).
+//
+// An opening of the room (a way through its outer wall) is paired with the hex outside it when
+// the room is placed, both ways: a thing pushed out of the opening lands on that hex, and pushed
+// back from it lands on the opening's tile.  The room is set down so its first opening's hex lies
+// exactly one tile's length outside it.
+//
+// A move takes the time of its real length at one speed: a tile or a neighbouring hex, 1.5 m, in
+// `STEP_MS`; between two hexes, 1.5 × √3 m, in that much longer.
+//
+// The same grid is what a drawn map shows: `tile_corners` gives a tile as a square on the map.
+//
+// What this is not yet: the game's play (the hero, the view and the clock still run on one square
+// place); more than one thing on a hex; a fence at the corner a thing leaves by.
+use hex_field;
+use hex_form;
+use hexterrain;
+use tile_world;
+use rules;
+
+/// A tile's side, in metres: a hex step's.
+pub const TILE = 1.5;
+/// The time a thing takes over one tile or to a neighbouring hex (the game's glide, FREE_CELL_MS).
+pub const STEP_MS = 140;
+
+/// A way through the room's outer wall: its tile on the rim, the step out of the room there
+/// (tiles), the heading that step has on the ground, and the hex outside it.  `exact`: that hex
+/// lies straight out, one tile's length away; else the two hexes either side of the line are kept
+/// (`lq`, `lr` left of the way out, `rq`, `rr` right) and a thing leaving goes aside into one.
+pub struct Opening {
+  pub x: integer,
+  pub y: integer,
+  pub dx: integer,
+  pub dy: integer,
+  pub heading: integer = 0,
+  pub exact: boolean = false,
+  pub q: integer = 0,
+  pub r: integer = 0,
+  pub lq: integer = 0,
+  pub lr: integer = 0,
+  pub rq: integer = 0,
+  pub rr: integer = 0
+}
+
+/// A room: a square place, the layer played, its size in tiles, where tile (0, 0)'s centre lies
+/// (metres) and its angle (steps of 30°: its tiles' x runs along that heading, y a quarter turn
+/// clockwise of it, as south is of east).
+pub struct Room {
+  pub level: rules::Level,
+  pub w: integer,
+  pub h: integer,
+  pub z: integer,
+  pub turn: integer,
+  pub ox: float = 0.0,
+  pub oy: float = 0.0,
+  pub openings: vector<Opening> = []
+}
+
+/// The open ground round the rooms: which hexes lie under a room (its number, -1 for open), what
+/// thing stands on a hex (0 for none), which hexes hold what does not move (a tree), and the
+/// fences on the edges between hexes.
+pub struct Ground {
+  pub under: hex_field::Labels,
+  pub things: hex_field::Labels,
+  pub fixed: hex_field::HexSet,
+  pub fences: hex_field::EdgeSet
+}
+
+pub fn ground(q0: integer, r0: integer, w: integer, h: integer) -> Ground {
+  g = Ground { under: hex_field::labels_new(q0, r0, w, h), things: hex_field::labels_new(q0, r0, w, h),
+               fixed: hex_field::hexset_chunk(q0, r0, w, h), fences: hex_field::edgeset_new(q0, r0, w, h) };
+  for r in r0..r0 + h { for q in q0..q0 + w { hex_field::label_set(g.things, q, r, 0); } }
+  g
+}
+
+// ── where things are ────────────────────────────────────────────────────────
+
+/// The direction of heading `h` (0 east, 3 north; steps of 30°).
+pub fn way(h: integer) -> (float, float) {
+  a = (hex_form::head_norm(h) as float) * PI / 6.0;
+  (cos(a), sin(a))
+}
+
+/// The heading of the twelve nearest the direction (x, y).
+pub fn heading_of(x: float, y: float) -> integer {
+  best = 0;
+  most = -2.0;
+  for h in 0..12 {
+    (wx, wy) = way(h);
+    d = wx * x + wy * y;
+    if d > most {
+      most = d;
+      best = h;
+    }
+  }
+  best
+}
+
+/// The heading a step (dx, dy) of the room's tiles has on the ground.
+pub fn room_heading(rm: const Room, dx: integer, dy: integer) -> integer {
+  hex_form::head_norm(rm.turn + (if dx > 0 { 0 } else if dy < 0 { 3 } else if dx < 0 { 6 } else { 9 }))
+}
+
+/// The step of the room's four nearest the direction (x, y).
+pub fn room_step(rm: const Room, x: float, y: float) -> (integer, integer) {
+  best = (1, 0);
+  most = -2.0;
+  for s in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
+    (wx, wy) = way(room_heading(rm, s.0, s.1));
+    d = wx * x + wy * y;
+    if d > most {
+      most = d;
+      best = s;
+    }
+  }
+  best
+}
+
+/// The centre of the room's tile (x, y), in metres; a tile outside it too.
+pub fn tile_centre(rm: const Room, x: float, y: float) -> (float, float) {
+  (ex, ey) = way(rm.turn);
+  (sx, sy) = way(rm.turn + 9);
+  (rm.ox + (x * ex + y * sx) * TILE, rm.oy + (x * ey + y * sy) * TILE)
+}
+
+/// The four corners of the room's tile (x, y), in metres, anticlockwise: the tile as it is drawn
+/// on a map — a square a figure stands on, at the room's angle (owner, 2026-11-16: the rooms' and
+/// corridors' grid serves drawn maps too, as big tiles where people can stand; Moros's tabletop).
+pub fn tile_corners(rm: const Room, x: integer, y: integer) -> vector<(float, float)> {
+  [tile_centre(rm, (x as float) - 0.5, (y as float) + 0.5), tile_centre(rm, (x as float) + 0.5, (y as float) + 0.5),
+   tile_centre(rm, (x as float) + 0.5, (y as float) - 0.5), tile_centre(rm, (x as float) - 0.5, (y as float) - 0.5)]
+}
+
+/// The room's tile under (x, y) metres, as (inside, tile x, tile y).
+pub fn tile_at(rm: const Room, x: float, y: float) -> (boolean, integer, integer) {
+  (ex, ey) = way(rm.turn);
+  (sx, sy) = way(rm.turn + 9);
+  u = ((x - rm.ox) * ex + (y - rm.oy) * ey) / TILE;
+  v = ((x - rm.ox) * sx + (y - rm.oy) * sy) / TILE;
+  tx = round(u) as integer;
+  ty = round(v) as integer;
+  (u > -0.5 && v > -0.5 && u < (rm.w as float) - 0.5 && v < (rm.h as float) - 0.5, tx, ty)
+}
+
+/// The hex a step of heading `h` from (q, r) comes to: a neighbour (even), or the next full hex
+/// between two neighbours (odd).
+pub fn hex_step(q: integer, r: integer, h: integer) -> (integer, integer) {
+  (dk, dm) = hex_form::head_step(h);
+  hex_field::lattice_to_cell(hex_field::lattice_k(q, r) + dk, hex_field::lattice_m(q, r) + dm)
+}
+
+/// How far two points are apart.
+fn apart(a: (float, float), b: (float, float)) -> float {
+  sqrt((a.0 - b.0) * (a.0 - b.0) + (a.1 - b.1) * (a.1 - b.1)) ?? 0.0
+}
+
+/// The time a thing takes over `metres`.
+pub fn ms_of(metres: float) -> integer { round((STEP_MS as float) * metres / TILE) as integer }
+
+// ── placing a room ──────────────────────────────────────────────────────────
+
+/// The ways through the room's outer wall on its layer: each tile of its rim a thing can stand on.
+fn openings_of(rm: const Room) -> vector<Opening> {
+  out: vector<Opening> = [];
+  for y in 0..rm.h {
+    for x in 0..rm.w {
+      if x != 0 && y != 0 && x != rm.w - 1 && y != rm.h - 1 { continue; }
+      k = tile_world::terrain(rm.level.w, x, y, rm.z);
+      if k == rules::VOID || !rules::walkable(rm.level, k) { continue; }
+      // a corner tile opens no way; a rim tile opens the way off its side
+      corner = (x == 0 || x == rm.w - 1) && (y == 0 || y == rm.h - 1);
+      if corner { continue; }
+      dx = if x == 0 { -1 } else if x == rm.w - 1 { 1 } else { 0 };
+      dy = if y == 0 { -1 } else if y == rm.h - 1 { 1 } else { 0 };
+      out += [Opening { x: x, y: y, dx: dx, dy: dy }];
+    }
+  }
+  out
+}
+
+/// Set the room down with tile (0, 0)'s centre near (x, y) metres, moved by less than a hex so
+/// the hex outside its first opening lies straight out, one tile's length away; mark the hexes
+/// under it (number `id`); pair each opening with the ground outside it.
+pub fn place_room(g: Ground, rm: Room, id: integer, x: float, y: float) {
+  rm.ox = x;
+  rm.oy = y;
+  rm.openings = openings_of(rm);
+  if len(rm.openings) > 0 {
+    o = rm.openings[0]!;
+    d = tile_centre(rm, (o.x + o.dx) as float, (o.y + o.dy) as float);
+    (hq, hr) = hexterrain::cell_near(d.0, d.1);
+    c = hexterrain::centre(hq, hr);
+    rm.ox += c.0 - d.0;
+    rm.oy += c.1 - d.1;
+  }
+  q0 = hex_field::hexset_q0(g.fixed);
+  r0 = hex_field::hexset_r0(g.fixed);
+  for r in r0..r0 + hex_field::hexset_h(g.fixed) {
+    for q in q0..q0 + hex_field::hexset_w(g.fixed) {
+      c = hexterrain::centre(q, r);
+      if tile_at(rm, c.0, c.1).0 { hex_field::label_set(g.under, q, r, id); }
+    }
+  }
+  for i in 0..len(rm.openings) {
+    o = rm.openings[i]!;
+    o.heading = room_heading(rm, o.dx, o.dy);
+    d = tile_centre(rm, (o.x + o.dx) as float, (o.y + o.dy) as float);
+    (hq, hr) = hexterrain::cell_near(d.0, d.1);
+    o.q = hq;
+    o.r = hr;
+    o.exact = apart(hexterrain::centre(hq, hr), d) < 0.001 && hex_field::label_get(g.under, hq, hr) < 0;
+    // the nearest open hex either side of the way out
+    (wx, wy) = way(o.heading);
+    t = tile_centre(rm, o.x as float, o.y as float);
+    left = -1.0;
+    right = -1.0;
+    for dr in -2..3 {
+      for dq in -2..3 {
+        cq = hq + dq;
+        cr = hr + dr;
+        if hex_field::label_get(g.under, cq, cr) >= 0 { continue; }
+        c = hexterrain::centre(cq, cr);
+        side = wx * (c.1 - t.1) - wy * (c.0 - t.0);
+        ahead = wx * (c.0 - t.0) + wy * (c.1 - t.1);
+        if ahead <= 0.0 { continue; }
+        far = apart(c, d);
+        if side > 0.001 && (left < 0.0 || far < left) {
+          left = far;
+          o.lq = cq;
+          o.lr = cr;
+        }
+        if side < -0.001 && (right < 0.0 || far < right) {
+          right = far;
+          o.rq = cq;
+          o.rr = cr;
+        }
+      }
+    }
+    rm.openings[i] = o;
+  }
+}
+
+// ── moving a thing ──────────────────────────────────────────────────────────
+
+/// How a push came out.
+pub const BLOCKED = 0;
+/// One tile on inside the room, by the room's rules.
+pub const INSIDE = 1;
+/// To the hex the push aimed at.
+pub const AHEAD = 2;
+/// Into one of the two hexes it would have passed between.
+pub const ASIDE = 3;
+/// Out through an opening onto the ground.
+pub const OUT = 4;
+/// In through an opening onto its tile.
+pub const IN = 5;
+
+/// A push's outcome: how it came out, where the thing is now (a tile of the room when `room`,
+/// else a hex), the heading it has there, how far it went and how long that takes.
+pub struct Move {
+  pub how: integer,
+  pub room: boolean = false,
+  pub x: integer = 0,
+  pub y: integer = 0,
+  pub q: integer = 0,
+  pub r: integer = 0,
+  pub heading: integer = 0,
+  pub metres: float = 0.0,
+  pub ms: integer = 0
+}
+
+/// May a thing come onto hex (q, r): open ground inside the window, holding nothing.
+pub fn hex_free(g: Ground, q: integer, r: integer) -> boolean {
+  q0 = hex_field::hexset_q0(g.fixed);
+  r0 = hex_field::hexset_r0(g.fixed);
+  if q < q0 || r < r0 || q >= q0 + hex_field::hexset_w(g.fixed) || r >= r0 + hex_field::hexset_h(g.fixed) { return false; }
+  hex_field::label_get(g.under, q, r) < 0 && !hex_field::hexset_get(g.fixed, q, r) && hex_field::label_get(g.things, q, r) == 0
+}
+
+fn hex_move(g: Ground, q: integer, r: integer, tq: integer, tr: integer, how: integer, heading: integer) -> Move {
+  thing = hex_field::label_get(g.things, q, r);
+  hex_field::label_set(g.things, q, r, 0);
+  hex_field::label_set(g.things, tq, tr, thing);
+  far = apart(hexterrain::centre(q, r), hexterrain::centre(tq, tr));
+  Move { how: how, q: tq, r: tr, heading: heading, metres: far, ms: ms_of(far) }
+}
+
+/// Push the thing on tile (x, y) of the room one step (dx, dy).  On through an opening it goes
+/// out onto the ground; else the room's own rules move it, the hero stepping after it.
+pub fn push_in_room(g: Ground, rm: Room, x: integer, y: integer, dx: integer, dy: integer) -> Move {
+  thing = tile_world::top(rm.level.w, x, y, rm.z);
+  if thing == 0 { return Move { how: BLOCKED, room: true, x: x, y: y }; }
+  for o in rm.openings {
+    if o.x != x || o.y != y || o.dx != dx || o.dy != dy { continue; }
+    if !rules::movable(rm.level, thing) { return Move { how: BLOCKED, room: true, x: x, y: y }; }
+    from = tile_centre(rm, x as float, y as float);
+    // straight out where a hex lies there; else, or with that hex taken, aside
+    tq = o.q;
+    tr = o.r;
+    how = OUT;
+    if !o.exact || !hex_free(g, tq, tr) {
+      how = BLOCKED;
+      right_first = rules::prefers_right(x, y, rm.z);
+      for pass in 0..2 {
+        if how != BLOCKED { continue; }
+        take_right = (pass == 0) == right_first;
+        cq = if take_right { o.rq } else { o.lq };
+        cr = if take_right { o.rr } else { o.lr };
+        if (o.exact && cq == o.q && cr == o.r) || !hex_free(g, cq, cr) { continue; }
+        tq = cq;
+        tr = cr;
+        how = ASIDE;
+      }
+      if how == BLOCKED { return Move { how: BLOCKED, room: true, x: x, y: y }; }
+    }
+    hex_field::label_set(g.things, tq, tr, tile_world::take(rm.level.w, x, y, rm.z));
+    rm.level.hero_x = x;
+    rm.level.hero_y = y;
+    far = apart(from, hexterrain::centre(tq, tr));
+    return Move { how: how, q: tq, r: tr, heading: o.heading, metres: far, ms: ms_of(far) };
+  }
+  rm.level.hero_x = x - dx;
+  rm.level.hero_y = y - dy;
+  rm.level.hero_z = rm.z;
+  step = rules::walk(rm.level, dx, dy);
+  if step != rules::Step.Pushed || tile_world::top(rm.level.w, x + dx, y + dy, rm.z) != thing {
+    return Move { how: BLOCKED, room: true, x: x, y: y };
+  }
+  Move { how: INSIDE, room: true, x: x + dx, y: y + dy, heading: room_heading(rm, dx, dy), metres: TILE, ms: ms_of(TILE) }
+}
+
+/// Push the thing on hex (q, r) along heading `h` of the twelve.
+///
+/// An even heading: to the neighbour, when it is free and no fence stands between.  An odd one:
+/// between two hexes through to the next full hex, when that is free and no fence stands on the
+/// edge it runs along; else aside into one of the two, the side the place prefers first.  Into a
+/// room only from the hex outside an opening, straight in, onto the opening's tile.
+pub fn push_on_ground(g: Ground, rm: Room, q: integer, r: integer, h: integer) -> Move {
+  h = hex_form::head_norm(h);
+  if hex_field::label_get(g.things, q, r) == 0 { return Move { how: BLOCKED, q: q, r: r }; }
+  // in through an opening
+  for o in rm.openings {
+    if !o.exact || o.q != q || o.r != r || hex_form::head_norm(o.heading + 6) != h { continue; }
+    k = tile_world::terrain(rm.level.w, o.x, o.y, rm.z);
+    if !rules::walkable(rm.level, k) || tile_world::top(rm.level.w, o.x, o.y, rm.z) != 0 { return Move { how: BLOCKED, q: q, r: r }; }
+    tile_world::place(rm.level.w, o.x, o.y, rm.z, hex_field::label_get(g.things, q, r));
+    hex_field::label_set(g.things, q, r, 0);
+    far = apart(hexterrain::centre(q, r), tile_centre(rm, o.x as float, o.y as float));
+    return Move { how: IN, room: true, x: o.x, y: o.y, heading: h, metres: far, ms: ms_of(far) };
+  }
+  if (h & 1) == 0 {
+    (tq, tr) = hex_step(q, r, h);
+    if !hex_free(g, tq, tr) || hex_field::edge_mat(g.fences, q, r, tq, tr) != 0 { return Move { how: BLOCKED, q: q, r: r }; }
+    return hex_move(g, q, r, tq, tr, AHEAD, h);
+  }
+  (aq, ar) = hex_step(q, r, h);
+  (lq, lr) = hex_step(q, r, h + 1);
+  (rq, rr) = hex_step(q, r, h - 1);
+  if hex_free(g, aq, ar) && hex_field::edge_mat(g.fences, lq, lr, rq, rr) == 0 { return hex_move(g, q, r, aq, ar, AHEAD, h); }
+  right_first = rules::prefers_right(q, r, 0);
+  for pass in 0..2 {
+    take_right = (pass == 0) == right_first;
+    cq = if take_right { rq } else { lq };
+    cr = if take_right { rr } else { lr };
+    if hex_free(g, cq, cr) && hex_field::edge_mat(g.fences, q, r, cq, cr) == 0 {
+      return hex_move(g, q, r, cq, cr, ASIDE, if take_right { hex_form::head_norm(h - 1) } else { hex_form::head_norm(h + 1) });
+    }
+  }
+  Move { how: BLOCKED, q: q, r: r }
+}
