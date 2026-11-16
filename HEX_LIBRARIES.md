@@ -493,6 +493,19 @@ character animations are added).
    rooms meet.  So it comes out straight, meets the walls it met and closes what it closed.  A
    marked edge that bounds no room cannot come through an odd step and is counted (`tu_lost`).
    A hex template is a stencil laid at any of the twelve angles.
+   *In the game* (`hextown.loft`): each floor of a house that has rooms is a hex template
+   (`floor_template`): the house's cells, each of the room of the tile under its centre, an inner
+   wall wherever two rooms meet, a doorway a door on the edges nearest it.  It is turned as the
+   house is (`stencil_turn`) and its inner walls are read back straight
+   (`hex_draw::cells_inner_walls`, `hex_draw` 0.1.9: rooms and inner walls as straight walls,
+   each run to the wall it meets).  That replaced turning the square house's thin walls stretch
+   by stretch: in Orbury 128 stretches became 106, and only the houses' `inner` changed in
+   `orbury.hex.json`.  Turning every floor of the town through all twelve steps
+   (`tests/hexroads.loft`) found that a room one cell wide came through 30° in loose cells, each
+   a room of its own; `stencil_turn` now makes every room one piece.
+   *Not done:* the dealt place templates (`levels/templates/`) are still dealt on squares and
+   reach hex through the house; a template of hex cells of its own — drawn on hex, dealt on hex —
+   has no format yet.
 3. *When a second game asks:* the deal's kernel — a weighted, seeded draw that draws again until
    the caller's check passes, the same seed dealing the same town.  Which slots a house has, and
    playing a deal by the rules before it is dealt, are this game's.

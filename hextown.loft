@@ -18,6 +18,8 @@
 //     lowest the ground was.
 //   - Trees, fences, the well and the bridges: things standing on the surface.
 use hex_field;
+use hex_form;
+use hex_draw;
 use hex_ground;
 use hex_shape;
 use hexwalls;
@@ -651,7 +653,6 @@ fn yard_house(it: const intent::Intent, yd: const intent::Yard, roof: boolean) -
 fn dress(it: const intent::Intent, g: hex_ground::Ground, houses: vector<Placed>, things: vector<Thing>,
          sz: hexwalls::Sizes, ys: const Yards, storey: float) -> vector<Fence> {
   out: vector<Fence> = [];
-  _ = sz;
   for i in 0..len(it.houses) {
     h = it.houses[i]!;
     p = houses[i]!;
@@ -809,31 +810,10 @@ fn dress(it: const intent::Intent, g: hex_ground::Ground, houses: vector<Placed>
     h = it.houses[i]!;
     p = houses[i]!;
     drawn = drawn_turn(h, p);
-    // @FR-HY-Inner: its inner walls, cell by cell, turned with it; one that ends at the house's
-    // wall runs on to it
-    hull: vector<(float, float)> = [];
-    for c in p.built.corners { hull += [(c.0 * hexterrain::METRE, c.1 * hexterrain::METRE)]; }
-    for e in inner {
-      if e.x <= h.x || e.x >= h.x + h.w || e.y <= h.y || e.y >= h.y + h.h || e.z < h.z - 1 || e.z >= h.z + (if h.floors > 0 { h.floors } else { 1 }) { continue; }
-      north = e.side == "N";
-      ta = ((e.x as float) - 0.5, (e.y as float) - 0.5);
-      tb = if north { ((e.x as float) + 0.5, (e.y as float) - 0.5) } else { ((e.x as float) - 0.5, (e.y as float) + 0.5) };
-      // at the inside's rim: on past it, to be cut at the drawn wall
-      if north && e.x == h.x + 1 { ta = (ta.0 - 0.9, ta.1); }
-      if north && e.x == h.x + h.w - 2 { tb = (tb.0 + 0.9, tb.1); }
-      if !north && e.y == h.y + 1 { ta = (ta.0, ta.1 - 0.9); }
-      if !north && e.y == h.y + h.h - 2 { tb = (tb.0, tb.1 + 0.9); }
-      pa = with_house(h, p, drawn, ta.0, ta.1);
-      pb = with_house(h, p, drawn, tb.0, tb.1);
-      lo = 0;
-      hi = 20;
-      while lo < hi && !inside(hull, pa.0 + (pb.0 - pa.0) * (lo as float) / 20.0, pa.1 + (pb.1 - pa.1) * (lo as float) / 20.0) { lo += 1; }
-      while hi > lo && !inside(hull, pa.0 + (pb.0 - pa.0) * (hi as float) / 20.0, pa.1 + (pb.1 - pa.1) * (hi as float) / 20.0) { hi -= 1; }
-      if hi <= lo { continue; }
-      p.inner += [Rise { ax: pa.0 + (pb.0 - pa.0) * (lo as float) / 20.0, ay: pa.1 + (pb.1 - pa.1) * (lo as float) / 20.0,
-                         bx: pa.0 + (pb.0 - pa.0) * (hi as float) / 20.0, by: pa.1 + (pb.1 - pa.1) * (hi as float) / 20.0,
-                         z0: p.floor + ((e.z - h.z) as float) * storey, z1: if e.what == "door" { 1.0 } else { 0.0 } }];
-    }
+    // @FR-HY-Inner: its inner walls: each floor a hex template, turned as the house is, its walls
+    // read back straight (`inner_of`)
+    told = [0, 0, 0, 0];
+    p.inner = inner_of(h, p, inner, sz, storey, told);
     roof = if p.roof != ROOF_PITCHED { p.roof } else if h.top == "attic" { ROOF_ATTIC } else if h.top == "flat" { ROOF_FLAT } else { ROOF_PITCHED };
     main = block_of(h, p, drawn, h.x, h.y, h.w, h.h, p.top, roof);
     if roof == ROOF_ATTIC {
@@ -885,6 +865,209 @@ fn dress(it: const intent::Intent, g: hex_ground::Ground, houses: vector<Placed>
       }
       p.tops += [top];
       p.rims += [rim];
+    }
+  }
+  out
+}
+
+// ── a house as a hex template ───────────────────────────────────────────────
+
+/// The material an inner wall's edges are marked with in a house's template.
+pub const INNER_WALL = 5;
+
+// @FR-HY-Inner: a house's inner walls, marked on its cells' edges and turned with it as a template
+/// One floor of house `h` as a hex template (a `hex_field::Stencil` about its plan's cell, at 0°):
+/// its cells, and its inner walls on that floor.  The square house's thin walls between its rooms
+/// (`inner`, intent::house_edges) part its floor into rooms; each hex cell is of the room of the
+/// tile under its centre (a cell in the house's own wall, or in a wing, of the nearest tile
+/// inside); and an inner wall is marked wherever two cells of different rooms meet — so the hex
+/// rooms are closed as the square ones are.  A doorway is a door on the edges nearest it.
+fn floor_template(h: const intent::House, inner: const vector<intent::Edge>, z: integer) -> hex_field::Stencil {
+  plan = hexhouse::HexHouse { cq: 0, cr: 0, turn: 0, parts: plan_of(h) };
+  reach = hexhouse::reach(plan) + 2;
+  cells = hex_field::hexset_chunk(0 - reach, 0 - reach, 2 * reach + 1, 2 * reach + 1);
+  hexhouse::fill(plan, cells);
+  edges = hex_field::edgeset_new(0 - reach, 0 - reach, 2 * reach + 1, 2 * reach + 1);
+  // the square floor's rooms: the tiles inside the house's wall, parted by its thin walls
+  iw = h.w - 2;
+  ih = h.h - 2;
+  room: vector<integer> = [for _ in 0..(if iw > 0 && ih > 0 { iw * ih } else { 0 }) { -1 }];
+  north: vector<boolean> = [for _ in 0..len(room) { false }];
+  west: vector<boolean> = [for _ in 0..len(room) { false }];
+  for e in inner {
+    if e.z != z || e.x <= h.x || e.x >= h.x + h.w - 1 || e.y <= h.y || e.y >= h.y + h.h - 1 { continue; }
+    i = (e.y - h.y - 1) * iw + (e.x - h.x - 1);
+    if e.side == "N" { north[i] = true; } else { west[i] = true; }
+  }
+  rooms = 0;
+  for start in 0..len(room) {
+    if (room[start] ?? 0) >= 0 { continue; }
+    room[start] = rooms;
+    stack: vector<integer> = [start];
+    at = 0;
+    while at < len(stack) {
+      c = stack[at] ?? 0;
+      at += 1;
+      cx = c % iw ?? 0;
+      cy = c / iw ?? 0;
+      // north, south, west, east: across a tile's own north or west wall, or its neighbour's
+      if cy > 0 && !(north[c] ?? true) && (room[c - iw] ?? 0) < 0 { room[c - iw] = rooms; stack += [c - iw]; }
+      if cy < ih - 1 && !(north[c + iw] ?? true) && (room[c + iw] ?? 0) < 0 { room[c + iw] = rooms; stack += [c + iw]; }
+      if cx > 0 && !(west[c] ?? true) && (room[c - 1] ?? 0) < 0 { room[c - 1] = rooms; stack += [c - 1]; }
+      if cx < iw - 1 && !(west[c + 1] ?? true) && (room[c + 1] ?? 0) < 0 { room[c + 1] = rooms; stack += [c + 1]; }
+    }
+    rooms += 1;
+  }
+  mx = (h.x as float) + ((h.w - 1) as float) * 0.5;
+  my = (h.y as float) + ((h.h - 1) as float) * 0.5;
+  // each cell's room: a tile is two half hex steps, each √3/2 units
+  of = hex_field::labels_new(0 - reach, 0 - reach, 2 * reach + 1, 2 * reach + 1);
+  if len(room) > 0 {
+    for r in 0 - reach..reach + 1 {
+      for q in 0 - reach..reach + 1 {
+        if !hex_field::hexset_get(cells, q, r) { continue; }
+        tx = round(mx + hex_form::cell_x(q, r) / 1.7320508075688772) as integer - h.x - 1;
+        ty = round(my - hex_form::cell_y(q, r) / 1.7320508075688772) as integer - h.y - 1;
+        if tx < 0 { tx = 0; }
+        if tx > iw - 1 { tx = iw - 1; }
+        if ty < 0 { ty = 0; }
+        if ty > ih - 1 { ty = ih - 1; }
+        hex_field::label_set(of, q, r, room[ty * iw + tx] ?? 0);
+      }
+    }
+  }
+  // a wall wherever two rooms meet
+  for r in 0 - reach..reach + 1 {
+    for q in 0 - reach..reach + 1 {
+      if !hex_field::hexset_get(cells, q, r) { continue; }
+      for d in 0..6 {
+        nq = hex_field::nb_q(q, r, d);
+        nr = hex_field::nb_r(q, r, d);
+        if !hex_field::hexset_get(cells, nq, nr) || nr < r || (nr == r && nq < q) { continue; }
+        if hex_field::label_get(of, q, r) != hex_field::label_get(of, nq, nr) { hex_field::edge_set_mat(edges, q, r, nq, nr, INNER_WALL); }
+      }
+    }
+  }
+  // a doorway: the wall's edges within half a tile of the doorway's middle; the nearest when none is
+  for e in inner {
+    if e.z != z || e.what != "door" || e.x <= h.x || e.x >= h.x + h.w - 1 || e.y <= h.y || e.y >= h.y + h.h - 1 { continue; }
+    dx = 2.0 * ((e.x as float) - (if e.side == "N" { 0.0 } else { 0.5 }) - mx) * 0.8660254037844386;
+    dy = -2.0 * ((e.y as float) - (if e.side == "N" { 0.5 } else { 0.0 }) - my) * 0.8660254037844386;
+    near = -1.0;
+    nq0 = 0;
+    nr0 = 0;
+    nq1 = 0;
+    nr1 = 0;
+    for r in 0 - reach..reach + 1 {
+      for q in 0 - reach..reach + 1 {
+        if !hex_field::hexset_get(cells, q, r) { continue; }
+        for d in 0..6 {
+          nq = hex_field::nb_q(q, r, d);
+          nr = hex_field::nb_r(q, r, d);
+          if !hex_field::hexset_get(cells, nq, nr) || nr < r || (nr == r && nq < q) { continue; }
+          if hex_field::edge_mat(edges, q, r, nq, nr) == 0 { continue; }
+          ex = (hex_form::cell_x(q, r) + hex_form::cell_x(nq, nr)) * 0.5 - dx;
+          ey = (hex_form::cell_y(q, r) + hex_form::cell_y(nq, nr)) * 0.5 - dy;
+          dist = sqrt(ex * ex + ey * ey) ?? 0.0;
+          if dist <= 0.8660254037844386 { hex_field::edge_set_mat(edges, q, r, nq, nr, hexwalls::DOOR); }
+          if near < 0.0 || dist < near {
+            near = dist;
+            nq0 = q;
+            nr0 = r;
+            nq1 = nq;
+            nr1 = nr;
+          }
+        }
+      }
+    }
+    if near > 0.8660254037844386 { hex_field::edge_set_mat(edges, nq0, nr0, nq1, nr1, hexwalls::DOOR); }
+  }
+  hex_field::stencil_with_edges(cells, hex_field::heights_new(0 - reach, 0 - reach, 2 * reach + 1, 2 * reach + 1), of, edges, false, true)
+}
+
+/// The inner walls of house `h` as placed, floor by floor, from its floors' templates turned as
+/// the house is (`hex_place::stencil_turn`) and read back as straight walls
+/// (`hex_draw::cells_inner_walls`): each a stretch (metres), a doorway its own stretch (z1 1).
+/// `told` gets what the templates say of themselves: rooms, walls, doors, and edges lost.
+fn inner_of(h: const intent::House, p: const Placed, inner: const vector<intent::Edge>, sz: hexwalls::Sizes, storey: float,
+            told: vector<integer>) -> vector<Rise> {
+  out: vector<Rise> = [];
+  floors = if h.floors > 0 { h.floors } else { 1 };
+  ox = hex_form::cell_x(p.cq, p.cr);
+  oy = hex_form::cell_y(p.cq, p.cr);
+  for z in h.z - 1..h.z + floors {
+    any = false;
+    for e in inner { if e.z == z && e.x > h.x && e.x < h.x + h.w && e.y > h.y && e.y < h.y + h.h { any = true; } }
+    if !any { continue; }
+    t = hex_place::stencil_turn(floor_template(h, inner, z), p.turn, hexwalls::open_sizes(sz));
+    iw = hex_draw::cells_inner_walls(t.tu_stencil.sn_cells, t.tu_stencil.sn_edges, p.turn, hexwalls::open_sizes(sz));
+    told[0] += iw.in_rooms;
+    told[1] += len(iw.in_walls);
+    told[2] += len(iw.in_opens);
+    told[3] += iw.in_lost + t.tu_lost;
+    z0 = p.floor + ((z - h.z) as float) * storey;
+    for wi in 0..len(iw.in_walls) {
+      w = iw.in_walls[wi]!;
+      (dx, dy) = hex_draw::surface_dir(w.iw_surface);
+      // along the wall from a to b: wall, then each doorway in its place, then wall
+      cuts: vector<(float, float)> = [];
+      for o in iw.in_opens {
+        if o.io_wall != wi { continue; }
+        s0 = (o.io_ax - w.iw_ax) * dx + (o.io_ay - w.iw_ay) * dy;
+        s1 = (o.io_bx - w.iw_ax) * dx + (o.io_by - w.iw_ay) * dy;
+        item = (if s0 < s1 { s0 } else { s1 }, if s0 < s1 { s1 } else { s0 });
+        at = len(cuts);
+        for j in 0..len(cuts) { if at == len(cuts) && item.0 < (cuts[j] ?? item).0 { at = j; } }
+        cuts = [for j in 0..at { cuts[j]! }] + [item] + [for j in at..len(cuts) { cuts[j]! }];
+      }
+      full = (w.iw_bx - w.iw_ax) * dx + (w.iw_by - w.iw_ay) * dy;
+      sign = if full < 0.0 { -1.0 } else { 1.0 };
+      from = 0.0;
+      for c in cuts + [(full * sign, full * sign)] {
+        lo = c.0 * sign;
+        hi = c.1 * sign;
+        if lo > from + 0.01 {
+          out += [Rise { ax: (ox + w.iw_ax + sign * from * dx) * hexterrain::METRE, ay: (oy + w.iw_ay + sign * from * dy) * hexterrain::METRE,
+                         bx: (ox + w.iw_ax + sign * lo * dx) * hexterrain::METRE, by: (oy + w.iw_ay + sign * lo * dy) * hexterrain::METRE,
+                         z0: z0, z1: 0.0 }];
+        }
+        if hi > lo + 0.01 {
+          out += [Rise { ax: (ox + w.iw_ax + sign * lo * dx) * hexterrain::METRE, ay: (oy + w.iw_ay + sign * lo * dy) * hexterrain::METRE,
+                         bx: (ox + w.iw_ax + sign * hi * dx) * hexterrain::METRE, by: (oy + w.iw_ay + sign * hi * dy) * hexterrain::METRE,
+                         z0: z0, z1: 1.0 }];
+        }
+        if hi > from { from = hi; }
+      }
+    }
+  }
+  out
+}
+
+/// Every floor of every house of the place `raw` that has rooms, as a template through all twelve
+/// turns: what did not hold, a line each — the turned template's rooms, counted afresh, are the
+/// drawn template's, and no edge was lost.  `checked` gets how many floors were turned.
+pub fn templates_unkept(raw: text, checked: vector<integer>) -> vector<text> {
+  doc = json_parse(raw);
+  it = intent::intent_from(doc.field("intent"));
+  inner = intent::house_edges(it);
+  out: vector<text> = [];
+  for i in 0..len(it.houses) {
+    h = it.houses[i]!;
+    floors = if h.floors > 0 { h.floors } else { 1 };
+    for z in h.z - 1..h.z + floors {
+      any = false;
+      for e in inner { if e.z == z && e.x > h.x && e.x < h.x + h.w && e.y > h.y && e.y < h.y + h.h { any = true; } }
+      if !any { continue; }
+      tpl = floor_template(h, inner, z);
+      drawn = hex_draw::cells_rooms(tpl.sn_cells, tpl.sn_edges).cr_n;
+      checked[0] += 1;
+      for s in 0..12 {
+        t = hex_place::stencil_turn(tpl, s);
+        got = hex_draw::cells_rooms(t.tu_stencil.sn_cells, t.tu_stencil.sn_edges).cr_n;
+        if got != drawn || t.tu_rooms != drawn || t.tu_lost != 0 {
+          out += ["house {i} floor {z} at {30 * s}: drawn {drawn} rooms, turned {got} (told {t.tu_rooms}), {t.tu_lost} edges lost"];
+        }
+      }
     }
   }
   out

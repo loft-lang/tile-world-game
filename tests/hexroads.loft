@@ -11,6 +11,7 @@ use hex_draw;
 use hexwalls;
 use hexhouse;
 use hexscene;
+use hextown;
 
 fn abs_f(a: float) -> float { if a < 0.0 { -a } else { a } }
 
@@ -267,4 +268,16 @@ fn test_orburys_houses_come_in_parts() {
   }
   assert(walls > 100 && doorways > 20, "inner walls and their doorways: {walls} {doorways}");
   assert(attics == 4 && dormers == 5 && flats == 1 && terraces == 1 && winged == 3, "four attics with five dormers, a flat roof, a terrace, three houses with a wing: {attics} {dormers} {flats} {terraces} {winged}");
+}
+
+// @FR-HY-Inner: a room stays closed through every turn
+// Each floor of Orbury's houses that has rooms, as a template (its cells and its inner walls),
+// turned through all twelve steps: its rooms counted afresh on the turned template are the drawn
+// ones — none opened into another, none split — and no edge is lost.  (House 3's upper floor has a
+// corridor one cell wide: it is the floor that showed a room can come through in pieces.)
+fn test_orburys_floors_keep_their_rooms_through_every_turn() {
+  checked = [0];
+  unkept = hextown::templates_unkept(file("../levels/orbury.json").content() ?? "", checked);
+  assert(len(unkept) == 0, "{len(unkept)} floors at a turn not kept, the first: {unkept[0] ?? ""}");
+  assert(checked[0] == 10, "ten floors with rooms: {checked[0] ?? 0}");
 }

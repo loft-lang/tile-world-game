@@ -353,10 +353,16 @@ them (`hextown.loft` `dress`, `hexscene.loft`, `render3d.loft`).  All ◇ but th
                 of a house it takes that house's angle, and stands where the square map's place
                 for it lands through that house's turn.  Where it stands on a yard's side the
                 side is left out: its own wall is the boundary there.
-  (HY-Inner)    A house's inner walls are the square house's thin walls between its rooms, cell
-                by cell: each a stretch a storey high on its floor, turned with the house; one in
-                a house's wall line at the inside's rim runs on and is cut at the drawn outer
-                wall.  A door in one is a doorway: two posts and the wall over the way through.
+  (HY-Inner)    A house's inner walls part its floor into ROOMS, as the square house's thin walls
+                between its rooms do: each hex cell of the house is of the room of the tile under
+                its centre, and an inner wall is wherever two cells of different rooms meet — an
+                edge between two hex centres, as an outer wall is (HX-Edge).  A floor of a house
+                is so a template: its cells and its inner walls, turned as the house is (the
+                rooms' own straight walls taken to the lines the outer walls go to, HT-Near) and
+                drawn as straight walls a storey high, each run to the wall it meets.  A room
+                stays closed through every turn.  A door in one is a doorway: two posts and the
+                wall over the way through.  (Owner, 2026-11-16: inner walls solved as straight
+                walls, as the outer ones are.)
   (HY-Bay)      A bay window is an opening like any other to the walls (HO-Point), drawn standing
                 out from its wall on every storey: a sill, a post at each end, a little roof.
   (HY-Canopy)   A roof on pillars (a gazebo) is four slopes to a point over its square, a beam
@@ -457,15 +463,15 @@ fails nothing, and should not: it changes no cell (HT-Turn30).
   kept them.  Until the runs are read better, HX-Size's "big enough" means walls of three steps.
 
 - a courtyard as cells (a structure with a hole: a court is drawn as a second outline, HY-Court),
-  inner walls as edges between hex cells (they are drawn from the square house's, HY-Inner), and
-  walls not at a right angle;
+  and walls not at a right angle (inner walls are edges between hex cells now: HY-Inner);
 - HY-Parts is guarded by `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (the square
   side: `tests/intent.loft` `test_a_wing_joins_its_house_and_carries_a_roof_terrace`,
   `test_an_attic_a_flat_roof_and_an_out_house`; `tests/worlds.loft`
   `test_orburys_houses_of_more_kinds`); a wing's free walls must be three hex steps or more, or
   they may be lost (above);
 - HY-Inner: `tests/hexroads.loft` `test_orburys_houses_come_in_parts` (each inner wall within
-  its house); the rooms themselves `tests/intent.loft` `test_rooms_are_laid_out_from_the_planned_corridors`,
+  its house) and `test_orburys_floors_keep_their_rooms_through_every_turn` (every floor's rooms
+  through all twelve turns); the rooms themselves `tests/intent.loft` `test_rooms_are_laid_out_from_the_planned_corridors`,
   `test_corridors_that_end_and_cross` and `tests/worlds.loft`
   `test_every_room_is_reached_from_its_planned_corridor`;
 - HY-Kinds, HY-Out, HY-Turn, HY-Angle, HY-Roof, HY-Bay and HY-Canopy have no test of their own: they were checked by
