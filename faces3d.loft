@@ -105,6 +105,9 @@ const C_WHOLE = 4;
 const C_PITCHED = 8;
 const C_UP = 16;
 const C_THINGS = 32;
+// Left out (`leave_out`): there, for its neighbours' corners and sides, but none of its own faces
+// or cards are made.
+const C_SKIP = 64;
 
 fn rise_of(i: integer) -> integer { (i >> 8) & 15 }
 fn slant_of(i: integer) -> integer { (i >> 12) & 7 }
@@ -205,6 +208,19 @@ pub fn cells(g: const game::Game, x0: integer, y0: integer, x1: integer, y1: int
   cl.z0 = z0;
   cl.nz = z1 - z0 + 1;
   cl
+}
+
+/// Cell (x, y, z) of `cl` left out of what `faces_box` and `cards_box` make: its floor, its walls,
+/// what stands and lies on it.  Its thin walls on its north and west sides stay only where asked
+/// (`north`, `west`: the wall belongs to the cell beyond, which is kept).  Its neighbours still
+/// see what it is.  For a view that draws a part of a place — one house of a town — and the rest
+/// some other way (fixedview.loft).
+pub fn leave_out(cl: Cells, x: integer, y: integer, z: integer, north: boolean, west: boolean) {
+  at = cell_at(cl, x, y, z);
+  if at < 0 { return; }
+  cl.info[at] = (cl.info[at] ?? 0) | C_SKIP;
+  e = cl.edge[at] ?? 0;
+  cl.edge[at] = (if north { e & 255 } else { 0 }) + (if west { e & 65280 } else { 0 });
 }
 
 // Where (x, y, z) is in the cells, -1 outside.
@@ -545,7 +561,9 @@ pub fn faces_box(g: const game::Game, cl: const Cells, lt: const Light, x0: inte
       for x in x0..=x1 {
         // The thin walls on its north and west sides (a house's inner walls, its doors, windows).
         edges(g, w, cl, out, x, y, z, lit(sh, x, y));
-        k = kind_at(g, w, cl, x, y, z);
+        ci = info(g, w, cl, x, y, z);
+        if (ci & C_SKIP) != 0 { continue; }
+        k = kind_of(ci);
         if k == tile_world::VOID { continue; }
         here = lit(sh, x, y);
         // Stairs up: four steps to the layer above.  Stairs down over them: the stairwell, open.
@@ -995,7 +1013,7 @@ pub fn cards_box(g: const game::Game, cl: const Cells, lt: const Light, x0: inte
       for x in x0..=x1 {
         ci = info(g, w, cl, x, y, z);
         k = kind_of(ci);
-        if k == tile_world::VOID { continue; }
+        if k == tile_world::VOID || (ci & C_SKIP) != 0 { continue; }
         light = lit(sh, x, y);
         base = (z as float) + STEP * (rise_of(ci) as float);
         if len(heights) > 0 { base = heights[((z - z0) * ht + (y - y0)) * wd + (x - x0)] ?? base; }

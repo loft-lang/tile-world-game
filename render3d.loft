@@ -718,6 +718,54 @@ pub fn hex_faces(v: View3D, g: const game::Game, night: boolean, keys: vector<in
   out
 }
 
+/// The hex version in pieces, for a view that keeps them as tiles of its own (fixedview.loft): each
+/// chunk's ground with what stands along the yards in it, then each house, then each roof on
+/// pillars.  `kinds` gets a number a piece: -1 a chunk's ground, -2 a roof on pillars, else the
+/// house's number.  Lit for day or night.  Empty for a place without a hex version.
+pub fn hex_pieces(v: View3D, g: const game::Game, night: boolean, kinds: vector<integer>) -> vector<vector<faces3d::Face>> {
+  out: vector<vector<faces3d::Face>> = [];
+  if !hex_loaded(v, g) { return out; }
+  s = v.hex[0]!;
+  hex_ready(v, s);
+  pics = hex_kinds(g);
+  f = v.hex_field[0]!;
+  for inp in gridmesh::all_inputs(f, 1) {
+    fs: vector<faces3d::Face> = [];
+    for i in inp.cell_ixs { hex_cell(fs, s, f.xs[i] ?? 0, f.ys[i] ?? 0, pics, night); }
+    for i in 0..len(s.fences) {
+      if (v.hex_fence_ck[i] ?? -1) == inp.key.ck { fence_faces(fs, g, s, s.fences[i], night); }
+    }
+    kinds += [-1];
+    out += [fs];
+  }
+  for i in 0..len(s.houses) {
+    fs: vector<faces3d::Face> = [];
+    house_faces(fs, g, s, s.houses[i], night);
+    kinds += [i];
+    out += [fs];
+  }
+  for i in 0..len(s.canopies) {
+    fs: vector<faces3d::Face> = [];
+    canopy_faces(fs, g, s.canopies[i], night);
+    kinds += [-2];
+    out += [fs];
+  }
+  out
+}
+
+/// The hex version's ground under the middle of tile (x, y) of the place's map, for one standing
+/// on layer z, in tiles; 0 for a place without a hex version.
+pub fn hex_ground_tile(v: View3D, g: const game::Game, x: single, y: single, z: integer) -> single {
+  if !hex_loaded(v, g) { return 0.0 as single; }
+  (hexscene::height_at_layer(v.hex[0]!, TILE_M * (x as float), -TILE_M * (y as float), z) / TILE_M) as single
+}
+
+/// The floor of house `i` of the hex version, in tiles; 0 where there is none.
+pub fn hex_floor(v: View3D, g: const game::Game, i: integer) -> single {
+  if !hex_loaded(v, g) || i < 0 || i >= len(v.hex[0]!.houses) { return 0.0 as single; }
+  (v.hex[0]!.houses[i]!.floor / TILE_M) as single
+}
+
 /// For the checks: the hex version of the game's place given as text, in place of the one read
 /// from the place's file (none when the text holds none).  Then `hex_faces` and the rest draw it.
 pub fn hex_given(v: View3D, g: const game::Game, text: text) -> boolean {

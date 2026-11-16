@@ -147,3 +147,45 @@ fn test_the_river_stale_as_it_starts_and_running_when_fed() {
   game::field_walk(g, 0.0, 0.0, 1000);
   assert(g.fplay.swept == swept, "the stale river carries nothing");
 }
+
+// What a view of the town is given (game::town_parts, town_house, town_frame; fixedview.loft):
+// every part of every house with its tiles; and a house's own grid laid over the ground — the
+// middle of each of its tiles, where the ground has it at the house's angle, comes back as that
+// tile of the town's map.  A wing lies in its house's frame, to within a tile.
+fn test_a_house_s_frame_lays_the_ground_on_its_tiles() {
+  g = town() ?? return;
+  parts = game::town_parts(g);
+  assert(len(parts) == len(g.fplay.rooms), "a part for every room: {len(parts)} of {len(g.fplay.rooms)}");
+  turned = 0;
+  wings = 0;
+  worst = 0.0;
+  worst_wing = 0.0;
+  for k in 0..len(parts) {
+    p = parts[k]!;
+    rm = g.fplay.rooms[k]!;
+    assert(p.x0 == rm.x0 && p.y0 == rm.y0 && p.x1 == rm.x0 + rm.w - 1 && p.y1 == rm.y0 + rm.h - 1, "part {k} is room {k}'s tiles");
+    assert(game::town_house(g, p.x0, p.y0) == p.house && game::town_house(g, p.x1, p.y1) == p.house, "part {k}'s corners are in house {p.house}");
+    wing = k > 0 && parts[k - 1]!.house == p.house;
+    if wing { wings += 1; }
+    if rm.turn != 0 { turned += 1; }
+    m = game::town_frame(g, p.house);
+    assert(len(m) == 6, "house {p.house} has a frame");
+    for c in [(p.x0, p.y0), (p.x1, p.y0), (p.x0, p.y1), (p.x1, p.y1)] {
+      at = gridroom::tile_centre(rm, c.0 as float, c.1 as float);
+      x = at.0 / gridroom::TILE + 0.5;
+      z = 0.5 - at.1 / gridroom::TILE;
+      fx = ((m[0] ?? 0.0 as single) as float) * x + ((m[1] ?? 0.0 as single) as float) * z + ((m[2] ?? 0.0 as single) as float);
+      fz = ((m[3] ?? 0.0 as single) as float) * x + ((m[4] ?? 0.0 as single) as float) * z + ((m[5] ?? 0.0 as single) as float);
+      d = far((fx, fz), ((c.0 as float) + 0.5, (c.1 as float) + 0.5));
+      if wing && d > worst_wing { worst_wing = d; }
+      if !wing && d > worst { worst = d; }
+    }
+  }
+  assert(worst < 0.001, "every corner tile of every house comes back as itself: the worst {worst} tiles off");
+  // a wing is set down on the ground apart (moved by less than a hex for its own ways out), so
+  // it lies within a tile of where its house's frame has it
+  assert(worst_wing < 0.75, "a wing lies in its house's frame: the worst {worst_wing} tiles off");
+  assert(turned >= 4 && wings == 3, "houses at their own angles among them, and the three wings: {turned} turned, {wings} wings");
+  assert(game::town_house(g, g.file.start_x, g.file.start_y) == -1, "the start is out of doors");
+  assert(len(game::town_frame(g, 99)) == 0 && len(game::town_frame(g, -1)) == 0, "no frame for a house that is not there");
+}

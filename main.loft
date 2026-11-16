@@ -327,7 +327,7 @@ fn main() {
     changed = game::update(game, now - last, now);
     log_flush(plog, game);
     render3d::after(v3, game);
-    if fv.on && !game.on_field {
+    if fv.on && (!game.on_field || game::on_town(game)) {
       at = ticks();
       // editing in the 3D view: the place as edited, the hero standing as the editor's cursor; the
       // pointer picks the cell of the editor's layer under it (the frame fills the screen)

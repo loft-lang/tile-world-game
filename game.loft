@@ -775,6 +775,75 @@ fn in_house(p: const fieldplay::Play, x: integer, y: integer) -> boolean {
   false
 }
 
+/// For a view of a town on the new rules: the house a part of which holds tile (x, y) of the
+/// town's map (its number among the place's houses), -1 out of doors.
+pub fn town_house(g: const Game, x: integer, y: integer) -> integer {
+  k = 0;
+  for i in 0..len(g.file.intent.houses) {
+    n = 1 + len(g.file.intent.houses[i]!.wings);
+    for j in k..k + n {
+      if j >= len(g.fplay.rooms) { return -1; }
+      rm = g.fplay.rooms[j]!;
+      if x >= rm.x0 && y >= rm.y0 && x < rm.x0 + rm.w && y < rm.y0 + rm.h { return i; }
+    }
+    k += n;
+  }
+  -1
+}
+
+/// A part of a house of a town on the new rules, as a view asks for it: the house it is of, its
+/// tiles of the town's map (x0 ..= x1, y0 ..= y1) and the layer of its ground floor.
+pub struct TownPart {
+  pub house: integer,
+  pub x0: integer,
+  pub y0: integer,
+  pub x1: integer,
+  pub y1: integer,
+  pub z: integer
+}
+
+/// Every part of every house of the town being played, the house itself before its wings.
+pub fn town_parts(g: const Game) -> vector<TownPart> {
+  out: vector<TownPart> = [];
+  k = 0;
+  for i in 0..len(g.file.intent.houses) {
+    n = 1 + len(g.file.intent.houses[i]!.wings);
+    for j in k..k + n {
+      if j >= len(g.fplay.rooms) { return out; }
+      rm = g.fplay.rooms[j]!;
+      out += [TownPart { house: i, x0: rm.x0, y0: rm.y0, x1: rm.x0 + rm.w - 1, y1: rm.y0 + rm.h - 1, z: rm.z }];
+    }
+    k += n;
+  }
+  out
+}
+
+/// Where the town's ground lies on house `i`'s own grid: for a point of the ground at (x, y) in
+/// tiles of the town's map as it lies out of doors (a tile's middle a whole number and a half),
+/// the same point on the map as the house's tiles have it is (a x + b y + c, d x + e y + f) — the
+/// house stands at its own angle on the ground, and its inside is played on the map.  Six
+/// numbers: a, b, c, d, e, f.  Empty where there is no such house.
+pub fn town_frame(g: const Game, i: integer) -> vector<single> {
+  k = 0;
+  for h in 0..i {
+    if h >= len(g.file.intent.houses) { return []; }
+    k += 1 + len(g.file.intent.houses[h]!.wings);
+  }
+  if i < 0 || k >= len(g.fplay.rooms) { return []; }
+  rm = g.fplay.rooms[k]!;
+  (ex, ey) = gridroom::way(rm.turn);
+  (sx, sy) = gridroom::way(rm.turn + 9);
+  [ex as single, (0.0 - ey) as single, ((rm.x0 as float) + 0.5 - 0.5 * ex + 0.5 * ey - (rm.ox * ex + rm.oy * ey) / gridroom::TILE) as single,
+   sx as single, (0.0 - sy) as single, ((rm.y0 as float) + 0.5 - 0.5 * sx + 0.5 * sy - (rm.ox * sx + rm.oy * sy) / gridroom::TILE) as single]
+}
+
+/// Where the hero's body is on a field's ground, in tiles of the town's map as it lies out of
+/// doors (east, south), and the way it faces there.
+pub fn field_body(g: const Game) -> (single, single, single, single) {
+  ((g.fplay.x / gridroom::TILE + 0.5) as single, (0.5 - g.fplay.y / gridroom::TILE) as single, g.fplay.face_x as single,
+   (0.0 - g.fplay.face_y) as single)
+}
+
 /// Is the place being played a town on the new rules: its field is its own.
 pub fn on_town(g: const Game) -> boolean { g.place != "" && g.field == g.place }
 

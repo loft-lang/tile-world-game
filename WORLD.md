@@ -866,7 +866,25 @@ turned there: the hex town's ground, its paths, its trees and its houses at thei
 - Still flat: a desktop window on the town's ground — its 3D is the fixed view, which draws
   square places only.  So the flat drawing is not deleted yet.
 
-◇ Next: the fixed view drawing the hex ground; then the flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
+**The town on the new rules in the fixed 3D view** (2026-11-16; `fixedview.loft` § A town on the new
+rules, seen with `tools/fixedshot.loft orbury OUT.png MOVES town`).  A desktop window no longer
+goes flat out on Orbury's ground.
+- Out on the ground the view shows the hex town: its ground, paths and stream, its houses at
+  their angles with their roofs on, what stands along the yards — the first-person view's own
+  faces, in pieces kept as tiles (`render3d::hex_pieces`) — and the hero where its body is.  What
+  stands and lies out of doors on the town's map (trees, loose things, the horse) stands on the
+  hex ground where its tile lies.  A house the hero walks behind is cut away whole.
+- In a house the view shows that house's inside as the town's map has it, square to the screen
+  as the rules play it, and the ground and the other houses laid round it on the house's own
+  grid (`game::town_frame`): entering a house at an angle, the picture turns with it.  ◇ Mine:
+  the other way — the inside drawn turned, the keys mapped to the nearest of its four ways —
+  keeps the camera still; to be judged in play.
+- Rough, and known: the hex ground under the house shows as a stone footprint round the inside;
+  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; the hero out on the
+  ground does not step or bob; the first scene of a town takes about a second (the hex pieces
+  are all made at once); a field that is not a town (the common) is still drawn flat.
+
+◇ Next: the flat drawing out.  Then a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

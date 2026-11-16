@@ -3,7 +3,7 @@
 // game draws it.  What the CPU's 3D view shows, checked by eye without a window; and checked
 // against the same moment built fresh (`fixedview::differs_from_fresh`), which must not differ.
 //
-//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES [change] [night] [gpu]]
+//   loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES [change] [night] [gpu] [town]]
 //
 // PLACE is a file in levels/ (without `.json`); OUT a path from this directory (tools/) or a full
 // one; MOVES letters as TW_MOVES takes them (`w` `a` `s` `d`), one step every eight frames.  `night`
@@ -11,7 +11,11 @@
 // `gpu` the last moment is drawn again on the GPU (scene3d, in a window of the CPU's size: under
 // `xvfb-run` where there is no display), saved beside OUT as OUT-gpu.png, and its pixels counted
 // against the CPU's: those that differ, and those that differ by more than one step of RGB565 in
-// a channel — what the two rasterisers round otherwise.
+// a channel — what the two rasterisers round otherwise.  With `town` a place that has a hex version
+// is played on the new rules (its outdoors hex ground, its houses rooms on it): out on the ground a
+// move walks the body eight frames that way.  A `!` among the moves writes the frame of that
+// moment beside OUT, as OUT-1.png, OUT-2.png and so on; an `h` sets the body before the nearest
+// house's door (it is not walked there) and walks it in.
 use imaging;
 use tile_world;
 use rules;
@@ -19,6 +23,8 @@ use game;
 use fixedview;
 use raster3d;
 use gpu_gl;
+use fieldplay;
+use gridroom;
 
 // The world changed by hand, as the rules would change it in play: a thing moved, a wall raised.
 fn change_world(g: game::Game) {
@@ -48,6 +54,30 @@ fn change_world(g: game::Game) {
   println("the hero holds a burning torch ({g.world.hero_item})");
 }
 
+// The body set on the ground before the nearest door of a house; answers the way in from there.
+fn nearest_door(g: game::Game) -> (float, float) {
+  best = 1000000.0;
+  at = (g.fplay.x, g.fplay.y);
+  way = (0.0, 0.0);
+  for i in 0..len(g.fplay.rooms) {
+    rm = g.fplay.rooms[i]!;
+    for o in rm.openings {
+      if o.low || !gridroom::before(g.fplay.ground, o) { continue; }
+      c = gridroom::outside(rm, o);
+      d = (c.0 - g.fplay.x) * (c.0 - g.fplay.x) + (c.1 - g.fplay.y) * (c.1 - g.fplay.y);
+      if d < best {
+        best = d;
+        at = c;
+        t = gridroom::tile_centre(rm, o.x as float, o.y as float);
+        way = (t.0 - c.0, t.1 - c.1);
+      }
+    }
+  }
+  fieldplay::put_hero(g.fplay, at.0, at.1);
+  println("before a door at ({at.0}, {at.1}) m, the way in ({way.0}, {way.1})");
+  way
+}
+
 fn main() {
   args = arguments();
   place = args[0] ?? "";
@@ -56,10 +86,12 @@ fn main() {
   change = false;
   on_gpu = false;
   night = false;
+  town = false;
   for a in 3..len(args) {
     if (args[a] ?? "") == "change" { change = true; }
     if (args[a] ?? "") == "gpu" { on_gpu = true; }
     if (args[a] ?? "") == "night" { night = true; }
+    if (args[a] ?? "") == "town" { town = true; }
   }
   if place == "" || out == "" {
     println("usage: loft --lib libs tools/fixedshot.loft PLACE OUT.png [MOVES]");
@@ -68,6 +100,7 @@ fn main() {
   m = game::new_game("..");
   if !m { println("the game does not load"); exit(1); }
   g = m;
+  g.town_rules = town;
   if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
   if night {
     // The clock to 22:00 of the same day.
@@ -82,14 +115,40 @@ fn main() {
   worst = 0;
   steps: vector<text> = [];
   for c in moves { steps += ["{c}"]; }
+  walk_x = 0.0;
+  walk_y = 0.0;
+  shots = 0;
   for f in 0..len(steps) * 8 + 30 {
+    if f % 8 == 0 {
+      walk_x = 0.0;
+      walk_y = 0.0;
+    }
     if f % 8 == 0 && f / 8 < len(steps) {
       d = steps[f / 8] ?? "";
-      if d == "w" { game::move(g, 0, -1, false); }
-      if d == "s" { game::move(g, 0, 1, false); }
-      if d == "a" { game::move(g, -1, 0, false); }
-      if d == "d" { game::move(g, 1, 0, false); }
+      if d == "!" && len(v.px) == raster3d::WIDTH * raster3d::HEIGHT {
+        shots += 1;
+        shot = out.replace(".png", "") + "-{shots}.png";
+        println("{shot}: hero at ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z}), on the ground {g.on_field}, written {save(place, v.px, shot)}");
+      }
+      if d == "h" && g.on_field {
+        to = nearest_door(g);
+        walk_x = to.0;
+        walk_y = to.1;
+      }
+      if g.on_field {
+        // out on a town's ground: the body walks that way, north up
+        if d == "w" { walk_y = 1.0; }
+        if d == "s" { walk_y = -1.0; }
+        if d == "a" { walk_x = -1.0; }
+        if d == "d" { walk_x = 1.0; }
+      } else {
+        if d == "w" { game::move(g, 0, -1, false); }
+        if d == "s" { game::move(g, 0, 1, false); }
+        if d == "a" { game::move(g, -1, 0, false); }
+        if d == "d" { game::move(g, 1, 0, false); }
+      }
     }
+    if g.on_field && (walk_x != 0.0 || walk_y != 0.0) { _ = game::field_walk(g, walk_x, walk_y, 16); }
     if change && f == len(steps) * 4 { change_world(g); }
     now += 16;
     changed = game::update(g, 16, now);
