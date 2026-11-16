@@ -599,6 +599,16 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
     slants the marble runs along it.  The landing has no bounce to be seen (it is a speed, not
     a hop), and a marble struck while on its way changes motion at once.
 
+- **The houses spaced out, and the hill in the 3D view** (owner, 2026-11-16).  `marblehill.loft`
+  builds the hill as a place the view draws: five houses 9 to 14 m from the top, each facing
+  down the hill and seated on the ground (a level floor cut into the slope), two an L open
+  uphill.  Three marbles are held by a house, 2 to 3 m up; seven leave between the houses in
+  different directions and rest 2 to 8 m past the foot; at rest after 11.2 s.  The page
+  `hextown.html` has it as a third scene, "Marbles on a hill": every marble's way is played back
+  in time, over and over (`?scene=2`; `&t=MS` holds a moment still).
+  - ◇ Seen there: a marble held behind a house is hidden by its roof from most sides; the
+    marbles roll in straight stretches from hex to hex, with no spin and no easing yet.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 

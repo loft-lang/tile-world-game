@@ -11,6 +11,8 @@
 # tiles could not show (owner, 2026-11-14): hedges, low walls and fences along the yards' sides,
 # standing on the ground; a court's pillars and the roof round it; a roof garden behind its low
 # wall; bay windows; a gazebo.  ?scene=N&eye=x,y,z&at=x,y,z sets the view (metres: x east, y north, z up).
+# A scene with "marbles" (each a way: stops [ms, x, y, z]) plays them back in time, over and over;
+# ?t=MS holds the time still.
 # Copyright (c) 2026 Jurjen Stellingwerff
 # SPDX-License-Identifier: LGPL-3.0-or-later
 import json, sys
@@ -303,6 +305,21 @@ function roof(h, mat) {
   return new THREE.Mesh(geo, mat);
 }
 
+const MARBLE = [0xd9453a, 0x3a7bd9, 0xe6b43a, 0x5fae4a, 0x9a5fd0, 0xe07a2f, 0x3fb6b0, 0xd95f9e, 0x8c8c94, 0xf2efe6];
+// Where a marble is at time `ms`: on its way between the two stops round that moment, in a
+// straight line; let go in the air it falls as a thing falls; it rolls with a hop over the ground
+// no higher than a tenth of the way's length.  Before its first stop it is not there yet.
+function marbleAt(way, ms) {
+  if (!way.length || ms < way[0][0]) return null;
+  let i = 0;
+  while (i + 1 < way.length && way[i + 1][0] <= ms) i++;
+  const a = way[i], b = way[Math.min(i + 1, way.length - 1)];
+  const span = b[0] - a[0], f = span > 0 ? Math.min(1, (ms - a[0]) / span) : 1;
+  let z = a[3] + (b[3] - a[3]) * f;
+  if (i === 0 && a[1] === b[1] && a[2] === b[2]) z = a[3] + (b[3] - a[3]) * f * f;   // the fall
+  return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, z];
+}
+
 function thing(group, t) {
   const at = (m, x, y, z) => { m.position.set(x, z, -y); group.add(m); return m; };
   const k = t.kind;
@@ -351,17 +368,27 @@ const scenes = DATA.scenes.map(s => {
   for (const h of s.houses) house(group, h);
   for (const t of s.things) thing(group, t);
   for (const f of s.fences || []) fence(group, s.ground, f);
+  // marbles: a stone almost a hex wide each, played back along its way in time
+  const balls = (s.marbles || []).map((way, i) => {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.68, 20, 14), new THREE.MeshLambertMaterial({ color: MARBLE[i % MARBLE.length] }));
+    group.add(b);
+    return { mesh: b, way };
+  });
+  let end = 0;
+  for (const b of balls) for (const p of b.way) end = Math.max(end, p[0]);
   scene.add(group);
   // look at the middle of the ground, from the south-east above
   const g = s.ground, lk = (q, r) => 2 * q + (r & 1);
   const mx = (lk(g.q0, 0) + lk(g.q0 + g.w, 0)) / 2 * 0.75, my = (g.r0 + g.h / 2) * 3 * 0.4330127;
   const span = Math.max(g.w * 1.5, g.h * 1.3);
-  return { name: s.name, scene, target: new THREE.Vector3(mx, 3, -my), eye: new THREE.Vector3(mx + span * 0.35, span * 0.55, -my + span * 0.75) };
+  return { name: s.name, scene, balls, end, target: new THREE.Vector3(mx, 3, -my), eye: new THREE.Vector3(mx + span * 0.35, span * 0.55, -my + span * 0.75) };
 });
 const ask = new URLSearchParams(location.search);
 const vec = name => { const v = (ask.get(name) || "").split(",").map(Number); return v.length === 3 && v.every(isFinite) ? new THREE.Vector3(v[0], v[2], -v[1]) : null; };
+let began = performance.now();
 function show(i) {
   current = scenes[i];
+  began = performance.now();
   camera.position.copy(vec("eye") || current.eye); controls.target.copy(vec("at") || current.target); controls.update();
   document.querySelectorAll("#buttons button").forEach((b, j) => b.classList.toggle("on", j === i));
 }
@@ -374,7 +401,23 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 show(Math.min(scenes.length - 1, Math.max(0, +(new URLSearchParams(location.search).get("scene") || 0))));
-(function loop() { requestAnimationFrame(loop); renderer.render(current.scene, camera); })();
+// the marbles' time: it runs, waits two seconds at the end and starts again; ?t=MS holds it still
+const held = ask.get("t") === null ? null : +ask.get("t");
+const note = document.getElementById("note"), words = note.textContent;
+(function loop() {
+  requestAnimationFrame(loop);
+  if (current.balls.length) {
+    let ms = held !== null ? held : performance.now() - began;
+    if (held === null && ms > current.end + 2000) { began = performance.now(); ms = 0; }
+    for (const b of current.balls) {
+      const p = marbleAt(b.way, ms);
+      b.mesh.visible = !!p;
+      if (p) b.mesh.position.set(p[0], p[2] + 0.68, -p[1]);
+    }
+    note.textContent = (Math.min(ms, current.end) / 1000).toFixed(1) + " s of " + (current.end / 1000).toFixed(1) + " · " + words;
+  } else if (note.textContent !== words) note.textContent = words;
+  renderer.render(current.scene, camera);
+})();
 </script>
 </body>
 </html>

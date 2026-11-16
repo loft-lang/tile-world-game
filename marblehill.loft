@@ -1,0 +1,104 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// The marble hill as a place to look at (WORLD.md § One game, square or hex: tried, marbles on a
+// hill): a round hill with houses on its slopes, each seated on the ground with its long wall
+// across the slope, and ten marbles let fall on its top — the hill as the 3D view draws a place
+// (`hextown::Town`), and every marble's way in time for the view to play back.
+use hex_field;
+use hexwalls;
+use hexturn;
+use hexhouse;
+use hexterrain;
+use hextown;
+use marbles;
+
+/// The hill built and played: the place, and the marbles on it at rest with their ways.
+pub struct Shown {
+  pub town: hextown::Town,
+  pub hill: marbles::Hill
+}
+
+/// Where the ten are let fall: on the top and round it, three on the same hex.
+pub fn drops() -> vector<(integer, integer)> {
+  [(0, 0), (0, 0), (1, 0), (-1, 1), (0, -1), (2, 1), (-2, -1), (1, 2), (0, 0), (-1, -2)]
+}
+
+/// A round hill 6 m high, 21 m from its top to its foot, and five houses spaced round its slopes
+/// at 9 to 14 m from the top, each facing down the hill — its long wall across the slope — and
+/// seated on the ground where it stands (a level floor cut into the slope).  Two are an L, the
+/// wing at the back, its corner open uphill.  Trees stand round the foot.
+pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
+  hl = marbles::hill(-36, -36, 73, 73);
+  g = hl.ground;
+  hexterrain::hill(g, 0.0, 0.0, 21.0, 6.0);
+  houses: vector<hextown::Placed> = [];
+  spots = [(1, 10.0), (3, 13.0), (6, 9.0), (8, 14.0), (10, 11.0)];
+  for i in 0..len(spots) {
+    k = spots[i]!.0;
+    a = (k as float) * PI / 6.0;
+    (cq, cr) = hexterrain::cell_near(spots[i]!.1 * cos(a), spots[i]!.1 * sin(a));
+    // facing down the hill: outward, the front south at turn 0
+    t = ((k - 9) % 12 + 12) % 12 ?? 0;
+    ell = i % 2 == 1;
+    parts = if ell { hexhouse::l_plan(4, 2, 2, 2) } else { hexhouse::box_plan(4, 2) };
+    ops = [hexhouse::Spec { kind: hexwalls::DOOR, u: 0, v: -2 }, hexhouse::Spec { kind: hexwalls::WINDOW, u: -2, v: -2 }];
+    b = hexhouse::build(hexhouse::HexHouse { cq: cq, cr: cr, turn: t, parts: parts, openings: ops }, hexturn::BY_WALLS, sz);
+    floor = round(hex_field::height_get(g.gr_heights, cq, cr) * 10.0) / 10.0;
+    base = hexterrain::seat(g, b.cells, floor, m);
+    houses += [hextown::Placed { built: b, turn: t, floor: floor, base: (if base < floor { base } else { floor }) - 0.3, top: floor + m.storey }];
+    for r in hex_field::hexset_r0(b.cells)..hex_field::hexset_r0(b.cells) + hex_field::hexset_h(b.cells) {
+      for q in hex_field::hexset_q0(b.cells)..hex_field::hexset_q0(b.cells) + hex_field::hexset_w(b.cells) {
+        if !hex_field::hexset_get(b.cells, q, r) { continue; }
+        hex_field::hexset_set(hl.fixed, q, r, true);
+        hex_field::hexset_set(hl.houses, q, r, true);
+        hex_field::label_set(g.gr_kinds, q, r, hexterrain::FLOOR);
+      }
+    }
+  }
+  things: vector<hextown::Thing> = [];
+  for k in 0..12 {
+    a = (k as float + 0.5) * PI / 6.0;
+    x = 34.0 * cos(a);
+    y = 34.0 * sin(a);
+    (q, r) = hexterrain::cell_near(x, y);
+    things += [hextown::Thing { kind: if k % 3 == 0 { "pine" } else if k % 3 == 1 { "oak" } else { "poplar" }, x: x, y: y, z: hex_field::height_get(g.gr_heights, q, r) }];
+    hex_field::hexset_set(hl.fixed, q, r, true);
+  }
+  Shown { town: hextown::Town { ground: g, houses: houses, things: things, levels: hex_field::labels_new(g.gr_q0, g.gr_r0, g.gr_w, g.gr_h) }, hill: hl }
+}
+
+/// The ten let fall, one every 400 ms from 2 m up, and played to rest.  False when it does not
+/// come to rest.
+pub fn play(sh: Shown) -> boolean {
+  i = 0;
+  for d in drops() {
+    marbles::run_until(sh.hill, 400 * i);
+    if !marbles::let_fall(sh.hill, d.0, d.1) { return false; }
+    i += 1;
+  }
+  marbles::run(sh.hill, 5000)
+}
+
+/// The marbles' ways for a view: per marble its stops in order, each `[ms, x, y, z]` in metres (x
+/// east, y north, z up; z the marble's foot — let go 2 m over the ground, on it after).
+pub fn ways_json(hl: marbles::Hill) -> text {
+  out = "[";
+  for i in 0..len(hl.marbles) {
+    if i > 0 { out += ", "; }
+    out += "[";
+    first = true;
+    started = false;
+    for s in hl.log {
+      if s.marble != i { continue; }
+      c = hexterrain::centre(s.q, s.r);
+      z = marbles::height(hl, s.q, s.r) + (if s.air && !started { 2.0 } else { 0.0 });
+      started = true;
+      if !first { out += ", "; }
+      first = false;
+      out += "[{s.at}, {round(c.0 * 1000.0) / 1000.0}, {round(c.1 * 1000.0) / 1000.0}, {round(z * 1000.0) / 1000.0}]";
+    }
+    out += "]";
+  }
+  out + "]"
+}

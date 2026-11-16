@@ -1,4 +1,5 @@
-// The town ported to the hex grid, and a hill with a house at every angle (hextown.loft), as JSON
+// The town ported to the hex grid, a hill with a house at every angle (hextown.loft), and the
+// marble hill played (marblehill.loft: its marbles' ways in time, which the page plays back), as JSON
 // for tools/hextown.py to draw in 3D into hextown.html:
 //
 //   loft --lib libs tools/hextown.loft > build/hextown.json && python3 tools/hextown.py
@@ -12,6 +13,8 @@ use hex_ground;
 use hexwalls;
 use hexterrain;
 use hextown;
+use marbles;
+use marblehill;
 
 fn main() {
   sz = hexwalls::sizes_file("../hexsizes.json");
@@ -25,6 +28,11 @@ fn main() {
   hill = hextown::showcase(sz, m);
   println("{{\"storey\": {m.storey}, \"wall\": {sz.wall / hexwalls::PER_METRE}, \"scenes\": [");
   println("{hextown::scene_json("Orbury, ported", town)},");
-  println("{hextown::scene_json("A hill, a house at every angle", hill)}");
+  println("{hextown::scene_json("A hill, a house at every angle", hill)},");
+  // the marble hill, played: the place and every marble's way in time (marblehill.loft)
+  sh = marblehill::built(sz, m);
+  if !marblehill::play(sh) { println("the marble hill does not come to rest"); exit(1); }
+  scene = hextown::scene_json("Marbles on a hill", sh.town);
+  println("{scene[0..scene.size() - 1]}, \"marbles\": {marblehill::ways_json(sh.hill)}}}");
   println("]}}");
 }

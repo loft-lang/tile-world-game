@@ -73,6 +73,15 @@ pub struct Marble {
   pub rest_at: integer = 0
 }
 
+/// A marble's being somewhere at a moment: let go in the air over a hex (`air`), or arrived on one.
+pub struct Stop {
+  pub marble: integer,
+  pub at: integer,
+  pub q: integer,
+  pub r: integer,
+  pub air: boolean = false
+}
+
 /// The hill: the ground's heights, what stands on it and does not move, the marbles on it, and
 /// the rounds played.
 pub struct Hill {
@@ -84,8 +93,9 @@ pub struct Hill {
   /// How many times a marble acted, and the time (milliseconds).
   pub rounds: integer = 0,
   pub now: integer = 0,
-  /// Every hex a marble rolled onto.
-  pub trail: hex_field::HexSet
+  /// Every hex a marble rolled onto, and every arrival in order (for a view to play back).
+  pub trail: hex_field::HexSet,
+  pub log: vector<Stop> = []
 }
 
 pub fn hill(q0: integer, r0: integer, w: integer, h: integer) -> Hill {
@@ -184,6 +194,7 @@ pub fn let_fall(hl: Hill, q: integer, r: integer, from: float = 2.0) -> boolean 
       m.heading = h;
       m.speed = kick;
     }
+    hl.log += [Stop { marble: len(hl.marbles), at: hl.now, q: q, r: r, air: true }, Stop { marble: len(hl.marbles), at: lands, q: q, r: r }];
     hl.marbles += [m];
     return true;
   }
@@ -191,6 +202,8 @@ pub fn let_fall(hl: Hill, q: integer, r: integer, from: float = 2.0) -> boolean 
   h = lowest(hl, q, r, -1000);
   if h < 0 { return false; }
   (tq, tr) = gridroom::hex_step(q, r, h);
+  hl.log += [Stop { marble: len(hl.marbles), at: hl.now, q: q, r: r, air: true }, Stop { marble: len(hl.marbles), at: lands, q: q, r: r, air: true },
+             Stop { marble: len(hl.marbles), at: lands + step_ms(1.5, kick), q: tq, r: tr }];
   hl.marbles += [Marble { q: tq, r: tr, heading: h, speed: kick, from_q: q, from_r: r, went: 1, struck: 1, at: lands + step_ms(1.5, kick), rest_at: lands }];
   hex_field::hexset_set(hl.trail, tq, tr, true);
   true
@@ -203,6 +216,8 @@ fn go(hl: Hill, i: integer, h: integer) {
   (tq, tr) = gridroom::hex_step(m.q, m.r, h);
   left = m.speed + drop(hl, m.q, m.r, h) - (if (h & 1) == 0 { GROUND } else { GROUND_LONG });
   m.heading = h;
+  was_q = m.q;
+  was_r = m.r;
   if left <= 0 {
     m.speed = 0;
     m.rest_at = hl.now;
@@ -213,6 +228,8 @@ fn go(hl: Hill, i: integer, h: integer) {
     hex_field::hexset_set(hl.trail, tq, tr, true);
     m.speed = if left > FASTEST { FASTEST } else { left };
     m.at = hl.now + step_ms(if (h & 1) == 0 { 1.5 } else { 2.598076211353316 }, m.speed);
+    // it leaves where it was now and is on its hex at `at`
+    hl.log += [Stop { marble: i, at: hl.now, q: was_q, r: was_r }, Stop { marble: i, at: m.at, q: tq, r: tr }];
   }
   hl.marbles[i] = m;
 }

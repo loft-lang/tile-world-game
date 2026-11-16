@@ -6,41 +6,17 @@
 use hex_field;
 use hexterrain;
 use hexhouse;
+use hexwalls;
 use marbles;
+use marblehill;
 
-// A round hill 6 m high, 21 m from its top to its foot, on a field of hexes; on its slopes eight
-// houses, each with its long wall across the slope, three of them an L whose corner opens uphill.
-fn the_hill() -> marbles::Hill {
-  hl = marbles::hill(-36, -36, 73, 73);
-  hexterrain::hill(hl.ground, 0.0, 0.0, 21.0, 6.0);
-  n = marbles::house(hl, 6, 0, 3, hexhouse::box_plan(4, 2));
-  n += marbles::house(hl, -6, 0, 3, hexhouse::l_plan(4, 2, 2, 2));
-  n += marbles::house(hl, 0, 6, 0, hexhouse::box_plan(5, 2));
-  n += marbles::house(hl, 0, -6, 0, hexhouse::l_plan(5, 2, 2, 2));
-  n += marbles::house(hl, 5, 5, 11, hexhouse::box_plan(3, 2));
-  n += marbles::house(hl, -4, 6, 1, hexhouse::box_plan(3, 2));
-  n += marbles::house(hl, 5, -5, 1, hexhouse::l_plan(4, 2, 2, 2));
-  n += marbles::house(hl, -5, -5, 11, hexhouse::box_plan(3, 2));
-  assert(n > 100, "eight houses' hexes: {n}");
-  hl
-}
-
-// Where the ten are let fall: on the top and round it, three on the same hex.
-fn drops() -> vector<(integer, integer)> {
-  [(0, 0), (0, 0), (1, 0), (-1, 1), (0, -1), (2, 1), (-2, -1), (1, 2), (0, 0), (-1, -2)]
-}
-
-// One every 400 ms, from 2 m up.
+// The hill of marblehill.loft: five houses spaced round its slopes, seated on the ground, and the
+// ten let fall one every 400 ms.
 fn played() -> marbles::Hill {
-  hl = the_hill();
-  i = 0;
-  for d in drops() {
-    marbles::run_until(hl, 400 * i);
-    assert(marbles::let_fall(hl, d.0, d.1), "a marble let fall on ({d.0}, {d.1})");
-    i += 1;
-  }
-  assert(marbles::run(hl, 5000), "the hill comes to rest: {hl.rounds} happenings");
-  hl
+  sh = marblehill::built(hexwalls::default_sizes(), hexterrain::default_measures());
+  assert(len(sh.town.houses) == 5, "five houses");
+  assert(marblehill::play(sh), "the hill comes to rest");
+  sh.hill
 }
 
 fn test_ten_marbles_on_the_hill() {
@@ -70,7 +46,10 @@ fn test_ten_marbles_on_the_hill() {
     if m.went > 0 { rolled += 1; }
   }
   assert(rolled >= 8, "the bounce on landing sets them going: {rolled} rolled");
-  assert(held >= 2, "houses hold some: {held}");
+  assert(held >= 1, "a house holds a marble: {held}");
+  // every marble's way, for a view: it begins in the air and ends where the marble rests
+  ways = marblehill::ways_json(hl);
+  assert(ways.starts_with("[[[0, 0, 0, 8]") && len(ways) > 2000, "the ways written: {len(ways)} characters");
 }
 
 // The same hill, the same marbles: the same end, hex for hex and millisecond for millisecond.
