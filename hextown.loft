@@ -23,6 +23,7 @@ use hexwalls;
 use hexturn;
 use hexhouse;
 use hexterrain;
+use hex_place;
 use intent;
 
 /// A square tile's side, in metres: one hex step.
@@ -515,7 +516,7 @@ fn place_houses(it: const intent::Intent, g: hexterrain::Ground, sz: hexwalls::S
         main = it.houses[hi]!;
         mp = out[hi]!;
         turn = mp.turn;
-        (ox, oy) = with_house(main, mp, drawn_cells(main, mp), (h.x as float) + ((h.w - 1) as float) * 0.5,
+        (ox, oy) = with_house(main, mp, drawn_turn(main, mp), (h.x as float) + ((h.w - 1) as float) * 0.5,
                               (h.y as float) + ((h.h - 1) as float) * 0.5);
         (oq, orr) = hexterrain::cell_near(ox, oy);
         cq = oq;
@@ -559,17 +560,23 @@ fn drawn_cells(h: const intent::House, p: const Placed) -> hex_field::HexSet {
   cells
 }
 
+/// The turn house `h` was placed by, worked out once: every point that turns with the house is
+/// asked of it (`with_house`).
+fn drawn_turn(h: const intent::House, p: const Placed) -> hex_place::Turned {
+  hex_place::cells_turn(drawn_cells(h, p), p.cq, p.cr, p.turn, hexturn::BY_WALLS)
+}
+
 /// Where the point (tx, ty) of the square map (tiles, a cell's centre at whole numbers) lies in the
 /// hex town, in metres: turned with house `h` as it was placed (its plan's middle on its cell, an
 /// odd turn's offset with it).
-fn with_house(h: const intent::House, p: const Placed, drawn: hex_field::HexSet, tx: float, ty: float) -> (float, float) {
+fn with_house(h: const intent::House, p: const Placed, drawn: const hex_place::Turned, tx: float, ty: float) -> (float, float) {
   mx = (h.x as float) + ((h.w - 1) as float) * 0.5;
   my = (h.y as float) + ((h.h - 1) as float) * 0.5;
   // a tile is two half hex steps, each √3/2 units
   x = (hex_field::lattice_k(p.cq, p.cr) as float) * 0.8660254037844386 + 2.0 * (tx - mx) * 0.8660254037844386;
   y = (hex_field::lattice_m(p.cq, p.cr) as float) * 0.5 - 2.0 * (ty - my) * 0.8660254037844386;
   if p.turn == 0 { return (x * hexterrain::METRE, y * hexterrain::METRE); }
-  (wx, wy) = hexturn::turned_point(drawn, p.cq, p.cr, p.turn, hexturn::BY_WALLS, x, y);
+  (wx, wy) = hex_place::turned_point(drawn, x, y);
   (wx * hexterrain::METRE, wy * hexterrain::METRE)
 }
 
@@ -650,7 +657,7 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
     bays = bay_cells(h);
     ct = intent::court_of(h);
     if len(bays) == 0 && ct.w <= 0 { continue; }
-    drawn = drawn_cells(h, p);
+    drawn = drawn_turn(h, p);
     for bc in bays {
       (bx, by) = with_house(h, p, drawn, bc.0 as float, bc.1 as float);
       best = -1;
@@ -689,7 +696,7 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
       houses[on_roof]!.roof = ROOF_GARDEN;
       rh = it.houses[on_roof]!;
       rp = houses[on_roof]!;
-      rdrawn = drawn_cells(rh, rp);
+      rdrawn = drawn_turn(rh, rp);
       for og in it.over {
         if og.z != yd.z || !is_tree(og.what) || !in_house(rh, og.x, og.y) { continue; }
         (bx, by) = with_house(rh, rp, rdrawn, og.x as float, og.y as float);
@@ -706,7 +713,7 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
     // each side as (its name, from, to, the sides at its two ends)
     sides = [("N", x0, y0, x1, y0, "W", "E"), ("S", x0, y1, x1, y1, "W", "E"),
              ("W", x0, y0, x0, y1, "N", "S"), ("E", x1, y0, x1, y1, "N", "S")];
-    drawn = if hi >= 0 { drawn_cells(it.houses[hi]!, houses[hi]!) } else { hex_field::hexset_chunk(0, 0, 1, 1) };
+    drawn = if hi >= 0 { drawn_turn(it.houses[hi]!, houses[hi]!) } else { hex_place::cells_turn(hex_field::hexset_chunk(0, 0, 1, 1), 0, 0, 0) };
     hull: vector<(float, float)> = [];
     if hi >= 0 { for c in houses[hi]!.built.corners { hull += [(c.0 * hexterrain::METRE, c.1 * hexterrain::METRE)]; } }
     if yd.floor != "" {
@@ -800,7 +807,7 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
   for i in 0..len(it.houses) {
     h = it.houses[i]!;
     p = houses[i]!;
-    drawn = drawn_cells(h, p);
+    drawn = drawn_turn(h, p);
     // @FR-HY-Inner: its inner walls, cell by cell, turned with it; one that ends at the house's
     // wall runs on to it
     hull: vector<(float, float)> = [];
@@ -883,7 +890,7 @@ fn dress(it: const intent::Intent, g: hexterrain::Ground, houses: vector<Placed>
 }
 
 /// A part of house `h` as placed: the square map's rectangle w by h from (x, y), turned with it.
-fn block_of(h: const intent::House, p: const Placed, drawn: hex_field::HexSet, x: integer, y: integer, w: integer, d: integer,
+fn block_of(h: const intent::House, p: const Placed, drawn: const hex_place::Turned, x: integer, y: integer, w: integer, d: integer,
             top: float, roof: integer) -> Block {
   x0 = (x as float) - 0.5;
   y0 = (y as float) - 0.5;

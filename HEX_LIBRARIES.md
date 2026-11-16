@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phases 1 to 3 are done and phase 4's routines are in the library.
+exact copies; the view keeps its heights); phases 1 to 6 have moved — the merge is done but for phase 4's speed work.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -163,13 +163,18 @@ below (`merged` in one pass, `common` counted once, one reading of each edge's t
 routines moved as they were, so the comparison was exact; the boundary is already walked
 (`trace_edges`).
 
-### 5. Openings on such walls (S)
+### 5. Openings on such walls — moved
 
 `Opening`, `Sizes` (the widths; reading `hexsizes.json` stays in the game), `openings_of`,
 `place` — into `hex_draw` beside `place_opening`, which stays.  *Rules:* HO-Point, HO-Width,
 HO-Place, HO-Clear.
 
-### 6. The turn at any 30° (M)
+As landed: `hex_draw` 0.1.7, `cellopen.loft`: `cells_place_opening` and `cells_openings`, both
+on the built walls (`CellWalls`), so any number of openings is one solve; `opening_sizes` for the
+widths.  `Sizes` and reading `hexsizes.json` stay here, and `hexwalls::Opening`, the same nine
+numbers under the names the game's tools and tests read.
+
+### 6. The turn at any 30° — moved
 
 What the libraries were stuck on.  `hex_place` gets the turn of a structure's cells about a cell
 by any number of 30° steps, with its openings, and the point carried through it: `turn`,
@@ -181,6 +186,19 @@ exact routine does not round.  The new turn is the approximate one, named as suc
 back the offset it moved the structure by — a reported residual, as the family asks of anything
 that is not exact.  A library test asserts its even steps are `stencil_rotate`'s cells and edges.
 *Rules:* HT-Pivot, HT-Turn60, HT-Turn30, HT-Near, HT-Shape, HT-Drawing, HO-Turn60, HO-Turn30.
+
+As landed: `hex_place` 0.1.4, `cellturn.loft` (not `hexturn.loft`: a file's name is shared by
+every program that uses it, and the game has a hexturn of its own): `cells_turn` answers a
+`Turned` (the cells, the pivot, the steps, the offset), `turned_point` reads it, `marked_turn`
+carries the openings, `cells_middle` gives a pivot.  With its speed work: the turn is worked out
+once and read, the walls are solved once for the drawing and once for the turned structure
+however many openings there are, one cosine and sine serve a frame.  `hexturn.loft` here is the
+game's names for them (476 lines to 70); `hextown.loft` keeps each house's turn and asks it for
+every point that turns with the house.  The town regenerated is byte for byte the file it was.
+**Not done:** the cells' window fitted to the turned cells (it changes the window other routines
+read their reach from, so it is not an exact step), and `build` at two solves (it is at three for
+an even turn and five for an odd one, whatever the openings; it was five and nine at three
+openings and more with each).
 
 ### 7. The ground (M)
 

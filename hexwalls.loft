@@ -7,9 +7,10 @@
 //
 // The walls themselves are `hex_draw`'s (its cellwalls.loft: the boundary walked, the axes read
 // off it, a run per straight wall, each solved and mitred into the next — HEX_LIBRARIES.md phase
-// 4, where these routines went).  What is here is what the game adds: the doors and windows
-// marked on a structure's wall edges, as points on its walls, and the measurements they are drawn
-// with (hexsizes.json).
+// 4, where these routines went).  The doors and windows marked on a structure's wall edges, as points on
+// its walls, are `hex_draw`'s too (cellopen.loft, phase 5).  What is here is the game's: a
+// structure built with its openings as the game's tools and tests read it, and the measurements
+// they are drawn with (hexsizes.json).
 //
 // Lattice units, as `hex_field` keeps them: a cell centre is (2q + (r & 1), 3r) in doubled
 // coordinates (k, m), a point is at x = k·√3/2, y = m/2 world units, a hex step is √3 units
@@ -116,58 +117,8 @@ pub fn opening_width(kind: integer, sz: Sizes = default_sizes()) -> float {
 
 
 
-/// The opening on wall `wi` over the edges `group`: its centre where its edges' midpoints fall on
-/// the wall's line, and its span, its kind's width about that centre.
-fn opening(b: const vector<hex_draw::WallEdge>, w: hex_draw::WallSurface, wi: integer, kind: integer,
-           group: const vector<integer>, sz: Sizes) -> Opening {
-  px = 0.0;
-  py = 0.0;
-  for i in group {
-    e = b[i];
-    px += ((e.we_ak + e.we_bk) as float) * 0.5 * 0.8660254037844386;
-    py += ((e.we_am + e.we_bm) as float) * 0.25;
-  }
-  n = len(group) as float;
-  px = (px / n) ?? 0.0;
-  py = (py / n) ?? 0.0;
-  mx = hex_draw::surface_mean_x(w);
-  my = hex_draw::surface_mean_y(w);
-  (dx, dy) = hex_draw::surface_dir(w);
-  t = (px - mx) * dx + (py - my) * dy;
-  cx = mx + t * dx;
-  cy = my + t * dy;
-  half = opening_width(kind, sz) * 0.5;
-  Opening { kind: kind, wall: wi, edges: group, cx: cx, cy: cy,
-            ax: cx - half * dx, ay: cy - half * dy, bx: cx + half * dx, by: cy + half * dy }
-}
-
-/// The openings `marks` holds on the walls: along each wall's run, each stretch of edges marked
-/// with one kind is one opening.
-fn openings_of(b: const vector<hex_draw::WallEdge>, rs: const vector<vector<integer>>,
-               walls: vector<hex_draw::WallSurface>, marks: hex_field::EdgeSet, sz: Sizes) -> vector<Opening> {
-  out: vector<Opening> = [];
-  for wi in 0..len(rs) {
-    run = rs[wi];
-    i = 0;
-    while i < len(run) {
-      e = b[run[i] ?? 0];
-      kind = hex_field::edge_mat(marks, e.we_qa, e.we_ra, e.we_qb, e.we_rb);
-      if kind != DOOR && kind != WINDOW {
-        i += 1;
-        continue;
-      }
-      group: vector<integer> = [];
-      while i < len(run) {
-        f = b[run[i] ?? 0];
-        if hex_field::edge_mat(marks, f.we_qa, f.we_ra, f.we_qb, f.we_rb) != kind { break; }
-        group += [run[i] ?? 0];
-        i += 1;
-      }
-      out += [opening(b, walls[wi], wi, kind, group, sz)];
-    }
-  }
-  out
-}
+/// The measurements `hex_draw` places and reads openings with.
+pub fn open_sizes(sz: Sizes) -> hex_draw::OpeningSizes { hex_draw::opening_sizes(sz.door, sz.window, sz.corner) }
 
 // ── a structure built ───────────────────────────────────────────────────────
 
@@ -184,18 +135,20 @@ pub fn no_marks(cells: hex_field::HexSet) -> hex_field::EdgeSet { hex_draw::cell
 
 /// A structure from its data: its cells and the doors and windows marked on its wall edges.  The
 /// walls come from the cells alone (`hex_draw::cells_built`); the openings are read off the marks,
-/// wall by wall.
+/// wall by wall (`hex_draw::cells_openings`).
 pub fn from_data(cells: hex_field::HexSet, marks: hex_field::EdgeSet, hint: integer = -1,
                  sz: Sizes = default_sizes()) -> Built {
   cw = hex_draw::cells_built(cells, WALL, hint);
   edges = cw.cw_edges;
   // @FR-HO-Point: the walls are solved first, the openings are points on them
-  ops = openings_of(cw.cw_boundary, cw.cw_runs, cw.cw_walls, marks, sz);
-  for o in ops {
-    for i in o.edges {
+  ops: vector<Opening> = [];
+  for o in hex_draw::cells_openings(cw.cw_boundary, cw.cw_runs, cw.cw_walls, marks, open_sizes(sz)) {
+    for i in o.op_edges {
       e = cw.cw_boundary[i];
-      hex_field::edge_set_mat(edges, e.we_qa, e.we_ra, e.we_qb, e.we_rb, o.kind);
+      hex_field::edge_set_mat(edges, e.we_qa, e.we_ra, e.we_qb, e.we_rb, o.op_kind);
     }
+    ops += [Opening { kind: o.op_kind, wall: o.op_wall, edges: o.op_edges, cx: o.op_cx, cy: o.op_cy,
+                      ax: o.op_ax, ay: o.op_ay, bx: o.op_bx, by: o.op_by }];
   }
   Built { cells: cells, edges: edges, boundary: cw.cw_boundary, runs: cw.cw_runs, walls: cw.cw_walls,
           corners: cw.cw_corners, openings: ops }
