@@ -840,6 +840,9 @@ pub fn town_frame(g: const Game, i: integer) -> vector<single> {
    sx as single, (0.0 - sy) as single, ((rm.y0 as float) + 0.5 - 0.5 * sx + 0.5 * sy - (rm.ox * sx + rm.oy * sy) / gridroom::TILE) as single]
 }
 
+/// How far the hero's body has walked on the field's ground, in tiles: a view steps it by this.
+pub fn field_walked(g: const Game) -> single { (g.fplay.walked / gridroom::TILE) as single }
+
 /// Where the hero's body is on a field's ground, in tiles of the town's map as it lies out of
 /// doors (east, south), and the way it faces there.
 pub fn field_body(g: const Game) -> (single, single, single, single) {

@@ -103,6 +103,8 @@ const HEX_REACH = 26.0;
 const HEX_DROP = 34.0;
 /// How far the ground is laid under a house's own floor where the two meet, in layers.
 const UNDER = 0.02;
+/// How high the hero hops at the middle of a step out on the ground, in layers.
+const STRIDE = 0.08;
 
 // (Not `Pic` in `pics`: render3d's view, held in this one, has a table of that name and type's
 // name, and with both in one struct this file's lookups found nothing — every face a new picture.)
@@ -189,6 +191,8 @@ pub struct FixedView {
   hex_on: vector<boolean> = [],
   hex_for: text = "",
   hex_night: boolean = false,
+  /// How far the body had walked on the ground when it was last drawn, in tiles.
+  walked: float = 0.0,
   /// The CPU's scene (raster3d's handle), 0: none.
   scene: integer = 0,
   /// The GPU backend's table (`gpu_gl::table()`), 0: draw on the CPU; its device and the scene on
@@ -475,7 +479,10 @@ fn tile_faces(v: FixedView, g: const game::Game, cl: const faces3d::Cells, co: c
     heights: vector<float> = [];
     for z in TOWN_Z0..=TOWN_Z1 {
       for y in y0..=y1 {
-        for x in x0..=x1 { heights += [v.fy + render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z)]; }
+        for x in x0..=x1 {
+          // the ground's height only where a card stands on it
+          heights += [if faces3d::has_cards(co, x, y, z) { v.fy + render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z) } else { 0.0 }];
+        }
       }
     }
     for f in faces3d::cards_box(g, co, lt, x0, y0, x1, y1, TOWN_Z0, TOWN_Z1, 0.0, false, heights) {
@@ -1102,6 +1109,7 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
       fine = (f.fine.x as single, f.fine.y as single, f.fine.hop as single, f.fine.tilt as single,
               f.fine.weapon as single, f.fine.reach as single);
       at = spot(v, g, f.x, f.y, z);
+      stride = 0.0;
       off_x = fine.0 / 16.0;
       off_z = fine.1 / 16.0;
       if f.facing_shown && v.frame == GROUND {
@@ -1110,12 +1118,16 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
         at = Spot { shown: true, out: true, x: b.0, y: render3d::hex_ground_tile(v.hexv, g, b.0 - 0.5, b.1 - 0.5, z), z: b.1 };
         off_x = 0.0;
         off_z = 0.0;
+        // it steps as it walks: a small hop a tile, only while the body moves
+        far = game::field_walked(g);
+        if far != v.walked { stride = abs(sin(far * PI)) * STRIDE; }
+        v.walked = far;
       }
       if !at.shown { continue; }
       x = at.x + off_x;
       zz = at.z + off_z;
       feet = if at.out { at.y } else { (z as float) + 0.25 * (f.h as float) };
-      y = feet - fine.2 / 16.0;
+      y = feet - fine.2 / 16.0 + stride;
       light = light_on(v, g, f.x, f.y, z);
       // As the 2D poses it (game::figure_turn): turned about the bottom middle of its picture,
       // mirrored for the hero facing west.
@@ -1246,6 +1258,8 @@ pub fn differs_from_fresh(v: const FixedView, g: const game::Game) -> integer {
   f.placed = true;
   f.cam_x = v.cam_x;
   f.cam_y = v.cam_y;
+  // the hero standing, as the view drew it last
+  f.walked = game::field_walked(g);
   acts = actors(f, g);
   f.cam_x = v.cam_x;
   f.cam_y = v.cam_y;
@@ -1288,6 +1302,8 @@ pub fn gpu_frame(v: const FixedView, g: const game::Game, table: i64) -> vector<
   f.placed = true;
   f.cam_x = v.cam_x;
   f.cam_y = v.cam_y;
+  // the hero standing, as the view drew it last
+  f.walked = game::field_walked(g);
   acts = actors(f, g);
   f.cam_x = v.cam_x;
   f.cam_y = v.cam_y;

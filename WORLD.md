@@ -880,9 +880,9 @@ goes flat out on Orbury's ground.
   the other way — the inside drawn turned, the keys mapped to the nearest of its four ways —
   keeps the camera still; to be judged in play.
 - Rough, and known: the hex ground under the house shows as a stone footprint round the inside;
-  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; the hero out on the
-  ground does not step or bob; the first scene of a town takes about a second (the hex pieces
-  are all made at once); a field that is not a town (the common) is still drawn flat.
+  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; a new scene —
+  the first of a town, and each time a door is passed — takes 0.25 to 0.6 s (the hex pieces made,
+  then laid again on the house's grid); a field that is not a town (the common) is still drawn flat.
 
 - **The town goes on while the hero is out on its ground** (2026-11-16; game.loft `update_play`,
   `tests/townfield.loft`).  ◇ Mine, to be judged in play: out of doors only the hero's steps are

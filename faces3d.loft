@@ -223,6 +223,17 @@ pub fn leave_out(cl: Cells, x: integer, y: integer, z: integer, north: boolean, 
   cl.edge[at] = (if north { e & 255 } else { 0 }) + (if west { e & 65280 } else { 0 });
 }
 
+/// Does `cards_box` stand a card on cell (x, y, z) of `cl`: something upright that does not stop
+/// sight, or things — and the cell not left out?  For a view that works out a height only where
+/// one is asked.
+pub fn has_cards(cl: const Cells, x: integer, y: integer, z: integer) -> boolean {
+  at = cell_at(cl, x, y, z);
+  if at < 0 { return true; }
+  ci = cl.info[at] ?? 0;
+  if (ci & C_SKIP) != 0 || kind_of(ci) == tile_world::VOID { return false; }
+  ((ci & C_UP) != 0 && (ci & C_SOLID) == 0) || (ci & C_THINGS) != 0
+}
+
 // Where (x, y, z) is in the cells, -1 outside.
 fn cell_at(cl: const Cells, x: integer, y: integer, z: integer) -> integer {
   i = x - cl.x0;
