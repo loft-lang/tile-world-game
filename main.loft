@@ -12,6 +12,7 @@ use render3d;
 use fixedview;
 use raster3d;
 use gpu_gl;
+use imaging;
 use playlog;
 
 // Moves by letter (`w` `a` `s` `d`, `p` before one to pull), as TW_MOVES lists them; `~N` lets
@@ -281,6 +282,8 @@ fn main() {
   game::draw(game);
   mask(game);
   present(game, size, timing);
+  fixed_shot = env_variable("TW_FIXEDSHOT") ?? "";
+  fixed_frames = 0;
   last = ticks() / 1000;
   was_at = (-1, -1);
   was_buttons = 0;
@@ -355,6 +358,21 @@ fn main() {
       timing.frames += 1;
       timing.show += ticks() - shown_at;
       report(timing, size);
+      // TW_FIXEDSHOT=<file.png>: the live view's own frame written out after 150 frames, and the
+      // game left — to look at what the game draws where no screen can be looked at
+      if fixed_shot != "" {
+        fixed_frames += 1;
+        if fixed_frames == 150 {
+          px3 = fixedview::grab(fv);
+          img = imaging::Image { name: "frame", width: raster3d::WIDTH, height: raster3d::HEIGHT, data: [] };
+          for c in px3 {
+            p = c as integer;
+            img.data += [imaging::Pixel { r: ((((p >> 11) & 31) * 255 / 31) ?? 0) & 255, g: ((((p >> 5) & 63) * 255 / 63) ?? 0) & 255, b: (((p & 31) * 255 / 31) ?? 0) & 255, a: 255 }];
+          }
+          println("@fixedshot {fixed_shot}: {len(px3)} pixels, on the {if fixedview::on_gpu(fv) { "GPU" } else { "CPU" }}, written {img.save_png(fixed_shot)}");
+          return;
+        }
+      }
     } else if v3.on && !game.editing && (!game.on_field || game::on_town(game)) {
       aim(game, view, size);
       render3d::draw(v3, gpu, game, changed || resized, now);

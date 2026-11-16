@@ -858,6 +858,11 @@ turned there: the hex town's ground, its paths, its trees and its houses at thei
   "allow for UI elements, so we can still see them"): the view's overlay is the caller's to draw
   on (`begin_overlay`, `end_overlay`), and the editor's panel is drawn there.  Neither seen on a
   screen yet.
+- Checked without a screen: `TW_FIXEDSHOT=<file.png>` has the live game write the fixed view's
+  own frame after 150 frames (read back from the GPU's window, or the CPU's) and leave.  On a
+  virtual screen the live game's frame of the demo village is whole on both; a grab of the
+  screen there had shown it nearly empty, which was the grab (two windows over each other), not
+  the game.  `tools/fixedshot.loft` draws any moment of a square place the same way.
 - Still flat: a desktop window on the town's ground — its 3D is the fixed view, which draws
   square places only.  So the flat drawing is not deleted yet.
 

@@ -910,6 +910,22 @@ pub fn differs_from_fresh(v: const FixedView, g: const game::Game) -> integer {
   d
 }
 
+/// The frame the view last drew, as it is — read back from the device's window where it draws
+/// there, else the CPU's — as RGB565, WIDTH by HEIGHT; and which it was.  For looking at the live
+/// game's frame without a screen (main.loft, TW_FIXEDSHOT).
+pub fn grab(v: FixedView) -> vector<i32> {
+  if !v.dev || !v.gs { return v.px; }
+  out: vector<i32> = [];
+  for c in v.dev!.capture() {
+    p = (c as i64 & 16777215l) as integer;
+    out += [((((p >> 19) & 31) << 11) | (((p >> 10) & 63) << 5) | ((p >> 3) & 31)) as i32];
+  }
+  out
+}
+
+/// Whether the view draws in a device's window (the GPU) or on the CPU.
+pub fn on_gpu(v: FixedView) -> boolean { v.dev != null && v.gs != null }
+
 /// The GPU's check (tools/fixedshot.loft, `gpu`; SCENE_CONTRACT.md § Checks): the moment `v` last
 /// drew on the CPU, drawn on a GPU through `table` from a scene built fresh, with the same camera,
 /// and read back from the device's window as RGB565.  Empty where no device opens.
