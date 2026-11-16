@@ -83,3 +83,67 @@ fn test_in_at_every_door_and_out_again() {
   println("doors tried {tried}, came out again {outs}");
   assert(tried >= 18 && outs == tried, "every door in and out: {tried} tried, {outs} out again");
 }
+
+// The town's river (water.loft).  As the town starts nothing comes down it: its bed is dry but for
+// the pools that stand in it, stale.  Given water at its head it runs its bed — the bed as it is —
+// from the west end out at the east, and where it runs fast enough it takes the hero with it.
+fn test_the_river_stale_as_it_starts_and_running_when_fed() {
+  g = town() ?? return;
+  gr = g.fplay.ground;
+  bed = 0;
+  pools = 0;
+  wet = 0;
+  running = 0;
+  for r in -82..4 {
+    for q in -2..92 {
+      k = hex_field::label_get(gr.kinds, q, r);
+      if k == hexterrain::BED || k == hexterrain::WATER { bed += 1; }
+      if k == hexterrain::WATER { pools += 1; }
+      if hex_field::height_get(gr.depth, q, r) > 0.0 {
+        wet += 1;
+        assert(k == hexterrain::WATER, "as it starts, water only where a pool stands: ({q}, {r})");
+      }
+      if hex_field::label_get(gr.flow_speed, q, r) > 0 { running += 1; }
+    }
+  }
+  assert(bed > 250 && pools == 17 && wet == pools && running == 0, "the bed {bed} hexes, {pools} of pool, {wet} wet, {running} running");
+  // fed: the bed runs from end to end
+  game::set_river(g, 6000);
+  wet = 0;
+  running = 0;
+  outside = 0;
+  for r in -82..4 {
+    for q in -2..92 {
+      k = hex_field::label_get(gr.kinds, q, r);
+      if hex_field::height_get(gr.depth, q, r) > 0.0 {
+        wet += 1;
+        if k != hexterrain::BED && k != hexterrain::WATER { outside += 1; }
+      }
+      if hex_field::label_get(gr.flow_speed, q, r) > 0 { running += 1; }
+    }
+  }
+  assert(outside == 0 && wet * 10 >= bed * 6 && running * 10 >= bed * 6, "fed, most of the bed wet and running, none outside it: {wet} wet, {running} running of {bed}, {outside} outside");
+  // a thing that floats, let go in the middle of the bed's west end, comes out at its east end
+  west = 0;
+  for r in -82..4 { if hex_field::label_get(gr.flow_speed, 0, r) > 0 && hex_field::label_get(gr.flow_way, 0, r) >= 0 { west = r; } }
+  at = (0, west);
+  for _n in 0..400 {
+    way = hex_field::label_get(gr.flow_way, at.0, at.1);
+    if hex_field::label_get(gr.flow_speed, at.0, at.1) <= 0 || way < 0 { break; }
+    at = gridroom::hex_step(at.0, at.1, way);
+  }
+  assert(at.0 >= 86, "down the whole river: from q 0 to q {at.0}");
+  // the hero in it, standing still: carried east
+  start = hexterrain::centre(20, 0);
+  for r in -82..4 { if hex_field::label_get(gr.flow_speed, 20, r) >= fieldplay::CARRY { start = hexterrain::centre(20, r); } }
+  g.on_field = true;
+  fieldplay::put_hero(g.fplay, start.0, start.1);
+  game::field_walk(g, 0.0, 0.0, 3000);
+  assert(g.fplay.swept > 3.0 && g.fplay.x > start.0 + 2.0, "three seconds in the river carry it down: {g.fplay.swept} m, from x {start.0} to {g.fplay.x}");
+  // and with the river as it starts, not
+  game::set_river(g, 0);
+  swept = g.fplay.swept;
+  fieldplay::put_hero(g.fplay, start.0, start.1);
+  game::field_walk(g, 0.0, 0.0, 1000);
+  assert(g.fplay.swept == swept, "the stale river carries nothing");
+}

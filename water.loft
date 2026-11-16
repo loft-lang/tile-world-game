@@ -1,0 +1,268 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Where water goes (WORLD.md § One game, square or hex: later, water by the same routine — owner,
+// 2026-11-16).  Not worked out all the time: when the scene changes — a spring runs fuller, a
+// lock opens, a wall falls — the water is worked out once, cell by cell, and kept: how deep it
+// stands, which way it runs and how fast.  The same ground and the same supply give the same
+// water every time.
+//
+// The ground is hexes with a height each; `open` says where water may be (a river's bed; all the
+// ground).  Water comes in at a source at a `rate` and leaves at the outlets.  The rules:
+//
+//   the way down    from every open hex the way water takes to an outlet is the way that climbs
+//                   least (and, among those, is shortest): down a slope it is the way down; over
+//                   flat ground and across a hollow it is the shortest way to where the water
+//                   gets out.  So a pond has a way through it, to where it spills.
+//   a hollow        a hex lower than the lowest way out of it holds standing water up to that
+//                   way's height before any passes on.
+//   the supply      water goes from the source hex by hex down its way, across the bed's whole
+//                   width; every hex it wets takes a unit of it (`SEEP`), a hollow a unit more a
+//                   `UNIT` of depth it fills.  Where the supply runs out the bed beyond is dry.
+//   how deep        a hollow's depth, and over that the thin sheet the supply still there makes
+//                   (`SHEET` a unit, `DEEPEST` at the most): a full river reaches up its banks.
+//   how fast        the drop to the next hex, a unit a `UNIT` of height, and a unit for every
+//                   `QUICK` of supply still there — and where water passes at all, never less
+//                   than 1: a pond the stream runs through keeps a little speed, so what floats
+//                   in still ends up below it (owner).
+//   stale           water that was there before (a pool) and is not reached by any supply stands
+//                   still: speed 0, no way.  With no supply at all that is all there is — the
+//                   initial situation.
+use hex_field;
+use hex_form;
+use hexterrain;
+
+/// The height a unit of speed is worth (as a marble's), in metres.
+pub const UNIT = 0.15;
+/// What a wetted hex takes of the supply.
+pub const SEEP = 1;
+/// The supply that adds a unit of speed, and the depth a unit of supply adds (to `DEEPEST`).
+pub const QUICK = 40;
+pub const SHEET = 0.004;
+pub const DEEPEST = 0.6;
+/// How deep a pool that was there before stands, in metres.
+pub const POOL = 0.2;
+/// The most speed water has.
+pub const FASTEST = 12;
+
+/// The water as worked out: per hex how deep it stands over the ground (0: dry), the heading it
+/// runs (one of the six to a neighbour; -1: still) and its speed (0: stale); how many hexes are
+/// wet, how many of them run, and whether the supply reached an outlet.
+pub struct Water {
+  pub depth: hex_field::Heights,
+  pub way: hex_field::Labels,
+  pub speed: hex_field::Labels,
+  pub wet: integer = 0,
+  pub running: integer = 0,
+  pub out: boolean = false
+}
+
+// The ways down, worked out from the outlets: per open hex the heading of its way on (-1 at an
+// outlet), the height the way out of it climbs to, and how many hexes it is to the outlet.
+struct Ways {
+  next: hex_field::Labels,
+  over: hex_field::Heights,
+  far: hex_field::Labels
+}
+
+// A heap of hexes, the lowest first, of equals the first put in.
+struct Heap {
+  level: vector<float>,
+  turn: vector<integer>,
+  q: vector<integer>,
+  r: vector<integer>,
+  n: integer
+}
+
+fn before(h: const Heap, a: integer, b: integer) -> boolean {
+  la = h.level[a] ?? 0.0;
+  lb = h.level[b] ?? 0.0;
+  la < lb || (la == lb && (h.turn[a] ?? 0) < (h.turn[b] ?? 0))
+}
+
+fn swap(h: Heap, a: integer, b: integer) {
+  l = h.level[a] ?? 0.0;
+  t = h.turn[a] ?? 0;
+  q = h.q[a] ?? 0;
+  r = h.r[a] ?? 0;
+  h.level[a] = h.level[b] ?? 0.0;
+  h.turn[a] = h.turn[b] ?? 0;
+  h.q[a] = h.q[b] ?? 0;
+  h.r[a] = h.r[b] ?? 0;
+  h.level[b] = l;
+  h.turn[b] = t;
+  h.q[b] = q;
+  h.r[b] = r;
+}
+
+fn put(h: Heap, level: float, q: integer, r: integer) {
+  h.level += [level];
+  h.turn += [h.n];
+  h.q += [q];
+  h.r += [r];
+  h.n += 1;
+  i = len(h.level) - 1;
+  while i > 0 && before(h, i, (i - 1) / 2 ?? 0) {
+    swap(h, i, (i - 1) / 2 ?? 0);
+    i = (i - 1) / 2 ?? 0;
+  }
+}
+
+// Take the lowest: its level, q and r.  The heap must not be empty.
+fn take(h: Heap) -> (float, integer, integer) {
+  out = (h.level[0] ?? 0.0, h.q[0] ?? 0, h.r[0] ?? 0);
+  last = len(h.level) - 1;
+  swap(h, 0, last);
+  h.level = [for i in 0..last { h.level[i] ?? 0.0 }];
+  h.turn = [for i in 0..last { h.turn[i] ?? 0 }];
+  h.q = [for i in 0..last { h.q[i] ?? 0 }];
+  h.r = [for i in 0..last { h.r[i] ?? 0 }];
+  i = 0;
+  for _n in 0..64 {
+    a = 2 * i + 1;
+    b = 2 * i + 2;
+    low = i;
+    if a < last && before(h, a, low) { low = a; }
+    if b < last && before(h, b, low) { low = b; }
+    if low == i { break; }
+    swap(h, i, low);
+    i = low;
+  }
+  out
+}
+
+fn step(q: integer, r: integer, h: integer) -> (integer, integer) {
+  (dk, dm) = hex_form::head_step(h);
+  hex_field::lattice_to_cell(hex_field::lattice_k(q, r) + dk, hex_field::lattice_m(q, r) + dm)
+}
+
+fn ways(heights: hex_field::Heights, open: hex_field::HexSet, outlets: const vector<(integer, integer)>) -> Ways {
+  q0 = hex_field::hexset_q0(open);
+  r0 = hex_field::hexset_r0(open);
+  w = hex_field::hexset_w(open);
+  hh = hex_field::hexset_h(open);
+  wy = Ways { next: hex_field::labels_new(q0, r0, w, hh), over: hex_field::heights_new(q0, r0, w, hh), far: hex_field::labels_new(q0, r0, w, hh) };
+  heap = Heap { level: [], turn: [], q: [], r: [], n: 0 };
+  for o in outlets {
+    if !hex_field::hexset_get(open, o.0, o.1) || hex_field::label_get(wy.far, o.0, o.1) >= 0 { continue; }
+    hex_field::label_set(wy.far, o.0, o.1, 0);
+    hex_field::height_set(wy.over, o.0, o.1, hex_field::height_get(heights, o.0, o.1));
+    put(heap, hex_field::height_get(heights, o.0, o.1), o.0, o.1);
+  }
+  while len(heap.level) > 0 {
+    (level, q, r) = take(heap);
+    for h in [0, 2, 4, 6, 8, 10] {
+      (nq, nr) = step(q, r, h);
+      if !hex_field::hexset_get(open, nq, nr) || hex_field::label_get(wy.far, nq, nr) >= 0 { continue; }
+      high = hex_field::height_get(heights, nq, nr);
+      over = if high > level { high } else { level };
+      hex_field::label_set(wy.far, nq, nr, hex_field::label_get(wy.far, q, r) + 1);
+      hex_field::label_set(wy.next, nq, nr, hex_form::head_norm(h + 6));
+      hex_field::height_set(wy.over, nq, nr, over);
+      put(heap, over, nq, nr);
+    }
+  }
+  wy
+}
+
+/// Work the water out.  `heights` the ground; `open` where water may be; `pools` the water that
+/// was there before; the source hex and its `rate` (0: none); `outlets` where it leaves.
+pub fn flow(heights: hex_field::Heights, open: hex_field::HexSet, pools: hex_field::HexSet,
+            sq: integer, sr: integer, rate: integer, outlets: const vector<(integer, integer)>) -> Water {
+  q0 = hex_field::hexset_q0(open);
+  r0 = hex_field::hexset_r0(open);
+  w = hex_field::hexset_w(open);
+  hh = hex_field::hexset_h(open);
+  wa = Water { depth: hex_field::heights_new(q0, r0, w, hh), way: hex_field::labels_new(q0, r0, w, hh), speed: hex_field::labels_new(q0, r0, w, hh) };
+  for r in r0..r0 + hh {
+    for q in q0..q0 + w {
+      hex_field::label_set(wa.speed, q, r, 0);
+      if hex_field::hexset_get(pools, q, r) {
+        hex_field::height_set(wa.depth, q, r, POOL);
+        wa.wet += 1;
+      }
+    }
+  }
+  if rate <= 0 || !hex_field::hexset_get(open, sq, sr) { return wa; }
+  wy = ways(heights, open, outlets);
+  if hex_field::label_get(wy.far, sq, sr) < 0 { return wa; }
+  // from the source down: hex by hex, never further from the outlet, across the bed's width
+  left = rate;
+  seen = hex_field::hexset_chunk(q0, r0, w, hh);
+  cq: vector<integer> = [sq];
+  cr: vector<integer> = [sr];
+  hex_field::hexset_set(seen, sq, sr, true);
+  at = 0;
+  while at < len(cq) && left > 0 {
+    q = cq[at] ?? 0;
+    r = cr[at] ?? 0;
+    at += 1;
+    high = hex_field::height_get(heights, q, r);
+    // the water's level here without its sheet: the lowest the way out climbs to, of this hex
+    // and the open hexes round it that are no nearer the outlet (beside it across the bed, and
+    // up it), two out.  A hex higher than that by more than the sheet is a bank.
+    here = hex_field::label_get(wy.far, q, r);
+    floor = hex_field::height_get(wy.over, q, r);
+    for h in [0, 2, 4, 6, 8, 10] {
+      (nq, nr) = step(q, r, h);
+      if !hex_field::hexset_get(open, nq, nr) || hex_field::label_get(wy.far, nq, nr) < here { continue; }
+      if hex_field::height_get(wy.over, nq, nr) < floor { floor = hex_field::height_get(wy.over, nq, nr); }
+      for h2 in [0, 2, 4, 6, 8, 10] {
+        (mq, mr) = step(nq, nr, h2);
+        if hex_field::hexset_get(open, mq, mr) && hex_field::label_get(wy.far, mq, mr) >= here && hex_field::height_get(wy.over, mq, mr) < floor { floor = hex_field::height_get(wy.over, mq, mr); }
+      }
+    }
+    hollow = hex_field::height_get(wy.over, q, r) - high;
+    sheet = SHEET * (left as float);
+    if sheet > DEEPEST { sheet = DEEPEST; }
+    // above the water's sheet over the bed's floor here: a bank, dry, and the water goes on past
+    reach = high - floor < sheet + 0.05 || hollow > 0.0;
+    if reach {
+      cost = SEEP + round(hollow / UNIT ?? 0.0) as integer;
+      full = left >= cost;
+      deep = if full { hollow + sheet } else { (hollow + sheet) * (left as float) / (cost as float) ?? 0.0 };
+      if hex_field::height_get(wa.depth, q, r) == 0.0 { wa.wet += 1; }
+      hex_field::height_set(wa.depth, q, r, if deep > 0.02 { deep } else { 0.02 });
+      left -= cost;
+      if !full { break; }
+      far = hex_field::label_get(wy.far, q, r);
+      if far == 0 {
+        wa.out = true;
+      }
+      next = if far == 0 { -1 } else { hex_field::label_get(wy.next, q, r) };
+      drop = 0;
+      if next >= 0 {
+        (nq, nr) = step(q, r, next);
+        d = round((high - hex_field::height_get(heights, nq, nr)) / UNIT ?? 0.0) as integer;
+        if d > 0 { drop = d; }
+      }
+      speed = 1 + drop + (left / QUICK ?? 0);
+      hex_field::label_set(wa.speed, q, r, if speed > FASTEST { FASTEST } else { speed });
+      hex_field::label_set(wa.way, q, r, next);
+      wa.running += 1;
+    }
+    for h in [0, 2, 4, 6, 8, 10] {
+      (nq, nr) = step(q, r, h);
+      if !hex_field::hexset_get(open, nq, nr) || hex_field::hexset_get(seen, nq, nr) { continue; }
+      if hex_field::label_get(wy.far, nq, nr) < 0 || hex_field::label_get(wy.far, nq, nr) > hex_field::label_get(wy.far, q, r) { continue; }
+      // past a dry bank only along the bed, not up it
+      if !reach && hex_field::height_get(heights, nq, nr) > high { continue; }
+      hex_field::hexset_set(seen, nq, nr, true);
+      cq += [nq];
+      cr += [nr];
+    }
+  }
+  wa
+}
+
+/// Where a thing that floats, let go on (q, r), is after `steps` hexes of going with the water:
+/// from hex to hex along the water's way while it runs.
+pub fn drift(wa: Water, q: integer, r: integer, steps: integer) -> (integer, integer) {
+  for _n in 0..steps {
+    if hex_field::label_get(wa.speed, q, r) <= 0 || hex_field::label_get(wa.way, q, r) < 0 { break; }
+    (nq, nr) = step(q, r, hex_field::label_get(wa.way, q, r));
+    q = nq;
+    r = nr;
+  }
+  (q, r)
+}

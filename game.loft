@@ -23,6 +23,7 @@ use gridroom;
 use fieldplay;
 use hexwalls;
 use hextown;
+use water;
 use deal;
 use urn;
 
@@ -261,6 +262,9 @@ pub struct Game {
   /// rooms on it).  The game itself turns it on (main.loft); off, a town plays on its square map
   /// as before, which the checks of the square rules use.
   pub town_rules: boolean = false,
+  /// How much water the town's river is given at its head (water.loft's rate).  0: none — its bed
+  /// dry but for the pools that stand in it, stale: the town as it starts.
+  pub river: integer = 0,
   pub field_exits: vector<FieldExit> = [],
   field_q: integer = 0,
   field_r: integer = 0,
@@ -628,7 +632,10 @@ fn load_town(g: Game) -> boolean {
   gr = town.ground;
   p = fieldplay::play(gr.gr_q0, gr.gr_r0, gr.gr_w, gr.gr_h);
   for r in gr.gr_r0..gr.gr_r0 + gr.gr_h {
-    for q in gr.gr_q0..gr.gr_q0 + gr.gr_w { hex_field::label_set(p.ground.kinds, q, r, hex_field::label_get(gr.gr_kinds, q, r)); }
+    for q in gr.gr_q0..gr.gr_q0 + gr.gr_w {
+      hex_field::label_set(p.ground.kinds, q, r, hex_field::label_get(gr.gr_kinds, q, r));
+      hex_field::height_set(p.ground.heights, q, r, hex_field::height_get(gr.gr_heights, q, r));
+    }
   }
   for t in town.things {
     if t.kind == "bridge" || t.kind == "gazebo_roof" { continue; }
@@ -699,7 +706,59 @@ fn load_town(g: Game) -> boolean {
   g.field = g.place;
   g.field_rooms = rooms;
   g.field_exits = exits;
+  run_river(g);
   true
+}
+
+// The river worked out anew (water.loft): its bed is the ground's bed and the pools in it, kept
+// as it is; water comes in at the bed's west end at `g.river` and leaves at its east end.
+fn run_river(g: Game) {
+  gr = g.fplay.ground;
+  q0 = hex_field::hexset_q0(gr.fixed);
+  r0 = hex_field::hexset_r0(gr.fixed);
+  w = hex_field::hexset_w(gr.fixed);
+  h = hex_field::hexset_h(gr.fixed);
+  open = hex_field::hexset_chunk(q0, r0, w, h);
+  pools = hex_field::hexset_chunk(q0, r0, w, h);
+  west = q0 + w;
+  east = q0 - 1;
+  for r in r0..r0 + h {
+    for q in q0..q0 + w {
+      k = hex_field::label_get(gr.kinds, q, r);
+      if k != hexterrain::BED && k != hexterrain::WATER { continue; }
+      hex_field::hexset_set(open, q, r, true);
+      if k == hexterrain::WATER { hex_field::hexset_set(pools, q, r, true); }
+      if q < west { west = q; }
+      if q > east { east = q; }
+    }
+  }
+  if east < west { return; }
+  // the head: the lowest of the bed's westmost hexes; the outlets: its eastmost
+  sr = r0;
+  low = 1000000.0;
+  outlets: vector<(integer, integer)> = [];
+  for r in r0..r0 + h {
+    if hex_field::hexset_get(open, west, r) && hex_field::height_get(gr.heights, west, r) < low {
+      low = hex_field::height_get(gr.heights, west, r);
+      sr = r;
+    }
+    if hex_field::hexset_get(open, east, r) { outlets += [(east, r)]; }
+  }
+  wa = water::flow(gr.heights, open, pools, west, sr, g.river, outlets);
+  for r in r0..r0 + h {
+    for q in q0..q0 + w {
+      hex_field::height_set(gr.depth, q, r, hex_field::height_get(wa.depth, q, r));
+      hex_field::label_set(gr.flow_way, q, r, hex_field::label_get(wa.way, q, r));
+      hex_field::label_set(gr.flow_speed, q, r, hex_field::label_get(wa.speed, q, r));
+    }
+  }
+}
+
+/// Give the town's river `rate` of water at its head and work out where it goes: what a scene's
+/// change does (a spring fuller, a lock opened).  0 is the town as it starts.
+pub fn set_river(g: Game, rate: integer) {
+  g.river = rate;
+  if on_town(g) { run_river(g); }
 }
 
 // Is tile (x, y) of the town's map in one of its houses.
@@ -967,7 +1026,11 @@ fn draw_field(g: Game) {
         if kind == hexterrain::PATH { colour = tiles::rgb(196, 170, 120); }
         if kind == hexterrain::RAIL { colour = tiles::rgb(128, 118, 108); }
         if kind == hexterrain::BED { colour = tiles::rgb(150, 128, 96); }
-        if kind == hexterrain::WATER { colour = tiles::rgb(84, 140, 200); }
+        if hex_field::height_get(p.ground.depth, q, r) > 0.0 {
+          // water: running, the lighter the faster; stale, dull
+          sp = hex_field::label_get(p.ground.flow_speed, q, r);
+          colour = if sp > 0 { tiles::rgb(60 + 8 * sp, 130 + 6 * sp, 210) } else { tiles::rgb(92, 120, 138) };
+        }
         for rm in p.rooms { for o in rm.openings { if o.q == q && o.r == r { colour = tiles::rgb(224, 190, 120); } } }
         for e in g.field_exits { if on_town(g) && e.q == q && e.r == r { colour = tiles::rgb(60, 50, 60); } }
       }

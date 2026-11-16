@@ -777,7 +777,40 @@ sky are spots on the ground.  The game turns it on (`TW_SQUARE=1` plays the squa
   (people, creatures, loose things); the ground is flat to the rules; outdoors is drawn plainly
   from above and the 3D view stands down there; hexes under a bay window are open ground.
 
-◇ Next: water that flows (owner: tonight, once the town works).  The steps below were written before these rulings:
+**Built, water that flows, in the town's river** (owner, 2026-11-16: "make water flow through the
+river, keep the current river bed and allow it to get stale enough for the initial situation";
+`water.loft`, `tests/water.loft`, game.loft `run_river`, `set_river`).
+- The routine, worked out when the scene changes and kept: from every hex where water may be,
+  the way to an outlet that climbs least (down a slope the way down; over flat ground and
+  through a hollow the shortest way to where the water gets out — so a pond has a way through
+  it); a hollow holds standing water up to its way out; the supply goes from the source hex by
+  hex down the bed's whole width and is used up as it goes, the bed beyond it dry; depth is the
+  hollow's and a sheet the supply makes, so a full river reaches up its banks; speed is the drop
+  and the supply still there, and where water passes never less than 1.  Water that was there
+  before and is not reached stands stale.
+- In Orbury: the bed is the ground's as it is (289 hexes, level from end to end), the water
+  given at its west end and leaving at its east (◇ which end is its head is my choice: the bed
+  has no fall to tell).  As the town starts the river is given nothing: only its 17 hexes of
+  pool are wet, stale — the town as it was.  Given water (`set_river`; `TW_RIVER=N` at the
+  start) it runs the bed from end to end, a floating thing let go at the west end comes out at
+  the east, and where it runs fast enough it carries the hero along; water over 0.7 m deep is
+  not waded into, but the river takes a body there.
+- Not yet: anything in play that changes the river (a lock, the pump, rain); things that float;
+  water off the river's bed (the mine, the flooded hall); the wet bed seen in 3D.
+
+- **Waterfalls that leave the rock** (owner's question, 2026-11-16: would the model allow
+  "waterfalls that do not stick to the rockface when that curves back"; not to be tried until
+  the underground mines are there).  ◇ Yes, by one more rule of the kind the marbles have: water
+  coming to a drop has a heading and a speed, and over a drop higher than a step it is let
+  fall — it lands not on the hex below the lip but as far out along its heading as its speed
+  carries it in the time the fall takes.  The lip is paired with the hex it lands on when the
+  water is worked out, as a door is with the hex before it; the hexes between are dry — a way
+  behind the fall.  More water is faster water, so a fuller stream falls further out: a lever
+  for a puzzle.  Outdoors the ground has one height a hex and cannot hold the overhang itself,
+  only the dry strip behind the fall; under ground, with layers, the fall passes through the
+  open cells between, and what stands in them is struck by it.
+
+◇ Next: a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
 

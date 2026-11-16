@@ -87,8 +87,14 @@ pub struct Room {
 /// thing stands on a hex (0 for none), which hexes hold what does not move (a tree), and the
 /// fences on the edges between hexes.
 pub struct Ground {
-  /// What the ground is, hex by hex (hexterrain's kinds: grass, path, water ...).
+  /// What the ground is, hex by hex (hexterrain's kinds: grass, path, water ...), and how high.
   pub kinds: hex_field::Labels,
+  pub heights: hex_field::Heights,
+  /// The water on it, as it was last worked out (water.loft): how deep it stands (0: dry), the
+  /// heading it runs (-1: still) and how fast (0: stale).
+  pub depth: hex_field::Heights,
+  pub flow_way: hex_field::Labels,
+  pub flow_speed: hex_field::Labels,
   pub under: hex_field::Labels,
   pub things: hex_field::Labels,
   pub fixed: hex_field::HexSet,
@@ -96,12 +102,14 @@ pub struct Ground {
 }
 
 pub fn ground(q0: integer, r0: integer, w: integer, h: integer) -> Ground {
-  g = Ground { kinds: hex_field::labels_new(q0, r0, w, h), under: hex_field::labels_new(q0, r0, w, h), things: hex_field::labels_new(q0, r0, w, h),
+  g = Ground { kinds: hex_field::labels_new(q0, r0, w, h), heights: hex_field::heights_new(q0, r0, w, h), depth: hex_field::heights_new(q0, r0, w, h),
+               flow_way: hex_field::labels_new(q0, r0, w, h), flow_speed: hex_field::labels_new(q0, r0, w, h), under: hex_field::labels_new(q0, r0, w, h), things: hex_field::labels_new(q0, r0, w, h),
                fixed: hex_field::hexset_chunk(q0, r0, w, h), fences: hex_field::edgeset_new(q0, r0, w, h) };
   for r in r0..r0 + h {
     for q in q0..q0 + w {
       hex_field::label_set(g.things, q, r, 0);
       hex_field::label_set(g.kinds, q, r, 0);
+      hex_field::label_set(g.flow_speed, q, r, 0);
     }
   }
   g

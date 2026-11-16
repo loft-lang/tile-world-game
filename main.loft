@@ -222,6 +222,9 @@ fn main() {
   // a town with a hex version plays on the new rules: its outdoors hex ground, its houses rooms on
   // it (TW_SQUARE=1: on its square map, as before)
   game.town_rules = (env_variable("TW_SQUARE") ?? "") == "";
+  // TW_RIVER=N: the town's river given N of water at its head (0, the town as it starts: its bed
+  // dry but for stale pools)
+  game.river = (env_variable("TW_RIVER") ?? "") as integer ?? 0;
   shot = env_variable("TW_SHOT") ?? "";
   if shot != "" {
     picture(game, shot);

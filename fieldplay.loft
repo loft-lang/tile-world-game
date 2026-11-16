@@ -33,6 +33,10 @@ use tile_world;
 use rules;
 use gridroom;
 
+/// The deepest water a figure wades, in metres, and the least speed of water that carries it along.
+pub const WADE = 0.7;
+pub const CARRY = 3;
+
 /// The field as it is played: the ground, the rooms on it, where the hero's body is (metres) and
 /// which way it faces, which room it is in (-1: on the ground) and the time (milliseconds).
 pub struct Play {
@@ -46,7 +50,9 @@ pub struct Play {
   pub clock: integer = 0,
   /// How far the body went, in metres, and how many steps were refused.
   pub walked: float = 0.0,
-  pub refused: integer = 0
+  pub refused: integer = 0,
+  /// How far running water carried it, in metres.
+  pub swept: float = 0.0
 }
 
 /// A field of hexes with nothing on it.
@@ -78,7 +84,7 @@ pub fn hero_tile(p: const Play) -> (integer, integer, integer) {
 }
 
 // The body to (nx, ny) while it is on the ground.  Answers whether it went.
-fn ground_to(p: Play, nx: float, ny: float) -> boolean {
+fn ground_to(p: Play, nx: float, ny: float, swept: boolean = false) -> boolean {
   (q, r) = hexterrain::cell_near(p.x, p.y);
   (tq, tr) = hexterrain::cell_near(nx, ny);
   if tq == q && tr == r { return true; }
@@ -109,7 +115,8 @@ fn ground_to(p: Play, nx: float, ny: float) -> boolean {
     }
     return false;
   }
-  if hex_field::hexset_get(p.ground.fixed, tq, tr) || hex_field::label_get(p.ground.kinds, tq, tr) == hexterrain::WATER { return false; }
+  // what does not move; and water too deep to wade into (the water itself takes a body there)
+  if hex_field::hexset_get(p.ground.fixed, tq, tr) || (!swept && hex_field::height_get(p.ground.depth, tq, tr) > WADE) { return false; }
   // the step from a hex to the one beside it: a fence between them stops it
   if hex_field::edge_mat(p.ground.fences, q, r, tq, tr) != 0 { return false; }
   if hex_field::label_get(p.ground.things, tq, tr) != 0 {
@@ -159,6 +166,28 @@ fn room_to(p: Play, nx: float, ny: float) -> boolean {
   step != rules::Step.Blocked && (rm.level.hero_x != hx || rm.level.hero_y != hy)
 }
 
+// Water that runs fast enough takes the body with it: along the water's way, as far as that
+// speed goes in `ms` (a speed is the height a thing could climb, a unit 0.15 m: it goes as fast as
+// a thing fallen that far).  What refuses a step refuses this one too.  Answers whether it moved.
+fn carried(p: Play, ms: integer) -> boolean {
+  (q, r) = hexterrain::cell_near(p.x, p.y);
+  speed = hex_field::label_get(p.ground.flow_speed, q, r);
+  way = hex_field::label_get(p.ground.flow_way, q, r);
+  if speed < CARRY || way < 0 { return false; }
+  (wx, wy) = gridroom::way(way);
+  far = (sqrt(2.0 * 9.81 * 0.15 * (speed as float)) ?? 0.0) * (ms as float) / 1000.0;
+  nx = p.x + wx * far;
+  ny = p.y + wy * far;
+  if !ground_to(p, nx, ny, true) || p.room >= 0 {
+    p.room = -1;
+    return false;
+  }
+  p.x = nx;
+  p.y = ny;
+  p.swept += far;
+  true
+}
+
 /// The hero walks: the body moves `ms` worth along the direction (dx, dy) — any direction, in the
 /// world's own space, x east and y north — at the walking pace, and the clock runs `ms`.  Answers
 /// whether the body moved.
@@ -171,6 +200,7 @@ pub fn roam(p: Play, dx: float, dy: float, ms: integer) -> boolean {
     left -= part;
     p.clock += part;
     if p.room >= 0 { rules::tick(p.rooms[p.room]!.level, part); }
+    if p.room < 0 && carried(p, part) { moved = true; }
     if long < 0.000001 { continue; }
     p.face_x = dx / long ?? 0.0;
     p.face_y = dy / long ?? 0.0;

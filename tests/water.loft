@@ -1,0 +1,93 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Where water goes (water.loft): a bed made for it — a slope, a hollow that is a pond, a flat
+// stretch — with no supply, a little and plenty.
+use hex_field;
+use hexterrain;
+use water;
+
+// A bed three hexes wide along row 0 from q = 0 to 40, falling 0.05 m a hex over its first ten
+// hexes, a hollow 0.6 m deep from 14 to 19, then flat; its side rows 0.3 m higher (its banks).
+// Two hexes of old water at 30.
+fn bed() -> (hex_field::Heights, hex_field::HexSet, hex_field::HexSet) {
+  heights = hex_field::heights_new(-2, -4, 46, 9);
+  open = hex_field::hexset_chunk(-2, -4, 46, 9);
+  pools = hex_field::hexset_chunk(-2, -4, 46, 9);
+  for q in 0..41 {
+    floor = if q < 10 { 2.0 - 0.05 * (q as float) } else if q >= 14 && q < 20 { 0.9 } else { 1.5 };
+    for r in -1..2 {
+      hex_field::hexset_set(open, q, r, true);
+      hex_field::height_set(heights, q, r, floor + (if r == 0 { 0.0 } else { 0.3 }));
+    }
+  }
+  hex_field::hexset_set(pools, 30, 0, true);
+  hex_field::hexset_set(pools, 31, 0, true);
+  (heights, open, pools)
+}
+
+fn outlets() -> vector<(integer, integer)> { [(40, -1), (40, 0), (40, 1)] }
+
+// With no supply the bed is dry but for the water that was there, and that stands still.
+fn test_with_no_supply_only_the_old_pools_and_stale() {
+  (heights, open, pools) = bed();
+  wa = water::flow(heights, open, pools, 0, 0, 0, outlets());
+  assert(wa.wet == 2 && wa.running == 0 && !wa.out, "two hexes of old water, none running: {wa.wet} {wa.running}");
+  assert(hex_field::height_get(wa.depth, 30, 0) == water::POOL && hex_field::label_get(wa.speed, 30, 0) == 0 && hex_field::label_get(wa.way, 30, 0) < 0, "the pool stale");
+  assert(hex_field::height_get(wa.depth, 5, 0) == 0.0, "the bed dry");
+}
+
+// A little supply wets the bed a stretch down from the source and gives out; more goes further;
+// each hex wet with a little is wet with more.
+fn test_the_supply_runs_out_down_the_bed() {
+  (heights, open, pools) = bed();
+  last = 0;
+  reach = -1;
+  for rate in [5, 12, 40, 200, 2000] {
+    wa = water::flow(heights, open, pools, 0, 0, rate, outlets());
+    far = -1;
+    for q in 0..41 { if hex_field::label_get(wa.speed, q, 0) > 0 { far = q; } }
+    assert(wa.running >= last && far >= reach, "rate {rate}: no less wet than with less: {wa.running} hexes running, to q {far}");
+    last = wa.running;
+    reach = far;
+    for q in 0..far + 1 { assert(hex_field::label_get(wa.speed, q, 0) > 0 && hex_field::height_get(wa.depth, q, 0) > 0.0, "rate {rate}: the bed's middle wet all the way to q {far}: dry at {q}"); }
+  }
+  small = water::flow(heights, open, pools, 0, 0, 5, outlets());
+  assert(small.running <= 5 && !small.out, "five units wet five hexes at the most: {small.running}");
+  assert(reach == 40 && last > 100, "plenty reaches the end, banks and all: to q {reach}, {last} hexes");
+}
+
+// Plenty of water: it runs the way down — east along the bed, each hex's way to a hex nearer the
+// outlet — faster on the slope than on the flat; the hollow is a pond 0.6 m deep that keeps a
+// little speed, and a thing that floats let go at the top ends up at the outlet, past the pond.
+fn test_a_full_river_runs_through_its_pond() {
+  (heights, open, pools) = bed();
+  wa = water::flow(heights, open, pools, 0, 0, 3000, outlets());
+  assert(wa.out, "it reaches the outlet");
+  for q in 0..40 {
+    assert(hex_field::label_get(wa.way, q, 0) == 0, "at q {q} the water runs east: heading {hex_field::label_get(wa.way, q, 0)}");
+  }
+  slope = hex_field::label_get(wa.speed, 37, 0);
+  assert(hex_field::label_get(wa.speed, 9, 0) > slope || slope == water::FASTEST, "faster where it runs down: {hex_field::label_get(wa.speed, 9, 0)} against {slope} on the flat near the end");
+  for q in 14..20 {
+    assert(hex_field::height_get(wa.depth, q, 0) >= 0.6 && hex_field::label_get(wa.speed, q, 0) >= 1, "the pond at q {q}: {hex_field::height_get(wa.depth, q, 0)} m deep, speed {hex_field::label_get(wa.speed, q, 0)}");
+  }
+  assert(hex_field::height_get(wa.depth, 25, 0) < 0.65 && hex_field::height_get(wa.depth, 25, 0) > 0.0, "a sheet on the flat: {hex_field::height_get(wa.depth, 25, 0)} m");
+  assert(hex_field::label_get(wa.speed, 30, 0) >= 1, "the old pool runs with the river now");
+  (eq, er) = water::drift(wa, 0, 0, 100);
+  assert(eq == 40, "a beam let go at the top ends at the outlet, past the pond: ({eq}, {er})");
+  // the same again: the same water
+  again = water::flow(heights, open, pools, 0, 0, 3000, outlets());
+  for q in 0..41 { for r in -1..2 { assert(hex_field::label_get(again.speed, q, r) == hex_field::label_get(wa.speed, q, r) && hex_field::height_get(again.depth, q, r) == hex_field::height_get(wa.depth, q, r), "the same water at ({q}, {r})"); } }
+}
+
+// A supply that does not fill the hollow stops in it: the pond is part full, nothing beyond it wet.
+fn test_a_hollow_holds_the_water_until_it_is_full() {
+  (heights, open, pools) = bed();
+  // 14 hexes of bed before the hollow take 14 units and more; the hollow's 6 hexes 0.6 m deep take 5 each
+  wa = water::flow(heights, open, pools, 0, 0, 30, outlets());
+  beyond = 0;
+  for q in 20..30 { if hex_field::height_get(wa.depth, q, 0) > 0.0 { beyond += 1; } }
+  assert(!wa.out && beyond == 0, "nothing beyond the hollow: {beyond} hexes wet");
+  assert(hex_field::height_get(wa.depth, 14, 0) > 0.0, "water in the hollow: {hex_field::height_get(wa.depth, 14, 0)} m");
+}
