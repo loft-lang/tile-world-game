@@ -814,6 +814,13 @@ river, keep the current river bed and allow it to get stale enough for the initi
     the ground keeps one height a hex, and where a face curves back a stretch of it gets layers
     of its own, as a room has: the overhang is there, and nowhere else pays for it.
 
+- **Any place could become a door** (owner, 2026-11-16: "any place could potentially become a
+  door, with a pick-axe and a lot of time on your hands").  ◇ The rules allow it as they stand:
+  a room's ways out are found from the room itself (formal RG-Opening), so a wall dug through is
+  a way out the next time they are found.  What it asks is that digging is a change of the scene
+  like a lock opening: the room's openings and the hexes before them found anew, and the water
+  worked out anew — a wall dug through beside the river lets the river in.
+
 ◇ Next: a lock or the pump changing the river in play; water in the mine.  The steps below were written before these rulings:
 step 2 stands (the rules ask the world for the next cell, and now the heading with it); steps 3
 and 4 are for the open ground only, and a place's rooms are placed, not filled into hex.
