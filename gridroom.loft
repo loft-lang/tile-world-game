@@ -25,8 +25,12 @@
 // (owner).  `rim` gives what stands round a room, side by side; `sees` whether one point sees
 // another past the room's walls and hedges, over its low walls.
 //
+// A room has layers: a bridge is tiles a layer up over a path, reached by stairs.  `walk_from`
+// asks the room's rules where a step leads, layer and all; `reached` and `one_hand` walk a maze.
+//
 // What this is not yet: the game's play (the hero, the view and the clock still run on one square
-// place); more than one thing on a hex; a fence at the corner a thing leaves by.
+// place); more than one thing on a hex; a fence at the corner a thing leaves by; a way out of a
+// room on a layer over its own.
 use hex_field;
 use hex_form;
 use hexterrain;
@@ -254,24 +258,22 @@ pub fn rim(rm: const Room) -> vector<RimSide> {
 
 /// A layer's height in steps (a hedge's and a wall's; kinds.json's `over`).
 pub const LAYER = 4;
-
-// Is the edge on side (dx, dy) of tile (x, y) no higher than an eye `up` steps over the floor.
-fn seen_over(rm: const Room, x: integer, y: integer, dx: integer, dy: integer, up: integer) -> boolean {
-  if up >= LAYER { return true; }
-  over = rules::over_between(rm.level, x, y, rm.z, dx, dy);
-  over > 0 && over <= up
-}
+/// How high an eye is over the floor it stands on, in steps (1.6 m of a layer's 2.6), and how
+/// high over its floor the spot looked at is (a figure's or a thing's middle).
+pub const EYE = 2.5;
+pub const AIM = 1.0;
 
 /// Is (bx, by) seen from (ax, ay), both in metres, as far as this room goes: the straight line
-/// between them, in the world's own space, crosses no tile of the room that stops sight and no
-/// edge of it that does — its walls and hedges, on its rim and inside it.  The tiles the two ends
-/// lie on do not count.  A low wall is seen over; a doorway and a gate are seen through.
+/// from the eye to the spot, in the world's own space, crosses nothing of the room that stops
+/// sight at the height the line has there.
 ///
-/// `up`: how many steps over the room's floor the eye is (0 on the floor; `LAYER` on a bridge or
-/// a platform a layer up).  A low wall and a low hedge are seen over from the floor already (they
-/// stop a step, not sight); a hedge and a wall stop sight from the floor and are seen over from a
-/// layer up — the overview a maze gives from its high places and not from its paths.
-pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, up: integer = 0) -> boolean {
+/// `eye` and `aim` are heights in steps over the room's own floor (its layer `z`): an eye on the
+/// floor is at `EYE`, one on a bridge a layer up at `LAYER + EYE`.  What stops sight: a tile that
+/// does (a wall), for its layer's whole height; an edge that does (a wall, a hedge), as high as it
+/// is; and a floor the line passes through (a bridge seen from below, the ground under a bridge
+/// seen from on it).  A low wall and a low hedge stop a step, not sight.  The tiles the two ends
+/// lie on do not count.  So a maze is overlooked from its high places and not from its paths.
+pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, eye: float = EYE, aim: float = AIM) -> boolean {
   (ex, ey) = way(rm.turn);
   (sx, sy) = way(rm.turn + 9);
   u0 = ((ax - rm.ox) * ex + (ay - rm.oy) * ey) / TILE;
@@ -284,6 +286,16 @@ pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, up: inte
   j = round(v0) as integer;
   ei = round(u1) as integer;
   ej = round(v1) as integer;
+  layer = LAYER as float;
+  l0 = floor(eye / layer ?? 0.0) as integer;
+  l1 = floor(aim / layer ?? 0.0) as integer;
+  // a floor between the eye's layer and the spot's, where the line passes its height
+  for lv in (if l0 < l1 { l0 } else { l1 }) + 1..(if l0 < l1 { l1 } else { l0 }) + 1 {
+    t = ((lv as float) * layer - eye) / (aim - eye) ?? 0.0;
+    fi = round(u0 + t * du) as integer;
+    fj = round(v0 + t * dv) as integer;
+    if fi >= 0 && fj >= 0 && fi < rm.w && fj < rm.h && tile_world::terrain(rm.level.w, fi, fj, rm.z + lv) != rules::VOID { return false; }
+  }
   su = if du > 0.0 { 1 } else { -1 };
   sv = if dv > 0.0 { 1 } else { -1 };
   far = 1000000.0;
@@ -291,21 +303,109 @@ pub fn sees(rm: const Room, ax: float, ay: float, bx: float, by: float, up: inte
   tv = if dv == 0.0 { far } else { ((j as float) + 0.5 * (sv as float) - v0) / dv };
   for _n in 0..4 * (rm.w + rm.h) + 2000 {
     if (i == ei && j == ej) || (tu > 1.0 && tv > 1.0) { return true; }
+    t = if tu <= tv { tu } else { tv };
     sdx = if tu <= tv { su } else { 0 };
     sdy = if tu <= tv { 0 } else { sv };
     here = i >= 0 && j >= 0 && i < rm.w && j < rm.h;
     ni = i + sdx;
     nj = j + sdy;
     there = ni >= 0 && nj >= 0 && ni < rm.w && nj < rm.h;
+    // the layer the line is on where it crosses, and how high over that layer's floor
+    high = eye + t * (aim - eye);
+    lv = floor(high / layer ?? 0.0) as integer;
+    over = high - (lv as float) * layer;
+    z = rm.z + lv;
     // the edge between the two tiles, asked of whichever is the room's
-    if here && !tile_world::see_through(rm.level.w, i, j, rm.z, sdx, sdy) && !seen_over(rm, i, j, sdx, sdy, up) { return false; }
-    if !here && there && !tile_world::see_through(rm.level.w, ni, nj, rm.z, -sdx, -sdy) && !seen_over(rm, ni, nj, -sdx, -sdy, up) { return false; }
-    if there && !(ni == ei && nj == ej) && up < LAYER && tile_world::opaque(rm.level.w, ni, nj, rm.z) { return false; }
+    if here && edge_stops(rm, i, j, z, sdx, sdy, over) { return false; }
+    if !here && there && edge_stops(rm, ni, nj, z, -sdx, -sdy, over) { return false; }
+    if there && !(ni == ei && nj == ej && lv == l1) && tile_world::opaque(rm.level.w, ni, nj, z) { return false; }
     if tu <= tv { tu += 1.0 / (if du < 0.0 { -du } else { du }); } else { tv += 1.0 / (if dv < 0.0 { -dv } else { dv }); }
     i = ni;
     j = nj;
   }
   true
+}
+
+// Does the edge on side (dx, dy) of tile (x, y, z) stop a line of sight `over` steps over that
+// layer's floor: an edge sight does not pass, as high as it is (a wall the layer's whole height).
+fn edge_stops(rm: const Room, x: integer, y: integer, z: integer, dx: integer, dy: integer, over: float) -> boolean {
+  if tile_world::see_through(rm.level.w, x, y, z, dx, dy) { return false; }
+  high = rules::over_between(rm.level, x, y, z, dx, dy);
+  over < (if high > 0 { high } else { LAYER }) as float
+}
+
+// ── walking, by the room's rules ────────────────────────────────────────────
+
+/// Where a walker on tile (x, y, z) of the room comes by one step (dx, dy), as the room's own
+/// rules have it: (moved, x, y, z).  Stairs take it to the same tile a layer up or down, so a
+/// bridge is walked over and the path under it walked under, each on its own layer.  For a place
+/// with nothing in the walker's way to push.
+pub fn walk_from(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> (boolean, integer, integer, integer) {
+  rm.level.hero_x = x;
+  rm.level.hero_y = y;
+  rm.level.hero_z = z;
+  rm.level.hero_h = 0;
+  rules::walk(rm.level, dx, dy);
+  (rm.level.hero_x != x || rm.level.hero_y != y || rm.level.hero_z != z, rm.level.hero_x, rm.level.hero_y, rm.level.hero_z)
+}
+
+/// Can tile (gx, gy, gz) be walked to from (x, y, z), on the room's layers.
+pub fn reached(rm: Room, x: integer, y: integer, z: integer, gx: integer, gy: integer, gz: integer) -> boolean {
+  qx: vector<integer> = [x];
+  qy: vector<integer> = [y];
+  qz: vector<integer> = [z];
+  at = 0;
+  while at < len(qx) {
+    cx = qx[at] ?? 0;
+    cy = qy[at] ?? 0;
+    cz = qz[at] ?? 0;
+    at += 1;
+    if cx == gx && cy == gy && cz == gz { return true; }
+    for s in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
+      n = walk_from(rm, cx, cy, cz, s.0, s.1);
+      if !n.0 { continue; }
+      seen = false;
+      for i in 0..len(qx) { if qx[i] == n.1 && qy[i] == n.2 && qz[i] == n.3 { seen = true; } }
+      if !seen {
+        qx += [n.1];
+        qy += [n.2];
+        qz += [n.3];
+      }
+    }
+  }
+  false
+}
+
+/// Does a walker who keeps one hand on the wall (`left`, else the right) come from (x, y, z),
+/// setting out along (dx, dy), to (gx, gy, gz): at every tile it tries the way on its hand's side
+/// first, then straight on, then the other side, then back.  A maze this answers true for is
+/// walked through without a thought; bridges over other walkways, and paths that hang on no
+/// wall, are what make it answer false (owner, 2026-11-16).
+pub fn one_hand(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: integer,
+                gx: integer, gy: integer, gz: integer, left: boolean) -> boolean {
+  seen: vector<integer> = [];
+  for _n in 0..16 * rm.w * rm.h * 4 {
+    if x == gx && y == gy && z == gz { return true; }
+    key = (((z + 8) * 64 + y) * 64 + x) * 4 + (if dx > 0 { 0 } else if dy < 0 { 1 } else if dx < 0 { 2 } else { 3 });
+    if seen.contains(key) { return false; }
+    seen += [key];
+    // the hand's side, straight on, the other side, back (a tile's y runs south)
+    hand = if left { (dy, -dx) } else { (-dy, dx) };
+    moved = false;
+    for s in [hand, (dx, dy), (-hand.0, -hand.1), (-dx, -dy)] {
+      if moved { continue; }
+      n = walk_from(rm, x, y, z, s.0, s.1);
+      if !n.0 { continue; }
+      moved = true;
+      x = n.1;
+      y = n.2;
+      z = n.3;
+      dx = s.0;
+      dy = s.1;
+    }
+    if !moved { return false; }
+  }
+  false
 }
 
 // ── placing a room ──────────────────────────────────────────────────────────
@@ -417,9 +517,24 @@ fn hex_move(g: Ground, q: integer, r: integer, tq: integer, tr: integer, how: in
   Move { how: how, q: tq, r: tr, heading: heading, metres: far, ms: ms_of(far) }
 }
 
-/// Push the thing on tile (x, y) of the room one step (dx, dy).  On through an opening it goes
-/// out onto the ground; else the room's own rules move it, the hero stepping after it.
-pub fn push_in_room(g: Ground, rm: Room, x: integer, y: integer, dx: integer, dy: integer) -> Move {
+// A push on a layer over the room's own (a bridge, an upper floor): by the room's rules alone —
+// what is pushed off an edge up there falls as the rules have it, inside the room.
+fn push_up(rm: Room, x: integer, y: integer, z: integer, dx: integer, dy: integer) -> Move {
+  thing = tile_world::top(rm.level.w, x, y, z);
+  rm.level.hero_x = x - dx;
+  rm.level.hero_y = y - dy;
+  rm.level.hero_z = z;
+  rm.level.hero_h = 0;
+  step = rules::walk(rm.level, dx, dy);
+  if thing == 0 || step != rules::Step.Pushed { return Move { how: BLOCKED, room: true, x: x, y: y }; }
+  Move { how: INSIDE, room: true, x: x + dx, y: y + dy, heading: room_heading(rm, dx, dy), metres: TILE, ms: ms_of(TILE) }
+}
+
+/// Push the thing on tile (x, y) of the room one step (dx, dy), `up` layers over the room's own
+/// (0: on its floor).  On its floor, on through an opening, it goes out onto the ground; else the
+/// room's own rules move it, the hero stepping after it.
+pub fn push_in_room(g: Ground, rm: Room, x: integer, y: integer, dx: integer, dy: integer, up: integer = 0) -> Move {
+  if up != 0 { return push_up(rm, x, y, rm.z + up, dx, dy); }
   thing = tile_world::top(rm.level.w, x, y, rm.z);
   if thing == 0 { return Move { how: BLOCKED, room: true, x: x, y: y }; }
   for o in rm.openings {

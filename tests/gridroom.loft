@@ -296,7 +296,7 @@ fn test_what_is_seen_past_a_rooms_walls_and_hedges() {
     assert(!gridroom::sees(maze, c.0, c.1, d.0, d.1) && !gridroom::sees(maze, d.0, d.1, c.0, c.1), "at {30 * turn}: not through the hedge");
     assert(gridroom::sees(maze, c.0, c.1, a.0, a.1), "at {30 * turn}: along the hedge on one side of it");
     // from a high place the maze is overlooked: over the hedge from a layer up, not from two steps
-    assert(gridroom::sees(maze, c.0, c.1, d.0, d.1, gridroom::LAYER) && !gridroom::sees(maze, c.0, c.1, d.0, d.1, 2), "at {30 * turn}: over the hedge from a layer up only");
+    assert(gridroom::sees(maze, c.0, c.1, d.0, d.1, (gridroom::LAYER as float) + gridroom::EYE) && !gridroom::sees(maze, c.0, c.1, d.0, d.1, 3.9), "at {30 * turn}: over the hedge from a layer up only");
     out_gate = gridroom::tile_centre(maze, 14.0, 3.0);
     out_side = gridroom::tile_centre(maze, 14.0, 0.0);
     assert(gridroom::sees(maze, out_gate.0, out_gate.1, b.0, b.1) && gridroom::sees(maze, out_gate.0, out_gate.1, a.0, a.1), "at {30 * turn}: in through the gate, and on through the gap");
@@ -329,4 +329,94 @@ fn test_what_is_seen_past_a_rooms_walls_and_hedges() {
     slant = gridroom::tile_centre(rm, 4.0, 1.0);
     assert(gridroom::sees(rm, step.0, step.1, slant.0, slant.1), "at {30 * turn}: and at a slant through it");
   }
+}
+
+// ── layers: a bridge over another walkway ───────────────────────────────────
+
+fn layered(rows0: text, rows1: text, edges: const vector<text>, w: integer, h: integer, turn: integer) -> gridroom::Room {
+  k = rules::kinds();
+  raw = "{{\"name\": \"a place\", \"camera\": \"follow\", \"legend\": {{\".\": \"floor\", \"<\": \"stairs_up\", \">\": \"stairs_down\"}}, \"ground\": [], \"chunks\": [{{\"cx\": 0, \"cy\": 0, \"z\": 0, \"rows\": [{rows0}]}}, {{\"cx\": 0, \"cy\": 0, \"z\": 1, \"rows\": [{rows1}]}}], \"things\": [], \"tiles\": [], \"edges\": [{edges_text(edges)}], \"rises\": [], \"doors\": []}}";
+  lf = levels::load_with(raw, k, materials::load(file("../theme.json").content() ?? "", k));
+  if !lf { assert(false, "the place loads"); }
+  gridroom::Room { level: lf!.level, w: w, h: h, z: 0, turn: turn }
+}
+
+// A terrace of nine tiles by five behind a hedge, a hedge across it between columns 4 and 5 with
+// no gap, and a bridge along row `row`: stairs up at column 2, over the hedge, stairs down at
+// column 6; a low wall along both sides of the bridge.
+fn bridged(row: integer, turn: integer) -> gridroom::Room {
+  rows0 = "";
+  rows1 = "";
+  for y in 0..5 {
+    rows0 += (if y == 0 { "" } else { ", " }) + (if y == row { "\"..<...<..\"" } else { "\".........\"" });
+    rows1 += (if y == 0 { "" } else { ", " }) + (if y == row { "\"  >...>\"" } else { "\"\"" });
+  }
+  edges = rim_edges(9, 5, "hedge", -1);
+  for y in 0..5 { edges += ["[5, {y}, 0, \"W\", \"hedge\"]"]; }
+  for x in 2..7 {
+    edges += ["[{x}, {row}, 1, \"N\", \"low_wall\"]"];
+    edges += ["[{x}, {row + 1}, 1, \"N\", \"low_wall\"]"];
+  }
+  layered(rows0, rows1, edges, 9, 5, turn)
+}
+
+// The bridge is walked over and the walkway under it walked under, each on its own layer, by the
+// room's own rules: up the stairs, along the bridge a layer up, down the stairs beyond the hedge;
+// and north to south across the same tiles on the ground.
+fn test_a_bridge_is_walked_over_and_under() {
+  rm = bridged(2, 0);
+  at = (1, 2, 0);
+  want = [(2, 2, 1), (3, 2, 1), (4, 2, 1), (5, 2, 1), (6, 2, 0), (7, 2, 0)];
+  for wnt in want {
+    n = gridroom::walk_from(rm, at.0, at.1, at.2, 1, 0);
+    assert(n.0 && n.1 == wnt.0 && n.2 == wnt.1 && n.3 == wnt.2, "east from ({at.0}, {at.1}, {at.2}): ({n.1}, {n.2}, {n.3}), wanted ({wnt.0}, {wnt.1}, {wnt.2})");
+    at = (n.1, n.2, n.3);
+  }
+  // under it, on the ground: the tile below the bridge is its own place
+  n = gridroom::walk_from(rm, 3, 1, 0, 0, 1);
+  assert(n.0 && n.1 == 3 && n.2 == 2 && n.3 == 0, "south under the bridge: ({n.1}, {n.2}, {n.3})");
+  n = gridroom::walk_from(rm, 3, 2, 0, 0, 1);
+  assert(n.0 && n.2 == 3 && n.3 == 0, "and out the other side");
+  // not off the bridge's side, not through the hedge under it
+  n = gridroom::walk_from(rm, 4, 2, 1, 0, 1);
+  assert(!n.0, "not off the bridge's side: ({n.1}, {n.2}, {n.3})");
+  n = gridroom::walk_from(rm, 4, 2, 0, 1, 0);
+  assert(!n.0, "not through the hedge on the ground");
+  assert(gridroom::reached(rm, 0, 0, 0, 8, 4, 0), "beyond the hedge is reached, by the bridge");
+}
+
+// What is seen where layers cross, at every angle: under the bridge along the walkway; from the
+// ground up to one standing on the bridge; from the bridge over the hedge that hides the far
+// side from the ground; and not down through the bridge's own floor.
+fn test_what_is_seen_over_and_under_a_bridge() {
+  for turn in 0..12 {
+    g = field();
+    rm = bridged(2, turn);
+    gridroom::place_room(g, rm, 0, 1.0, 1.0);
+    up = (gridroom::LAYER as float);
+    north = gridroom::tile_centre(rm, 3.0, 0.0);
+    south = gridroom::tile_centre(rm, 3.0, 4.0);
+    on = gridroom::tile_centre(rm, 3.0, 2.0);
+    far_side = gridroom::tile_centre(rm, 7.0, 0.0);
+    assert(gridroom::sees(rm, north.0, north.1, south.0, south.1), "at {30 * turn}: under the bridge along the walkway");
+    assert(gridroom::sees(rm, north.0, north.1, on.0, on.1, gridroom::EYE, up + gridroom::AIM), "at {30 * turn}: from the ground up to one on the bridge");
+    assert(gridroom::sees(rm, on.0, on.1, north.0, north.1, up + gridroom::EYE, gridroom::AIM), "at {30 * turn}: and from the bridge down to the ground beside it");
+    assert(!gridroom::sees(rm, north.0, north.1, far_side.0, far_side.1), "at {30 * turn}: the hedge hides the far side from the ground");
+    assert(gridroom::sees(rm, on.0, on.1, far_side.0, far_side.1, up + gridroom::EYE, gridroom::AIM), "at {30 * turn}: and not from the bridge");
+    // the ground under the bridge's next tile, this side of the hedge: only the bridge's floor is between
+    under = gridroom::tile_centre(rm, 4.0, 2.0);
+    assert(!gridroom::sees(rm, on.0, on.1, under.0, under.1, up + gridroom::EYE, gridroom::AIM), "at {30 * turn}: not down through the bridge's own floor");
+  }
+}
+
+// One hand on the hedge.  With the bridge's stairs standing free in the middle of the court, a
+// walker keeping either hand on the hedge goes round and round and never comes beyond it, though
+// the way is there.  With the stairs against the hedge the same walker is led over.
+fn test_a_bridge_that_hangs_on_no_wall_beats_one_hand() {
+  free = bridged(2, 0);
+  assert(gridroom::reached(free, 0, 2, 0, 8, 2, 0), "the far side is reached");
+  assert(!gridroom::one_hand(free, 0, 2, 0, 1, 0, 8, 2, 0, true) && !gridroom::one_hand(free, 0, 2, 0, 1, 0, 8, 2, 0, false), "not by the left hand, not by the right");
+  along = bridged(0, 0);
+  assert(gridroom::reached(along, 0, 2, 0, 8, 2, 0), "with the bridge along the hedge the far side is reached");
+  assert(gridroom::one_hand(along, 0, 2, 0, 1, 0, 8, 2, 0, true) || gridroom::one_hand(along, 0, 2, 0, 1, 0, 8, 2, 0, false), "and by one hand");
 }

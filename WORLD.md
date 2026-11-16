@@ -599,10 +599,18 @@ or inside it; over a low wall; through a doorway, a gate or a gap.
     the floor: they stop a step, not sight (kinds.json: `low_wall`, `low_hedge`; `hedge` opaque).
   - ◇ Little sight range is the maze's own doing — high hedges and short straight stretches —
     and needs no rule of its own.
-  - ◇ Not built: a bridge.  It is tiles on the layer above crossing a path below, which the
-    room's rules have (layers, stairs); here a room is still placed and seen on one layer.  That
-    a maze is not solved by keeping a hand on one hedge is a check for a dealt maze: its paths,
-    with the bridges, do not all hang on one wall.
+  - Built, layers and a bridge (`gridroom.loft`): a bridge is tiles a layer up over a path,
+    reached by stairs, a low wall along its sides.  `walk_from` asks the room's own rules where
+    a step leads, layer and all: the bridge is walked over and the walkway under it walked under,
+    the same tiles on two layers.  `sees` works by height through the room: under a bridge along
+    the walkway; from the ground up to one on the bridge and back; from the bridge over a hedge
+    that hides the far side from the ground; not down through the bridge's own floor.
+  - Built, the check: `one_hand` walks a maze with one hand on the wall, `reached` says whether
+    there is a way at all.  A court with a hedge across it and a bridge whose stairs stand free
+    in its middle is reached and beats both hands; the same with the stairs against the hedge is
+    walked by one hand.  ◇ For a dealt maze: reached, and not by one hand.
+  - Not built: a way out of a room on a layer over its own (an upper floor's door onto a
+    terrace or a hillside); a thing pushed off a bridge is the room's rules' alone.
 - A thing pushed to the rim cannot be pushed back by a hero standing inside: the rules ask the
   hero to stand behind it, which is beyond the low wall.  It is pulled back, as in any room.
 
