@@ -413,12 +413,12 @@ Each library's way of showing and timing its routines, kept for the new files:
 - **Benches**, each row with its pure-Rust twin printing the same hash on the interpreter,
   natively and in Rust: `trace_edges` (hex_field), `parts_fill` (hex_shape), `cells_built` and
   `cells_outlines` (hex_draw), `cells_turn` and `seat_blend` (hex_place), `ground_terraces` and
-  `ground_height_at` (hex_ground).  The twins are a second writing of the routines — the whole
+  `ground_height_at` (hex_ground), first.  The twins are a second writing of the routines — the whole
   wall solver, the turn with its trigonometry, the surface reading — and they agreed to the bit
   at the first build, which is a check of the routines in its own right.
-- **Not done:** bench rows for the openings (`cells_place_opening`, `cells_openings`,
-  `marked_turn`), `ground_dig`, `ground_cliffs` and `ground_height_on`; they stand on rows that
-  are there.
+- And the rows that stand on those: `cells_openings` (hex_draw), `marked_turn` (hex_place),
+  `ground_dig`, `ground_cliffs` and `ground_height_on` (hex_ground) — thirteen rows in all, every
+  hash the same three ways.
 
 ## What the merge is for: round and eight-sided structures
 
