@@ -273,6 +273,9 @@ pub struct Game {
   pub field_go: integer = 0,
   pub field_exits: vector<FieldExit> = [],
   field_q: integer = 0,
+  /// The view shows a town's houses at their own angles (the fixed 3D view, one mesh): in a house
+  /// a key steps the way of the house's four that lies nearest the key's way on the screen.
+  pub town_keys: boolean = false,
   /// The one the body last walked into on a town's ground (its id; -1: none): spoken to once a
   /// contact, not every frame the key is held.
   field_met: integer = -1,
@@ -842,6 +845,20 @@ pub fn town_frame(g: const Game, i: integer) -> vector<single> {
 
 /// How far the hero's body has walked on the field's ground, in tiles: a view steps it by this.
 pub fn field_walked(g: const Game) -> single { (g.fplay.walked / gridroom::TILE) as single }
+
+/// The way a key's way (dx, dy) on the screen — east, south — is stepped in the house the hero is
+/// in, when the view shows the house at its angle (`town_keys`): the nearest of the house's four
+/// ways.  Its angles are steps of 30 degrees, so one of the four is always nearest.
+pub fn town_way(g: const Game, dx: integer, dy: integer) -> (integer, integer) {
+  if !g.town_keys || !on_town(g) || g.on_field || (dx == 0 && dy == 0) { return (dx, dy); }
+  m = town_frame(g, town_house(g, g.world.hero_x, g.world.hero_y));
+  if len(m) < 6 { return (dx, dy); }
+  mx = ((m[0] ?? 0.0 as single) as float) * (dx as float) + ((m[1] ?? 0.0 as single) as float) * (dy as float);
+  my = ((m[3] ?? 0.0 as single) as float) * (dx as float) + ((m[4] ?? 0.0 as single) as float) * (dy as float);
+  ax = if mx < 0.0 { 0.0 - mx } else { mx };
+  ay = if my < 0.0 { 0.0 - my } else { my };
+  if ax >= ay { (if mx > 0.0 { 1 } else { -1 }, 0) } else { (0, if my > 0.0 { 1 } else { -1 }) }
+}
 
 /// Where the hero's body is on a field's ground, in tiles of the town's map as it lies out of
 /// doors (east, south), and the way it faces there.
@@ -2819,6 +2836,7 @@ fn update_play(g: Game, ms: integer, now: integer) -> boolean {
   if g.on_field { return update_field(g, ms) || changed; }
   if g.free { return roam(g, ms) || changed; }
   d = direction(g, now);
+  d = town_way(g, d.0, d.1);
   if d.0 == 0 && d.1 == 0 { return changed; }
   // Locked on, S steps back once; held, it keeps the guard up rather than stepping again.
   if g.world.guard_back && back_held && d.0 == -lw.0 && d.1 == -lw.1 && !first_press(g) { return changed; }

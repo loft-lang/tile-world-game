@@ -228,3 +228,37 @@ fn test_the_town_goes_on_while_the_hero_is_out_on_its_ground() {
   }
   assert(tried == 1, "someone stands out of doors to walk into: {tried}");
 }
+
+// In a house shown at its own angle (the fixed 3D view: the town one mesh) a key steps the way of
+// the house's four that lies nearest the key's way on the screen (game::town_way): never more
+// than 30 degrees off, and the four keys four different ways.  Without `town_keys`, and out on
+// the ground, a key's way is its own.
+fn test_in_a_turned_house_a_key_steps_the_nearest_of_its_ways() {
+  g = town() ?? return;
+  parts = game::town_parts(g);
+  assert(game::town_way(g, 1, 0) == (1, 0), "out on the ground a key's way is its own");
+  g.on_field = false;
+  turned = 0;
+  for k in 0..len(parts) {
+    p = parts[k]!;
+    rm = g.fplay.rooms[k]!;
+    rules::put_hero(g.world, p.x0, p.y0, p.z);
+    g.town_keys = false;
+    assert(game::town_way(g, 0, -1) == (0, -1), "without the view asking, a key's way is its own");
+    g.town_keys = true;
+    here = gridroom::tile_centre(rm, p.x0 as float, p.y0 as float);
+    ways: vector<(integer, integer)> = [];
+    for key in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+      w = game::town_way(g, key.0, key.1);
+      assert((w.0 == 0) != (w.1 == 0), "one step of the house's four: ({w.0}, {w.1})");
+      there = gridroom::tile_centre(rm, (p.x0 + w.0) as float, (p.y0 + w.1) as float);
+      // on the screen east is right and north is up: the key's way on the ground is (dx, -dy)
+      along = ((there.0 - here.0) * (key.0 as float) - (there.1 - here.1) * (key.1 as float)) / gridroom::TILE;
+      assert(along > 0.86, "part {k} (turn {rm.turn}): key ({key.0}, {key.1}) steps ({w.0}, {w.1}), {along} along the key's way");
+      if !ways.contains(w) { ways += [w]; }
+    }
+    assert(len(ways) == 4, "four keys, four ways: {len(ways)}");
+    if rm.turn != 0 { turned += 1; }
+  }
+  assert(turned >= 4, "houses at their own angles among them: {turned}");
+}

@@ -15,7 +15,8 @@
 // is played on the new rules (its outdoors hex ground, its houses rooms on it): out on the ground a
 // move walks the body eight frames that way.  A `!` among the moves writes the frame of that
 // moment beside OUT, as OUT-1.png, OUT-2.png and so on; an `h` sets the body before the nearest
-// house's door (it is not walked there) and walks it in.
+// house's door (it is not walked there) and walks it in; a `j` first sets the body at TW_AT="x,y"
+// (metres east and north), to choose which house.
 use imaging;
 use tile_world;
 use rules;
@@ -101,6 +102,7 @@ fn main() {
   if !m { println("the game does not load"); exit(1); }
   g = m;
   g.town_rules = town;
+  g.town_keys = town;
   if !game::start_world(g, place) { println("no place {place} in levels/"); exit(1); }
   if night {
     // The clock to 22:00 of the same day.
@@ -130,6 +132,11 @@ fn main() {
         shot = out.replace(".png", "") + "-{shots}.png";
         println("{shot}: hero at ({g.world.hero_x}, {g.world.hero_y}, {g.world.hero_z}), on the ground {g.on_field}, written {save(place, v.px, shot)}");
       }
+      if d == "j" && g.on_field {
+        // the body set where TW_AT says (metres east, north), to pick the house `h` walks into
+        at = (env_variable("TW_AT") ?? "").split(',');
+        fieldplay::put_hero(g.fplay, (at[0] ?? "0") as float ?? 0.0, (at[1] ?? "0") as float ?? 0.0);
+      }
       if d == "h" && g.on_field {
         to = nearest_door(g);
         walk_x = to.0;
@@ -142,10 +149,10 @@ fn main() {
         if d == "a" { walk_x = -1.0; }
         if d == "d" { walk_x = 1.0; }
       } else {
-        if d == "w" { game::move(g, 0, -1, false); }
-        if d == "s" { game::move(g, 0, 1, false); }
-        if d == "a" { game::move(g, -1, 0, false); }
-        if d == "d" { game::move(g, 1, 0, false); }
+        // in a house at an angle a key steps the nearest of the house's four ways
+        key = if d == "w" { (0, -1) } else if d == "s" { (0, 1) } else if d == "a" { (-1, 0) } else if d == "d" { (1, 0) } else { (0, 0) };
+        stepped = game::town_way(g, key.0, key.1);
+        if stepped.0 != 0 || stepped.1 != 0 { game::move(g, stepped.0, stepped.1, false); }
       }
     }
     if g.on_field && (walk_x != 0.0 || walk_y != 0.0) { _ = game::field_walk(g, walk_x, walk_y, 16); }

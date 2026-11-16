@@ -874,15 +874,19 @@ goes flat out on Orbury's ground.
   faces, in pieces kept as tiles (`render3d::hex_pieces`) — and the hero where its body is.  What
   stands and lies out of doors on the town's map (trees, loose things, the horse) stands on the
   hex ground where its tile lies.  A house the hero walks behind is cut away whole.
-- In a house the view shows that house's inside as the town's map has it, square to the screen
-  as the rules play it, and the ground and the other houses laid round it on the house's own
-  grid (`game::town_frame`): entering a house at an angle, the picture turns with it.  ◇ Mine:
-  the other way — the inside drawn turned, the keys mapped to the nearest of its four ways —
-  keeps the camera still; to be judged in play.
+- **One mesh, no scene switch at a door** (owner, 2026-11-16: "this is about the demo town (with
+  scene switches) but for the real game you can just use a single mesh").  The town is one scene
+  in the world's own frame.  In a house, its inside as the town's map has it is set where the
+  house stands, at its angle and on its floor, in place of its roof and walls (the tiles that
+  hold it built again, its piece of the hex version taken out — `retile`); the camera neither
+  cuts nor turns.  A key steps the way of the house's four that lies nearest the key's way on
+  the screen (`game::town_way`; never more than 30 degrees off).  A walk into a turned house, about
+  in it and out builds one scene.  ◇ My first version turned the picture with the house; this
+  replaces it.  Scene switches stay for the demo village's doors between places, and for a
+  cellar under a house of the town (nothing of the town is seen from there).
 - Rough, and known: the hex ground under the house shows as a stone footprint round the inside;
-  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; a new scene —
-  the first of a town, and each time a door is passed — takes 0.25 to 0.6 s (the hex pieces made,
-  then laid again on the house's grid); a field that is not a town (the common) is still drawn flat.
+  a layer indoors is 1.5 m high against the houses' true 2.6 m outside; the first scene of a town takes about 0.4 s (the hex pieces all made at once); in a turned house
+  the hero's picture still faces by the house's own ways; a field that is not a town (the common) is still drawn flat.
 
 - **The town goes on while the hero is out on its ground** (2026-11-16; game.loft `update_play`,
   `tests/townfield.loft`).  ◇ Mine, to be judged in play: out of doors only the hero's steps are

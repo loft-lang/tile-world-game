@@ -85,11 +85,12 @@ const SKY_ARGB = 0xFF000000l;
 /// The device's window, as large as the CPU's frame: the fixed camera draws a cell 48 pixels across
 /// on either, so the same cells are seen.
 const TITLE = "tile_world - the fixed view";
-/// What a scene shows (`frame`): a square place as it is (SQUARE); or, of a town on the new rules
-/// (WORLD.md § One game, square or hex), its hex ground and its houses at their angles with the
-/// hero out on the ground (GROUND); or the hero in one of its houses (the house's number): that
-/// house's inside as the town's map has it, the ground and the other houses round it laid on the
-/// house's own grid — so indoors the tiles lie square to the screen, as the rules play them.
+/// What a scene shows (`frame`): a square place as it is (SQUARE); or a town on the new rules
+/// (WORLD.md § One game, square or hex) as one mesh in the world's own frame (GROUND; owner,
+/// 2026-11-16: scene switches are the demo town's, the real game is a single mesh): its hex ground
+/// and its houses at their angles, and of the house the hero is in (`inside`) the inside as the
+/// town's map has it, set where the house stands at its angle, in place of its roof and walls.
+/// No new scene at a door: the house's tiles are built again and its piece taken out.
 const SQUARE = -2;
 const GROUND = -1;
 /// The layers of a town's map that lie under the open sky: what stands and lies out of doors on
@@ -101,7 +102,7 @@ const TOWN_Z1 = 4;
 const HEX_KEY = 100000000;
 const HEX_REACH = 26.0;
 const HEX_DROP = 34.0;
-/// How far the ground is laid under a house's own floor where the two meet, in layers.
+/// How far a house's own floor is laid over the ground under it where the two meet, in layers.
 const UNDER = 0.02;
 /// How high the hero hops at the middle of a step out on the ground, in layers.
 const STRIDE = 0.08;
@@ -161,10 +162,12 @@ struct Part {
 }
 
 /// Where something on a cell of the place stands in the scene: not shown (in a house whose roof
-/// is on), on its cell as the map has it, or out of doors on the hex ground (`y` the ground's).
+/// is on); on its cell as the map has it (`y` its layer, lifted in a house on the ground: `inn`,
+/// its tiles at the house's angle); or out of doors on the hex ground (`out`, `y` the ground's).
 struct Spot {
   shown: boolean,
   out: boolean,
+  inn: boolean,
   x: float,
   y: float,
   z: float
@@ -172,12 +175,16 @@ struct Spot {
 
 pub struct FixedView {
   pub on: boolean = false,
-  /// A town on the new rules: what the scene shows (SQUARE, GROUND, a house), the houses' parts,
-  /// where the town's ground lies in the scene (x' = fa x + fb z + fc, z' = fd x + fe z + ff,
-  /// y' = y + fy), and its hex version in pieces: which the scene holds, the place and hour they
-  /// were made for.
+  /// A town on the new rules: what the scene shows (SQUARE, GROUND), the houses' parts, the house
+  /// the hero is in (-1: none) and its layers shown, where the ground lies on that house's own
+  /// grid (game::town_frame: x' = fa x + fb z + fc, z' = fd x + fe z + ff) and how far its layers
+  /// are lifted onto its floor on the ground (fy), and the town's hex version in pieces: which
+  /// the scene holds, the place and hour they were made for.
   hexv: render3d::View3D,
   frame: integer = SQUARE,
+  inside: integer = -1,
+  in_lo: integer = 0,
+  in_hi: integer = 0,
   parts: vector<Part> = [],
   parts_for: text = "",
   fa: float = 1.0,
@@ -440,7 +447,7 @@ fn group_of(v: const FixedView, f: const faces3d::Face) -> integer {
   if y1 - floor_y < 0.5 { return -1; }
   gx = floor(x + 0.001) as integer;
   gz = floor(zz + 0.001) as integer;
-  gl = (floor_y as integer) - v.z0 + 4;
+  gl = (floor_y as integer) - (if v.frame == GROUND { v.in_lo } else { v.z0 }) + 4;
   ((gl & 15) * 2048 + (gz & 2047)) * 2048 + (gx & 2047)
 }
 
@@ -468,11 +475,16 @@ fn tile_faces(v: FixedView, g: const game::Game, cl: const faces3d::Cells, co: c
   x1 = x0 + TILE - 1;
   y1 = y0 + TILE - 1;
   out: vector<float> = [];
-  if v.frame != GROUND {
+  if v.frame == SQUARE || (v.inside >= 0 && touches(v, v.inside, tx, ty)) {
+    lo = if v.frame == SQUARE { v.z0 } else { v.in_lo };
+    hi = if v.frame == SQUARE { v.z1 } else { v.in_hi };
     for pass in 0..2 {
-      fs = if pass == 0 { faces3d::faces_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, false) }
-           else { faces3d::cards_box(g, cl, lt, x0, y0, x1, y1, v.z0, v.z1, 0.0, false) };
-      for f in fs { emit(v, out, f, if pass == 0 { group_of(v, f) } else { -1 }, 0.0, 0.0); }
+      fs = if pass == 0 { faces3d::faces_box(g, cl, lt, x0, y0, x1, y1, lo, hi, false) }
+           else { faces3d::cards_box(g, cl, lt, x0, y0, x1, y1, lo, hi, 0.0, false) };
+      for f in fs {
+        grp = if pass == 0 { group_of(v, f) } else { -1 };
+        if v.frame == SQUARE { emit(v, out, f, grp, 0.0, 0.0); } else { emit_in(v, out, f, grp, pass == 1); }
+      }
     }
   }
   if v.frame != SQUARE {
@@ -481,21 +493,49 @@ fn tile_faces(v: FixedView, g: const game::Game, cl: const faces3d::Cells, co: c
       for y in y0..=y1 {
         for x in x0..=x1 {
           // the ground's height only where a card stands on it
-          heights += [if faces3d::has_cards(co, x, y, z) { v.fy + render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z) } else { 0.0 }];
+          heights += [if faces3d::has_cards(co, x, y, z) { render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z) } else { 0.0 }];
         }
       }
     }
-    for f in faces3d::cards_box(g, co, lt, x0, y0, x1, y1, TOWN_Z0, TOWN_Z1, 0.0, false, heights) {
-      // a card keeps facing the camera: moved as it stands, by where its foot's middle goes
-      cx = ((f.at[10] ?? 0.0) + (f.at[15] ?? 0.0)) * 0.5;
-      cz = ((f.at[12] ?? 0.0) + (f.at[17] ?? 0.0)) * 0.5;
-      emit(v, out, f, -1, to_x(v, cx, cz) - cx, to_z(v, cx, cz) - cz);
-    }
+    for f in faces3d::cards_box(g, co, lt, x0, y0, x1, y1, TOWN_Z0, TOWN_Z1, 0.0, false, heights) { emit(v, out, f, -1, 0.0, 0.0); }
   }
   out
 }
 
 // --- A town on the new rules ---
+
+// A face of the inside of the house the hero is in, as raster3d takes it: from the town's map to
+// where the house stands on the ground, at its angle, its layers lifted onto its floor.  A card
+// keeps facing the camera: it is moved as it stands, by where its foot's middle goes.
+fn emit_in(v: FixedView, out: vector<float>, f: const faces3d::Face, grp: integer, card: boolean) {
+  n = len(f.at) / 5 ?? 0;
+  out += [pic_of(v, f.sprite) as float, grp as float, n as float, f.lx as float, f.ly as float, f.lz as float, f.lk];
+  own = f.lz == faces3d::NO_LIGHT;
+  cx = ((f.at[10] ?? 0.0) + (f.at[15] ?? 0.0)) * 0.5;
+  cz = ((f.at[12] ?? 0.0) + (f.at[17] ?? 0.0)) * 0.5;
+  dx = to_x(v, cx, cz) - cx;
+  dz = to_z(v, cx, cz) - cz;
+  for c in 0..n {
+    i = c * 5;
+    x = f.at[i] ?? 0.0;
+    z = f.at[i + 2] ?? 0.0;
+    out += [if card { x + dx } else { to_x(v, x, z) }, (f.at[i + 1] ?? 0.0) + v.fy, if card { z + dz } else { to_z(v, x, z) },
+            f.at[i + 3] ?? 0.0, f.at[i + 4] ?? 0.0, if own { f.lights[c] ?? f.light } else { 0.0 }];
+  }
+}
+
+// Does tile (tx, ty) hold tiles of house `house`, or lie beside them (the walls that close it)?
+fn touches(v: const FixedView, house: integer, tx: integer, ty: integer) -> boolean {
+  if house < 0 { return false; }
+  for i in 0..len(v.parts) {
+    p = v.parts[i]!;
+    if p.house == house && tx * TILE <= p.x1 + 1 && tx * TILE + TILE - 1 >= p.x0 - 1 && ty * TILE <= p.y1 + 1
+       && ty * TILE + TILE - 1 >= p.y0 - 1 {
+      return true;
+    }
+  }
+  false
+}
 
 // The town's houses' parts, read when the place is a town on the new rules.
 fn parts_ready(v: FixedView, g: const game::Game) {
@@ -519,35 +559,61 @@ fn house_at(v: const FixedView, x: integer, y: integer) -> integer {
   -1
 }
 
-// Is tile (x, y) in the house the scene shows the inside of?
+// Is tile (x, y) in the house the hero is in?
 fn in_frame(v: const FixedView, x: integer, y: integer) -> boolean {
   for i in 0..len(v.parts) {
     p = v.parts[i]!;
-    if p.house == v.frame && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1 { return true; }
+    if p.house == v.inside && x >= p.x0 && x <= p.x1 && y >= p.y0 && y <= p.y1 { return true; }
   }
   false
 }
 
-// What the scene is to show now: the square place; a town's ground, the hero out on it; or the
-// house the hero is in (on its ground floor or over it: under it, a cellar, the square place).
+// What the scene is to show now: the square place; or a town on the new rules — the hero out on
+// its ground, or in one of its houses on its ground floor or over it (under it, in a cellar, the
+// square place: nothing of the town is seen from there).
 fn frame_of(v: FixedView, g: const game::Game) -> integer {
   parts_ready(v, g);
   if !game::on_town(g) || g.editing { return SQUARE; }
   if g.on_field { return GROUND; }
+  if house_in(v, g) >= 0 { GROUND } else { SQUARE }
+}
+
+// The house the hero is in, on its ground floor or over it; -1 for none.
+fn house_in(v: const FixedView, g: const game::Game) -> integer {
+  if g.on_field { return -1; }
   w = g.world;
   hx: integer = w.hero_x;
   hy: integer = w.hero_y;
   hz: integer = w.hero_z;
   for i in 0..len(v.parts) {
     p = v.parts[i]!;
-    if hx >= p.x0 && hx <= p.x1 && hy >= p.y0 && hy <= p.y1 { return if hz >= p.z { p.house } else { SQUARE }; }
+    if hx >= p.x0 && hx <= p.x1 && hy >= p.y0 && hy <= p.y1 { return if hz >= p.z { p.house } else { -1 }; }
   }
-  SQUARE
+  -1
 }
 
-// The scene's frame set for what it shows now.
+// The layers of the house the hero is in that are shown: as a square place shows them, from the
+// house's ground floor up.
+fn house_layers(v: const FixedView, g: const game::Game, house: integer) -> (integer, integer) {
+  if house < 0 { return (0, 0); }
+  zs = layers(g, SQUARE);
+  z = 0;
+  for i in 0..len(v.parts) {
+    p = v.parts[len(v.parts) - 1 - i]!;
+    if p.house == house { z = p.z; }
+  }
+  (if zs.0 < z { z } else { zs.0 }, zs.1)
+}
+
+// What the scene shows, set for now.
 fn set_frame(v: FixedView, g: const game::Game) {
   v.frame = frame_of(v, g);
+  set_inside(v, g);
+}
+
+// The house the hero is in, set for now: its layers, and where its tiles stand on the ground.
+fn set_inside(v: FixedView, g: const game::Game) {
+  v.inside = if v.frame == GROUND { house_in(v, g) } else { -1 };
   v.fa = 1.0;
   v.fb = 0.0;
   v.fc = 0.0;
@@ -555,10 +621,12 @@ fn set_frame(v: FixedView, g: const game::Game) {
   v.fe = 1.0;
   v.ff = 0.0;
   v.fy = 0.0;
-  if v.frame < 0 { return; }
-  m = game::town_frame(g, v.frame);
+  v.in_lo = 0;
+  v.in_hi = 0;
+  if v.inside < 0 { return; }
+  m = game::town_frame(g, v.inside);
   if len(m) < 6 {
-    v.frame = SQUARE;
+    v.inside = -1;
     return;
   }
   v.fa = m[0] ?? 1.0;
@@ -567,32 +635,37 @@ fn set_frame(v: FixedView, g: const game::Game) {
   v.fd = m[3] ?? 0.0;
   v.fe = m[4] ?? 1.0;
   v.ff = m[5] ?? 0.0;
+  zs = house_layers(v, g, v.inside);
+  v.in_lo = zs.0;
+  v.in_hi = zs.1;
   z = 0;
   for i in 0..len(v.parts) {
     p = v.parts[len(v.parts) - 1 - i]!;
-    if p.house == v.frame { z = p.z; }
+    if p.house == v.inside { z = p.z; }
   }
-  // the ground meets the house's floor at the layer the house stands on
-  v.fy = (z as float) - render3d::hex_floor(v.hexv, g, v.frame) - UNDER;
+  // the house's ground floor lies on its floor on the ground, a hair over the ground under it
+  v.fy = render3d::hex_floor(v.hexv, g, v.inside) - (z as float) + UNDER;
 }
 
-// Where the scene has the point (x, z) of the town's ground.
-fn to_x(v: const FixedView, x: float, z: float) -> float { v.fa * x + v.fb * z + v.fc }
+// Where a point (x, z) of the town's map in the house the hero is in stands on the ground: the
+// frame says where the ground lies on the house's grid, a turn and a shift, and this is it back.
+fn to_x(v: const FixedView, x: float, z: float) -> float { v.fa * (x - v.fc) + v.fd * (z - v.ff) }
 
-fn to_z(v: const FixedView, x: float, z: float) -> float { v.fd * x + v.fe * z + v.ff }
+fn to_z(v: const FixedView, x: float, z: float) -> float { v.fb * (x - v.fc) + v.fe * (z - v.ff) }
 
 // Where what is on cell (x, y, z) of the place stands in the scene.
 fn spot(v: FixedView, g: const game::Game, x: integer, y: integer, z: integer) -> Spot {
   fx = (x as float) + 0.5;
   fz = (y as float) + 0.5;
-  if v.frame == SQUARE { return Spot { shown: true, out: false, x: fx, y: z as float, z: fz }; }
+  if v.frame == SQUARE { return Spot { shown: true, out: false, inn: false, x: fx, y: z as float, z: fz }; }
   h = house_at(v, x, y);
-  if h >= 0 { return Spot { shown: h == v.frame, out: false, x: fx, y: z as float, z: fz }; }
-  if z < TOWN_Z0 || z > TOWN_Z1 || !tile_world::open_sky(g.world.w, x, y, z) {
-    return Spot { shown: false, out: false, x: fx, y: z as float, z: fz };
+  if h >= 0 {
+    return Spot { shown: h == v.inside, out: false, inn: true, x: to_x(v, fx, fz), y: (z as float) + v.fy, z: to_z(v, fx, fz) };
   }
-  Spot { shown: true, out: true, x: to_x(v, fx, fz), y: v.fy + render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z),
-         z: to_z(v, fx, fz) }
+  if z < TOWN_Z0 || z > TOWN_Z1 || !tile_world::open_sky(g.world.w, x, y, z) {
+    return Spot { shown: false, out: false, inn: false, x: fx, y: z as float, z: fz };
+  }
+  Spot { shown: true, out: true, inn: false, x: fx, y: render3d::hex_ground_tile(v.hexv, g, x as float, y as float, z), z: fz }
 }
 
 // The town's hex version in pieces as the engine takes them, made when the place or the hour is
@@ -635,24 +708,6 @@ fn hex_ready(v: FixedView, g: const game::Game) {
   }
 }
 
-// A piece's faces where the scene has the town's ground.
-fn laid(v: const FixedView, d: const vector<float>) -> vector<float> {
-  out: vector<float> = [];
-  i = 0;
-  while i + 7 <= len(d) {
-    n = (d[i + 2] ?? 0.0) as integer;
-    for j in 0..7 { out += [d[i + j] ?? 0.0]; }
-    i += 7;
-    for c in 0..n {
-      x = d[i] ?? 0.0;
-      z = d[i + 2] ?? 0.0;
-      out += [to_x(v, x, z), (d[i + 1] ?? 0.0) + v.fy, to_z(v, x, z), d[i + 3] ?? 0.0, d[i + 4] ?? 0.0, d[i + 5] ?? 0.0];
-      i += 6;
-    }
-  }
-  out
-}
-
 // The hex pieces near the hero in the scene, those left far behind out of it.  The house the
 // hero is in is not among them: its inside is drawn from the town's map.
 fn keep_hex(v: FixedView, g: const game::Game) {
@@ -662,17 +717,19 @@ fn keep_hex(v: FixedView, g: const game::Game) {
   hz = (g.world.hero_y as float) + 0.5;
   for i in 0..len(v.hex) {
     t = v.hex[i]!;
-    dx = to_x(v, t.x, t.z) - hx;
-    dz = to_z(v, t.x, t.z) - hz;
+    dx = t.x - hx;
+    dz = t.z - hz;
     if dx < 0.0 { dx = 0.0 - dx; }
     if dz < 0.0 { dz = 0.0 - dz; }
     on = v.hex_on[i] ?? false;
-    if on && (dx > HEX_DROP || dz > HEX_DROP) {
+    mine = v.inside >= 0 && t.house == v.inside;
+    if on && (mine || dx > HEX_DROP || dz > HEX_DROP) {
       e_drop(v, HEX_KEY + i);
       v.hex_on[i] = false;
+      on = false;
     }
-    if !on && dx <= HEX_REACH && dz <= HEX_REACH && !(v.frame >= 0 && t.house == v.frame) {
-      e_tile(v, HEX_KEY + i, if v.frame == GROUND { t.faces } else { laid(v, t.faces) });
+    if !on && !mine && dx <= HEX_REACH && dz <= HEX_REACH {
+      e_tile(v, HEX_KEY + i, t.faces);
       v.hex_on[i] = true;
     }
   }
@@ -681,15 +738,15 @@ fn keep_hex(v: FixedView, g: const game::Game) {
 // The cells the scene's faces are made from, x0 ..= x1 by y0 ..= y1: the place's — in a house of a
 // town, the house's own alone, with the walls that close it; out on the ground, none.
 fn read_in(v: const FixedView, g: const game::Game, x0: integer, y0: integer, x1: integer, y1: integer) -> faces3d::Cells {
-  if v.frame == GROUND { return faces3d::no_cells(); }
-  cl = faces3d::cells(g, x0, y0, x1, y1, v.z0 - 1, v.z1 + 1);
-  if v.frame == SQUARE { return cl; }
+  if v.frame == SQUARE { return faces3d::cells(g, x0, y0, x1, y1, v.z0 - 1, v.z1 + 1); }
+  if v.inside < 0 { return faces3d::no_cells(); }
+  cl = faces3d::cells(g, x0, y0, x1, y1, v.in_lo - 1, v.in_hi + 1);
   for y in y0..=y1 {
     for x in x0..=x1 {
       if in_frame(v, x, y) { continue; }
       north = in_frame(v, x, y - 1);
       west = in_frame(v, x - 1, y);
-      for z in v.z0 - 1..=v.z1 + 1 { faces3d::leave_out(cl, x, y, z, north, west); }
+      for z in v.in_lo - 1..=v.in_hi + 1 { faces3d::leave_out(cl, x, y, z, north, west); }
     }
   }
   cl
@@ -714,7 +771,9 @@ fn read_out(v: const FixedView, g: const game::Game, x0: integer, y0: integer, x
 // The layers whose light the scene's faces and cards are lit from.
 fn lit_layers(v: const FixedView) -> (integer, integer) {
   if v.frame == SQUARE { return (v.z0, v.z1 + 1); }
-  (if v.z0 < TOWN_Z0 { v.z0 } else { TOWN_Z0 }, if v.z1 > TOWN_Z1 { v.z1 + 1 } else { TOWN_Z1 + 1 })
+  lo = if v.inside >= 0 && v.in_lo < TOWN_Z0 { v.in_lo } else { TOWN_Z0 };
+  hi = if v.inside >= 0 && v.in_hi > TOWN_Z1 { v.in_hi } else { TOWN_Z1 };
+  (lo, hi + 1)
 }
 
 // What tile (tx, ty) reads: its cells and its light, read for it alone.
@@ -1006,6 +1065,21 @@ fn told(v: FixedView, g: const game::Game) -> vector<integer> {
   now
 }
 
+// The house the hero is in is another one (or none), or other layers of it are shown: the tiles
+// that hold the house it was in and the one it is in built again, the hex pieces set for it.
+fn retile(v: FixedView, g: const game::Game) {
+  old = v.inside;
+  set_inside(v, g);
+  again: vector<(integer, integer)> = [];
+  for k in v.all {
+    t = v.tiles[k];
+    if !t { continue; }
+    if touches(v, old, t.tx, t.ty) || touches(v, v.inside, t.tx, t.ty) { again += [(t.tx, t.ty)]; }
+  }
+  build_tiles(v, g, again);
+  keep_hex(v, g);
+}
+
 // The landscape as it is now: a new scene when the hero changed place or layer (or the layers
 // shown changed), or night fell or day broke (every tile's light at once: a look a frame would
 // show night and day side by side), or the world is another one (it counts fewer changes than
@@ -1023,6 +1097,11 @@ fn keep_up(v: FixedView, g: const game::Game, changed: boolean) {
     fresh(v, g);
     return;
   }
+  // In at a house's door, out of it, up or down its stairs: no new scene — the house's tiles
+  // built again, its piece of the hex version taken out or put back.
+  ins = house_in(v, g);
+  zs = house_layers(v, g, ins);
+  if fr == GROUND && (ins != v.inside || (ins >= 0 && (zs.0 != v.in_lo || zs.1 != v.in_hi))) { retile(v, g); }
   until = ticks() + BUDGET;
   walk(v, g, until);
   // The tiles whose cells changed: now, whatever the budget; the suspects while it lasts.
@@ -1090,7 +1169,7 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
       if !at.shown { continue; }
       light = light_on(v, g, c.0, c.1, c.2);
       // out of doors it stands on the hex ground, not on its layer
-      lift = if at.out { at.y - (c.2 as float) } else { 0.0 };
+      lift = at.y - (c.2 as float);
       for f in faces3d::thing_cards(g, c.0, c.1, c.2) {
         if f.0 < 0 { continue; }
         out += [id as float, pic_of(v, f.0) as float, at.x, f.1 + lift, at.z, f.2, light,
@@ -1112,10 +1191,10 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
       stride = 0.0;
       off_x = fine.0 / 16.0;
       off_z = fine.1 / 16.0;
-      if f.facing_shown && v.frame == GROUND {
+      if f.facing_shown && v.frame == GROUND && g.on_field {
         // out on the ground the hero stands where its body is, not on a tile
         b = game::field_body(g);
-        at = Spot { shown: true, out: true, x: b.0, y: render3d::hex_ground_tile(v.hexv, g, b.0 - 0.5, b.1 - 0.5, z), z: b.1 };
+        at = Spot { shown: true, out: true, inn: false, x: b.0, y: render3d::hex_ground_tile(v.hexv, g, b.0 - 0.5, b.1 - 0.5, z), z: b.1 };
         off_x = 0.0;
         off_z = 0.0;
         // it steps as it walks: a small hop a tile, only while the body moves
@@ -1124,9 +1203,10 @@ fn actors(v: FixedView, g: const game::Game) -> vector<float> {
         v.walked = far;
       }
       if !at.shown { continue; }
-      x = at.x + off_x;
-      zz = at.z + off_z;
-      feet = if at.out { at.y } else { (z as float) + 0.25 * (f.h as float) };
+      // in a house on the ground its glide runs along the house's tiles, at their angle
+      x = at.x + (if at.inn { v.fa * off_x + v.fd * off_z } else { off_x });
+      zz = at.z + (if at.inn { v.fb * off_x + v.fe * off_z } else { off_z });
+      feet = if at.out { at.y } else { at.y + 0.25 * (f.h as float) };
       y = feet - fine.2 / 16.0 + stride;
       light = light_on(v, g, f.x, f.y, z);
       // As the 2D poses it (game::figure_turn): turned about the bottom middle of its picture,
