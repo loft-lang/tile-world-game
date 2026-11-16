@@ -561,6 +561,23 @@ given as said; what follows from it and is proposed is ◇.
     roll, the place leaves it one way to go, or two that come to the same.  A check for the
     dealt templates and the puzzle places, beside playing a deal by the rules before it is dealt.
 
+**Tried, marbles on a hill** (owner, 2026-11-16: "a big marble/stone almost the size of a tile so
+adjacent marbles have their own tile ... a landscape with a hill and several obstacles along it
+... let 10 marbles drop on the hill with the unstable rules applied.  Where do the marbles end
+up?  So marbles get speed and direction and bounce off each other and obstacles/ground").
+`marbles.loft`, `tests/marbles.loft`; the rules are ◇, written to be tried:
+- a marble has one of the twelve headings and a whole-number speed; at rest it sets off when a
+  free neighbour lies clearly lower; rolling it turns a step of 30° towards a steeper way down,
+  goes one hex (or between two to the next full one), its speed taking the drop and giving a unit
+  to the ground; at an obstacle it goes aside as the place prefers, else comes back at half
+  speed; two marbles change motion; let fall on a marble it rolls off to the lowest neighbour.
+- On a round hill 6 m high and 21 m to its foot, with a wall, a clump of trees and five rocks:
+  of ten let fall on and round the top, four stay on its nearly flat crown and six run down and
+  13 to 16 m out over the flat, each to a hex of its own, in 44 rounds — the same every time.
+- ◇ What it shows: the ground gives back too little (long run-outs), a marble mostly runs
+  straight down past the obstacles, a round is a hex whatever the speed (no time yet), and a
+  fall has no bounce of its own.  The numbers are in `marbles.loft` to tune.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 

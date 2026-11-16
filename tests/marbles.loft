@@ -1,0 +1,100 @@
+// Copyright (c) 2026 Jurjen Stellingwerff
+// SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// Ten marbles let fall on a hill with obstacles along it (marbles.loft; owner, 2026-11-16): where
+// they end up, by the rules of what is unstable — and that it is the same every time.
+use hex_field;
+use hexterrain;
+use marbles;
+
+// A round hill 6 m high, 21 m from its top to its foot, on a field of hexes; along its slopes a
+// wall of four hexes, a clump of three trees, and five single rocks.
+fn the_hill() -> marbles::Hill {
+  hl = marbles::hill(-36, -36, 73, 73);
+  hexterrain::hill(hl.ground, 0.0, 0.0, 21.0, 6.0);
+  for c in [(-1, -6), (0, -6), (1, -6), (2, -6), (6, 2), (7, 2), (6, 3), (-6, 3), (-4, -3), (4, -2), (0, 7), (-8, -1)] {
+    hex_field::hexset_set(hl.fixed, c.0, c.1, true);
+  }
+  hl
+}
+
+// Where the ten are let fall: on the top and round it, two on the same hex twice.
+fn drops() -> vector<(integer, integer)> {
+  [(0, 0), (0, 0), (1, 0), (-1, 1), (0, -1), (2, 1), (-2, -1), (1, 2), (0, 0), (-1, -2)]
+}
+
+fn played() -> marbles::Hill {
+  hl = the_hill();
+  for d in drops() {
+    assert(marbles::let_fall(hl, d.0, d.1), "a marble let fall on ({d.0}, {d.1})");
+    // two rounds between one and the next
+    marbles::round_of(hl);
+    marbles::round_of(hl);
+  }
+  assert(marbles::run(hl, 2000), "the hill comes to rest: {hl.rounds} rounds");
+  hl
+}
+
+fn test_ten_marbles_on_the_hill() {
+  hl = played();
+  for line in marbles::picture(hl) { println(line); }
+  println("rounds {hl.rounds}");
+  for i in 0..len(hl.marbles) {
+    m = hl.marbles[i]!;
+    c = hexterrain::centre(m.q, m.r);
+    println("marble {i}: dropped ({m.from_q}, {m.from_r}) at {marbles::height(hl, m.from_q, m.from_r):.2} m, rests ({m.q}, {m.r}) at {marbles::height(hl, m.q, m.r):.2} m, {sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0:.1} m from the top, went {m.went} hexes, struck {m.struck}");
+  }
+  assert(len(hl.marbles) == 10, "ten marbles");
+  for i in 0..10 {
+    m = hl.marbles[i]!;
+    // each on a whole hex of its own, on open ground, where it will stay
+    assert(!hex_field::hexset_get(hl.fixed, m.q, m.r), "marble {i} not in what does not move");
+    for j in 0..i { assert(hl.marbles[j]!.q != m.q || hl.marbles[j]!.r != m.r, "marbles {j} and {i} each on their own hex"); }
+    assert(marbles::settled(hl, i), "marble {i} is where it will stay");
+    // none rests higher than it was let fall
+    assert(marbles::height(hl, m.q, m.r) <= marbles::height(hl, m.from_q, m.from_r) + 0.000001, "marble {i} not higher than it fell");
+  }
+}
+
+// The same hill, the same marbles: the same end, hex for hex, round for round.
+fn test_the_hill_plays_the_same_every_time() {
+  a = played();
+  b = played();
+  assert(a.rounds == b.rounds, "as many rounds: {a.rounds} {b.rounds}");
+  for i in 0..10 {
+    assert(a.marbles[i]!.q == b.marbles[i]!.q && a.marbles[i]!.r == b.marbles[i]!.r && a.marbles[i]!.went == b.marbles[i]!.went && a.marbles[i]!.struck == b.marbles[i]!.struck, "marble {i} the same");
+  }
+}
+
+// The rules one at a time, on ground made for each.
+fn test_the_rules_of_a_marble() {
+  // on the flat a marble stays; pushed along, the ground takes a unit a hex and it stops
+  flat = marbles::hill(-10, -10, 21, 21);
+  assert(marbles::let_fall(flat, 0, 0) && !marbles::round_of(flat) && marbles::settled(flat, 0), "at rest on the flat");
+  flat.marbles[0].heading = 0;
+  flat.marbles[0].speed = 4;
+  assert(marbles::run(flat, 50) && flat.marbles[0]!.q == 3 && flat.marbles[0]!.r == 0, "speed 4 along the flat: three hexes on, the fourth not made: ({flat.marbles[0]!.q}, {flat.marbles[0]!.r})");
+  // a marble struck takes the striker's motion, the striker rests where it was
+  two = marbles::hill(-10, -10, 21, 21);
+  marbles::let_fall(two, 0, 0);
+  marbles::let_fall(two, 2, 0);
+  two.marbles[0].heading = 0;
+  two.marbles[0].speed = 5;
+  assert(marbles::run(two, 50), "two on the flat come to rest");
+  assert(two.marbles[0]!.q == 1 && two.marbles[1]!.q > 2 && two.marbles[0]!.struck == 1, "the striker stops beside where the other lay, the other goes on: {two.marbles[0]!.q} {two.marbles[1]!.q}");
+  // onto a marble another rolls off to a neighbour
+  pile = marbles::hill(-10, -10, 21, 21);
+  marbles::let_fall(pile, 0, 0);
+  marbles::let_fall(pile, 0, 0);
+  assert((pile.marbles[1]!.q != 0 || pile.marbles[1]!.r != 0) && pile.marbles[1]!.speed == 1, "the second rolled off the first");
+  // an obstacle ahead: aside; shut in on both sides too: back
+  wall = marbles::hill(-10, -10, 21, 21);
+  hex_field::hexset_set(wall.fixed, 3, 0, true);
+  marbles::let_fall(wall, 0, 0);
+  wall.marbles[0].heading = 0;
+  wall.marbles[0].speed = 8;
+  marbles::round_of(wall);
+  marbles::round_of(wall);
+  marbles::round_of(wall);
+  assert(wall.marbles[0]!.r != 0 && wall.marbles[0]!.struck == 1, "aside round the rock: ({wall.marbles[0]!.q}, {wall.marbles[0]!.r})");
+}
