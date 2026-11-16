@@ -9,6 +9,7 @@
 //
 // Measures are metres, north up (x east, y north), a square tile i at x = 1.5 i, y = -1.5 j.
 use hex_field;
+use hex_draw;
 use hexwalls;
 
 /// A door or a window: its kind (1 a door, 2 a window, 3 a bay window), the wall it is in, its span
@@ -316,11 +317,11 @@ fn outline_areas(sc: Scene) {
         if of_area(area, cell_kind(sc, q, r)) { hex_field::hexset_set(cells, q, r, true); }
       }
     }
-    for o in hexwalls::outlines(cells, 0) {
-      n = len(o.corners);
+    for o in hex_draw::cells_outlines(cells, 0) {
+      n = len(o.co_corners);
       for i in 0..n {
-        (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
-        (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+        (x1, y1) = o.co_corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+        (x2, y2) = o.co_corners[i] ?? (0.0, 0.0);
         sc.sides += [Side { area: area, x1: x1 * m, y1: y1 * m, x2: x2 * m, y2: y2 * m }];
       }
     }

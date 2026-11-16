@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phases 1 and 2 are done.
+exact copies; the view keeps its heights); phases 1 to 3 are done and phase 4's routines are in the library.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -121,7 +121,7 @@ the first edge it met, so in 13 of the 21 houses wall 0 is another of the same w
 corner, opening, eaves and rim is the same number to the bit (compared as rotations of each
 house's walls); the ground, the roads' sides, the cliffs and the fences are byte for byte the same.
 
-### 3. A plan of rectangles, filled exactly (S)
+### 3. A plan of rectangles, filled exactly — done (loft-libs-world#49)
 
 `hex_shape` gets the fill of several rectangles by exact integer tests (HP-Fill): no epsilon, any
 of the 12 headings, mirrored or not.  `box_fill` stays as it is; a library test asserts the new
@@ -129,7 +129,11 @@ fill of one rectangle is `box_fill`'s cells over a sweep of sizes and all 12 rot
 found no difference in 48 cases; the sweep either confirms it or finds where the epsilon decides).
 *Replaces:* `hexhouse::fill`, `Part`, `box_plan`, `l_plan`, `reach`.  *Rules:* HP-Fill, HP-Zero.
 
-### 4. Straight walls from cells alone (M)
+As landed: `hex_shape` 0.1.9, `box_part`, `parts_fill`, `parts_reach`.  The sweep (3 888 boxes)
+found no case where `box_fill`'s epsilon decides.  `hexhouse::fill` and `reach` are one line each
+now; `box_plan` and `l_plan` stay here, as the game's own shapes.
+
+### 4. Straight walls from cells alone — moved (loft-libs-world#49); its speed work open
 
 The centre of the work, and what the library's own notes leave to the consumer
 (`hex_shape/USAGE.md`: a chain is handed back in order "to cut a marking into runs").  Into
@@ -148,6 +152,16 @@ The centre of the work, and what the library's own notes leave to the consumer
 4a–4c are one release (the runs cannot go red without a solver to disagree with); 4d is a second.
 *Compared here:* every wall and corner of every Orbury house and every side of its roads, the
 game's against the library's, as exact integers (`ws_num`, `ws_den`, `ws_dk`, `ws_dm`).
+
+As landed: `hex_draw` 0.1.6, a file of its own (`cellwalls.loft`): `cells_loops`, `cells_axes`,
+`cells_runs`, `cells_wall`, `cells_built` (`CellWalls`, a kind per wall), `cells_outlines`
+(`CellOutline`).  4a to 4d went as one release: the town regenerated from the library's routines
+in place of the game's is byte for byte the file it was, which compares the houses (4a–4c) and
+the roads' sides and cliffs (4d) at once.  `hexwalls.loft` keeps what the game adds: the openings
+and the measurements (731 lines to 200).  **Still open:** the speed work listed for this phase
+below (`merged` in one pass, `common` counted once, one reading of each edge's travel) — the
+routines moved as they were, so the comparison was exact; the boundary is already walked
+(`trace_edges`).
 
 ### 5. Openings on such walls (S)
 

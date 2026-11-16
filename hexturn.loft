@@ -20,6 +20,7 @@
 // not from an earlier turn: two odd steps are two approximations.  Built here first; the routines
 // move to the hex libraries once they are right.
 use hex_field;
+use hex_draw;
 use hexwalls;
 
 /// The ways an odd step of 30° is made, kept side by side to compare (owner, 2026-11-09).
@@ -72,7 +73,7 @@ fn turn_full(cells: hex_field::HexSet, pq: integer, pr: integer, steps: integer,
   }
   out = hex_field::hexset_chunk(pq - r, pr - r, 2 * r + 1, 2 * r + 1);
   for o in base {
-    (k, m) = hexwalls::turned(o.dk, o.dm, s / 2 ?? 0);
+    (k, m) = hex_draw::lattice_turned(o.dk, o.dm, s / 2 ?? 0);
     (q, rr) = cell_at(pk + k, pm + m);
     hex_field::hexset_set(out, q, rr, true);
   }
@@ -155,7 +156,7 @@ struct Thirty {
 
 fn turn30(cells: hex_field::HexSet, pq: integer, pr: integer, r: integer, way: integer) -> Thirty {
   b = hexwalls::from_cells(cells);
-  c = hexwalls::axes_of(b.boundary);
+  c = hex_draw::cells_axes(b.boundary);
   if c < 0 { c = 0; }
   pk = hex_field::lattice_k(pq, pr);
   pm = hex_field::lattice_m(pq, pr);
@@ -398,8 +399,8 @@ pub fn place(d: Data, kind: integer, x: float, y: float, hint: integer = -1,
   near_d = 0.0;
   for i in b.runs[best] ?? [] {
     e = b.boundary[i];
-    ex = ((e.ak + e.bk) as float) * 0.5 * 0.8660254037844386;
-    ey = ((e.am + e.bm) as float) * 0.25;
+    ex = ((e.we_ak + e.we_bk) as float) * 0.5 * 0.8660254037844386;
+    ey = ((e.we_am + e.we_bm) as float) * 0.25;
     off = abs_f((ex - mx) * dx + (ey - my) * dy - t);
     if off <= half + 0.000000001 { picks += [i]; }
     if nearest < 0 || off < near_d {
@@ -410,7 +411,7 @@ pub fn place(d: Data, kind: integer, x: float, y: float, hint: integer = -1,
   if len(picks) == 0 { picks = [nearest]; }
   for i in picks {
     e = b.boundary[i];
-    hex_field::edge_set_mat(d.marks, e.qa, e.ra, e.qb, e.rb, kind);
+    hex_field::edge_set_mat(d.marks, e.we_qa, e.we_ra, e.we_qb, e.we_rb, kind);
   }
   true
 }
@@ -430,8 +431,8 @@ pub fn turn_data(d: Data, pq: integer, pr: integer, steps: integer, way: integer
     for o in drawn.openings {
       for i in o.edges {
         e = drawn.boundary[i];
-        (ak, am) = hexwalls::turned(hex_field::lattice_k(e.qa, e.ra) - pk, hex_field::lattice_m(e.qa, e.ra) - pm, s / 2 ?? 0);
-        (bk, bm) = hexwalls::turned(hex_field::lattice_k(e.qb, e.rb) - pk, hex_field::lattice_m(e.qb, e.rb) - pm, s / 2 ?? 0);
+        (ak, am) = hex_draw::lattice_turned(hex_field::lattice_k(e.we_qa, e.we_ra) - pk, hex_field::lattice_m(e.we_qa, e.we_ra) - pm, s / 2 ?? 0);
+        (bk, bm) = hex_draw::lattice_turned(hex_field::lattice_k(e.we_qb, e.we_rb) - pk, hex_field::lattice_m(e.we_qb, e.we_rb) - pm, s / 2 ?? 0);
         (qa, ra) = cell_at(pk + ak, pm + am);
         (qb, rb) = cell_at(pk + bk, pm + bm);
         hex_field::edge_set_mat(out.marks, qa, ra, qb, rb, o.kind);

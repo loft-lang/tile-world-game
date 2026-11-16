@@ -16,26 +16,16 @@
 //   - the house at 0° stays as the plan gives it; only the turning changes.
 //
 // The plan gives the 0° house (`fill`'s test: a cell is the house's when its centre lies in one
-// of the plan's rectangles, exactly, no float, as `hex_shape::box_fill` does for one box).  The
+// of the plan's rectangles, exactly, no float: `hex_shape::parts_fill`).  The
 // other angles are that house's cells turned about its origin cell (hexturn.loft), which reads
 // nothing but the cells.
 //
 // The plan's own frame: u along the turn's heading, v along the heading three steps on, both in
 // half hex steps; the mirror flips u.
 use hex_field;
-use hex_form;
+use hex_shape;
 use hexwalls;
 use hexturn;
-
-/// A rectangle of the plan, in half hex steps of its own frame: u from `u0` to `u1`, v from `v0`
-/// to `v1`.  A house `w` steps wide and `d` deep centred on its cell is `Part { u0: -w, v0: -d,
-/// u1: w, v1: d }`, the rectangle `hex_shape::box_new(.., w, d, ..)` fills.
-pub struct Part {
-  pub u0: integer,
-  pub v0: integer,
-  pub u1: integer,
-  pub v1: integer
-}
 
 /// A door or a window as the plan places it: its kind (hexwalls::DOOR or WINDOW) and the point on
 /// the plan's outline it stands at, in half hex steps of the plan's frame.
@@ -52,7 +42,7 @@ pub struct HexHouse {
   pub cr: integer,
   pub turn: integer,
   pub mirror: boolean = false,
-  pub parts: vector<Part>,
+  pub parts: vector<hex_shape::BoxPart>,
   /// Its doors and windows, each at a point on the plan's outline at 0°.
   pub openings: vector<Spec> = []
 }
@@ -60,69 +50,25 @@ pub struct HexHouse {
 
 
 /// A plain rectangular house, `w` hex steps wide and `d` deep.
-pub fn box_plan(w: integer, d: integer) -> vector<Part> { [Part { u0: -w, v0: -d, u1: w, v1: d }] }
+pub fn box_plan(w: integer, d: integer) -> vector<hex_shape::BoxPart> { [hex_shape::box_part(-w, -d, w, d)] }
 
 /// An L: a body `w` hex steps wide and `d` deep, and a wing `wing_w` wide and `wing_d` deep on the
 /// west end of its +v side.
-pub fn l_plan(w: integer, d: integer, wing_w: integer, wing_d: integer) -> vector<Part> {
-  [Part { u0: -w, v0: -d, u1: w, v1: d },
-   Part { u0: -w, v0: d, u1: -w + 2 * wing_w, v1: d + 2 * wing_d }]
+pub fn l_plan(w: integer, d: integer, wing_w: integer, wing_d: integer) -> vector<hex_shape::BoxPart> {
+  [hex_shape::box_part(-w, -d, w, d), hex_shape::box_part(-w, d, -w + 2 * wing_w, d + 2 * wing_d)]
 }
 
 // ── 1. the cells, exactly ───────────────────────────────────────────────────
-//
-// A local coordinate along a heading, scaled by 8L (L that heading's step length: √3 on an even
-// heading, 3 on an odd one), is an integer for a lattice point, and a plan line `n` half steps out
-// is 12n on an even heading and 12n·√3 on an odd one.  The house's two axes are never of one
-// kind: the heading three steps on has the other parity.  A value a + b·√3 is the pair (a, b);
-// its sign is exact (`hex_form::sign_root3`).
 
-/// Is coordinate `p`, along heading `head` and scaled, between plan lines `lo` and `hi`
-/// (inclusive)?
-fn within(head: integer, p: integer, lo: integer, hi: integer) -> boolean {
-  if head % 2 == 0 { return p >= 12 * lo && p <= 12 * hi; }
-  hex_form::sign_root3(p, -12 * lo) >= 0 && hex_form::sign_root3(p, -12 * hi) <= 0
-}
-
-/// Mark the house's cells in `cells`: those whose centre lies in a part of the plan.
+/// Mark the house's cells in `cells`: those whose centre lies in a part of the plan, by exact
+/// integer tests (`hex_shape::parts_fill`).
 // @FR-HP-Fill
 pub fn fill(h: const HexHouse, cells: hex_field::HexSet) -> integer {
-  (uk, um) = hex_form::head_step(h.turn);
-  (vk, vm) = hex_form::head_step(h.turn + 3);
-  ck = hex_field::lattice_k(h.cq, h.cr);
-  cm = hex_field::lattice_m(h.cq, h.cr);
-  n = 0;
-  for fr in hex_field::hexset_r0(cells)..hex_field::hexset_r0(cells) + hex_field::hexset_h(cells) {
-    for fq in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
-      pk = 2 * (hex_field::lattice_k(fq, fr) - ck);
-      pm = 2 * (hex_field::lattice_m(fq, fr) - cm);
-      u = hex_form::vec_dot_4(pk, pm, uk, um);
-      if h.mirror { u = -u; }
-      v = hex_form::vec_dot_4(pk, pm, vk, vm);
-      inside = false;
-      for p in h.parts {
-        if within(h.turn, u, p.u0, p.u1) && within(h.turn + 3, v, p.v0, p.v1) { inside = true; }
-      }
-      if inside {
-        hex_field::hexset_set(cells, fq, fr, true);
-        n += 1;
-      }
-    }
-  }
-  n
+  hex_shape::parts_fill(h.cq, h.cr, h.turn, h.mirror, h.parts, cells)
 }
 
 /// The cells' window round the plan's origin, wide enough for any turn of the plan.
-pub fn reach(h: const HexHouse) -> integer {
-  r = 0;
-  for p in h.parts {
-    for c in [p.u0, p.u1, p.v0, p.v1] {
-      a = if c < 0 { -c } else { c };
-      if a > r { r = a; }
-    }
-  }
-  r + 3
-}
+pub fn reach(h: const HexHouse) -> integer { hex_shape::parts_reach(h.parts) }
 
 // ── the house ───────────────────────────────────────────────────────────────
 

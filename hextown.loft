@@ -18,6 +18,7 @@
 //     lowest the ground was.
 //   - Trees, fences, the well and the bridges: things standing on the surface.
 use hex_field;
+use hex_shape;
 use hexwalls;
 use hexturn;
 use hexhouse;
@@ -486,11 +487,11 @@ fn on_a_way(g: hexterrain::Ground, a: hex_field::HexSet) -> boolean {
 
 /// A house's plan: its own rectangle, and one for each wing, in the plan's half hex steps from
 /// the house's middle (u east, v north).
-fn plan_of(h: const intent::House) -> vector<hexhouse::Part> {
+fn plan_of(h: const intent::House) -> vector<hex_shape::BoxPart> {
   out = hexhouse::box_plan(h.w, h.h);
   for wg in h.wings {
-    out += [hexhouse::Part { u0: 2 * (wg.x - h.x) - h.w, v0: h.h - 2 * (wg.y + wg.h - h.y),
-                             u1: 2 * (wg.x + wg.w - h.x) - h.w, v1: h.h - 2 * (wg.y - h.y) }];
+    out += [hex_shape::box_part(2 * (wg.x - h.x) - h.w, h.h - 2 * (wg.y + wg.h - h.y),
+                                2 * (wg.x + wg.w - h.x) - h.w, h.h - 2 * (wg.y - h.y))];
   }
   out
 }

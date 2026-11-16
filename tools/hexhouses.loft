@@ -13,6 +13,7 @@
 // as hexwalls.loft solves them, the heading each wall runs along, and the axes read off its cells
 // (-1: the cells show no direction, so the placed angle decided).
 use hex_field;
+use hex_shape;
 use hex_draw;
 use hexwalls;
 use hexturn;
@@ -36,7 +37,7 @@ fn house_json(b: hexwalls::Built, name: text, turn: integer, cq: integer, cr: in
   edges = "";
   for e in b.boundary {
     if len(edges) > 0 { edges += ", "; }
-    edges += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
+    edges += "[{e.we_ak}, {e.we_am}, {e.we_bk}, {e.we_bm}]";
   }
   corners = "";
   for c in b.corners {
@@ -48,7 +49,7 @@ fn house_json(b: hexwalls::Built, name: text, turn: integer, cq: integer, cr: in
     if len(exact) > 0 { exact += ", "; }
     exact += "{hex_draw::surface_heading(wl)}";
   }
-  axes = hexwalls::axes_of(b.boundary);
+  axes = hex_draw::cells_axes(b.boundary);
   ops = "";
   for o in b.openings {
     if len(ops) > 0 { ops += ", "; }
@@ -56,15 +57,15 @@ fn house_json(b: hexwalls::Built, name: text, turn: integer, cq: integer, cr: in
     for i in o.edges {
       e = b.boundary[i];
       if len(oe) > 0 { oe += ", "; }
-      oe += "[{e.ak}, {e.am}, {e.bk}, {e.bm}]";
+      oe += "[{e.we_ak}, {e.we_am}, {e.we_bk}, {e.we_bm}]";
     }
     ops += "{{\"kind\": {o.kind}, \"wall\": {o.wall}, \"a\": [{o.ax}, {o.ay}], \"b\": [{o.bx}, {o.by}], \"edges\": [{oe}]}}";
   }
   "{{\"name\": \"{name}\", \"turn\": {turn}, \"axes\": {axes}, \"cq\": {cq}, \"cr\": {cr}, \"cells\": [{cells}], \"edges\": [{edges}], \"corners\": [{corners}], \"exact\": [{exact}], \"openings\": [{ops}]}}"
 }
 
-fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hexhouse::Part {
-  hexhouse::Part { u0: u0, v0: v0, u1: u1, v1: v1 }
+fn part(u0: integer, v0: integer, u1: integer, v1: integer) -> hex_shape::BoxPart {
+  hex_shape::box_part(u0, v0, u1, v1)
 }
 
 fn door(u: integer, v: integer) -> hexhouse::Spec { hexhouse::Spec { kind: hexwalls::DOOR, u: u, v: v } }

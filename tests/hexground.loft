@@ -4,6 +4,7 @@
 // The ground on the hex grid (hexterrain.loft; formal/hex-houses.md § The ground): terraces made
 // smooth, a round hill, a structure seated on the ground.
 use hex_field;
+use hex_draw;
 use hexterrain;
 use hexhouse;
 use hexwalls;
@@ -129,11 +130,11 @@ fn test_a_dug_bed_follows_its_sides() {
   for r in -14..15 { for q in -30..31 { if hex_field::hexset_get(b.cells, q, r) { hex_field::hexset_set(bed, q, r, true); } } }
   hexterrain::dig(g, bed, 2.6, m);
   sides: vector<(float, float, float, float)> = [];
-  for o in hexwalls::outlines(bed, 0) {
-    n = len(o.corners);
+  for o in hex_draw::cells_outlines(bed, 0) {
+    n = len(o.co_corners);
     for i in 0..n {
-      (x1, y1) = o.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
-      (x2, y2) = o.corners[i] ?? (0.0, 0.0);
+      (x1, y1) = o.co_corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
+      (x2, y2) = o.co_corners[i] ?? (0.0, 0.0);
       sides += [(x1 * hexterrain::METRE, y1 * hexterrain::METRE, x2 * hexterrain::METRE, y2 * hexterrain::METRE)];
     }
   }
