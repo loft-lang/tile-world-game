@@ -20,6 +20,12 @@
 //     come along to their turned cells.
 // The part's box — the cells it set or put things on, over every layer — is what turns: its
 // north-west corner stays at (x, y) whatever the turn.
+//
+// Where a cell, a side and a slant go when a part is mirrored and turned is `tile_world`'s
+// (`stamp_spot`, `turned_side`, `turned_slant`), and so is laying a turned part whole
+// (`tile_world::turned` and `lay`: tests/stamps.loft lays every template that way beside `apply`).
+// What is here is the game's: a template's file, its shape listed once for the deal to try in many
+// places, its stretch, its door beams and its figures.
 use tile_world;
 use rules;
 use materials;
@@ -35,24 +41,10 @@ pub struct Box {
 
 const CHUNK = 32;
 
-/// The box of `t`'s part; an empty template's is the single cell (0, 0).
+/// The box of `t`'s part; an empty template's is the single cell (0, 0) (`tile_world::stamp_box`).
 pub fn box_of(t: const levels::LevelFile) -> Box {
-  w = t.level.w;
-  b = Box { x0: 0, y0: 0, x1: -1, y1: -1 };
-  for z in tile_world::layers(w) {
-    for c in tile_world::chunks(w, z) {
-      for j in 0..CHUNK {
-        for i in 0..CHUNK {
-          cx = c.0 * CHUNK + i;
-          cy = c.1 * CHUNK + j;
-          if tile_world::is_set(w, cx, cy, z) { grow(b, cx, cy); }
-        }
-      }
-    }
-  }
-  for s in tile_world::stacks(w) { grow(b, s.0, s.1); }
-  if b.x1 < b.x0 { return Box { x0: 0, y0: 0, x1: 0, y1: 0 }; }
-  b
+  b = tile_world::stamp_box(t.level.w);
+  Box { x0: b.0, y0: b.1, x1: b.2, y1: b.3 }
 }
 
 fn grow(b: Box, x: integer, y: integer) {
@@ -77,38 +69,17 @@ pub fn size(t: const levels::LevelFile, turn: integer) -> (integer, integer) {
 fn quarter(turn: integer) -> integer { ((turn % 4) + 4) % 4 }
 
 /// Where cell (x, y) of the template lands, relative to the turned box's north-west corner:
-/// mirrored east to west first (`flip`), then turned clockwise `turn` quarters.
+/// mirrored east to west first (`flip`), then turned clockwise `turn` quarters
+/// (`tile_world::stamp_spot`).
 pub fn spot(b: const Box, turn: integer, flip: boolean, x: integer, y: integer) -> (integer, integer) {
-  u = x - b.x0;
-  v = y - b.y0;
-  w = b.x1 - b.x0 + 1;
-  h = b.y1 - b.y0 + 1;
-  if flip { u = w - 1 - u; }
-  for _ in 0..quarter(turn) {
-    nu = h - 1 - v;
-    v = u;
-    u = nu;
-    hw = w;
-    w = h;
-    h = hw;
-  }
-  (u, v)
+  tile_world::stamp_spot(b.x0, b.y0, b.x1, b.y1, turn, flip, x, y)
 }
 
 /// The side (tile_world's NORTH, EAST, SOUTH, WEST) `side` becomes: mirrored, then turned.
-pub fn side_to(side: integer, turn: integer, flip: boolean) -> integer {
-  s = side;
-  if flip && (s == tile_world::EAST || s == tile_world::WEST) { s = 4 - s; }
-  (s + quarter(turn)) % 4
-}
+pub fn side_to(side: integer, turn: integer, flip: boolean) -> integer { tile_world::turned_side(side, turn, flip) }
 
 /// The way a slant looks (tile_world's NORTH_EAST .. NORTH_WEST, 0 none) once mirrored and turned.
-pub fn slant_to(way: integer, turn: integer, flip: boolean) -> integer {
-  if way == 0 { return 0; }
-  s = if flip { 5 - way } else { way };
-  for _ in 0..quarter(turn) { s = s % 4 + 1; }
-  s
-}
+pub fn slant_to(way: integer, turn: integer, flip: boolean) -> integer { tile_world::turned_slant(way, turn, flip) }
 
 fn side_of(name: text) -> integer {
   if name == "E" { tile_world::EAST } else if name == "S" { tile_world::SOUTH }

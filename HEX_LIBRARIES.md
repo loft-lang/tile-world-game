@@ -466,6 +466,36 @@ none a reason to build the tower there:
 New rules for these are written in `formal/hex-houses.md` when that work starts (a round wall, an
 eight-sided one, their turn, an opening on each); this plan only keeps the way open.
 
+## Templates in the libraries
+
+The game has two things called templates, and they go to the libraries at different times (owner,
+2026-11-16: the place templates are the most important; the fight templates get their place when
+character animations are added).
+
+**Place templates** — the parts a house is dealt from (`levels/templates/`, `stamp.loft`,
+`deal.loft`): what a world is built from, on either grid.
+
+1. *Done:* a stamp turned, mirrored and laid, in `tile_world` 0.14.0.  `tile_world` had the stamp
+   itself (`copy`, `paste`); it gained `turned` (the eight ways a part can lie, its slants and edges
+   turned with it), `lay` (only what the stamp holds is written: an unset cell keeps what is there,
+   an edge it does not hold is left alone) and where a cell, a side and a slant go (`stamp_box`,
+   `stamp_spot`, `turned_side`, `turned_slant`).  `stamp.loft` takes its geometry from them, and
+   `tests/stamps.loft` lays each of the 56 templates in every way it may lie by the library beside
+   the game's own applying: the same world each time.  The game keeps applying by its own listed
+   shape — the deal tries a template in many places — and keeps what is its own: a template's
+   stretch, its door beams, its figures.
+2. *Next:* the hex side.  `hex_field::Stencil` stamps, rotates by 60° and mirrors, and
+   `hex_place::cells_turn` turns cells and openings by 30°; heights, labels and layers do not yet
+   come through an odd step.  A hex template is then a stencil laid at any of the twelve angles.
+3. *When a second game asks:* the deal's kernel — a weighted, seeded draw that draws again until
+   the caller's check passes, the same seed dealing the same town.  Which slots a house has, and
+   playing a deal by the rules before it is dealt, are this game's.
+
+**Fight templates** — how each figure acts (`TEMPLATES.md`, `kinds.json`): not now.  Its general
+part is the scheduler (steps with their times, conditions, a seeded choice, rest, phases) and the
+checks every set must pass; the moves and what a condition reads are each game's.  It moves with
+the work on character animations, once the fights have settled.
+
 ## Later: natural curves, caves and cliffs
 
 Not this plan's work (owner, 2026-11-16: for later): roads and paths that curve as they would in

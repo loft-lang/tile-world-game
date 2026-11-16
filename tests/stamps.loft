@@ -455,3 +455,57 @@ fn test_a_stretched_shape_lays_as_the_stretched_template() {
     }
   }
 }
+
+// What every cell of x0 ..= x1, y0 ..= y1 on the layers z0 ..= z1 holds, but its picture: is it
+// set, its terrain, rise, slant and ceiling, its four edges and its things.
+fn held(w: const tile_world::World, x0: integer, y0: integer, x1: integer, y1: integer, z0: integer, z1: integer) -> vector<integer> {
+  out: vector<integer> = [];
+  for z in z0..=z1 {
+    for y in y0..=y1 {
+      for x in x0..=x1 {
+        out += [if tile_world::is_set(w, x, y, z) { 1 } else { 0 }, tile_world::terrain(w, x, y, z), tile_world::rise(w, x, y, z),
+                tile_world::slant(w, x, y, z), tile_world::ceiling(w, x, y, z)];
+        for side in 0..4 { out += [tile_world::edge(w, x, y, z, side)]; }
+        out += [len(tile_world::things(w, x, y, z))];
+        for th in tile_world::things(w, x, y, z) { out += [th]; }
+      }
+    }
+  }
+  out
+}
+
+// Every template, in every way it may lie, laid on a floor with a fence along it: applied by the
+// game (`stamp::apply`, its shape listed once) and laid by the library (`tile_world::turned`, then
+// `lay`) write the same world — every cell's terrain, rise, slant and ceiling, every edge, every
+// stack — but for the pictures, which the game tiles again.  (Door beams and figures are the
+// game's own and are not the library's to lay.)
+fn test_every_template_laid_by_the_library_is_the_template_applied() {
+  km = kit();
+  ts = stamp::all("../levels/templates", km.0, km.1);
+  assert(len(ts) >= 50, "the templates load: {len(ts)}");
+  ways = 0;
+  for t in ts {
+    for turn in 0..4 {
+      for mirror in 0..2 {
+        tf = stamp::way_of(t, turn, mirror == 1);
+        if tf.0 != turn || tf.1 != (mirror == 1) { continue; }
+        a = rules::level(km.0);
+        b = rules::level(km.0);
+        for l in [a, b] {
+          for z in -2..3 {
+            tile_world::fill(l.w, 0, 0, 39, 39, z, rules::tr(l, "floor"));
+            for x in 0..40 { tile_world::set_edge(l.w, x, 12, z, tile_world::NORTH, 1); }
+            tile_world::place(l.w, 11, 11, z, 1);
+          }
+        }
+        stamp::apply(a, t, 10, 10, 0, turn, mirror == 1, km.1);
+        tile_world::lay(b.w, tile_world::turned(t.level.w, turn, mirror == 1), 10, 10, 0);
+        assert(held(a.w, 0, 0, 39, 39, -2, 2) == held(b.w, 0, 0, 39, 39, -2, 2),
+               "{t.name} turned {turn}{if mirror == 1 { " mirrored" } else { "" }}: laid by the library as applied");
+        ways += 1;
+      }
+    }
+  }
+  assert(ways >= 200, "every way every template may lie: {ways}");
+}
+
