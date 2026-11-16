@@ -660,6 +660,17 @@ it."  Not started; it waits for the puzzles and the owner's testing of them.
   way, in the time that speed gives; slower water is waded.  A water slide is a channel steep
   enough that its water is that fast all the way down.
 
+- **Even a pond keeps a little speed** (owner, 2026-11-16): "It would be marvelous if even ponds
+  have a tiny bit of speed left so when we model a wooden beam inside a stream it still ends up
+  down river of a pond eventually."
+  - ◇ So standing water is never quite still where it has a way out: every cell of a pond that
+    spills gets the least speed there is, and for its way the next cell on the shortest way
+    through the pond to where it spills (worked out from the spill point back, when the scene
+    changes).  A beam let go upstream comes down the stream, crosses the pond slowly and goes
+    on below it.  A pond with no way out is still.
+  - ◇ The game has the slow end of this already: a raft pushed off drifts a cell every
+    `DRIFT_MS` (`rules.loft`).  The least speed of a pond would be that drift, with a way.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 
