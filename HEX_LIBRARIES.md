@@ -6,7 +6,7 @@ SPDX-License-Identifier: LGPL-3.0-or-later
 # The hex work, into the hex libraries
 
 **Status** — open.  Phases 1 to 6 are the merge the round and eight-sided structures wait on.  Phases 0 and 9 are done (the game uses the library's routines where it had
-exact copies; the view keeps its heights); phase 2 is in the library's work branch.
+exact copies; the view keeps its heights); phases 1 and 2 are done.
 
 **Goal.**  The game grew a hex way of working on top of the hex libraries (`hexwalls.loft`,
 `hexturn.loft`, `hexhouse.loft`, `hexterrain.loft`), and on the way it solved what the libraries
@@ -96,13 +96,13 @@ Effort: XS a sitting's part, S a sitting, M several, L many.
 tables in `hexscene.loft` and `render3d.loft` are `hex_field::corner_k` / `corner_m`.
 *Compared:* `orbury.hex.json` regenerated, identical; the suite and the checks.
 
-### 1. What the game fetches (XS)
+### 1. What the game fetches — done
 
 `hex_edge` is needed by `hex_way` and is not in `fetch-libs.sh`; it resolves today from the
-registry's cache on this machine.  Add it, and `hex_place` when phase 6 first uses it.
+registry's cache on this machine.  Added; `hex_place` follows when phase 6 first uses it.
 *Goes red:* a build with an empty registry cache.
 
-### 2. Small additions the game already has copies of (S)
+### 2. Small additions the game already has copies of — done (loft-libs-world#48)
 
 | Library | Addition | Replaces in the game |
 |---|---|---|
@@ -113,6 +113,13 @@ registry's cache on this machine.  Add it, and `hex_place` when phase 6 first us
 *Compared:* in the library, the new miter against `surface_miter` on every side pair of a box at
 its 12 orientations; the new trace's corners against `trace`'s.  Here, as step 3 above.
 *Rules that move:* HW-Loops, HX-Edge (the boundary), HW-Miter.
+
+As landed: `hex_field::trace_edges` (0.1.8), `hex_form::vec_dot_4` and `sign_root3` (0.1.8),
+`hex_draw::surface_meet` and `surface_dir` (0.1.5).  **`orbury.hex.json` changed, in numbering
+only:** `trace_edges` starts a loop at `trace`'s canonical corner where the game's walk started at
+the first edge it met, so in 13 of the 21 houses wall 0 is another of the same walls.  Every
+corner, opening, eaves and rim is the same number to the bit (compared as rotations of each
+house's walls); the ground, the roads' sides, the cliffs and the fences are byte for byte the same.
 
 ### 3. A plan of rectangles, filled exactly (S)
 

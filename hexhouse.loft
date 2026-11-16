@@ -75,23 +75,13 @@ pub fn l_plan(w: integer, d: integer, wing_w: integer, wing_d: integer) -> vecto
 // heading, 3 on an odd one), is an integer for a lattice point, and a plan line `n` half steps out
 // is 12n on an even heading and 12n·√3 on an odd one.  The house's two axes are never of one
 // kind: the heading three steps on has the other parity.  A value a + b·√3 is the pair (a, b);
-// its sign is exact.
-
-/// The sign of a + b·√3: -1, 0 or 1.  √3 is irrational, so it is 0 only when both are.
-pub fn sign3(a: integer, b: integer) -> integer {
-  sa = if a > 0 { 1 } else if a < 0 { -1 } else { 0 };
-  sb = if b > 0 { 1 } else if b < 0 { -1 } else { 0 };
-  if sa == sb { return sa; }
-  if sa == 0 { return sb; }
-  if sb == 0 { return sa; }
-  if a * a > 3 * b * b { sa } else { sb }
-}
+// its sign is exact (`hex_form::sign_root3`).
 
 /// Is coordinate `p`, along heading `head` and scaled, between plan lines `lo` and `hi`
 /// (inclusive)?
 fn within(head: integer, p: integer, lo: integer, hi: integer) -> boolean {
   if head % 2 == 0 { return p >= 12 * lo && p <= 12 * hi; }
-  sign3(p, -12 * lo) >= 0 && sign3(p, -12 * hi) <= 0
+  hex_form::sign_root3(p, -12 * lo) >= 0 && hex_form::sign_root3(p, -12 * hi) <= 0
 }
 
 /// Mark the house's cells in `cells`: those whose centre lies in a part of the plan.
@@ -106,9 +96,9 @@ pub fn fill(h: const HexHouse, cells: hex_field::HexSet) -> integer {
     for fq in hex_field::hexset_q0(cells)..hex_field::hexset_q0(cells) + hex_field::hexset_w(cells) {
       pk = 2 * (hex_field::lattice_k(fq, fr) - ck);
       pm = 2 * (hex_field::lattice_m(fq, fr) - cm);
-      u = hexwalls::dot4(pk, pm, uk, um);
+      u = hex_form::vec_dot_4(pk, pm, uk, um);
       if h.mirror { u = -u; }
-      v = hexwalls::dot4(pk, pm, vk, vm);
+      v = hex_form::vec_dot_4(pk, pm, vk, vm);
       inside = false;
       for p in h.parts {
         if within(h.turn, u, p.u0, p.u1) && within(h.turn + 3, v, p.v0, p.v1) { inside = true; }

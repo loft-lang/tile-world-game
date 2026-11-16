@@ -361,7 +361,7 @@ pub fn place(d: Data, kind: integer, x: float, y: float, hint: integer = -1,
   best_hi = 0.0;
   for i in 0..n {
     w = b.walls[i];
-    (dx, dy) = hexwalls::wall_dir(w);
+    (dx, dy) = hex_draw::surface_dir(w);
     mx = hex_draw::surface_mean_x(w);
     my = hex_draw::surface_mean_y(w);
     (ax, ay) = b.corners[(i + n - 1) % n ?? 0] ?? (0.0, 0.0);
@@ -390,7 +390,7 @@ pub fn place(d: Data, kind: integer, x: float, y: float, hint: integer = -1,
   if best_lo + clear > best_hi - clear { t = (best_lo + best_hi) * 0.5; }
   else { t = min_f(max_f(t, best_lo + clear), best_hi - clear); }
   w = b.walls[best];
-  (dx, dy) = hexwalls::wall_dir(w);
+  (dx, dy) = hex_draw::surface_dir(w);
   mx = hex_draw::surface_mean_x(w);
   my = hex_draw::surface_mean_y(w);
   picks: vector<integer> = [];

@@ -103,7 +103,7 @@ fn test_a_band_stepping_over_a_row_keeps_its_steps() {
   for i in 0..n {
     (ak, am) = hex_form::head_step(hex_draw::surface_heading(o.walls[i]));
     (bk, bm) = hex_form::head_step(hex_draw::surface_heading(o.walls[(i + 1) % n ?? 0]!));
-    assert(hexwalls::dot4(ak, am, bk, bm) == 0, "every corner square, wall {i}");
+    assert(hex_form::vec_dot_4(ak, am, bk, bm) == 0, "every corner square, wall {i}");
   }
   (wrong, near) = clearance(band, os);
   assert(wrong == 0 && near >= HALF_BAND - 0.000001, "every centre clear of the band's walls: {wrong} wrong, {near}");

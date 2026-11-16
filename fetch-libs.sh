@@ -16,6 +16,7 @@ hex_form           loft-libs-world      main
 hex_shape          loft-libs-world      main
 hex_draw           loft-libs-world      main
 hex_way            loft-libs-world      main
+hex_edge           loft-libs-world      main
 hex_roof           loft-libs-world      main
 audio              loft-libs-game       main
 input              loft-libs-game       main

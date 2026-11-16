@@ -197,7 +197,7 @@ fn test_every_corner_is_square() {
       for i in 0..n {
         (ak, am) = hex_form::head_step(heading(b.walls[i]));
         (bk, bm) = hex_form::head_step(heading(b.walls[(i + 1) % n ?? 0]!));
-        assert(hexwalls::dot4(ak, am, bk, bm) == 0, "{s.name} at {30 * t}°: wall {i} square to the next");
+        assert(hex_form::vec_dot_4(ak, am, bk, bm) == 0, "{s.name} at {30 * t}°: wall {i} square to the next");
       }
     }
   }
@@ -485,7 +485,7 @@ fn test_an_odd_step_moves_an_opening_little_along_its_wall() {
       (i, _d) = nearest_opening(turned, p.kind, x, y);
       assert(i >= 0, "{o.name}: the opening at ({p.cx}, {p.cy}) kept at 30°");
       q = turned.openings[i];
-      (ux, uy) = hexwalls::wall_dir(turned.walls[q.wall]!);
+      (ux, uy) = hex_draw::surface_dir(turned.walls[q.wall]!);
       // where along the wall it is to go: its turned place, kept clear of the wall's ends
       n = len(turned.corners);
       (ax, ay) = turned.corners[(q.wall + n - 1) % n ?? 0] ?? (0.0, 0.0);
