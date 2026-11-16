@@ -40,6 +40,7 @@ page = """<!doctype html>
   button { font: inherit; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
   button.on { border-color: var(--accent); color: var(--accent); }
   #note { color: var(--muted); font-size: 0.9rem; }
+  #clock { color: var(--accent); font-variant-numeric: tabular-nums; }
   #view { position: absolute; top: 56px; left: 0; right: 0; bottom: 0; }
   @media (max-width: 600px) { #view { top: 110px; } }
 </style>
@@ -49,6 +50,7 @@ page = """<!doctype html>
   <a href="/">← tile_world</a>
   <h1>Hex town</h1>
   <span id="buttons"></span>
+  <span id="clock"></span>
   <span id="note">drag to turn, scroll to zoom, right-drag to move</span>
 </header>
 <div id="view"></div>
@@ -306,18 +308,38 @@ function roof(h, mat) {
 }
 
 const MARBLE = [0xd9453a, 0x3a7bd9, 0xe6b43a, 0x5fae4a, 0x9a5fd0, 0xe07a2f, 0x3fb6b0, 0xd95f9e, 0x8c8c94, 0xf2efe6];
-// Where a marble is at time `ms`: on its way between the two stops round that moment, in a
-// straight line; let go in the air it falls as a thing falls; it rolls with a hop over the ground
-// no higher than a tenth of the way's length.  Before its first stop it is not there yet.
+// A marble's skin: its colour with lighter and darker bands swirled across it, so its rolling shows.
+function marbleSkin(colour) {
+  const c = document.createElement("canvas"); c.width = 128; c.height = 64;
+  const g = c.getContext("2d"), base = new THREE.Color(colour);
+  const shade = k => "#" + base.clone().lerp(new THREE.Color(k > 0 ? 0xffffff : 0x000000), Math.abs(k)).getHexString();
+  g.fillStyle = shade(0); g.fillRect(0, 0, 128, 64);
+  [[0.45, 10, 9], [-0.3, 30, 6], [0.25, 46, 5], [-0.2, 58, 4]].forEach(([k, y, w], n) => {
+    g.strokeStyle = shade(k); g.lineWidth = w; g.beginPath();
+    for (let x = 0; x <= 128; x += 4) g.lineTo(x, y + 7 * Math.sin((x / 128) * Math.PI * 2 * (1 + n % 2) + n));
+    g.stroke();
+  });
+  return new THREE.CanvasTexture(c);
+}
+
+// Where a marble is at time `ms`.  Before its first stop it is not there yet.  Let go in the air
+// it falls as a thing falls, and lands with a hop that dies away.  Between stops it goes along a
+// smooth line through them (Catmull-Rom): a stop it waits at gives the line no speed there, so it
+// eases away from rest and into rest, and a turn of its way is rounded.
 function marbleAt(way, ms) {
   if (!way.length || ms < way[0][0]) return null;
   let i = 0;
   while (i + 1 < way.length && way[i + 1][0] <= ms) i++;
   const a = way[i], b = way[Math.min(i + 1, way.length - 1)];
   const span = b[0] - a[0], f = span > 0 ? Math.min(1, (ms - a[0]) / span) : 1;
+  if (i === 0 && a[1] === b[1] && a[2] === b[2]) return [a[1], a[2], a[3] + (b[3] - a[3]) * f * f];   // the fall
+  const p0 = way[Math.max(i - 1, 1)] || a, p3 = way[Math.min(i + 2, way.length - 1)];
+  const cr = k => { const v0 = p0[k], v1 = a[k], v2 = b[k], v3 = p3[k];
+    return 0.5 * (2 * v1 + (v2 - v0) * f + (2 * v0 - 5 * v1 + 4 * v2 - v3) * f * f + (3 * v1 - v0 - 3 * v2 + v3) * f * f * f); };
   let z = a[3] + (b[3] - a[3]) * f;
-  if (i === 0 && a[1] === b[1] && a[2] === b[2]) z = a[3] + (b[3] - a[3]) * f * f;   // the fall
-  return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, z];
+  const since = ms - way[1][0];                                                                    // the landing's hop
+  if (since >= 0 && since < 500) z += 0.4 * Math.abs(Math.sin(since / 250 * Math.PI)) * (1 - since / 500);
+  return [cr(1), cr(2), z];
 }
 
 function thing(group, t) {
@@ -370,9 +392,9 @@ const scenes = DATA.scenes.map(s => {
   for (const f of s.fences || []) fence(group, s.ground, f);
   // marbles: a stone almost a hex wide each, played back along its way in time
   const balls = (s.marbles || []).map((way, i) => {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.68, 20, 14), new THREE.MeshLambertMaterial({ color: MARBLE[i % MARBLE.length] }));
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.68, 24, 16), new THREE.MeshLambertMaterial({ map: marbleSkin(MARBLE[i % MARBLE.length]) }));
     group.add(b);
-    return { mesh: b, way };
+    return { mesh: b, way, last: null };
   });
   let end = 0;
   for (const b of balls) for (const p of b.way) end = Math.max(end, p[0]);
@@ -389,6 +411,7 @@ let began = performance.now();
 function show(i) {
   current = scenes[i];
   began = performance.now();
+  for (const b of current.balls) b.last = null;
   camera.position.copy(vec("eye") || current.eye); controls.target.copy(vec("at") || current.target); controls.update();
   document.querySelectorAll("#buttons button").forEach((b, j) => b.classList.toggle("on", j === i));
 }
@@ -403,7 +426,7 @@ resize();
 show(Math.min(scenes.length - 1, Math.max(0, +(new URLSearchParams(location.search).get("scene") || 0))));
 // the marbles' time: it runs, waits two seconds at the end and starts again; ?t=MS holds it still
 const held = ask.get("t") === null ? null : +ask.get("t");
-const note = document.getElementById("note"), words = note.textContent;
+const clock = document.getElementById("clock");
 (function loop() {
   requestAnimationFrame(loop);
   if (current.balls.length) {
@@ -412,10 +435,22 @@ const note = document.getElementById("note"), words = note.textContent;
     for (const b of current.balls) {
       const p = marbleAt(b.way, ms);
       b.mesh.visible = !!p;
-      if (p) b.mesh.position.set(p[0], p[2] + 0.68, -p[1]);
+      if (!p) { b.last = null; continue; }
+      // it rolls: turned about the level line across its way, by the way gone over its radius
+      const was = b.last, dx = was ? p[0] - was[0] : 0, dy = was ? p[1] - was[1] : 0, gone = Math.hypot(dx, dy);
+      if (!was || gone > 3) b.mesh.quaternion.identity();
+      else if (gone > 1e-6) b.mesh.rotateOnWorldAxis(new THREE.Vector3(-dy / gone, 0, -dx / gone), gone / 0.68);
+      // held still (?t=MS) it shows the turn it would have by then: the way gone so far
+      if (held !== null && !was) {
+        let far = 0;
+        for (let k = 2; k < b.way.length && b.way[k][0] <= ms; k++) far += Math.hypot(b.way[k][1] - b.way[k - 1][1], b.way[k][2] - b.way[k - 1][2]);
+        b.mesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), far / 0.68);
+      }
+      b.last = p;
+      b.mesh.position.set(p[0], p[2] + 0.68, -p[1]);
     }
-    note.textContent = (Math.min(ms, current.end) / 1000).toFixed(1) + " s of " + (current.end / 1000).toFixed(1) + " · " + words;
-  } else if (note.textContent !== words) note.textContent = words;
+    clock.textContent = (Math.min(ms, current.end) / 1000).toFixed(1) + " s of " + (current.end / 1000).toFixed(1);
+  } else clock.textContent = "";
   renderer.render(current.scene, camera);
 })();
 </script>

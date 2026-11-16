@@ -609,6 +609,15 @@ up?  So marbles get speed and direction and bounce off each other and obstacles/
   - ◇ Seen there: a marble held behind a house is hidden by its roof from most sides; the
     marbles roll in straight stretches from hex to hex, with no spin and no easing yet.
 
+- **A bigger hill; spin and easing** (owner, 2026-11-16).  The hill is 14 m high and 42 m to its
+  foot, seven houses 14 to 30 m from its top; the ten are let fall 6 to 8 m out, where the slope
+  begins (the crown of a hill this size is too flat to set a marble going).  Three are held by
+  a house, 5 to 10 m up; seven rest 5 to 8 m past the foot; at rest after 12.8 s.  In the page a
+  marble has a banded skin and rolls — turned by the way it goes over its radius — along a
+  smooth line through its stops, so it eases away from rest and into rest and rounds its turns;
+  it lands with a hop that dies away.  All of that is the view's: the rules' stops are as they
+  were.
+
 ◇ Open, for the owner: whether a thing on a rail's cells is only the rail's, others crossing at
 marked crossings; whether loose things cross a house's outer door at all.
 

@@ -19,21 +19,26 @@ pub struct Shown {
   pub hill: marbles::Hill
 }
 
-/// Where the ten are let fall: on the top and round it, three on the same hex.
+/// The hill's height and how far its foot is from its top, in metres.
+pub const HIGH = 14.0;
+pub const FOOT = 42.0;
+
+/// Where the ten are let fall: round the top where the slope begins, 6 to 8 m out (the crown of
+/// a hill this size is too flat to set a marble going), two on the same hex.
 pub fn drops() -> vector<(integer, integer)> {
-  [(0, 0), (0, 0), (1, 0), (-1, 1), (0, -1), (2, 1), (-2, -1), (1, 2), (0, 0), (-1, -2)]
+  [(5, 0), (5, 0), (-5, 0), (2, 4), (-3, 4), (2, -4), (-3, -4), (4, 2), (-4, -2), (0, 5)]
 }
 
-/// A round hill 6 m high, 21 m from its top to its foot, and five houses spaced round its slopes
-/// at 9 to 14 m from the top, each facing down the hill — its long wall across the slope — and
-/// seated on the ground where it stands (a level floor cut into the slope).  Two are an L, the
-/// wing at the back, its corner open uphill.  Trees stand round the foot.
+/// A round hill 14 m high, 42 m from its top to its foot, and seven houses spaced round its
+/// slopes at 14 to 30 m from the top, each facing down the hill — its long wall across the slope
+/// — and seated on the ground where it stands (a level floor cut into the slope).  Three are an
+/// L, the wing at the back, its corner open uphill.  Trees stand round the foot.
 pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
-  hl = marbles::hill(-36, -36, 73, 73);
+  hl = marbles::hill(-52, -52, 105, 105);
   g = hl.ground;
-  hexterrain::hill(g, 0.0, 0.0, 21.0, 6.0);
+  hexterrain::hill(g, 0.0, 0.0, FOOT, HIGH);
   houses: vector<hextown::Placed> = [];
-  spots = [(1, 10.0), (3, 13.0), (6, 9.0), (8, 14.0), (10, 11.0)];
+  spots = [(0, 18.0), (2, 26.0), (3, 14.0), (5, 22.0), (7, 17.0), (9, 30.0), (10, 15.0)];
   for i in 0..len(spots) {
     k = spots[i]!.0;
     a = (k as float) * PI / 6.0;
@@ -59,8 +64,8 @@ pub fn built(sz: hexwalls::Sizes, m: hexterrain::Measures) -> Shown {
   things: vector<hextown::Thing> = [];
   for k in 0..12 {
     a = (k as float + 0.5) * PI / 6.0;
-    x = 34.0 * cos(a);
-    y = 34.0 * sin(a);
+    x = (FOOT + 14.0) * cos(a);
+    y = (FOOT + 14.0) * sin(a);
     (q, r) = hexterrain::cell_near(x, y);
     things += [hextown::Thing { kind: if k % 3 == 0 { "pine" } else if k % 3 == 1 { "oak" } else { "poplar" }, x: x, y: y, z: hex_field::height_get(g.gr_heights, q, r) }];
     hex_field::hexset_set(hl.fixed, q, r, true);

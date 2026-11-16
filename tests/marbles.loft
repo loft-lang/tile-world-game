@@ -10,18 +10,18 @@ use hexwalls;
 use marbles;
 use marblehill;
 
-// The hill of marblehill.loft: five houses spaced round its slopes, seated on the ground, and the
+// The hill of marblehill.loft: seven houses spaced round its slopes, seated on the ground, and the
 // ten let fall one every 400 ms.
 fn played() -> marbles::Hill {
   sh = marblehill::built(hexwalls::default_sizes(), hexterrain::default_measures());
-  assert(len(sh.town.houses) == 5, "five houses");
+  assert(len(sh.town.houses) == 7, "seven houses");
   assert(marblehill::play(sh), "the hill comes to rest");
   sh.hill
 }
 
 fn test_ten_marbles_on_the_hill() {
   hl = played();
-  for line in marbles::picture(hl, 21) { println(line); }
+  for line in marbles::picture(hl, 34) { println(line); }
   held = 0;
   for i in 0..len(hl.marbles) {
     m = hl.marbles[i]!;
@@ -42,14 +42,14 @@ fn test_ten_marbles_on_the_hill() {
     assert(marbles::height(hl, m.q, m.r) <= marbles::height(hl, m.from_q, m.from_r) + 0.000001, "marble {i} not higher than it fell");
     assert(m.rest_at <= hl.now && m.rest_at >= 400 * i + 600, "marble {i} at rest after it landed and by the end: {m.rest_at}");
     c = hexterrain::centre(m.q, m.r);
-    assert((sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0) <= 21.0 + 1.5 * ((marbles::FASTEST / marbles::GROUND) as float) + 1.5, "marble {i} no further than its speed lasts past the foot");
+    assert((sqrt(c.0 * c.0 + c.1 * c.1) ?? 0.0) <= marblehill::FOOT + 1.5 * ((marbles::FASTEST / marbles::GROUND) as float) + 1.5, "marble {i} no further than its speed lasts past the foot");
     if m.went > 0 { rolled += 1; }
   }
   assert(rolled >= 8, "the bounce on landing sets them going: {rolled} rolled");
   assert(held >= 1, "a house holds a marble: {held}");
   // every marble's way, for a view: it begins in the air and ends where the marble rests
   ways = marblehill::ways_json(hl);
-  assert(ways.starts_with("[[[0, 0, 0, 8]") && len(ways) > 2000, "the ways written: {len(ways)} characters");
+  assert(ways.starts_with("[[[0, 7.5, 0, ") && len(ways) > 2000, "the ways written: {len(ways)} characters");
 }
 
 // The same hill, the same marbles: the same end, hex for hex and millisecond for millisecond.
